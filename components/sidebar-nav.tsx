@@ -2,7 +2,9 @@
 
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { identity } from "@/lib/content";
+import { navItems } from "@/lib/nav";
 import { useActiveSection } from "@/lib/use-active-section";
 
 export interface PageSection {
@@ -39,6 +41,20 @@ export function SidebarNav({ sections }: { sections: PageSection[] }) {
     // Name row (~56px) + one row per section (~34px), floor'd at a sane min.
     const panelH = Math.max(96, 56 + sections.length * 34);
 
+    // The bubble now reads as a "you are here" indicator, not a static
+    // logo: on Home it keeps Nate's initial (brand), everywhere else it
+    // shows that page's own initial, tinted with that page's Minecraft
+    // accent color (same palette the Dock and PageHero use), so the two
+    // navs visibly agree on "what page is this."
+    const pathname = usePathname();
+    const currentPage =
+        navItems.find((item) =>
+            item.href === "/" ? pathname === "/" : pathname.startsWith(item.href)
+        ) ?? navItems[0];
+    const isHome = currentPage.href === "/";
+    const bubbleLetter = isHome ? identity.name.charAt(0) : currentPage.label.charAt(0);
+    const bubbleColor = currentPage.color;
+
     // Hover has no equivalent on touch devices, so tapping the ball toggles
     // an "open" state that sticks until you tap outside or hit Escape —
     // without this the menu is unreachable on a phone.
@@ -65,7 +81,13 @@ export function SidebarNav({ sections }: { sections: PageSection[] }) {
     return (
         <div
             ref={rootRef}
-            className="fixed left-1/2 top-5 z-50 -translate-x-1/2"
+            // Mobile: pinned to the top-left corner so it never competes
+            // with the theme toggle (top-right) and — critically — so the
+            // expanded panel below grows rightward from a fixed left edge
+            // instead of outward from a horizontal center, which is what
+            // was pushing it off-screen on narrow viewports. Desktop keeps
+            // the original top-center placement.
+            className="fixed left-5 top-5 z-50 sm:left-1/2 sm:-translate-x-1/2"
             onMouseEnter={() => setHovered(true)}
             onMouseLeave={() => setHovered(false)}
             onFocus={() => setHovered(true)}
@@ -91,7 +113,7 @@ export function SidebarNav({ sections }: { sections: PageSection[] }) {
                 {/* Collapsed: round bubble. Scales/fades OUT from the shared
                     top-center anchor when the menu opens. */}
                 <div
-                    className={`absolute left-1/2 top-0 origin-top -translate-x-1/2 transition-all ${
+                    className={`absolute left-0 top-0 origin-top-left transition-all sm:left-1/2 sm:origin-top sm:-translate-x-1/2 ${
                         open
                             ? "pointer-events-none scale-90 opacity-0"
                             : "scale-100 opacity-100"
@@ -105,10 +127,15 @@ export function SidebarNav({ sections }: { sections: PageSection[] }) {
                         aria-haspopup="menu"
                         tabIndex={open ? -1 : 0}
                         onClick={() => setPinnedOpen((v) => !v)}
-                        style={{ width: BALL, height: BALL }}
-                        className="flex items-center justify-center rounded-full border border-border/60 bg-card/60 font-minecraft text-base font-semibold text-foreground backdrop-blur-md transition-colors hover:border-primary/50"
+                        style={{
+                            width: BALL,
+                            height: BALL,
+                            borderColor: `color-mix(in oklch, ${bubbleColor} 45%, transparent)`,
+                            boxShadow: `0 0 14px color-mix(in oklch, ${bubbleColor} 30%, transparent)`,
+                        }}
+                        className="flex items-center justify-center rounded-full border bg-card/60 font-minecraft text-base font-semibold backdrop-blur-md transition-all duration-300 hover:scale-105"
                     >
-                        {identity.name.charAt(0)}
+                        <span style={{ color: bubbleColor }}>{bubbleLetter}</span>
                     </button>
                 </div>
 
@@ -120,7 +147,7 @@ export function SidebarNav({ sections }: { sections: PageSection[] }) {
                 <div
                     role="menu"
                     aria-hidden={!open}
-                    className={`absolute left-1/2 top-0 origin-top -translate-x-1/2 transition-all ${
+                    className={`absolute left-0 top-0 origin-top-left transition-all sm:left-1/2 sm:origin-top sm:-translate-x-1/2 ${
                         open
                             ? "scale-100 opacity-100"
                             : "pointer-events-none scale-90 opacity-0"
@@ -128,8 +155,12 @@ export function SidebarNav({ sections }: { sections: PageSection[] }) {
                     style={{ transitionTimingFunction: LIQUID_EASE, transitionDuration: "350ms" }}
                 >
                     <nav
-                        className="flex flex-col items-start gap-1 rounded-2xl border border-border/60 bg-card/60 px-3 py-4 backdrop-blur-md"
-                        style={{ width: PANEL_W, height: panelH }}
+                        className="flex flex-col items-start gap-1 rounded-2xl border bg-card/60 px-3 py-4 backdrop-blur-md"
+                        style={{
+                            width: PANEL_W,
+                            height: panelH,
+                            borderColor: `color-mix(in oklch, ${bubbleColor} 35%, transparent)`,
+                        }}
                     >
                         <Link
                             href="/"
@@ -148,9 +179,14 @@ export function SidebarNav({ sections }: { sections: PageSection[] }) {
                                 onClick={() => setPinnedOpen(false)}
                                 className={`w-full whitespace-nowrap rounded-md px-2 py-1.5 text-sm transition-colors ${
                                     active === section.id
-                                        ? "bg-primary/15 text-foreground"
+                                        ? "text-foreground"
                                         : "text-muted-foreground hover:text-foreground"
                                 }`}
+                                style={
+                                    active === section.id
+                                        ? { backgroundColor: `color-mix(in oklch, ${bubbleColor} 15%, transparent)` }
+                                        : undefined
+                                }
                             >
                                 {section.label}
                             </a>

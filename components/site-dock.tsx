@@ -39,23 +39,35 @@ export function SiteDock() {
                                 >
                                     <Icon
                                         className={cn(
-                                            "size-full transition-colors",
-                                            active
-                                                ? "text-primary"
-                                                : "text-muted-foreground group-hover:text-foreground"
+                                            "size-full transition-all duration-300",
+                                            !active && "text-muted-foreground group-hover:text-foreground"
                                         )}
+                                        style={{
+                                            color: active ? item.color : undefined,
+                                            filter: active
+                                                ? `drop-shadow(0 0 6px color-mix(in oklch, ${item.color} 65%, transparent))`
+                                                : undefined,
+                                        }}
                                     />
                                 </Link>
                                 <span
                                     className={cn(
-                                        "pointer-events-none absolute -top-9 left-1/2 -translate-x-1/2 whitespace-nowrap rounded-md border border-border/60 bg-popover px-2 py-1 font-mono text-xs text-popover-foreground opacity-0 shadow-sm transition-opacity",
-                                        "group-hover:opacity-100"
+                                        "pointer-events-none absolute -top-9 left-1/2 -translate-x-1/2 whitespace-nowrap rounded-md border border-border/60 bg-popover px-2 py-1 font-mono text-xs opacity-0 shadow-sm transition-opacity",
+                                        "group-hover:opacity-100",
+                                        !active && "text-popover-foreground"
                                     )}
+                                    style={active ? { color: item.color } : undefined}
                                 >
                                     {item.label}
                                 </span>
                                 {active && (
-                                    <span className="absolute -bottom-1.5 left-1/2 size-1 -translate-x-1/2 rounded-full bg-primary" />
+                                    <span
+                                        className="absolute -bottom-1.5 left-1/2 size-1 -translate-x-1/2 rounded-full"
+                                        style={{
+                                            backgroundColor: item.color,
+                                            boxShadow: `0 0 6px ${item.color}`,
+                                        }}
+                                    />
                                 )}
                             </DockIcon>
                         );

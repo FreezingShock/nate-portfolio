@@ -63,7 +63,7 @@ export default async function Home() {
                         {/* Domain first — reads like a browser/terminal chip,
                             establishes "this is a real site with a real URL"
                             before the name even renders. */}
-                        <div className="inline-flex items-center gap-2 rounded-full border border-border/60 bg-background/40 px-4 py-1.5 font-mono text-xs text-muted-foreground sm:text-sm">
+                        <div className="inline-flex items-center gap-2 rounded-full border border-border/60 bg-background/40 px-3.5 py-1 font-mono text-xs leading-none text-muted-foreground sm:text-sm">
                             <span className="relative flex size-1.5">
                                 <span className="absolute inline-flex size-full animate-ping rounded-full bg-primary opacity-75" />
                                 <span className="relative inline-flex size-1.5 rounded-full bg-primary" />
@@ -91,7 +91,7 @@ export default async function Home() {
                             <HeroLastName />
                         </div>
 
-                        <div className="mt-6 inline-flex items-center rounded-full border border-primary/30 bg-primary/5 px-4 py-1.5">
+                        <div className="mt-6 inline-flex items-center rounded-full border border-primary/30 bg-primary/5 px-3.5 py-1">
                             <AnimatedGradientText
                                 speed={1.2}
                                 colorFrom="var(--primary)"

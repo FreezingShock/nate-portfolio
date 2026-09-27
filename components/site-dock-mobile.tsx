@@ -28,16 +28,20 @@ export function SiteDockMobile() {
                             className="flex flex-1 flex-col items-center gap-0.5 py-2"
                         >
                             <Icon
-                                className={cn(
-                                    "size-5",
-                                    active ? "text-primary" : "text-muted-foreground"
-                                )}
+                                className={cn("size-5 transition-colors", !active && "text-muted-foreground")}
+                                style={{
+                                    color: active ? item.color : undefined,
+                                    filter: active
+                                        ? `drop-shadow(0 0 4px color-mix(in oklch, ${item.color} 60%, transparent))`
+                                        : undefined,
+                                }}
                             />
                             <span
                                 className={cn(
-                                    "truncate px-0.5 font-mono text-[9px] leading-none",
-                                    active ? "text-primary" : "text-muted-foreground"
+                                    "truncate px-0.5 font-mono text-[9px] leading-none transition-colors",
+                                    !active && "text-muted-foreground"
                                 )}
+                                style={{ color: active ? item.color : undefined }}
                             >
                                 {item.label}
                             </span>
