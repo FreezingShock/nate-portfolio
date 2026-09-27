@@ -12,8 +12,8 @@ export default async function Home() {
     return (
         <div className="min-h-screen">
             {/* Hero */}
-            <section className="mx-auto max-w-4xl px-6 pt-28 pb-20">
-                <div className="rounded-2xl border border-border/50 bg-card/40 p-8 backdrop-blur-xl">
+            <section className="w-full px-6 pt-28 pb-20 sm:px-10 lg:px-16">
+                <div className="max-w-2xl rounded-2xl border border-border/50 bg-card/40 p-8 backdrop-blur-xl">
                     <p className="text-sm uppercase tracking-[0.2em] text-primary">
                         Portfolio
                     </p>
@@ -27,11 +27,11 @@ export default async function Home() {
             </section>
 
             {/* Projects */}
-            <section id="projects" className="mx-auto max-w-4xl px-6 pb-20 pt-8 scroll-mt-24">
+            <section id="projects" className="w-full px-6 pb-20 pt-8 scroll-mt-24 sm:px-10 lg:px-16">
                 <h2 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">
                     Projects
                 </h2>
-                <div className="mt-6 grid grid-cols-1 gap-6 sm:grid-cols-2">
+                <div className="mt-6 grid grid-cols-1 gap-6 sm:grid-cols-2 xl:grid-cols-3">
                     {projects.map((project) => (
                         <ProjectCard key={project.slug} project={project} />
                     ))}
@@ -39,7 +39,7 @@ export default async function Home() {
             </section>
 
             {/* Recent Renovations */}
-            <section id="renovations" className="mx-auto max-w-4xl px-6 pb-24 pt-8 scroll-mt-24">
+            <section id="renovations" className="w-full px-6 pb-24 pt-8 scroll-mt-24 sm:px-10 lg:px-16">
                 <h2 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">
                     Recent Renovations
                 </h2>
@@ -47,7 +47,7 @@ export default async function Home() {
                     Studying and reimagining real places — measured, modeled, and
                     redesigned to be greener and more inviting.
                 </p>
-                <div className="mt-6 grid grid-cols-1 gap-6 sm:grid-cols-2">
+                <div className="mt-6 grid grid-cols-1 gap-6 sm:grid-cols-2 xl:grid-cols-3">
                     {recentRenovations.map((project) => (
                         <ProjectCard key={project.slug} project={project} />
                     ))}
@@ -55,11 +55,9 @@ export default async function Home() {
             </section>
 
             {/* Footer */}
-            <footer className="py-10">
-                <div className="mx-auto max-w-4xl px-6">
-                    <div className="rounded-xl border border-border/50 bg-card/40 px-4 py-3 text-sm text-muted-foreground backdrop-blur-xl">
-                        © {new Date().getFullYear()} {identity.name}
-                    </div>
+            <footer className="w-full px-6 py-10 sm:px-10 lg:px-16">
+                <div className="max-w-2xl rounded-xl border border-border/50 bg-card/40 px-4 py-3 text-sm text-muted-foreground backdrop-blur-xl">
+                    © {new Date().getFullYear()} {identity.name}
                 </div>
             </footer>
         </div>

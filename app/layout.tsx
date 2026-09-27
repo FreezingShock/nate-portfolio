@@ -3,6 +3,7 @@ import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { ThemeProvider } from "@/components/theme-provider";
 import { SidebarNav } from "@/components/sidebar-nav";
+import { ThemeToggle } from "@/components/theme-toggle";
 
 const geistSans = Geist({
     variable: "--font-geist-sans",
@@ -79,6 +80,12 @@ export default function RootLayout({
                         }}
                     />
                     <SidebarNav />
+                    <div
+                        className="fixed right-5 top-5 z-50 flex items-center justify-center rounded-full border border-border/50 bg-card/40 backdrop-blur-xl"
+                        style={{ width: 40, height: 40 }}
+                    >
+                        <ThemeToggle />
+                    </div>
                     {children}
                 </ThemeProvider>
             </body>

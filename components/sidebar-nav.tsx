@@ -4,7 +4,6 @@ import { useEffect, useRef, useState } from "react";
 import LiquidGlass from "liquid-glass-react";
 import Link from "next/link";
 import { identity } from "@/lib/content";
-import { ThemeToggle } from "@/components/theme-toggle";
 import { useActiveSection } from "@/lib/use-active-section";
 
 const navLinks = [
@@ -68,48 +67,60 @@ export function SidebarNav() {
                 }
             }}
         >
-            <div className="relative" style={{ width: BALL, height: BALL }}>
-                {/* Collapsed: round bubble, stays put and stays visible —
-                    this is the persistent hover/tap zone. */}
+            {/* Both states share one anchor point (top-center of this box)
+                so the panel visually grows out of the bubble in place —
+                never down-and-to-the-side — and only one of the two is
+                ever interactive/visible at a time. */}
+            <div className="relative" style={{ width: PANEL_W, height: PANEL_H }}>
+                {/* Collapsed: round bubble. Scales/fades OUT from the shared
+                    top-center anchor when the menu opens. */}
                 <div
-                    className="glass-anchor"
-                    style={{ width: BALL, height: BALL }}
+                    className={`absolute left-1/2 top-0 origin-top -translate-x-1/2 transition-all duration-300 ease-out ${
+                        open
+                            ? "pointer-events-none scale-75 opacity-0"
+                            : "scale-100 opacity-100"
+                    }`}
                 >
-                    <LiquidGlass
-                        blurAmount={0.08}
-                        saturation={140}
-                        aberrationIntensity={0.4}
-                        elasticity={0.2}
-                        cornerRadius={999}
-                        padding="0"
+                    <div
+                        className="glass-anchor"
                         style={{ width: BALL, height: BALL }}
-                        className="!block"
                     >
-                        <button
-                            type="button"
-                            aria-label={open ? "Close navigation" : "Open navigation"}
-                            aria-expanded={open}
-                            aria-haspopup="menu"
-                            onClick={() => setPinnedOpen((v) => !v)}
+                        <LiquidGlass
+                            blurAmount={0.08}
+                            saturation={140}
+                            aberrationIntensity={0.4}
+                            elasticity={0.2}
+                            cornerRadius={999}
+                            padding="0"
                             style={{ width: BALL, height: BALL }}
-                            className="flex items-center justify-center text-base font-semibold leading-none text-foreground"
+                            className="!block"
                         >
-                            {identity.name.charAt(0)}
-                        </button>
-                    </LiquidGlass>
+                            <button
+                                type="button"
+                                aria-label={open ? "Close navigation" : "Open navigation"}
+                                aria-expanded={open}
+                                aria-haspopup="menu"
+                                tabIndex={open ? -1 : 0}
+                                onClick={() => setPinnedOpen((v) => !v)}
+                                style={{ width: BALL, height: BALL }}
+                                className="flex items-center justify-center text-base font-semibold leading-none text-foreground"
+                            >
+                                {identity.name.charAt(0)}
+                            </button>
+                        </LiquidGlass>
+                    </div>
                 </div>
 
-                {/* Expanded: drops down and to the left from the bubble.
-                    Anchored to the same wrapper, so entering the menu never
-                    leaves the hover zone — the whole thing (bubble + menu)
-                    is one hit region while expanded. */}
+                {/* Expanded: menu panel. Scales/fades IN from the same
+                    shared top-center anchor — grows out of where the
+                    bubble was, instead of dropping down-and-left. */}
                 <div
                     role="menu"
                     aria-hidden={!open}
-                    className={`absolute right-0 top-full mt-3 origin-top-right transition-all duration-300 ease-out ${
+                    className={`absolute left-1/2 top-0 origin-top -translate-x-1/2 transition-all duration-300 ease-out ${
                         open
                             ? "scale-100 opacity-100"
-                            : "pointer-events-none scale-95 opacity-0"
+                            : "pointer-events-none scale-75 opacity-0"
                     }`}
                 >
                     <div
@@ -151,9 +162,6 @@ export function SidebarNav() {
                                         {link.label}
                                     </a>
                                 ))}
-                                <div className="w-full px-2 pt-1">
-                                    <ThemeToggle />
-                                </div>
                             </nav>
                         </LiquidGlass>
                     </div>
