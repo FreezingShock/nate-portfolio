@@ -60,7 +60,7 @@ export function SidebarNav({ sections }: { sections: PageSection[] }) {
     // Title row (~44px) + name label row (~26px) + one row per section
     // (~34px) + one row per nested item (~28px), floor'd at a sane min.
     const itemRowCount = allSections.reduce((n, s) => n + (s.items?.length ?? 0), 0);
-    const panelH = Math.max(120, 70 + allSections.length * 34 + itemRowCount * 28);
+    const panelH = Math.max(140, 90 + allSections.length * 34 + itemRowCount * 28);
 
     // The bubble is a "you are here" indicator: it shows the current page's
     // initial collapsed, and the FULL page title once expanded, tinted with
@@ -171,7 +171,7 @@ export function SidebarNav({ sections }: { sections: PageSection[] }) {
                             animate={{ opacity: 1 }}
                             exit={{ opacity: 0 }}
                             transition={{ duration: 0.18, delay: open ? 0.1 : 0 }}
-                            className="absolute inset-0 flex flex-col items-start gap-1 overflow-y-auto px-3 py-3"
+                            className="absolute inset-0 flex flex-col items-start gap-1 overflow-y-auto px-3 pb-4 pt-3"
                         >
                             {/* The title itself is the "go to this page's
                                 root" link — from a project detail page under
@@ -190,19 +190,6 @@ export function SidebarNav({ sections }: { sections: PageSection[] }) {
                                     {currentPage.title}
                                 </span>
                             </Link>
-                            {/* Redundant on Home itself (the title above
-                                already reads "Nate Anderson") — only shown
-                                on other pages, as a quick way back. */}
-                            {currentPage.href !== "/" && (
-                                <Link
-                                    href="/"
-                                    tabIndex={0}
-                                    onClick={closeAndNavigate}
-                                    className="px-2 pb-1.5 font-mono text-[11px] uppercase tracking-[0.15em] text-muted-foreground transition-colors hover:text-foreground"
-                                >
-                                    nateanderson.dev
-                                </Link>
-                            )}
                             {allSections.map((section) => (
                                 <div key={section.id} className="w-full">
                                     <a
@@ -256,6 +243,14 @@ export function SidebarNav({ sections }: { sections: PageSection[] }) {
                                     )}
                                 </div>
                             ))}
+                            <Link
+                                href="/"
+                                tabIndex={0}
+                                onClick={closeAndNavigate}
+                                className="mt-3 w-full px-2 text-right font-mono text-[11px] uppercase tracking-[0.15em] text-muted-foreground underline underline-offset-2 transition-colors hover:text-foreground"
+                            >
+                                nateanderson.dev
+                            </Link>
                         </motion.nav>
                     )}
                 </AnimatePresence>
