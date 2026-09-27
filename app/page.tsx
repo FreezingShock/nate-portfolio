@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { ArrowRight, FolderKanban } from "lucide-react";
 import { identity, getProjects, getRecentRenovations } from "@/lib/content";
-import { Marquee } from "@/components/ui/marquee";
+import { IdentityMarquee } from "@/components/identity-marquee";
 import { AnimatedGradientText } from "@/components/ui/animated-gradient-text";
 import { HeroName } from "@/components/hero-name";
 import { GlyphMatrix } from "@/components/ui/glyph-matrix";
@@ -104,27 +104,10 @@ export default async function Home() {
                 </div>
             </section>
 
-            {/* Stack marquee */}
-            {stack.length > 0 && (
-                <section
-                    id="stack"
-                    aria-label="Tools and skills"
-                    className="relative w-full overflow-hidden py-12 scroll-mt-24"
-                >
-                    <Marquee pauseOnHover className="[--duration:32s]">
-                        {stack.map((tag) => (
-                            <span
-                                key={tag}
-                                className="rounded-full border border-border/50 bg-card/40 px-4 py-1.5 text-sm text-muted-foreground backdrop-blur-xl"
-                            >
-                                {tag}
-                            </span>
-                        ))}
-                    </Marquee>
-                    <div className="pointer-events-none absolute inset-y-0 left-0 w-16 bg-linear-to-r from-background to-transparent sm:w-32" />
-                    <div className="pointer-events-none absolute inset-y-0 right-0 w-16 bg-linear-to-l from-background to-transparent sm:w-32" />
-                </section>
-            )}
+            {/* Identity + stack — scroll-velocity driven, not a plain marquee */}
+            <section id="stack" aria-label="Who I am and what I build with" className="scroll-mt-24">
+                <IdentityMarquee stack={stack} />
+            </section>
 
             {/* Selected Work preview */}
             {featured.length > 0 && (
