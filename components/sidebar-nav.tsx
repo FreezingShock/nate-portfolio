@@ -6,14 +6,13 @@ import Link from "next/link";
 import { identity } from "@/lib/content";
 import { useActiveSection } from "@/lib/use-active-section";
 
-const navLinks = [
-    { href: "#projects", label: "Projects", id: "projects" },
-    { href: "#renovations", label: "Renovations", id: "renovations" },
-];
+export interface PageSection {
+    id: string;
+    label: string;
+}
 
 const BALL = 48;
 const PANEL_W = 176;
-const PANEL_H = 168;
 const HOVER_MARGIN = 14;
 // A "liquidy" overshoot ease — settles past 100% then eases back, instead
 // of a flat linear-ish ease-out. Used for both directions (collapse and
@@ -36,12 +35,19 @@ const LIQUID_EASE = "cubic-bezier(0.34, 1.56, 0.64, 1)";
 // The actual glass-rendering offset bug is fixed via `.glass-anchor` alone
 // now — do NOT add a translate() here, it was tried and it breaks the
 // glass-highlight rendering (see that comment).
-export function SidebarNav() {
+//
+// This is the in-PAGE header navigator (jumps between anchors on whichever
+// page renders it) — distinct from <SiteDock />, which moves between pages.
+// Each page passes its own `sections`; a page with nothing to jump to just
+// doesn't render this component at all.
+export function SidebarNav({ sections }: { sections: PageSection[] }) {
     const [hovered, setHovered] = useState(false);
     const [pinnedOpen, setPinnedOpen] = useState(false);
     const rootRef = useRef<HTMLDivElement>(null);
-    const active = useActiveSection(navLinks.map((l) => l.id));
+    const active = useActiveSection(sections.map((s) => s.id));
     const open = hovered || pinnedOpen;
+    // Name row (~56px) + one row per section (~34px), floor'd at a sane min.
+    const panelH = Math.max(96, 56 + sections.length * 34);
 
     // Hover has no equivalent on touch devices, so tapping the ball toggles
     // an "open" state that sticks until you tap outside or hit Escape —
@@ -89,7 +95,7 @@ export function SidebarNav() {
                 className="relative"
                 style={{
                     width: (open ? PANEL_W : BALL) + HOVER_MARGIN * 2,
-                    height: (open ? PANEL_H : BALL) + HOVER_MARGIN * 2,
+                    height: (open ? panelH : BALL) + HOVER_MARGIN * 2,
                 }}
             >
                 {/* Collapsed: round bubble. Scales/fades OUT from the shared
@@ -147,7 +153,7 @@ export function SidebarNav() {
                 >
                     <div
                         className="glass-anchor"
-                        style={{ width: PANEL_W, height: PANEL_H }}
+                        style={{ width: PANEL_W, height: panelH }}
                     >
                         <LiquidGlass
                             blurAmount={0.08}
@@ -156,7 +162,7 @@ export function SidebarNav() {
                             elasticity={0.2}
                             cornerRadius={20}
                             padding="0"
-                            style={{ width: PANEL_W, height: PANEL_H }}
+                            style={{ width: PANEL_W, height: panelH }}
                             className="!block"
                         >
                             {/* Explicit pixel size, NOT w-full/h-full: liquid-glass-react
@@ -167,7 +173,7 @@ export function SidebarNav() {
                                 the two agree immediately. */}
                             <nav
                                 className="flex flex-col items-start gap-1 px-3 py-4"
-                                style={{ width: PANEL_W, height: PANEL_H }}
+                                style={{ width: PANEL_W, height: panelH }}
                             >
                                 <Link
                                     href="/"
@@ -177,20 +183,20 @@ export function SidebarNav() {
                                 >
                                     {identity.name}
                                 </Link>
-                                {navLinks.map((link) => (
+                                {sections.map((section) => (
                                     <a
-                                        key={link.href}
-                                        href={link.href}
+                                        key={section.id}
+                                        href={`#${section.id}`}
                                         role="menuitem"
                                         tabIndex={open ? 0 : -1}
                                         onClick={() => setPinnedOpen(false)}
                                         className={`w-full whitespace-nowrap rounded-md px-2 py-1.5 text-sm transition-colors ${
-                                            active === link.id
+                                            active === section.id
                                                 ? "bg-primary/15 text-foreground"
                                                 : "text-muted-foreground hover:text-foreground"
                                         }`}
                                     >
-                                        {link.label}
+                                        {section.label}
                                     </a>
                                 ))}
                             </nav>

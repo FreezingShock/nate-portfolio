@@ -2,7 +2,8 @@ import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { ThemeProvider } from "@/components/theme-provider";
-import { SidebarNav } from "@/components/sidebar-nav";
+import { SiteDock } from "@/components/site-dock";
+import { SiteBackground } from "@/components/site-background";
 import { ThemeToggle } from "@/components/theme-toggle";
 
 const geistSans = Geist({
@@ -55,38 +56,17 @@ export default function RootLayout({
                     enableSystem
                     disableTransitionOnChange
                 >
-                    {/* Background photo + overlay — also gives the glass nav
-                        something real to refract. */}
-                    <div
-                        aria-hidden
-                        className="pointer-events-none fixed inset-0 -z-10 bg-cover bg-center bg-no-repeat"
-                        style={{
-                            backgroundImage:
-                                "url('https://images.unsplash.com/photo-1757265500145-c68e8f5aee12?q=65&w=1920&auto=format&fit=crop')",
-                        }}
-                    />
-                    {/* Plain opacity on a solid background-color, not
-                        color-mix(...,transparent) — that resolved to a fully
-                        OPAQUE color in testing (no alpha channel at all),
-                        hiding the photo underneath completely. opacity on a
-                        solid color is the reliable way to get a translucent
-                        overlay across browsers. */}
-                    <div
-                        aria-hidden
-                        className="pointer-events-none fixed inset-0 -z-10"
-                        style={{
-                            backgroundColor: "var(--background)",
-                            opacity: 0.78,
-                        }}
-                    />
-                    <SidebarNav />
+                    <SiteBackground />
                     <div
                         className="fixed right-5 top-5 z-50 flex items-center justify-center rounded-full border border-border/50 bg-card/40 backdrop-blur-xl"
                         style={{ width: 40, height: 40 }}
                     >
                         <ThemeToggle />
                     </div>
-                    {children}
+                    {/* Bottom padding so page content never sits under the
+                        fixed Dock. */}
+                    <div className="pb-24">{children}</div>
+                    <SiteDock />
                 </ThemeProvider>
             </body>
         </html>
