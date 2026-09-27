@@ -9,6 +9,7 @@ import { ShineBorder } from "@/components/ui/shine-border";
 import { ShimmerButton } from "@/components/ui/shimmer-button";
 import { BentoGrid, BentoCard } from "@/components/ui/bento-grid";
 import { MagicCard } from "@/components/ui/magic-card";
+import { SectionLabel } from "@/components/section-label";
 import { SidebarNav } from "@/components/sidebar-nav";
 
 export const revalidate = 60; // re-check Supabase for new content every 60s
@@ -117,9 +118,7 @@ export default async function Home() {
                 >
                     <div className="mx-auto max-w-6xl">
                         <div className="flex items-center justify-between gap-4">
-                            <h2 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">
-                                Selected Work
-                            </h2>
+                            <SectionLabel>Selected Work</SectionLabel>
                             <Link
                                 href="/projects"
                                 className="flex items-center gap-1 text-sm text-primary hover:underline"

@@ -1,18 +1,16 @@
 import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
+import { Roboto_Mono } from "next/font/google";
 import "./globals.css";
 import { ThemeProvider } from "@/components/theme-provider";
 import { SiteDock } from "@/components/site-dock";
 import { SiteBackground } from "@/components/site-background";
 import { ThemeToggle } from "@/components/theme-toggle";
 
-const geistSans = Geist({
-    variable: "--font-geist-sans",
-    subsets: ["latin"],
-});
-
-const geistMono = Geist_Mono({
-    variable: "--font-geist-mono",
+// Roboto Mono for everything except the Minecraft-font signature headers —
+// a monospace body/UI face reads as engineered/technical (monkeytype-style)
+// rather than a default AI-template sans, and it's what Nate asked for.
+const robotoMono = Roboto_Mono({
+    variable: "--font-roboto-mono",
     subsets: ["latin"],
 });
 
@@ -47,9 +45,7 @@ export default function RootLayout({
 }>) {
     return (
         <html lang="en" suppressHydrationWarning>
-            <body
-                className={`${geistSans.variable} ${geistMono.variable} antialiased`}
-            >
+            <body className={`${robotoMono.variable} antialiased`}>
                 <ThemeProvider
                     attribute="class"
                     defaultTheme="dark"
