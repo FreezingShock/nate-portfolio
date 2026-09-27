@@ -153,7 +153,9 @@ export default async function Home() {
                 >
                     <div className="mx-auto max-w-6xl">
                         <div className="flex items-center justify-between gap-4">
-                            <SectionLabel>Selected Work</SectionLabel>
+                            <SectionLabel accent="var(--mc-gold)" icon={FolderKanban}>
+                                Selected Work
+                            </SectionLabel>
                             <Link
                                 href="/creations#projects"
                                 className="flex items-center gap-1 text-sm text-primary hover:underline"
@@ -161,6 +163,21 @@ export default async function Home() {
                                 View all <ArrowRight className="size-3.5" />
                             </Link>
                         </div>
+                        <p className="mt-3 max-w-2xl text-sm text-muted-foreground sm:text-base">
+                            A look at{" "}
+                            <span className="font-minecraft" style={{ color: "var(--mc-aqua)" }}>
+                                solo-built games
+                            </span>
+                            ,{" "}
+                            <span className="font-minecraft" style={{ color: "var(--mc-gold)" }}>
+                                real renovation studies
+                            </span>
+                            , and the{" "}
+                            <span className="font-minecraft" style={{ color: "var(--mc-light-purple)" }}>
+                                systems thinking
+                            </span>{" "}
+                            that connects them — the work that best shows how I build.
+                        </p>
                         <BentoGrid className="mt-6 grid-cols-1 sm:grid-cols-3">
                             {featured.map((project) => (
                                 <MagicCard
@@ -176,7 +193,7 @@ export default async function Home() {
                                         className="h-full !bg-transparent [box-shadow:none] dark:[box-shadow:none]"
                                         Icon={FolderKanban}
                                         description={project.description}
-                                        href="/creations#projects"
+                                        href={`/creations/${project.slug}`}
                                         cta="Learn more"
                                         background={<div className="absolute inset-0" />}
                                     />

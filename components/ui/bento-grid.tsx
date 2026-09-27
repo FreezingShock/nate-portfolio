@@ -56,8 +56,8 @@ const BentoCard = ({
     {...props}
   >
     <div>{background}</div>
-    <div className="p-4">
-      <div className="pointer-events-none z-10 flex transform-gpu flex-col gap-1 transition-all duration-300 lg:group-hover:-translate-y-10">
+    <div className="flex h-full flex-col p-4">
+      <div className="pointer-events-none z-10 flex flex-1 transform-gpu flex-col gap-1 transition-all duration-300 lg:group-hover:-translate-y-2">
         <Icon className="h-12 w-12 origin-left transform-gpu text-neutral-700 transition-all duration-300 ease-in-out group-hover:scale-75" />
         <h3 className="font-serif text-xl font-semibold text-neutral-700 dark:text-neutral-300">
           {name}
@@ -65,11 +65,15 @@ const BentoCard = ({
         <p className="max-w-lg text-neutral-400">{description}</p>
       </div>
 
-      <div
-        className={cn(
-          "pointer-events-none flex w-full translate-y-0 transform-gpu flex-row items-center transition-all duration-300 group-hover:translate-y-0 group-hover:opacity-100 lg:hidden"
-        )}
-      >
+      {/* One CTA row, not two — it used to duplicate into a separate
+          always-visible "mobile" block and a hover-only "desktop" block,
+          which showed up at wildly different heights depending on how long
+          each card's description was (visible under a short description,
+          clipped under a long one). `mt-auto` pins it to the bottom of this
+          flex column consistently regardless of description length, and a
+          border-t makes it read as an intentional footer instead of a
+          stray floating link. */}
+      <div className="pointer-events-none mt-auto flex w-full flex-row items-center border-t border-border/40 pt-3">
         <Button
           variant="link"
           asChild
@@ -82,24 +86,6 @@ const BentoCard = ({
           </a>
         </Button>
       </div>
-    </div>
-
-    <div
-      className={cn(
-        "pointer-events-none absolute bottom-0 hidden w-full translate-y-10 transform-gpu flex-row items-center p-4 opacity-0 transition-all duration-300 group-hover:translate-y-0 group-hover:opacity-100 lg:flex"
-      )}
-    >
-      <Button
-        variant="link"
-        asChild
-        size="sm"
-        className="pointer-events-auto p-0"
-      >
-        <a href={href}>
-          {cta}
-          <ArrowRightIcon className="ms-2 h-4 w-4 rtl:rotate-180" />
-        </a>
-      </Button>
     </div>
 
     <div className="pointer-events-none absolute inset-0 transform-gpu transition-all duration-300 group-hover:bg-black/3 group-hover:dark:bg-neutral-800/10" />
