@@ -3,7 +3,7 @@ import { ArrowRight, FolderKanban } from "lucide-react";
 import { identity, getProjects, getRecentRenovations } from "@/lib/content";
 import { Marquee } from "@/components/ui/marquee";
 import { AnimatedGradientText } from "@/components/ui/animated-gradient-text";
-import { NameAnimationPicker } from "@/components/name-animation-picker";
+import { HeroName } from "@/components/hero-name";
 import { GlyphMatrix } from "@/components/ui/glyph-matrix";
 import { ShineBorder } from "@/components/ui/shine-border";
 import { ShimmerButton } from "@/components/ui/shimmer-button";
@@ -66,9 +66,9 @@ export default async function Home() {
                             </AnimatedGradientText>
                         </div>
 
-                        <div className="mt-6">
-                            <NameAnimationPicker />
-                        </div>
+                        <h1 className="mt-6 flex items-center justify-center text-6xl font-bold tracking-tight sm:text-7xl">
+                            <HeroName />
+                        </h1>
 
                         <p className="mx-auto mt-5 max-w-xl text-lg text-muted-foreground">
                             {identity.tagline}
