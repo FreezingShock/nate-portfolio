@@ -19,6 +19,13 @@ const HOVER_MARGIN = 14;
 // of a flat linear-ish ease-out. Used for both directions (collapse and
 // expand) so it feels like one continuous material, not two animations.
 const LIQUID_EASE = "cubic-bezier(0.34, 1.56, 0.64, 1)";
+// Keep the collapsed scale modest (0.9, not e.g. 0.4). liquid-glass-react
+// partially re-samples its ghost/filter layer mid-transition and gets it
+// wrong by roughly (scale)^2 — confirmed by inspecting live rects: a 0.4
+// collapse target rendered the visible glass at ~0.16 of the real content
+// box mid-animation (text spilling outside a too-small border). At 0.9 the
+// same error is a couple of pixels and invisible. Get more "liquid" feel
+// from LIQUID_EASE's overshoot, not from a bigger scale swing.
 
 // NOTE: liquid-glass-react bug, confirmed by inspecting live rendered rects
 // (see the long comment on `.glass-anchor` in globals.css for the full
@@ -88,9 +95,9 @@ export function SidebarNav() {
                 {/* Collapsed: round bubble. Scales/fades OUT from the shared
                     top-center anchor when the menu opens. */}
                 <div
-                    className={`absolute left-1/2 top-0 origin-top -translate-x-1/2 transition-all duration-350 ${
+                    className={`absolute left-1/2 top-0 origin-top -translate-x-1/2 transition-all ${
                         open
-                            ? "pointer-events-none scale-[0.4] opacity-0"
+                            ? "pointer-events-none scale-90 opacity-0"
                             : "scale-100 opacity-100"
                     }`}
                     style={{ transitionTimingFunction: LIQUID_EASE, transitionDuration: "350ms" }}
@@ -134,7 +141,7 @@ export function SidebarNav() {
                     className={`absolute left-1/2 top-0 origin-top -translate-x-1/2 transition-all ${
                         open
                             ? "scale-100 opacity-100"
-                            : "pointer-events-none scale-[0.4] opacity-0"
+                            : "pointer-events-none scale-90 opacity-0"
                     }`}
                     style={{ transitionTimingFunction: LIQUID_EASE, transitionDuration: "350ms" }}
                 >
