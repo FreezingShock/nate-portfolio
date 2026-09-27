@@ -3,36 +3,6 @@
 
 @plugin "tailwindcss-animate";
 
-/* liquid-glass-react renders several internal children (two invisible
-   "ghost" divs used for backdrop sampling, the real visible content div,
-   and glass-highlight spans for the sheen/edge-light) as direct siblings.
-   Two bugs, found by direct DOM inspection, not guesswork:
-   1. They stack in normal document flow instead of overlaying, so a
-      child later in the DOM (the real content div) renders shifted down
-      by its earlier siblings' full height. grid-area: 1/1 puts every
-      child in the same cell, removing that stacking offset.
-   2. Most of these children self-center with their OWN inline
-      `top: 50%; left: 50%; transform: translate(-50%, -50%)` (a
-      classic center-in-parent trick) -- but the one visible CONTENT div
-      only carries the `transform`, missing the matching `top`/`left`,
-      so it's left offset by half its own size after grid-area alone
-      fixes the stacking part. Adding `top: 50%; left: 50%` here does
-      NOT affect the ghosts/spans (their inline top/left always wins
-      over this stylesheet rule) -- it only reaches the one child that's
-      missing it. Do NOT "fix" this by translating the whole `.glass-anchor`
-      instead: that was tried, and it double-shifts the already-correct
-      ghosts/spans by the same amount, breaking the visible glass-edge
-      highlight (measured directly: shifted +size/2 on both axes from the
-      wrapper's true box). This is the surgical version -- keep it that way. */
-.glass-anchor {
-    display: grid;
-}
-.glass-anchor > * {
-    grid-area: 1 / 1;
-    top: 50%;
-    left: 50%;
-}
-
 @custom-variant dark (&:is(.dark *));
 
 @theme inline {

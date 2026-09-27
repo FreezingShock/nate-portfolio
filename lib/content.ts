@@ -24,6 +24,10 @@ export const statusLabel: Record<ProjectStatus, string> = {
 
 export const identity = {
     name: "Nate",
+    // Kept separate from `name` rather than folded into one "Nate Anderson"
+    // string: tight UI spots (nav bubble, the initial-letter button) use
+    // `name` alone, the hero/footer/metadata use both.
+    lastName: "Anderson",
     tagline: "Building games, renders, and systems — studying toward environmental engineering.",
 };
 

@@ -67,8 +67,16 @@ export default async function Home() {
                         </div>
 
                         <h1 className="mt-6 font-minecraft text-6xl font-bold tracking-tight text-foreground sm:text-7xl">
-                            <DiaTextReveal text={identity.name} duration={1.2} />
+                            <DiaTextReveal
+                                text={identity.name}
+                                duration={1.2}
+                                colors={["var(--primary)", "var(--chart-4)"]}
+                                textColor="var(--foreground)"
+                            />
                         </h1>
+                        <p className="mt-1 text-sm font-medium uppercase tracking-[0.3em] text-muted-foreground">
+                            {identity.lastName}
+                        </p>
 
                         <p className="mx-auto mt-5 max-w-xl text-lg text-muted-foreground">
                             {identity.tagline}
@@ -164,7 +172,7 @@ export default async function Home() {
             {/* Footer */}
             <footer className="w-full px-6 py-10 sm:px-10 lg:px-16">
                 <div className="mx-auto max-w-6xl rounded-xl border border-border/50 bg-card/40 px-4 py-3 text-sm text-muted-foreground backdrop-blur-xl">
-                    © {new Date().getFullYear()} {identity.name}
+                    © {new Date().getFullYear()} {identity.name} {identity.lastName}
                 </div>
             </footer>
         </div>

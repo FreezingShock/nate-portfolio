@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import LiquidGlass from "liquid-glass-react";
 import Link from "next/link";
 import { identity } from "@/lib/content";
 import { useActiveSection } from "@/lib/use-active-section";
@@ -14,27 +13,18 @@ export interface PageSection {
 const BALL = 48;
 const PANEL_W = 176;
 const HOVER_MARGIN = 14;
-// A "liquidy" overshoot ease — settles past 100% then eases back, instead
-// of a flat linear-ish ease-out. Used for both directions (collapse and
-// expand) so it feels like one continuous material, not two animations.
+// Same bouncy overshoot used to feel of a piece with the Dock's spring
+// physics — both read as "springy," even though the Dock uses actual
+// spring simulation and this is a CSS easing curve.
 const LIQUID_EASE = "cubic-bezier(0.34, 1.56, 0.64, 1)";
-// Keep the collapsed scale modest (0.9, not e.g. 0.4). liquid-glass-react
-// partially re-samples its ghost/filter layer mid-transition and gets it
-// wrong by roughly (scale)^2 — confirmed by inspecting live rects: a 0.4
-// collapse target rendered the visible glass at ~0.16 of the real content
-// box mid-animation (text spilling outside a too-small border). At 0.9 the
-// same error is a couple of pixels and invisible. Get more "liquid" feel
-// from LIQUID_EASE's overshoot, not from a bigger scale swing.
 
-// NOTE: liquid-glass-react bug, confirmed by inspecting live rendered rects
-// (see the long comment on `.glass-anchor` in globals.css for the full
-// diagnosis). It computes its SVG displacement filter once against its
-// children's measured size and does not reflow when that size changes via
-// CSS, so the collapse/expand can't be one instance animating — it has to
-// be two fixed-size instances crossfaded with our own CSS opacity/scale.
-// The actual glass-rendering offset bug is fixed via `.glass-anchor` alone
-// now — do NOT add a translate() here, it was tried and it breaks the
-// glass-highlight rendering (see that comment).
+// Retheme (2026-09-27): dropped liquid-glass-react entirely — this now uses
+// the same flat card/border/backdrop-blur recipe as <SiteDock /> and every
+// other panel on the site (bg-card/60, border-border/60, backdrop-blur-md),
+// instead of the old refractive glass look left over from the forest-photo
+// era. That also removes the `.glass-anchor` ghost-div workaround from
+// globals.css — it existed only to fix liquid-glass-react's own rendering
+// bugs, which no longer apply now nothing here uses that library.
 //
 // This is the in-PAGE header navigator (jumps between anchors on whichever
 // page renders it) — distinct from <SiteDock />, which moves between pages.
@@ -108,39 +98,25 @@ export function SidebarNav({ sections }: { sections: PageSection[] }) {
                     }`}
                     style={{ transitionTimingFunction: LIQUID_EASE, transitionDuration: "350ms" }}
                 >
-                    <div
-                        className="glass-anchor"
+                    <button
+                        type="button"
+                        aria-label={open ? "Close navigation" : "Open navigation"}
+                        aria-expanded={open}
+                        aria-haspopup="menu"
+                        tabIndex={open ? -1 : 0}
+                        onClick={() => setPinnedOpen((v) => !v)}
                         style={{ width: BALL, height: BALL }}
+                        className="flex items-center justify-center rounded-full border border-border/60 bg-card/60 font-minecraft text-base font-semibold text-foreground backdrop-blur-md transition-colors hover:border-primary/50"
                     >
-                        <LiquidGlass
-                            blurAmount={0.08}
-                            saturation={140}
-                            aberrationIntensity={0.4}
-                            elasticity={0.2}
-                            cornerRadius={999}
-                            padding="0"
-                            style={{ width: BALL, height: BALL }}
-                            className="!block"
-                        >
-                            <button
-                                type="button"
-                                aria-label={open ? "Close navigation" : "Open navigation"}
-                                aria-expanded={open}
-                                aria-haspopup="menu"
-                                tabIndex={open ? -1 : 0}
-                                onClick={() => setPinnedOpen((v) => !v)}
-                                style={{ width: BALL, height: BALL }}
-                                className="flex items-center justify-center font-minecraft text-base font-semibold leading-none text-foreground"
-                            >
-                                {identity.name.charAt(0)}
-                            </button>
-                        </LiquidGlass>
-                    </div>
+                        {identity.name.charAt(0)}
+                    </button>
                 </div>
 
                 {/* Expanded: menu panel. Scales/fades IN from the same
                     shared top-center anchor — grows out of where the
-                    bubble was, instead of dropping down-and-left. */}
+                    bubble was, instead of dropping down-and-left. Same
+                    border/bg/blur recipe as <SiteDock /> and every other
+                    panel on the site. */}
                 <div
                     role="menu"
                     aria-hidden={!open}
@@ -151,57 +127,35 @@ export function SidebarNav({ sections }: { sections: PageSection[] }) {
                     }`}
                     style={{ transitionTimingFunction: LIQUID_EASE, transitionDuration: "350ms" }}
                 >
-                    <div
-                        className="glass-anchor"
+                    <nav
+                        className="flex flex-col items-start gap-1 rounded-2xl border border-border/60 bg-card/60 px-3 py-4 backdrop-blur-md"
                         style={{ width: PANEL_W, height: panelH }}
                     >
-                        <LiquidGlass
-                            blurAmount={0.08}
-                            saturation={140}
-                            aberrationIntensity={0.7}
-                            elasticity={0.2}
-                            cornerRadius={20}
-                            padding="0"
-                            style={{ width: PANEL_W, height: panelH }}
-                            className="!block"
+                        <Link
+                            href="/"
+                            tabIndex={open ? 0 : -1}
+                            onClick={() => setPinnedOpen(false)}
+                            className="px-2 pb-2 font-minecraft text-sm font-semibold tracking-tight text-foreground"
                         >
-                            {/* Explicit pixel size, NOT w-full/h-full: liquid-glass-react
-                                measures its ghost/filter layer against children's
-                                intrinsic size on first paint. Percentage sizing resolves
-                                later, so the visible glass ends up smaller than this real
-                                content box and text spills outside it. Fixed pixels make
-                                the two agree immediately. */}
-                            <nav
-                                className="flex flex-col items-start gap-1 px-3 py-4"
-                                style={{ width: PANEL_W, height: panelH }}
+                            {identity.name}
+                        </Link>
+                        {sections.map((section) => (
+                            <a
+                                key={section.id}
+                                href={`#${section.id}`}
+                                role="menuitem"
+                                tabIndex={open ? 0 : -1}
+                                onClick={() => setPinnedOpen(false)}
+                                className={`w-full whitespace-nowrap rounded-md px-2 py-1.5 text-sm transition-colors ${
+                                    active === section.id
+                                        ? "bg-primary/15 text-foreground"
+                                        : "text-muted-foreground hover:text-foreground"
+                                }`}
                             >
-                                <Link
-                                    href="/"
-                                    tabIndex={open ? 0 : -1}
-                                    onClick={() => setPinnedOpen(false)}
-                                    className="px-2 pb-2 font-minecraft text-sm font-semibold tracking-tight text-foreground"
-                                >
-                                    {identity.name}
-                                </Link>
-                                {sections.map((section) => (
-                                    <a
-                                        key={section.id}
-                                        href={`#${section.id}`}
-                                        role="menuitem"
-                                        tabIndex={open ? 0 : -1}
-                                        onClick={() => setPinnedOpen(false)}
-                                        className={`w-full whitespace-nowrap rounded-md px-2 py-1.5 text-sm transition-colors ${
-                                            active === section.id
-                                                ? "bg-primary/15 text-foreground"
-                                                : "text-muted-foreground hover:text-foreground"
-                                        }`}
-                                    >
-                                        {section.label}
-                                    </a>
-                                ))}
-                            </nav>
-                        </LiquidGlass>
-                    </div>
+                                {section.label}
+                            </a>
+                        ))}
+                    </nav>
                 </div>
             </div>
         </div>
