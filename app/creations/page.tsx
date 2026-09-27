@@ -24,8 +24,22 @@ export default async function CreationsPage() {
             <PageBackground variant="interactive-grid" color="#55ffff" />
             <SidebarNav
                 sections={[
-                    { id: "projects", label: "Projects" },
-                    { id: "renovations", label: "Renovations" },
+                    {
+                        id: "projects",
+                        label: "Projects",
+                        items: projects.map((p) => ({
+                            href: `/creations/${p.slug}`,
+                            label: p.title,
+                        })),
+                    },
+                    {
+                        id: "renovations",
+                        label: "Renovations",
+                        items: renovations.map((r) => ({
+                            href: `/creations/${r.slug}`,
+                            label: r.title,
+                        })),
+                    },
                     { id: "artwork", label: "Artwork" },
                 ]}
             />

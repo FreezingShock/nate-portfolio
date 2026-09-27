@@ -7,13 +7,24 @@ import { AnimatePresence, motion } from "motion/react";
 import { navItems } from "@/lib/nav";
 import { useActiveSection } from "@/lib/use-active-section";
 
-export interface PageSection {
-    id: string;
+export interface PageSectionItem {
+    href: string;
     label: string;
 }
 
+export interface PageSection {
+    id: string;
+    label: string;
+    // Optional real entries under this heading — e.g. on /creations, the
+    // actual projects/renovations under "Projects"/"Renovations" — each a
+    // real link to that item's own page, not just a scroll target. Lets the
+    // bubble double as a full site map: organizations (headings) and the
+    // files within them (items), one click away.
+    items?: PageSectionItem[];
+}
+
 const BALL = 48;
-const PANEL_W = 200;
+const PANEL_W = 224;
 const HOVER_MARGIN = 14;
 // Same bouncy overshoot used to feel of a piece with the Dock's spring
 // physics — both read as "springy," even though the Dock uses actual
@@ -43,8 +54,9 @@ export function SidebarNav({ sections }: { sections: PageSection[] }) {
     const active = useActiveSection(allSections.map((s) => s.id));
     const open = hovered || pinnedOpen;
     // Title row (~44px) + name label row (~26px) + one row per section
-    // (~34px), floor'd at a sane min.
-    const panelH = Math.max(120, 70 + allSections.length * 34);
+    // (~34px) + one row per nested item (~28px), floor'd at a sane min.
+    const itemRowCount = allSections.reduce((n, s) => n + (s.items?.length ?? 0), 0);
+    const panelH = Math.max(120, 70 + allSections.length * 34 + itemRowCount * 28);
 
     // The bubble is a "you are here" indicator: it shows the current page's
     // initial collapsed, and the FULL page title once expanded, tinted with
@@ -155,7 +167,7 @@ export function SidebarNav({ sections }: { sections: PageSection[] }) {
                             animate={{ opacity: 1 }}
                             exit={{ opacity: 0 }}
                             transition={{ duration: 0.18, delay: open ? 0.1 : 0 }}
-                            className="absolute inset-0 flex flex-col items-start gap-1 overflow-hidden px-3 py-3"
+                            className="absolute inset-0 flex flex-col items-start gap-1 overflow-y-auto px-3 py-3"
                         >
                             <button
                                 type="button"
@@ -184,27 +196,55 @@ export function SidebarNav({ sections }: { sections: PageSection[] }) {
                                 </Link>
                             )}
                             {allSections.map((section) => (
-                                <a
-                                    key={section.id}
-                                    href={`#${section.id}`}
-                                    role="menuitem"
-                                    tabIndex={0}
-                                    onClick={closeAndNavigate}
-                                    className={`w-full whitespace-nowrap rounded-md px-2 py-1.5 text-sm transition-colors ${
-                                        active === section.id
-                                            ? "text-foreground"
-                                            : "text-muted-foreground hover:text-foreground"
-                                    }`}
-                                    style={
-                                        active === section.id
-                                            ? {
-                                                  backgroundColor: `color-mix(in oklch, ${bubbleColor} 16%, transparent)`,
-                                              }
-                                            : undefined
-                                    }
-                                >
-                                    {section.label}
-                                </a>
+                                <div key={section.id} className="w-full">
+                                    <a
+                                        href={`#${section.id}`}
+                                        role="menuitem"
+                                        tabIndex={0}
+                                        onClick={closeAndNavigate}
+                                        className={`block w-full whitespace-nowrap rounded-md px-2 py-1.5 text-sm transition-colors ${
+                                            active === section.id
+                                                ? "text-foreground"
+                                                : "text-muted-foreground hover:text-foreground"
+                                        }`}
+                                        style={
+                                            active === section.id
+                                                ? {
+                                                      backgroundColor: `color-mix(in oklch, ${bubbleColor} 16%, transparent)`,
+                                                  }
+                                                : undefined
+                                        }
+                                    >
+                                        {section.label}
+                                    </a>
+                                    {/* The "organizations and the files within them" layer — real
+                                        pages, not scroll anchors, indented under their heading and
+                                        left-bordered so the hierarchy reads at a glance. */}
+                                    {section.items && section.items.length > 0 && (
+                                        <div
+                                            className="ml-2 flex flex-col gap-0.5 border-l pl-2.5"
+                                            style={{ borderColor: `color-mix(in oklch, ${bubbleColor} 30%, transparent)` }}
+                                        >
+                                            {section.items.map((item) => {
+                                                const itemActive = pathname === item.href;
+                                                return (
+                                                    <Link
+                                                        key={item.href}
+                                                        href={item.href}
+                                                        tabIndex={0}
+                                                        onClick={closeAndNavigate}
+                                                        className="rounded-md px-1.5 py-1 font-rubik text-xs leading-snug transition-colors"
+                                                        style={{
+                                                            color: itemActive ? bubbleColor : "var(--muted-foreground)",
+                                                        }}
+                                                    >
+                                                        {item.label}
+                                                    </Link>
+                                                );
+                                            })}
+                                        </div>
+                                    )}
+                                </div>
                             ))}
                         </motion.nav>
                     )}
