@@ -3,7 +3,7 @@ import { ArrowRight, FolderKanban } from "lucide-react";
 import { identity, getProjects, getRecentRenovations } from "@/lib/content";
 import { Marquee } from "@/components/ui/marquee";
 import { AnimatedGradientText } from "@/components/ui/animated-gradient-text";
-import { DiaTextReveal } from "@/components/ui/dia-text-reveal";
+import { NameAnimationPicker } from "@/components/name-animation-picker";
 import { GlyphMatrix } from "@/components/ui/glyph-matrix";
 import { ShineBorder } from "@/components/ui/shine-border";
 import { ShimmerButton } from "@/components/ui/shimmer-button";
@@ -66,17 +66,9 @@ export default async function Home() {
                             </AnimatedGradientText>
                         </div>
 
-                        <h1 className="mt-6 font-minecraft text-6xl font-bold tracking-tight text-foreground sm:text-7xl">
-                            <DiaTextReveal
-                                text={identity.name}
-                                duration={1.2}
-                                colors={["var(--primary)", "var(--chart-4)"]}
-                                textColor="var(--foreground)"
-                            />
-                        </h1>
-                        <p className="mt-1 text-sm font-medium uppercase tracking-[0.3em] text-muted-foreground">
-                            {identity.lastName}
-                        </p>
+                        <div className="mt-6">
+                            <NameAnimationPicker />
+                        </div>
 
                         <p className="mx-auto mt-5 max-w-xl text-lg text-muted-foreground">
                             {identity.tagline}
