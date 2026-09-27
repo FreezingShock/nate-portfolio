@@ -2,10 +2,12 @@ import { identity } from "@/lib/content";
 import { PageHero } from "@/components/page-hero";
 import { ShineBorder } from "@/components/ui/shine-border";
 import { SidebarNav } from "@/components/sidebar-nav";
+import { PageBackground } from "@/components/page-background";
 
 export default function AboutPage() {
     return (
         <div className="min-h-screen">
+            <PageBackground variant="particles" color="#00aaaa" />
             <SidebarNav sections={[{ id: "bio", label: "Bio" }]} />
             <section className="w-full px-6 pb-24 pt-28 sm:px-10 lg:px-16">
                 <PageHero eyebrow="Who" title="About Me" description="" accent="var(--mc-dark-aqua)" />

@@ -51,7 +51,7 @@ export function WorkGrid({
                                     {project.tags.map((tag) => (
                                         <span
                                             key={tag}
-                                            className="h-fit rounded-full border border-border/60 bg-background/60 px-2 py-0.5 text-xs text-muted-foreground"
+                                            className="h-fit rounded-full border border-border/60 bg-background/60 px-2 py-0.5 font-rubik text-xs text-muted-foreground"
                                         >
                                             {tag}
                                         </span>
@@ -60,7 +60,7 @@ export function WorkGrid({
                             }
                         />
                     </MagicCard>
-                    <div className="pointer-events-none absolute right-4 top-4 z-10 rounded-full border border-border px-2.5 py-0.5 text-xs text-muted-foreground">
+                    <div className="pointer-events-none absolute right-4 top-4 z-10 rounded-full border border-border px-2.5 py-0.5 font-rubik text-xs text-muted-foreground">
                         {statusLabel[project.status]}
                     </div>
                 </div>

@@ -26,11 +26,11 @@ export function ComingSoon({ cards }: { cards: PlaceholderCard[] }) {
                     >
                         <div className="p-6">
                             <Icon className="size-8 text-muted-foreground" />
-                            <h3 className="mt-4 text-lg font-semibold text-foreground">
+                            <h3 className="mt-4 font-serif text-lg font-semibold text-foreground">
                                 {card.title}
                             </h3>
                             <p className="mt-1.5 text-sm text-muted-foreground">{card.note}</p>
-                            <span className="mt-4 inline-block rounded-full border border-border/60 px-2.5 py-0.5 text-xs text-muted-foreground">
+                            <span className="mt-4 inline-block rounded-full border border-border/60 px-2.5 py-0.5 font-rubik text-xs text-muted-foreground">
                                 Coming soon
                             </span>
                         </div>

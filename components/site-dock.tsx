@@ -36,10 +36,14 @@ export function SiteDock() {
                                     )}
                                 />
                             </Link>
+                            {/* Hover-only tooltip works fine on desktop, but touch devices
+                                have no hover state — the label would never appear at all.
+                                Below `sm`, show it always (small, tab-bar style); at `sm`
+                                and up, switch to the hover-reveal tooltip. */}
                             <span
                                 className={cn(
-                                    "pointer-events-none absolute -top-9 left-1/2 -translate-x-1/2 whitespace-nowrap rounded-md border border-border/60 bg-popover px-2 py-1 text-xs text-popover-foreground opacity-0 shadow-sm transition-opacity",
-                                    "group-hover:opacity-100"
+                                    "pointer-events-none absolute -top-7 left-1/2 -translate-x-1/2 whitespace-nowrap rounded-md border border-border/60 bg-popover px-1.5 py-0.5 font-mono text-[10px] text-popover-foreground opacity-100 shadow-sm transition-opacity",
+                                    "sm:-top-9 sm:px-2 sm:py-1 sm:text-xs sm:opacity-0 sm:group-hover:opacity-100"
                                 )}
                             >
                                 {item.label}

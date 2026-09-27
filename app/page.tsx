@@ -2,8 +2,10 @@ import Link from "next/link";
 import { ArrowRight, FolderKanban } from "lucide-react";
 import { identity, getProjects, getRecentRenovations } from "@/lib/content";
 import { IdentityMarquee } from "@/components/identity-marquee";
+import { SiteBackground } from "@/components/site-background";
 import { AnimatedGradientText } from "@/components/ui/animated-gradient-text";
 import { HeroName } from "@/components/hero-name";
+import { TypingAnimation } from "@/components/ui/typing-animation";
 import { GlyphMatrix } from "@/components/ui/glyph-matrix";
 import { ShineBorder } from "@/components/ui/shine-border";
 import { ShimmerButton } from "@/components/ui/shimmer-button";
@@ -30,6 +32,7 @@ export default async function Home() {
 
     return (
         <div className="min-h-screen">
+            <SiteBackground />
             <SidebarNav
                 sections={[
                     { id: "work", label: "Selected Work" },
@@ -62,7 +65,7 @@ export default async function Home() {
                                 speed={1.2}
                                 colorFrom="var(--primary)"
                                 colorTo="var(--chart-4)"
-                                className="text-sm font-semibold uppercase tracking-[0.2em]"
+                                className="font-mono text-sm font-semibold uppercase tracking-[0.2em]"
                             >
                                 Portfolio
                             </AnimatedGradientText>
@@ -71,6 +74,23 @@ export default async function Home() {
                         <h1 className="mt-6 flex items-center justify-center text-6xl font-bold tracking-tight sm:text-7xl">
                             <HeroName />
                         </h1>
+
+                        {/* The actual site brand — typed in after the name
+                            settles, so the domain reads as the payoff of the
+                            reveal, not a competing headline. */}
+                        <div className="mt-2 flex items-center justify-center font-mono text-base text-muted-foreground sm:text-lg">
+                            <TypingAnimation delay={1500} typeSpeed={70} showCursor={false}>
+                                nateanderson
+                            </TypingAnimation>
+                            <TypingAnimation
+                                delay={1500 + 70 * "nateanderson".length}
+                                typeSpeed={70}
+                                cursorStyle="block"
+                                className="font-semibold text-primary"
+                            >
+                                .dev
+                            </TypingAnimation>
+                        </div>
 
                         <p className="mx-auto mt-5 max-w-xl text-lg text-muted-foreground">
                             {identity.tagline}
@@ -94,12 +114,15 @@ export default async function Home() {
                                     <ArrowRight className="size-4" />
                                 </Link>
                             </ShimmerButton>
-                            <Link
-                                href="/about"
-                                className="rounded-full border border-border/60 px-6 py-3 text-sm font-medium text-foreground transition-colors hover:border-primary/50 hover:text-primary"
+                            <ShimmerButton
+                                background="var(--chart-4)"
+                                shimmerColor="#1a1408"
+                                className="text-sm font-medium"
                             >
-                                About Me
-                            </Link>
+                                <Link href="/about" className="flex items-center gap-2 text-neutral-900">
+                                    About Me
+                                </Link>
+                            </ShimmerButton>
                         </div>
                     </div>
                 </div>

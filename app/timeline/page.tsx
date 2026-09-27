@@ -1,6 +1,7 @@
 import { Sparkles } from "lucide-react";
 import { PageHero } from "@/components/page-hero";
 import { SidebarNav } from "@/components/sidebar-nav";
+import { PageBackground } from "@/components/page-background";
 
 interface Milestone {
     when: string;
@@ -44,6 +45,7 @@ const milestones: Milestone[] = [
 export default function TimelinePage() {
     return (
         <div className="min-h-screen">
+            <PageBackground variant="retro" color="#55ff55" />
             <SidebarNav sections={[{ id: "line", label: "Timeline" }]} />
             <section className="w-full px-6 pb-24 pt-28 sm:px-10 lg:px-16">
                 <PageHero

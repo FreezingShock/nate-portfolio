@@ -21,7 +21,7 @@ const ROLES = [
 function Pill({ label, colorVar }: { label: string; colorVar: string }) {
     return (
         <span
-            className="mx-2 inline-flex shrink-0 cursor-default items-center rounded-full border px-4 py-1.5 text-sm font-medium backdrop-blur-xl transition-all duration-300 ease-out hover:-translate-y-1 hover:scale-110 hover:shadow-[0_0_18px_var(--glow)]"
+            className="mx-2 inline-flex shrink-0 cursor-default items-center rounded-full border px-4 py-1.5 font-rubik text-sm font-medium backdrop-blur-xl transition-all duration-300 ease-out hover:-translate-y-1 hover:scale-110 hover:shadow-[0_0_18px_var(--glow)]"
             style={
                 {
                     borderColor: `color-mix(in oklch, var(${colorVar}) 55%, transparent)`,

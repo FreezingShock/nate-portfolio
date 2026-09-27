@@ -1,6 +1,7 @@
 import { PageHero } from "@/components/page-hero";
 import { NumberTicker } from "@/components/ui/number-ticker";
 import { SidebarNav } from "@/components/sidebar-nav";
+import { PageBackground } from "@/components/page-background";
 import changelog from "@/lib/changelog.json";
 
 // Real data — generated from actual `git log` by scripts/generate-changelog.mjs
@@ -10,6 +11,7 @@ import changelog from "@/lib/changelog.json";
 export default function HistoryPage() {
     return (
         <div className="min-h-screen">
+            <PageBackground variant="ripple" color="#ff5555" />
             <SidebarNav sections={[{ id: "log", label: "Changelog" }]} />
             <section className="w-full px-6 pb-24 pt-28 sm:px-10 lg:px-16">
                 <PageHero

@@ -2,10 +2,12 @@ import { NotebookPen, PenLine, BookOpen } from "lucide-react";
 import { PageHero } from "@/components/page-hero";
 import { ComingSoon } from "@/components/coming-soon";
 import { SidebarNav } from "@/components/sidebar-nav";
+import { PageBackground } from "@/components/page-background";
 
 export default function BlogPage() {
     return (
         <div className="min-h-screen">
+            <PageBackground variant="dot" color="#ffff55" />
             <SidebarNav sections={[{ id: "posts", label: "Posts" }]} />
             <section className="w-full px-6 pb-24 pt-28 sm:px-10 lg:px-16">
                 <PageHero

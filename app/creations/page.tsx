@@ -5,6 +5,7 @@ import { ComingSoon } from "@/components/coming-soon";
 import { PageHero } from "@/components/page-hero";
 import { SectionLabel } from "@/components/section-label";
 import { SidebarNav } from "@/components/sidebar-nav";
+import { PageBackground } from "@/components/page-background";
 
 export const revalidate = 60;
 
@@ -20,6 +21,7 @@ export default async function CreationsPage() {
 
     return (
         <div className="min-h-screen">
+            <PageBackground variant="interactive-grid" color="#55ffff" />
             <SidebarNav
                 sections={[
                     { id: "projects", label: "Projects" },

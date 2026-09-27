@@ -1,17 +1,33 @@
 import type { Metadata } from "next";
-import { Roboto_Mono } from "next/font/google";
+import { Roboto_Mono, Rubik, Source_Serif_4 } from "next/font/google";
 import "./globals.css";
 import { ThemeProvider } from "@/components/theme-provider";
 import { SiteDock } from "@/components/site-dock";
-import { SiteBackground } from "@/components/site-background";
 import { SiteFooter } from "@/components/site-footer";
 import { ThemeToggle } from "@/components/theme-toggle";
 
-// Roboto Mono for everything except the Minecraft-font signature headers —
-// a monospace body/UI face reads as engineered/technical (monkeytype-style)
-// rather than a default AI-template sans, and it's what Nate asked for.
+// A deliberately "stacked" type system, four faces each with one job:
+// - Minecraft (fonts.css)     -> page titles, section labels (the signature)
+// - Roboto Mono (below)       -> body copy, eyebrows, general UI
+// - Rubik (below)             -> pills/badges/tags — this is the actual font
+//                                the Hypixel SkyBlock Wiki renders in
+// - Source Serif 4 (below)    -> individual work titles ("Fractured Islands:
+//                                Ascension"). Anthropic's real serif
+//                                (Copernicus/Tiempos) is a licensed brand
+//                                typeface, not a public web font — this is
+//                                the closest freely-licensed stand-in.
 const robotoMono = Roboto_Mono({
     variable: "--font-roboto-mono",
+    subsets: ["latin"],
+});
+
+const rubik = Rubik({
+    variable: "--font-rubik",
+    subsets: ["latin"],
+});
+
+const sourceSerif = Source_Serif_4({
+    variable: "--font-source-serif",
     subsets: ["latin"],
 });
 
@@ -46,14 +62,15 @@ export default function RootLayout({
 }>) {
     return (
         <html lang="en" suppressHydrationWarning>
-            <body className={`${robotoMono.variable} antialiased`}>
+            <body
+                className={`${robotoMono.variable} ${rubik.variable} ${sourceSerif.variable} antialiased`}
+            >
                 <ThemeProvider
                     attribute="class"
                     defaultTheme="dark"
                     enableSystem
                     disableTransitionOnChange
                 >
-                    <SiteBackground />
                     <div
                         className="fixed right-5 top-5 z-50 flex items-center justify-center rounded-full border border-border/50 bg-card/40 backdrop-blur-xl"
                         style={{ width: 40, height: 40 }}
