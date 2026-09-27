@@ -5,7 +5,7 @@ import { navItems } from "@/lib/nav";
 
 export function SiteFooter() {
     return (
-        <footer className="w-full border-t border-border/40 bg-card/20 px-6 py-12 sm:px-10 lg:px-16">
+        <footer id="footer" className="w-full scroll-mt-24 border-t border-border/40 bg-card/20 px-6 py-12 sm:px-10 lg:px-16">
             <div className="mx-auto grid max-w-6xl gap-10 sm:grid-cols-3">
                 <div>
                     <p className="font-minecraft text-lg font-semibold text-foreground">

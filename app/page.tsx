@@ -35,8 +35,8 @@ export default async function Home() {
             <SiteBackground />
             <SidebarNav
                 sections={[
-                    { id: "work", label: "Selected Work" },
                     { id: "stack", label: "Stack" },
+                    { id: "work", label: "Selected Work" },
                 ]}
             />
 

@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Roboto_Mono, Rubik, Source_Serif_4 } from "next/font/google";
 import "./globals.css";
 import { ThemeProvider } from "@/components/theme-provider";
@@ -38,6 +38,8 @@ export const metadata: Metadata = {
         "Games, renders, and systems — built while studying toward environmental engineering.",
     authors: [{ name: "Nate" }],
     creator: "Nate",
+    applicationName: "Nate Anderson — Portfolio",
+    formatDetection: { telephone: false },
     openGraph: {
         type: "website",
         locale: "en_US",
@@ -53,6 +55,10 @@ export const metadata: Metadata = {
         description:
             "Games, renders, and systems — built while studying toward environmental engineering.",
     },
+};
+
+export const viewport: Viewport = {
+    themeColor: "#4f46e5",
 };
 
 export default function RootLayout({

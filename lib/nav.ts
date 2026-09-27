@@ -12,6 +12,11 @@ import {
 export interface NavItem {
     href: string;
     label: string;
+    // The exact <h1> text that page's PageHero renders (or the hero name
+    // for Home, which has no PageHero). Distinct from `label` because the
+    // Dock needs a short word ("About") while the SidebarNav's expanded
+    // header reads better as the real title ("About Me").
+    title: string;
     icon: LucideIcon;
     // Minecraft-color-code accent for this page — same palette as each
     // page's PageHero/SectionLabel accent (see project_portfolio_design_system
@@ -26,11 +31,11 @@ export interface NavItem {
 // own Dock entries; both now live as sections inside /creations so the Dock
 // stays to one icon for "everything Nate makes."
 export const navItems: NavItem[] = [
-    { href: "/", label: "Home", icon: Home, color: "var(--primary)" },
-    { href: "/creations", label: "Creations", icon: Sparkles, color: "var(--mc-aqua)" },
-    { href: "/timeline", label: "Timeline", icon: GitBranch, color: "var(--mc-green)" },
-    { href: "/studies", label: "Studies", icon: GraduationCap, color: "var(--mc-blue)" },
-    { href: "/blog", label: "Blog", icon: NotebookPen, color: "var(--mc-yellow)" },
-    { href: "/history", label: "History", icon: History, color: "var(--mc-red)" },
-    { href: "/about", label: "About", icon: UserRound, color: "var(--mc-dark-aqua)" },
+    { href: "/", label: "Home", title: "Nate Anderson", icon: Home, color: "var(--primary)" },
+    { href: "/creations", label: "Creations", title: "Creations", icon: Sparkles, color: "var(--mc-aqua)" },
+    { href: "/timeline", label: "Timeline", title: "Timeline", icon: GitBranch, color: "var(--mc-green)" },
+    { href: "/studies", label: "Studies", title: "Studies", icon: GraduationCap, color: "var(--mc-blue)" },
+    { href: "/blog", label: "Blog", title: "Blog & Essays", icon: NotebookPen, color: "var(--mc-yellow)" },
+    { href: "/history", label: "History", title: "Site History", icon: History, color: "var(--mc-red)" },
+    { href: "/about", label: "About", title: "About Me", icon: UserRound, color: "var(--mc-dark-aqua)" },
 ];

@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { identity } from "@/lib/content";
+import { AnimatePresence, motion } from "motion/react";
 import { navItems } from "@/lib/nav";
 import { useActiveSection } from "@/lib/use-active-section";
 
@@ -13,47 +13,52 @@ export interface PageSection {
 }
 
 const BALL = 48;
-const PANEL_W = 176;
+const PANEL_W = 200;
 const HOVER_MARGIN = 14;
 // Same bouncy overshoot used to feel of a piece with the Dock's spring
 // physics — both read as "springy," even though the Dock uses actual
-// spring simulation and this is a CSS easing curve.
-const LIQUID_EASE = "cubic-bezier(0.34, 1.56, 0.64, 1)";
+// spring simulation for its own hover-magnify effect.
+const LIQUID_SPRING = { type: "spring" as const, stiffness: 320, damping: 28, mass: 0.9 };
 
-// Retheme (2026-09-27): dropped liquid-glass-react entirely — this now uses
-// the same flat card/border/backdrop-blur recipe as <SiteDock /> and every
-// other panel on the site (bg-card/60, border-border/60, backdrop-blur-md),
-// instead of the old refractive glass look left over from the forest-photo
-// era. That also removes the `.glass-anchor` ghost-div workaround from
-// globals.css — it existed only to fix liquid-glass-react's own rendering
-// bugs, which no longer apply now nothing here uses that library.
-//
+// Every page's SidebarNav gets a link to the universal footer appended for
+// free — "the footer can be one [of the sections]" — so no page file needs
+// to remember to add it itself.
+const FOOTER_SECTION: PageSection = { id: "footer", label: "Footer" };
+
 // This is the in-PAGE header navigator (jumps between anchors on whichever
 // page renders it) — distinct from <SiteDock />, which moves between pages.
 // Each page passes its own `sections`; a page with nothing to jump to just
 // doesn't render this component at all.
+//
+// Overhaul (2026-09-27): the bubble is a real "liquid glass" shared-element
+// morph now (framer-motion `layout`, not a CSS opacity/scale cross-fade) —
+// it grows in place into a dark, page-tinted panel headed by that page's
+// actual title (colored with the page's Minecraft accent, same as PageHero),
+// followed by every section on the page including the footer.
 export function SidebarNav({ sections }: { sections: PageSection[] }) {
     const [hovered, setHovered] = useState(false);
     const [pinnedOpen, setPinnedOpen] = useState(false);
     const rootRef = useRef<HTMLDivElement>(null);
-    const active = useActiveSection(sections.map((s) => s.id));
+    const allSections = [...sections, FOOTER_SECTION];
+    const active = useActiveSection(allSections.map((s) => s.id));
     const open = hovered || pinnedOpen;
-    // Name row (~56px) + one row per section (~34px), floor'd at a sane min.
-    const panelH = Math.max(96, 56 + sections.length * 34);
+    // Title row (~44px) + name label row (~26px) + one row per section
+    // (~34px), floor'd at a sane min.
+    const panelH = Math.max(120, 70 + allSections.length * 34);
 
-    // The bubble now reads as a "you are here" indicator, not a static
-    // logo: on Home it keeps Nate's initial (brand), everywhere else it
-    // shows that page's own initial, tinted with that page's Minecraft
-    // accent color (same palette the Dock and PageHero use), so the two
-    // navs visibly agree on "what page is this."
+    // The bubble is a "you are here" indicator: it shows the current page's
+    // initial collapsed, and the FULL page title once expanded, tinted with
+    // that page's Minecraft accent color (same palette the Dock and
+    // PageHero use) so all three navs visibly agree on "what page is this."
     const pathname = usePathname();
     const currentPage =
         navItems.find((item) =>
             item.href === "/" ? pathname === "/" : pathname.startsWith(item.href)
         ) ?? navItems[0];
-    const isHome = currentPage.href === "/";
-    const bubbleLetter = isHome ? identity.name.charAt(0) : currentPage.label.charAt(0);
+    const bubbleLetter = currentPage.title.charAt(0);
     const bubbleColor = currentPage.color;
+    const glassBg = `color-mix(in oklch, ${bubbleColor} 14%, var(--background) 86%)`;
+    const glassBorder = `color-mix(in oklch, ${bubbleColor} 45%, transparent)`;
 
     // Hover has no equivalent on touch devices, so tapping the ball toggles
     // an "open" state that sticks until you tap outside or hit Escape —
@@ -78,6 +83,14 @@ export function SidebarNav({ sections }: { sections: PageSection[] }) {
         };
     }, [pinnedOpen]);
 
+    // Closing on navigation means clicking a section link on a phone (no
+    // hover to fall back to) collapses the panel instead of leaving it
+    // stuck open over the content it just scrolled to.
+    function closeAndNavigate() {
+        setPinnedOpen(false);
+        setHovered(false);
+    }
+
     return (
         <div
             ref={rootRef}
@@ -97,103 +110,106 @@ export function SidebarNav({ sections }: { sections: PageSection[] }) {
                 }
             }}
         >
-            {/* Both states share one anchor point (top-center of this box)
-                so the panel visually grows out of the bubble in place —
-                never down-and-to-the-side — and only one of the two is
-                ever interactive/visible at a time. Sized to whichever state
-                is active (+ a small margin) so the hover/tap hit-region
-                never extends past what's actually showing. */}
-            <div
-                className="relative"
+            {/* A single shared box that itself springs between bubble-size
+                and panel-size — the "liquid glass" morph is this box
+                resizing and re-rounding via a real spring (framer-motion
+                `layout`), not two elements cross-fading on top of each
+                other. Anchored top-left (mobile) / top-center (desktop) so
+                it always grows toward the content, never off-screen. */}
+            <motion.div
+                layout
+                transition={LIQUID_SPRING}
+                className="relative origin-top-left overflow-hidden rounded-3xl border backdrop-blur-xl sm:origin-top"
                 style={{
-                    width: (open ? PANEL_W : BALL) + HOVER_MARGIN * 2,
-                    height: (open ? panelH : BALL) + HOVER_MARGIN * 2,
+                    width: (open ? PANEL_W : BALL) + HOVER_MARGIN,
+                    height: (open ? panelH : BALL) + HOVER_MARGIN,
+                    backgroundColor: glassBg,
+                    borderColor: glassBorder,
+                    boxShadow: open
+                        ? `0 12px 40px -12px color-mix(in oklch, ${bubbleColor} 35%, transparent)`
+                        : `0 0 14px color-mix(in oklch, ${bubbleColor} 30%, transparent)`,
                 }}
             >
-                {/* Collapsed: round bubble. Scales/fades OUT from the shared
-                    top-center anchor when the menu opens. */}
-                <div
-                    className={`absolute left-0 top-0 origin-top-left transition-all sm:left-1/2 sm:origin-top sm:-translate-x-1/2 ${
-                        open
-                            ? "pointer-events-none scale-90 opacity-0"
-                            : "scale-100 opacity-100"
-                    }`}
-                    style={{ transitionTimingFunction: LIQUID_EASE, transitionDuration: "350ms" }}
-                >
-                    <button
-                        type="button"
-                        aria-label={open ? "Close navigation" : "Open navigation"}
-                        aria-expanded={open}
-                        aria-haspopup="menu"
-                        tabIndex={open ? -1 : 0}
-                        onClick={() => setPinnedOpen((v) => !v)}
-                        style={{
-                            width: BALL,
-                            height: BALL,
-                            borderColor: `color-mix(in oklch, ${bubbleColor} 45%, transparent)`,
-                            boxShadow: `0 0 14px color-mix(in oklch, ${bubbleColor} 30%, transparent)`,
-                        }}
-                        className="flex items-center justify-center rounded-full border bg-card/60 font-minecraft text-base font-semibold backdrop-blur-md transition-all duration-300 hover:scale-105"
-                    >
-                        <span style={{ color: bubbleColor }}>{bubbleLetter}</span>
-                    </button>
-                </div>
-
-                {/* Expanded: menu panel. Scales/fades IN from the same
-                    shared top-center anchor — grows out of where the
-                    bubble was, instead of dropping down-and-left. Same
-                    border/bg/blur recipe as <SiteDock /> and every other
-                    panel on the site. */}
-                <div
-                    role="menu"
-                    aria-hidden={!open}
-                    className={`absolute left-0 top-0 origin-top-left transition-all sm:left-1/2 sm:origin-top sm:-translate-x-1/2 ${
-                        open
-                            ? "scale-100 opacity-100"
-                            : "pointer-events-none scale-90 opacity-0"
-                    }`}
-                    style={{ transitionTimingFunction: LIQUID_EASE, transitionDuration: "350ms" }}
-                >
-                    <nav
-                        className="flex flex-col items-start gap-1 rounded-2xl border bg-card/60 px-3 py-4 backdrop-blur-md"
-                        style={{
-                            width: PANEL_W,
-                            height: panelH,
-                            borderColor: `color-mix(in oklch, ${bubbleColor} 35%, transparent)`,
-                        }}
-                    >
-                        <Link
-                            href="/"
-                            tabIndex={open ? 0 : -1}
-                            onClick={() => setPinnedOpen(false)}
-                            className="px-2 pb-2 font-minecraft text-sm font-semibold tracking-tight text-foreground"
+                <AnimatePresence mode="wait" initial={false}>
+                    {!open ? (
+                        <motion.button
+                            key="collapsed"
+                            type="button"
+                            aria-label="Open navigation"
+                            aria-expanded={false}
+                            aria-haspopup="menu"
+                            onClick={() => setPinnedOpen(true)}
+                            initial={{ opacity: 0 }}
+                            animate={{ opacity: 1 }}
+                            exit={{ opacity: 0 }}
+                            transition={{ duration: 0.15 }}
+                            className="absolute inset-0 flex items-center justify-center font-minecraft text-base font-semibold transition-transform hover:scale-105"
                         >
-                            {identity.name}
-                        </Link>
-                        {sections.map((section) => (
-                            <a
-                                key={section.id}
-                                href={`#${section.id}`}
-                                role="menuitem"
-                                tabIndex={open ? 0 : -1}
+                            <span style={{ color: bubbleColor }}>{bubbleLetter}</span>
+                        </motion.button>
+                    ) : (
+                        <motion.nav
+                            key="expanded"
+                            role="menu"
+                            initial={{ opacity: 0 }}
+                            animate={{ opacity: 1 }}
+                            exit={{ opacity: 0 }}
+                            transition={{ duration: 0.18, delay: open ? 0.1 : 0 }}
+                            className="absolute inset-0 flex flex-col items-start gap-1 overflow-hidden px-3 py-3"
+                        >
+                            <button
+                                type="button"
+                                aria-label="Close navigation"
                                 onClick={() => setPinnedOpen(false)}
-                                className={`w-full whitespace-nowrap rounded-md px-2 py-1.5 text-sm transition-colors ${
-                                    active === section.id
-                                        ? "text-foreground"
-                                        : "text-muted-foreground hover:text-foreground"
-                                }`}
-                                style={
-                                    active === section.id
-                                        ? { backgroundColor: `color-mix(in oklch, ${bubbleColor} 15%, transparent)` }
-                                        : undefined
-                                }
+                                className="w-full px-2 pb-1 text-left"
                             >
-                                {section.label}
-                            </a>
-                        ))}
-                    </nav>
-                </div>
-            </div>
+                                <span
+                                    className="block font-minecraft text-lg font-bold leading-tight tracking-tight"
+                                    style={{ color: bubbleColor }}
+                                >
+                                    {currentPage.title}
+                                </span>
+                            </button>
+                            {/* Redundant on Home itself (the title above
+                                already reads "Nate Anderson") — only shown
+                                on other pages, as a quick way back. */}
+                            {currentPage.href !== "/" && (
+                                <Link
+                                    href="/"
+                                    tabIndex={0}
+                                    onClick={closeAndNavigate}
+                                    className="px-2 pb-1.5 font-mono text-[11px] uppercase tracking-[0.15em] text-muted-foreground transition-colors hover:text-foreground"
+                                >
+                                    nateanderson.dev
+                                </Link>
+                            )}
+                            {allSections.map((section) => (
+                                <a
+                                    key={section.id}
+                                    href={`#${section.id}`}
+                                    role="menuitem"
+                                    tabIndex={0}
+                                    onClick={closeAndNavigate}
+                                    className={`w-full whitespace-nowrap rounded-md px-2 py-1.5 text-sm transition-colors ${
+                                        active === section.id
+                                            ? "text-foreground"
+                                            : "text-muted-foreground hover:text-foreground"
+                                    }`}
+                                    style={
+                                        active === section.id
+                                            ? {
+                                                  backgroundColor: `color-mix(in oklch, ${bubbleColor} 16%, transparent)`,
+                                              }
+                                            : undefined
+                                    }
+                                >
+                                    {section.label}
+                                </a>
+                            ))}
+                        </motion.nav>
+                    )}
+                </AnimatePresence>
+            </motion.div>
         </div>
     );
 }
