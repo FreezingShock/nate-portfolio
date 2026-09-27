@@ -1,7 +1,17 @@
 {
-  "generatedAt": "2026-09-27T20:46:25.873Z",
-  "totalCommits": 20,
+  "generatedAt": "2026-09-27T21:10:14.049Z",
+  "totalCommits": 22,
   "commits": [
+    {
+      "hash": "ef672ec",
+      "date": "2026-09-27",
+      "subject": "Type system overhaul, PageHero color fix, CTA redenge, mobile Dock labels, per-page Magic UI backgrounds, and hero domain reveal"
+    },
+    {
+      "hash": "594d6d6",
+      "date": "2026-09-27",
+      "subject": "Universal footer, condensed Dock, real git-based changelog, and a Minecraft-color accent audit"
+    },
     {
       "hash": "25cc4ab",
       "date": "2026-09-27",
