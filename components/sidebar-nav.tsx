@@ -16,26 +16,15 @@ const BALL = 48;
 const PANEL_W = 176;
 const PANEL_H = 168;
 
-// NOTE (two separate liquid-glass-react bugs, both confirmed by inspecting
-// live rendered rects, not guessed):
-//
-// 1. It computes its SVG displacement filter once against its children's
-//    measured size and does not reflow when that size changes via CSS, so
-//    the collapse/expand can't be one instance animating — it has to be two
-//    fixed-size instances crossfaded with our own CSS opacity/scale.
-//
-// 2. Its internal markup stacks two invisible "ghost" divs *in normal
-//    document flow* before the real content div, then applies
-//    `transform: translate(-50%, -50%)` to the content div alone with no
-//    matching top/left. Net effect measured directly: the visible glass
-//    renders 2×size below and size/2 left of its own wrapper's true box —
-//    e.g. the 48px ball's wrapper sat at (532,20) while its visible "N"
-//    rendered at (508,92). A real cursor aimed at the visible bubble would
-//    miss the actual hover target entirely. Fix: force every direct child
-//    into the same grid cell (`.glass-anchor` in globals.css, kills the
-//    flow-stacking push) and translate the whole thing by (size/2, size/2)
-//    to cancel the library's own centering transform. Verified pixel-exact
-//    against the wrapper's rect before wiring this in.
+// NOTE: liquid-glass-react bug, confirmed by inspecting live rendered rects
+// (see the long comment on `.glass-anchor` in globals.css for the full
+// diagnosis). It computes its SVG displacement filter once against its
+// children's measured size and does not reflow when that size changes via
+// CSS, so the collapse/expand can't be one instance animating — it has to
+// be two fixed-size instances crossfaded with our own CSS opacity/scale.
+// The actual glass-rendering offset bug is fixed via `.glass-anchor` alone
+// now — do NOT add a translate() here, it was tried and it breaks the
+// glass-highlight rendering (see that comment).
 export function SidebarNav() {
     const [hovered, setHovered] = useState(false);
     const [pinnedOpen, setPinnedOpen] = useState(false);
@@ -84,11 +73,7 @@ export function SidebarNav() {
                     this is the persistent hover/tap zone. */}
                 <div
                     className="glass-anchor"
-                    style={{
-                        width: BALL,
-                        height: BALL,
-                        transform: `translate(${BALL / 2}px, ${BALL / 2}px)`,
-                    }}
+                    style={{ width: BALL, height: BALL }}
                 >
                     <LiquidGlass
                         blurAmount={0.08}
@@ -107,7 +92,7 @@ export function SidebarNav() {
                             aria-haspopup="menu"
                             onClick={() => setPinnedOpen((v) => !v)}
                             style={{ width: BALL, height: BALL }}
-                            className="flex items-center justify-center text-base font-semibold text-foreground"
+                            className="flex items-center justify-center text-base font-semibold leading-none text-foreground"
                         >
                             {identity.name.charAt(0)}
                         </button>
@@ -129,11 +114,7 @@ export function SidebarNav() {
                 >
                     <div
                         className="glass-anchor"
-                        style={{
-                            width: PANEL_W,
-                            height: PANEL_H,
-                            transform: `translate(${PANEL_W / 2}px, ${PANEL_H / 2}px)`,
-                        }}
+                        style={{ width: PANEL_W, height: PANEL_H }}
                     >
                         <LiquidGlass
                             blurAmount={0.08}

@@ -15,6 +15,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
+    metadataBase: new URL("https://nateanderson.dev"),
     title: "Nate — Portfolio",
     description:
         "Games, renders, and systems — built while studying toward environmental engineering.",
@@ -27,7 +28,14 @@ export const metadata: Metadata = {
         description:
             "Games, renders, and systems — built while studying toward environmental engineering.",
         siteName: "Nate — Portfolio",
-    }
+        url: "https://nateanderson.dev",
+    },
+    twitter: {
+        card: "summary_large_image",
+        title: "Nate — Portfolio",
+        description:
+            "Games, renders, and systems — built while studying toward environmental engineering.",
+    },
 };
 
 export default function RootLayout({
