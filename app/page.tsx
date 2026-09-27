@@ -10,7 +10,7 @@ export default async function Home() {
     ]);
 
     return (
-        <div className="min-h-screen pl-24 sm:pl-28">
+        <div className="min-h-screen">
             {/* Hero */}
             <section className="mx-auto max-w-4xl px-6 pt-28 pb-20">
                 <div className="rounded-2xl border border-border/50 bg-card/40 p-8 backdrop-blur-xl">

@@ -2,6 +2,21 @@
 
 @plugin "tailwindcss-animate";
 
+/* liquid-glass-react stacks its internal ghost/content divs in normal
+   document flow instead of overlaying them, so the visible glass surface
+   renders offset from its own wrapper (confirmed: content div lands at
+   +1x height/-24px x per instance from the wrapper's true box). Forcing
+   every direct child of a `.glass-anchor` into the same grid cell removes
+   the flow-stacking offset; each instance then needs a translate(w/2, h/2)
+   compensation for the library's own centering transform, applied inline
+   per instance since the compensation depends on that instance's size. */
+.glass-anchor {
+    display: grid;
+}
+.glass-anchor > * {
+    grid-area: 1 / 1;
+}
+
 @custom-variant dark (&:is(.dark *));
 
 @theme inline {
