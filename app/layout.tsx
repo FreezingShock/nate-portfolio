@@ -4,6 +4,7 @@ import "./globals.css";
 import { ThemeProvider } from "@/components/theme-provider";
 import { SiteDock } from "@/components/site-dock";
 import { SiteBackground } from "@/components/site-background";
+import { SiteFooter } from "@/components/site-footer";
 import { ThemeToggle } from "@/components/theme-toggle";
 
 // Roboto Mono for everything except the Minecraft-font signature headers —
@@ -61,7 +62,10 @@ export default function RootLayout({
                     </div>
                     {/* Bottom padding so page content never sits under the
                         fixed Dock. */}
-                    <div className="pb-24">{children}</div>
+                    <div className="flex min-h-screen flex-col pb-24">
+                        <div className="flex-1">{children}</div>
+                        <SiteFooter />
+                    </div>
                     <SiteDock />
                 </ThemeProvider>
             </body>

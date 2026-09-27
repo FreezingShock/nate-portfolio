@@ -1,0 +1,106 @@
+{
+  "generatedAt": "2026-09-27T20:46:25.873Z",
+  "totalCommits": 20,
+  "commits": [
+    {
+      "hash": "25cc4ab",
+      "date": "2026-09-27",
+      "subject": "Typography overhaul: Roboto Mono site-wide, grand Minecraft-font headers everywhere"
+    },
+    {
+      "hash": "8b21105",
+      "date": "2026-09-27",
+      "subject": "Rework the home marquee into a scroll-velocity-driven identity band"
+    },
+    {
+      "hash": "4f808b3",
+      "date": "2026-09-27",
+      "subject": "Add Magic Card everywhere: mouse-following spotlight + hover border glow on Selected Work (home), Projects, Renovations, and the Blog/Creations/Studies placeholder cards"
+    },
+    {
+      "hash": "b3cb8ae",
+      "date": "2026-09-27",
+      "subject": "Finalize hero name: Dia Text Reveal plays once on load, then hands off to a center-out 3D flip cycling Nate/Anderson forever"
+    },
+    {
+      "hash": "db2ff5b",
+      "date": "2026-09-27",
+      "subject": "Add a temporary name-animation comparison rig to the hero: Dia Text Reveal (cycling), Morphing Text, and Word Rotate for cycling Nate/Anderson in one slot"
+    },
+    {
+      "hash": "a129140",
+      "date": "2026-09-27",
+      "subject": "Hero: recolor Dia Text Reveal sweep to the border's gradient (primary to chart-4), add Anderson as a subtitle; retheme the bubble nav to match the flat card/border/blur look of the Dock instead of the old liquid-glass style"
+    },
+    {
+      "hash": "d68de6b",
+      "date": "2026-09-27",
+      "subject": "Full site relaunch: multi-page structure, Linear/Reflect-style design system, Dock navigation, Bento Grid work sections, and 9 Magic UI components wired throughout"
+    },
+    {
+      "hash": "1981be7",
+      "date": "2026-09-27",
+      "subject": "Add MagicUI components (BorderBeam, Marquee, AnimatedGradientText) via shadcn registry, wire into hero badge, real-data stack marquee, and project card hover beam"
+    },
+    {
+      "hash": "3e2d3bb",
+      "date": "2026-09-27",
+      "subject": "Fix nav menu glass/text misalignment during transition by keeping collapse scale modest (0.9 not 0.4) — liquid-glass-react mistracks size proportional to the square of a large scale swing"
+    },
+    {
+      "hash": "7ef0fb7",
+      "date": "2026-09-27",
+      "subject": "Contain nav panel text within glass bounds, liquid overshoot easing, hover region matches active state; add embedded Minecraft font for name and project/renovation titles"
+    },
+    {
+      "hash": "59b5486",
+      "date": "2026-09-27",
+      "subject": "Ignore Next.js auto-generated AGENTS.md/CLAUDE.md"
+    },
+    {
+      "hash": "87ca164",
+      "date": "2026-09-27",
+      "subject": "Merge nav bubble/menu into one centered anchor, move theme toggle to top-right, full-width left-aligned layout"
+    },
+    {
+      "hash": "7070f94",
+      "date": "2026-09-27",
+      "subject": "Fix the real cause of the glass-ball text/ring misalignment"
+    },
+    {
+      "hash": "5ea5e47",
+      "date": "2026-09-27",
+      "subject": "Mobile/keyboard nav access, tune glass distortion, fix overlay opacity bug"
+    },
+    {
+      "hash": "c184591",
+      "date": "2026-09-27",
+      "subject": "Move nav to top-center bubble, fix ghost-div offset bug in liquid-glass-react"
+    },
+    {
+      "hash": "351998e",
+      "date": "2026-09-27",
+      "subject": "Replace pill nav with collapsible sidebar, add background photo + frosted glass"
+    },
+    {
+      "hash": "e1804f3",
+      "date": "2026-09-27",
+      "subject": "Add header/nav with liquid glass effect, dark/light mode toggle, and site metadata"
+    },
+    {
+      "hash": "463771d",
+      "date": "2026-09-26",
+      "subject": "Fix: upgrade Next.js off vulnerable canary version (CVE-2025-66478) to current stable"
+    },
+    {
+      "hash": "db86c52",
+      "date": "2026-09-26",
+      "subject": "Wire site to Supabase for content instead of static file"
+    },
+    {
+      "hash": "8253dbe",
+      "date": "2026-09-26",
+      "subject": "Initial commit: portfolio site scaffold (Next.js + Tailwind + shadcn/ui)"
+    }
+  ]
+}

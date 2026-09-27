@@ -12,6 +12,7 @@ export default function StudiesPage() {
                     eyebrow="Learning"
                     title="Studies"
                     description="Environmental engineering coursework and the systems-thinking it shares with game design."
+                    accent="var(--mc-blue)"
                 />
                 <div id="coursework" className="mt-10 scroll-mt-24">
                     <ComingSoon

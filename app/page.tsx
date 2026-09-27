@@ -82,7 +82,7 @@ export default async function Home() {
                                 shimmerColor="var(--primary-foreground)"
                                 className="text-sm font-medium"
                             >
-                                <Link href="/projects" className="flex items-center gap-2">
+                                <Link href="/creations#projects" className="flex items-center gap-2">
                                     <AnimatedGradientText
                                         speed={1.5}
                                         colorFrom="var(--primary-foreground)"
@@ -120,7 +120,7 @@ export default async function Home() {
                         <div className="flex items-center justify-between gap-4">
                             <SectionLabel>Selected Work</SectionLabel>
                             <Link
-                                href="/projects"
+                                href="/creations#projects"
                                 className="flex items-center gap-1 text-sm text-primary hover:underline"
                             >
                                 View all <ArrowRight className="size-3.5" />
@@ -141,7 +141,7 @@ export default async function Home() {
                                         className="h-full !bg-transparent [box-shadow:none] dark:[box-shadow:none]"
                                         Icon={FolderKanban}
                                         description={project.description}
-                                        href="/projects"
+                                        href="/creations#projects"
                                         cta="Learn more"
                                         background={<div className="absolute inset-0" />}
                                     />
@@ -152,12 +152,6 @@ export default async function Home() {
                 </section>
             )}
 
-            {/* Footer */}
-            <footer className="w-full px-6 py-10 sm:px-10 lg:px-16">
-                <div className="mx-auto max-w-6xl rounded-xl border border-border/50 bg-card/40 px-4 py-3 text-sm text-muted-foreground backdrop-blur-xl">
-                    © {new Date().getFullYear()} {identity.name} {identity.lastName}
-                </div>
-            </footer>
         </div>
     );
 }

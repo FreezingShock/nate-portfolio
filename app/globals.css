@@ -104,6 +104,24 @@
     }
 }
 
+/* Minecraft color codes (the classic 16 §-codes) — used as per-page/per-
+   section accent colors so each area of the site reads as a distinct
+   "world" while staying built from one authentic, on-brand palette instead
+   of arbitrary hex picks. Bright variants only (dropped black/white/gray)
+   since they need to read against a near-black background. */
+:root {
+    --mc-aqua: #55ffff;
+    --mc-dark-aqua: #00aaaa;
+    --mc-gold: #ffaa00;
+    --mc-green: #55ff55;
+    --mc-dark-green: #00aa00;
+    --mc-blue: #5555ff;
+    --mc-red: #ff5555;
+    --mc-light-purple: #ff55ff;
+    --mc-dark-purple: #aa00aa;
+    --mc-yellow: #ffff55;
+}
+
 /* Redesigned 2026-09-27 for the Linear/Reflect-style relaunch: near-black
    surfaces, one crisp indigo primary (the "product" accent, used for links/
    focus/CTAs), and the old amber kept alive as --chart-4 — a secondary warm

@@ -12,6 +12,7 @@ export default function BlogPage() {
                     eyebrow="Writing"
                     title="Blog & Essays"
                     description="Notes on systems design, game dev, and whatever else is worth writing down."
+                    accent="var(--mc-yellow)"
                 />
                 <div id="posts" className="mt-10 scroll-mt-24">
                     <ComingSoon
