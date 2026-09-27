@@ -10,18 +10,20 @@ export default async function Home() {
     ]);
 
     return (
-        <div className="min-h-screen">
+        <div className="min-h-screen pl-24 sm:pl-28">
             {/* Hero */}
             <section className="mx-auto max-w-4xl px-6 pt-28 pb-20">
-                <p className="text-sm uppercase tracking-[0.2em] text-primary">
-                    Portfolio
-                </p>
-                <h1 className="mt-4 text-5xl font-bold tracking-tight text-foreground sm:text-6xl">
-                    {identity.name}
-                </h1>
-                <p className="mt-5 max-w-xl text-lg text-muted-foreground">
-                    {identity.tagline}
-                </p>
+                <div className="rounded-2xl border border-border/50 bg-card/40 p-8 backdrop-blur-xl">
+                    <p className="text-sm uppercase tracking-[0.2em] text-primary">
+                        Portfolio
+                    </p>
+                    <h1 className="mt-4 text-5xl font-bold tracking-tight text-foreground sm:text-6xl">
+                        {identity.name}
+                    </h1>
+                    <p className="mt-5 max-w-xl text-lg text-muted-foreground">
+                        {identity.tagline}
+                    </p>
+                </div>
             </section>
 
             {/* Projects */}
@@ -53,9 +55,11 @@ export default async function Home() {
             </section>
 
             {/* Footer */}
-            <footer className="border-t border-border py-10">
-                <div className="mx-auto max-w-4xl px-6 text-sm text-muted-foreground">
-                    © {new Date().getFullYear()} {identity.name}
+            <footer className="py-10">
+                <div className="mx-auto max-w-4xl px-6">
+                    <div className="rounded-xl border border-border/50 bg-card/40 px-4 py-3 text-sm text-muted-foreground backdrop-blur-xl">
+                        © {new Date().getFullYear()} {identity.name}
+                    </div>
                 </div>
             </footer>
         </div>

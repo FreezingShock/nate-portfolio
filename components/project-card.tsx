@@ -2,7 +2,7 @@ import { Project, statusLabel } from "@/lib/content";
 
 export function ProjectCard({ project }: { project: Project }) {
     return (
-        <div className="group rounded-lg border border-border bg-card p-6 transition-colors hover:border-primary/40">
+        <div className="group rounded-lg border border-border/50 bg-card/40 p-6 backdrop-blur-xl transition-colors hover:border-primary/40">
             <div className="flex items-start justify-between gap-4">
                 <div>
                     <p className="text-xs uppercase tracking-wider text-muted-foreground">
