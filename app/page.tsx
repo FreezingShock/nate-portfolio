@@ -8,8 +8,8 @@ import { HeroFirstName, HeroLastName } from "@/components/hero-name";
 import { TypingAnimation } from "@/components/ui/typing-animation";
 import { GlyphMatrix } from "@/components/ui/glyph-matrix";
 import { ShineBorder } from "@/components/ui/shine-border";
-import { ShimmerButton } from "@/components/ui/shimmer-button";
 import { RainbowButton } from "@/components/ui/rainbow-button";
+import { ShinyButton } from "@/components/ui/shiny-button";
 import { BentoGrid, BentoCard } from "@/components/ui/bento-grid";
 import { MagicCard } from "@/components/ui/magic-card";
 import { SectionLabel } from "@/components/section-label";
@@ -121,19 +121,19 @@ export default async function Home() {
                                     <ArrowRight className="size-4" />
                                 </Link>
                             </RainbowButton>
-                            {/* Same pill shape/size as View Projects so the pair
-                                reads as a matched set, colored with About's own
-                                page accent (dark_aqua) instead of an unrelated
-                                gold, and visibly the calmer of the two. */}
+                            {/* Same pill footprint as View Projects so the pair
+                                reads as a matched set — a text-shine sweep
+                                instead of a rainbow border, visibly the calmer
+                                of the two, tinted with About's own page accent
+                                (dark_aqua) via ShinyButton's new accentColor
+                                prop instead of the site's default primary. */}
                             <Link href="/about">
-                                <ShimmerButton
-                                    background="var(--mc-dark-aqua)"
-                                    shimmerColor="#baffff"
-                                    borderRadius="9999px"
-                                    className="h-11 px-8 text-sm font-semibold"
+                                <ShinyButton
+                                    accentColor="var(--mc-dark-aqua)"
+                                    className="flex h-11 items-center justify-center rounded-full px-8 text-sm font-semibold"
                                 >
                                     About Me
-                                </ShimmerButton>
+                                </ShinyButton>
                             </Link>
                         </div>
                     </div>
