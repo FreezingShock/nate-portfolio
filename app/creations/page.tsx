@@ -30,6 +30,10 @@ export default async function CreationsPage() {
                         items: projects.map((p) => ({
                             href: `/creations/${p.slug}`,
                             label: p.title,
+                            // Matches the aqua title color that project's own
+                            // /creations/[slug] page renders — the nav entry
+                            // looks like the file it points to.
+                            color: "var(--mc-aqua)",
                         })),
                     },
                     {
@@ -38,6 +42,7 @@ export default async function CreationsPage() {
                         items: renovations.map((r) => ({
                             href: `/creations/${r.slug}`,
                             label: r.title,
+                            color: "var(--mc-gold)",
                         })),
                     },
                     { id: "artwork", label: "Artwork" },

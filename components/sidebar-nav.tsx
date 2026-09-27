@@ -10,6 +10,10 @@ import { useActiveSection } from "@/lib/use-active-section";
 export interface PageSectionItem {
     href: string;
     label: string;
+    // The item's own title color — e.g. a project's PageHero accent — so it
+    // reads in the nav exactly as it does on its own page. Falls back to
+    // the current page's accent when not set.
+    color?: string;
 }
 
 export interface PageSection {
@@ -169,19 +173,23 @@ export function SidebarNav({ sections }: { sections: PageSection[] }) {
                             transition={{ duration: 0.18, delay: open ? 0.1 : 0 }}
                             className="absolute inset-0 flex flex-col items-start gap-1 overflow-y-auto px-3 py-3"
                         >
-                            <button
-                                type="button"
-                                aria-label="Close navigation"
-                                onClick={() => setPinnedOpen(false)}
+                            {/* The title itself is the "go to this page's
+                                root" link — from a project detail page under
+                                /creations, clicking "Creations" here jumps
+                                back to the hub, not just closes the panel. */}
+                            <Link
+                                href={currentPage.href}
+                                tabIndex={0}
+                                onClick={closeAndNavigate}
                                 className="w-full px-2 pb-1 text-left"
                             >
                                 <span
-                                    className="block font-minecraft text-lg font-bold leading-tight tracking-tight"
+                                    className="block font-minecraft text-lg font-bold leading-tight tracking-tight transition-opacity hover:opacity-80"
                                     style={{ color: bubbleColor }}
                                 >
                                     {currentPage.title}
                                 </span>
-                            </button>
+                            </Link>
                             {/* Redundant on Home itself (the title above
                                 already reads "Nate Anderson") — only shown
                                 on other pages, as a quick way back. */}
@@ -227,15 +235,17 @@ export function SidebarNav({ sections }: { sections: PageSection[] }) {
                                         >
                                             {section.items.map((item) => {
                                                 const itemActive = pathname === item.href;
+                                                const itemColor = item.color ?? bubbleColor;
                                                 return (
                                                     <Link
                                                         key={item.href}
                                                         href={item.href}
                                                         tabIndex={0}
                                                         onClick={closeAndNavigate}
-                                                        className="rounded-md px-1.5 py-1 font-rubik text-xs leading-snug transition-colors"
+                                                        className="rounded-md px-1.5 py-1 font-minecraft text-xs leading-snug transition-opacity"
                                                         style={{
-                                                            color: itemActive ? bubbleColor : "var(--muted-foreground)",
+                                                            color: itemColor,
+                                                            opacity: itemActive ? 1 : 0.85,
                                                         }}
                                                     >
                                                         {item.label}
