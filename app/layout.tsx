@@ -53,15 +53,21 @@ export default function RootLayout({
                         className="pointer-events-none fixed inset-0 -z-10 bg-cover bg-center bg-no-repeat"
                         style={{
                             backgroundImage:
-                                "url('https://images.unsplash.com/photo-1757265500145-c68e8f5aee12?q=80&w=2400&auto=format&fit=crop')",
+                                "url('https://images.unsplash.com/photo-1757265500145-c68e8f5aee12?q=65&w=1920&auto=format&fit=crop')",
                         }}
                     />
+                    {/* Plain opacity on a solid background-color, not
+                        color-mix(...,transparent) — that resolved to a fully
+                        OPAQUE color in testing (no alpha channel at all),
+                        hiding the photo underneath completely. opacity on a
+                        solid color is the reliable way to get a translucent
+                        overlay across browsers. */}
                     <div
                         aria-hidden
                         className="pointer-events-none fixed inset-0 -z-10"
                         style={{
-                            background:
-                                "color-mix(in oklch, var(--background) 78%, transparent)",
+                            backgroundColor: "var(--background)",
+                            opacity: 0.78,
                         }}
                     />
                     <SidebarNav />
