@@ -4,7 +4,7 @@ import { identity, getProjects, getRecentRenovations } from "@/lib/content";
 import { IdentityMarquee } from "@/components/identity-marquee";
 import { SiteBackground } from "@/components/site-background";
 import { AnimatedGradientText } from "@/components/ui/animated-gradient-text";
-import { HeroName } from "@/components/hero-name";
+import { HeroFirstName, HeroLastName } from "@/components/hero-name";
 import { TypingAnimation } from "@/components/ui/typing-animation";
 import { GlyphMatrix } from "@/components/ui/glyph-matrix";
 import { ShineBorder } from "@/components/ui/shine-border";
@@ -60,7 +60,38 @@ export default async function Home() {
                     </div>
 
                     <div className="relative">
-                        <div className="inline-flex items-center rounded-full border border-primary/30 bg-primary/5 px-4 py-1.5">
+                        {/* Domain first — reads like a browser/terminal chip,
+                            establishes "this is a real site with a real URL"
+                            before the name even renders. */}
+                        <div className="inline-flex items-center gap-2 rounded-full border border-border/60 bg-background/40 px-4 py-1.5 font-mono text-xs text-muted-foreground sm:text-sm">
+                            <span className="relative flex size-1.5">
+                                <span className="absolute inline-flex size-full animate-ping rounded-full bg-primary opacity-75" />
+                                <span className="relative inline-flex size-1.5 rounded-full bg-primary" />
+                            </span>
+                            <TypingAnimation delay={200} typeSpeed={70} showCursor={false}>
+                                nateanderson
+                            </TypingAnimation>
+                            <TypingAnimation
+                                delay={200 + 70 * "nateanderson".length}
+                                typeSpeed={70}
+                                cursorStyle="block"
+                                className="font-semibold text-primary"
+                            >
+                                .dev
+                            </TypingAnimation>
+                        </div>
+
+                        {/* Full name, multisized: "Nate" is the headline,
+                            "Anderson" settles in smaller right underneath —
+                            both stay on screen, nothing keeps cycling. */}
+                        <h1 className="mt-6 font-minecraft text-6xl font-bold tracking-tight sm:text-7xl">
+                            <HeroFirstName />
+                        </h1>
+                        <div className="mt-1 text-3xl font-bold tracking-tight sm:text-4xl">
+                            <HeroLastName />
+                        </div>
+
+                        <div className="mt-6 inline-flex items-center rounded-full border border-primary/30 bg-primary/5 px-4 py-1.5">
                             <AnimatedGradientText
                                 speed={1.2}
                                 colorFrom="var(--primary)"
@@ -69,27 +100,6 @@ export default async function Home() {
                             >
                                 Portfolio
                             </AnimatedGradientText>
-                        </div>
-
-                        <h1 className="mt-6 flex items-center justify-center text-6xl font-bold tracking-tight sm:text-7xl">
-                            <HeroName />
-                        </h1>
-
-                        {/* The actual site brand — typed in after the name
-                            settles, so the domain reads as the payoff of the
-                            reveal, not a competing headline. */}
-                        <div className="mt-2 flex items-center justify-center font-mono text-base text-muted-foreground sm:text-lg">
-                            <TypingAnimation delay={1500} typeSpeed={70} showCursor={false}>
-                                nateanderson
-                            </TypingAnimation>
-                            <TypingAnimation
-                                delay={1500 + 70 * "nateanderson".length}
-                                typeSpeed={70}
-                                cursorStyle="block"
-                                className="font-semibold text-primary"
-                            >
-                                .dev
-                            </TypingAnimation>
                         </div>
 
                         <p className="mx-auto mt-5 max-w-xl text-lg text-muted-foreground">

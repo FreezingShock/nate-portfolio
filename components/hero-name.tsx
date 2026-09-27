@@ -1,80 +1,71 @@
 "use client";
 
-// Hero name: Dia Text Reveal plays once on load ("Nate" sweeps in with the
-// same gradient as the hero border), then hands off to a center-out 3D
-// flip that cycles Nate <-> Anderson forever. Replaces the earlier
-// name-animation-picker.tsx comparison rig now that both are picked.
+// Full name, shown together and "multisized" per Nate's brief: "Nate" is
+// the big headline (Dia Text Reveal — the loved gradient sweep), "Anderson"
+// settles in right after at a smaller scale via a one-time center-out 3D
+// flip. Both stay on screen once revealed — this replaced an earlier
+// version that cycled Nate <-> Anderson forever, which buried "Anderson"
+// half the time instead of showing the full name.
 
 import { useEffect, useState } from "react";
-import { AnimatePresence, motion } from "motion/react";
+import { motion } from "motion/react";
 import { DiaTextReveal } from "@/components/ui/dia-text-reveal";
 
-const WORDS = ["Nate", "Anderson"];
-const REVEAL_DURATION = 1; // seconds, matches DiaTextReveal's `duration` below
-const FLIP_INTERVAL = 3200; // ms between word switches once cycling starts
+const FIRST_NAME = "Nate";
+const LAST_NAME = "Anderson";
+const REVEAL_DURATION = 1; // seconds — DiaTextReveal's sweep length for "Nate"
+const LAST_NAME_DELAY = REVEAL_DURATION * 1000 + 150; // start right as "Nate" settles
 const STAGGER = 0.035; // seconds, per character away from the center
 
-function FlipCycle() {
-    const [index, setIndex] = useState(0);
+function LastNameFlipIn() {
+    const [show, setShow] = useState(false);
 
     useEffect(() => {
-        const id = setInterval(() => {
-            setIndex((v) => (v + 1) % WORDS.length);
-        }, FLIP_INTERVAL);
-        return () => clearInterval(id);
+        const id = setTimeout(() => setShow(true), LAST_NAME_DELAY);
+        return () => clearTimeout(id);
     }, []);
 
-    const word = WORDS[index];
-    const chars = Array.from(word);
+    const chars = Array.from(LAST_NAME);
     const center = (chars.length - 1) / 2;
 
     return (
         <span className="inline-flex" style={{ perspective: 600 }}>
-            <AnimatePresence mode="wait">
-                <motion.span key={word} className="inline-flex">
-                    {chars.map((ch, i) => (
-                        <motion.span
-                            key={i}
-                            className="inline-block"
-                            style={{ transformStyle: "preserve-3d" }}
-                            initial={{ rotateX: -90, opacity: 0 }}
-                            animate={{ rotateX: 0, opacity: 1 }}
-                            exit={{ rotateX: 90, opacity: 0 }}
-                            transition={{
-                                duration: 0.4,
-                                delay: Math.abs(i - center) * STAGGER,
-                                ease: [0.34, 1.56, 0.64, 1],
-                            }}
-                        >
-                            {ch}
-                        </motion.span>
-                    ))}
+            {chars.map((ch, i) => (
+                <motion.span
+                    key={i}
+                    className="inline-block"
+                    style={{ transformStyle: "preserve-3d" }}
+                    initial={{ rotateX: -90, opacity: 0 }}
+                    animate={show ? { rotateX: 0, opacity: 1 } : undefined}
+                    transition={{
+                        duration: 0.4,
+                        delay: Math.abs(i - center) * STAGGER,
+                        ease: [0.34, 1.56, 0.64, 1],
+                    }}
+                >
+                    {ch}
                 </motion.span>
-            </AnimatePresence>
+            ))}
         </span>
     );
 }
 
-export function HeroName() {
-    const [revealed, setRevealed] = useState(false);
-
-    useEffect(() => {
-        const id = setTimeout(() => setRevealed(true), REVEAL_DURATION * 1000 + 200);
-        return () => clearTimeout(id);
-    }, []);
-
+export function HeroFirstName() {
     return (
-        <span className="font-minecraft">
-            {revealed ? (
-                <FlipCycle />
-            ) : (
-                <DiaTextReveal
-                    text={WORDS[0]}
-                    duration={REVEAL_DURATION}
-                    colors={["var(--primary)", "var(--chart-4)"]}
-                    textColor="var(--foreground)"
-                />
-            )}
+        <DiaTextReveal
+            text={FIRST_NAME}
+            duration={REVEAL_DURATION}
+            colors={["var(--primary)", "var(--chart-4)"]}
+            textColor="var(--foreground)"
+            className="font-minecraft"
+        />
+    );
+}
+
+export function HeroLastName() {
+    return (
+        <span className="font-minecraft" style={{ color: "var(--chart-4)" }}>
+            <LastNameFlipIn />
         </span>
     );
 }
