@@ -1,7 +1,14 @@
-import { identity, projects, recentRenovations } from "@/lib/content";
+import { identity, getProjects, getRecentRenovations } from "@/lib/content";
 import { ProjectCard } from "@/components/project-card";
 
-export default function Home() {
+export const revalidate = 60; // re-check Supabase for new content every 60s
+
+export default async function Home() {
+    const [projects, recentRenovations] = await Promise.all([
+        getProjects(),
+        getRecentRenovations(),
+    ]);
+
     return (
         <div className="min-h-screen">
             {/* Hero */}

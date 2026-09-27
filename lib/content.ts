@@ -1,5 +1,8 @@
-// Edit this file to add, remove, or update portfolio pieces.
-// No other file needs to change — the page reads from these arrays.
+// Content now lives in Supabase (public.projects table).
+// To add/edit a project: update the row directly, or ask Claude to run the SQL.
+// No code change needed for new content — just new rows.
+
+import { supabase } from "@/lib/supabase";
 
 export type ProjectStatus = "active" | "planning" | "idea";
 
@@ -19,40 +22,50 @@ export const statusLabel: Record<ProjectStatus, string> = {
     idea: "Coming Soon",
 };
 
-export const projects: Project[] = [
-    {
-        slug: "fractured-islands",
-        title: "Fractured Islands: Ascension",
-        category: "Game Development",
-        status: "active",
-        description:
-            "A solo-built Roblox incremental/RPG combining button-based progression with deep, interdependent stat and attribute systems. Menu architecture, combo systems, and a 100+ attribute progression engine, all built from scratch in Luau.",
-        tags: ["Roblox", "Luau", "Systems Design"],
-    },
-];
-
-export const recentRenovations: Project[] = [
-    {
-        slug: "topanga-willows",
-        title: "Topanga Willows",
-        category: "Architecture & Urban Design",
-        status: "planning",
-        description:
-            "An architecture and sustainable landscape redesign study, grounded in a design philosophy of authenticity and responsibility over trend.",
-        tags: ["Architecture", "3D Design"],
-    },
-    {
-        slug: "blender-studies",
-        title: "Blender Renovation Studies",
-        category: "3D Visualization",
-        status: "idea",
-        description:
-            "Measuring and modeling real places, then reimagining them greener and more inviting — the practice that feeds new pieces into this section over time.",
-        tags: ["Blender", "3D Rendering"],
-    },
-];
-
 export const identity = {
     name: "Nate",
     tagline: "Building games, renders, and systems — studying toward environmental engineering.",
 };
+
+interface ProjectRow {
+    slug: string;
+    title: string;
+    category: string;
+    status: ProjectStatus;
+    description: string;
+    tags: string[];
+    section: "projects" | "renovations";
+    sort_order: number;
+}
+
+async function fetchSection(section: "projects" | "renovations"): Promise<Project[]> {
+    const { data, error } = await supabase
+        .from("projects")
+        .select("slug, title, category, status, description, tags, section, sort_order")
+        .eq("section", section)
+        .order("sort_order", { ascending: true });
+
+    if (error) {
+        console.error(`Failed to fetch "${section}" from Supabase:`, error.message);
+        return [];
+    }
+
+    return (data as ProjectRow[]).map(
+        ({ slug, title, category, status, description, tags }) => ({
+            slug,
+            title,
+            category,
+            status,
+            description,
+            tags,
+        })
+    );
+}
+
+export function getProjects() {
+    return fetchSection("projects");
+}
+
+export function getRecentRenovations() {
+    return fetchSection("renovations");
+}
