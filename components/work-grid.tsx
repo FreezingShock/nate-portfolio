@@ -44,7 +44,7 @@ export function WorkGrid({
                             className="h-full !bg-transparent [box-shadow:none] dark:[box-shadow:none]"
                             Icon={Icon}
                             description={project.description}
-                            href={project.href ?? "#"}
+                            href={`/creations/${project.slug}`}
                             cta="Learn more"
                             background={
                                 <div className="absolute inset-0 flex flex-wrap items-start justify-end gap-2 p-4 pt-12 opacity-0 transition-opacity duration-300 group-hover:opacity-100">

@@ -73,3 +73,33 @@ export function getProjects() {
 export function getRecentRenovations() {
     return fetchSection("renovations");
 }
+
+// Per-project detail pages (/creations/[slug]) need the section too, to
+// know which accent color and icon to theme the page with.
+export interface ProjectWithSection extends Project {
+    section: "projects" | "renovations";
+}
+
+export async function getProjectBySlug(slug: string): Promise<ProjectWithSection | null> {
+    const { data, error } = await supabase
+        .from("projects")
+        .select("slug, title, category, status, description, tags, section")
+        .eq("slug", slug)
+        .maybeSingle();
+
+    if (error || !data) {
+        if (error) console.error(`Failed to fetch project "${slug}" from Supabase:`, error.message);
+        return null;
+    }
+
+    return data as ProjectWithSection;
+}
+
+export async function getAllProjectSlugs(): Promise<string[]> {
+    const { data, error } = await supabase.from("projects").select("slug");
+    if (error || !data) {
+        if (error) console.error("Failed to fetch project slugs from Supabase:", error.message);
+        return [];
+    }
+    return data.map((row: { slug: string }) => row.slug);
+}
