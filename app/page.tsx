@@ -9,6 +9,7 @@ import { TypingAnimation } from "@/components/ui/typing-animation";
 import { GlyphMatrix } from "@/components/ui/glyph-matrix";
 import { ShineBorder } from "@/components/ui/shine-border";
 import { ShimmerButton } from "@/components/ui/shimmer-button";
+import { RainbowButton } from "@/components/ui/rainbow-button";
 import { BentoGrid, BentoCard } from "@/components/ui/bento-grid";
 import { MagicCard } from "@/components/ui/magic-card";
 import { SectionLabel } from "@/components/section-label";
@@ -107,32 +108,33 @@ export default async function Home() {
                         </p>
 
                         <div className="mt-8 flex flex-wrap items-center justify-center gap-4">
-                            <ShimmerButton
-                                background="var(--primary)"
-                                shimmerColor="var(--primary-foreground)"
-                                className="text-sm font-medium"
-                            >
-                                <Link href="/creations#projects" className="flex items-center gap-2">
-                                    <AnimatedGradientText
-                                        speed={1.5}
-                                        colorFrom="var(--primary-foreground)"
-                                        colorTo="var(--chart-4)"
-                                        className="font-medium"
-                                    >
-                                        View Projects
-                                    </AnimatedGradientText>
+                            {/* The showcase CTA — animated rainbow border/glow,
+                                deliberately the flashier of the two since this
+                                is the "look at what I've built" button. `asChild`
+                                merges RainbowButton's styling directly onto the
+                                Link's own <a>, so the whole pill is clickable,
+                                not just the text inside it (the old ShimmerButton
+                                version here only made the inner text clickable). */}
+                            <RainbowButton asChild size="lg" className="rounded-full text-sm font-semibold">
+                                <Link href="/creations#projects" className="gap-2">
+                                    View Projects
                                     <ArrowRight className="size-4" />
                                 </Link>
-                            </ShimmerButton>
-                            <ShimmerButton
-                                background="var(--chart-4)"
-                                shimmerColor="#1a1408"
-                                className="text-sm font-medium"
-                            >
-                                <Link href="/about" className="flex items-center gap-2 text-neutral-900">
+                            </RainbowButton>
+                            {/* Same pill shape/size as View Projects so the pair
+                                reads as a matched set, colored with About's own
+                                page accent (dark_aqua) instead of an unrelated
+                                gold, and visibly the calmer of the two. */}
+                            <Link href="/about">
+                                <ShimmerButton
+                                    background="var(--mc-dark-aqua)"
+                                    shimmerColor="#baffff"
+                                    borderRadius="9999px"
+                                    className="h-11 px-8 text-sm font-semibold"
+                                >
                                     About Me
-                                </Link>
-                            </ShimmerButton>
+                                </ShimmerButton>
+                            </Link>
                         </div>
                     </div>
                 </div>
