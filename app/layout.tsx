@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
+import { ThemeProvider } from "@/components/theme-provider";
+import { Header } from "@/components/header";
 
 const geistSans = Geist({
     variable: "--font-geist-sans",
@@ -34,11 +36,29 @@ export default function RootLayout({
     children: React.ReactNode;
 }>) {
     return (
-        <html lang="en">
+        <html lang="en" suppressHydrationWarning>
             <body
                 className={`${geistSans.variable} ${geistMono.variable} antialiased`}
             >
-                {children}
+                <ThemeProvider
+                    attribute="class"
+                    defaultTheme="dark"
+                    enableSystem
+                    disableTransitionOnChange
+                >
+                    {/* Fixed gradient so the glass nav has something to refract —
+                        a flat background gives liquid-glass-react nothing to distort. */}
+                    <div
+                        aria-hidden
+                        className="pointer-events-none fixed inset-x-0 top-0 -z-10 h-[420px]"
+                        style={{
+                            background:
+                                "radial-gradient(ellipse 60% 50% at 50% -10%, color-mix(in oklch, var(--primary) 22%, transparent), transparent)",
+                        }}
+                    />
+                    <Header />
+                    {children}
+                </ThemeProvider>
             </body>
         </html>
     );

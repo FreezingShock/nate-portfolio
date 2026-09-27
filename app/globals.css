@@ -45,9 +45,46 @@
     --radius-xl: calc(var(--radius) + 4px);
 }
 
-/* Dark-first, minimalist, elegant — matches the stated aesthetic in life/creative.md.
-   No light theme for v1: one deliberate look, not a toggle to maintain. */
+/* Minimalist, elegant — matches the stated aesthetic in life/creative.md.
+   Dark is the default (see ThemeProvider), light is a real, equally-designed alternative,
+   both built from the same amber accent hue for visual continuity when switching. */
 :root {
+    --background: oklch(0.985 0.002 90);
+    --foreground: oklch(0.18 0.005 90);
+    --card: oklch(0.97 0.003 90);
+    --card-foreground: oklch(0.18 0.005 90);
+    --popover: oklch(0.97 0.003 90);
+    --popover-foreground: oklch(0.18 0.005 90);
+    --primary: oklch(0.55 0.13 75);
+    --primary-foreground: oklch(0.985 0.002 90);
+    --secondary: oklch(0.93 0.004 90);
+    --secondary-foreground: oklch(0.18 0.005 90);
+    --muted: oklch(0.94 0.004 90);
+    --muted-foreground: oklch(0.45 0.01 90);
+    --accent: oklch(0.93 0.004 90);
+    --accent-foreground: oklch(0.55 0.13 75);
+    --destructive: oklch(0.577 0.245 27.325);
+    --destructive-foreground: oklch(0.985 0.002 90);
+    --border: oklch(0.88 0.005 90);
+    --input: oklch(0.88 0.005 90);
+    --ring: oklch(0.55 0.13 75);
+    --chart-1: oklch(0.55 0.13 75);
+    --chart-2: oklch(0.6 0.118 184.704);
+    --chart-3: oklch(0.398 0.07 227.392);
+    --chart-4: oklch(0.828 0.189 84.429);
+    --chart-5: oklch(0.769 0.188 70.08);
+    --radius: 0.5rem;
+    --sidebar: oklch(0.97 0.003 90);
+    --sidebar-foreground: oklch(0.18 0.005 90);
+    --sidebar-primary: oklch(0.55 0.13 75);
+    --sidebar-primary-foreground: oklch(0.985 0.002 90);
+    --sidebar-accent: oklch(0.93 0.004 90);
+    --sidebar-accent-foreground: oklch(0.18 0.005 90);
+    --sidebar-border: oklch(0.88 0.005 90);
+    --sidebar-ring: oklch(0.55 0.13 75);
+}
+
+.dark {
     --background: oklch(0.145 0 0);
     --foreground: oklch(0.94 0.005 90);
     --card: oklch(0.18 0.005 90);
@@ -72,7 +109,6 @@
     --chart-3: oklch(0.398 0.07 227.392);
     --chart-4: oklch(0.828 0.189 84.429);
     --chart-5: oklch(0.769 0.188 70.08);
-    --radius: 0.5rem;
     --sidebar: oklch(0.18 0.005 90);
     --sidebar-foreground: oklch(0.94 0.005 90);
     --sidebar-primary: oklch(0.75 0.11 75);

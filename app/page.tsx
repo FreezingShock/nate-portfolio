@@ -25,7 +25,7 @@ export default async function Home() {
             </section>
 
             {/* Projects */}
-            <section className="mx-auto max-w-4xl px-6 pb-20">
+            <section id="projects" className="mx-auto max-w-4xl px-6 pb-20 pt-8 scroll-mt-24">
                 <h2 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">
                     Projects
                 </h2>
@@ -37,7 +37,7 @@ export default async function Home() {
             </section>
 
             {/* Recent Renovations */}
-            <section className="mx-auto max-w-4xl px-6 pb-24">
+            <section id="renovations" className="mx-auto max-w-4xl px-6 pb-24 pt-8 scroll-mt-24">
                 <h2 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">
                     Recent Renovations
                 </h2>
