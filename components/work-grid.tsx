@@ -2,6 +2,7 @@ import type { LucideIcon } from "lucide-react";
 import { Project, statusLabel } from "@/lib/content";
 import { BentoGrid, BentoCard } from "@/components/ui/bento-grid";
 import { ShineBorder } from "@/components/ui/shine-border";
+import { MagicCard } from "@/components/ui/magic-card";
 
 // Shared by /projects and /renovations — same bento treatment, different
 // data source and icon, per Nate's call to keep the two sections separate
@@ -31,26 +32,34 @@ export function WorkGrid({
                     key={project.slug}
                     className={`relative ${i === 0 ? "sm:col-span-2 lg:col-span-2" : "col-span-1"}`}
                 >
-                    <BentoCard
-                        name={project.title}
-                        className="h-full"
-                        Icon={Icon}
-                        description={project.description}
-                        href={project.href ?? "#"}
-                        cta="Learn more"
-                        background={
-                            <div className="absolute inset-0 flex flex-wrap items-start justify-end gap-2 p-4 pt-12 opacity-0 transition-opacity duration-300 group-hover:opacity-100">
-                                {project.tags.map((tag) => (
-                                    <span
-                                        key={tag}
-                                        className="h-fit rounded-full border border-border/60 bg-background/60 px-2 py-0.5 text-xs text-muted-foreground"
-                                    >
-                                        {tag}
-                                    </span>
-                                ))}
-                            </div>
-                        }
-                    />
+                    <MagicCard
+                        className="h-full rounded-xl"
+                        gradientFrom="var(--primary)"
+                        gradientTo="var(--chart-4)"
+                        gradientColor="var(--accent)"
+                        gradientOpacity={0.6}
+                    >
+                        <BentoCard
+                            name={project.title}
+                            className="h-full !bg-transparent [box-shadow:none] dark:[box-shadow:none]"
+                            Icon={Icon}
+                            description={project.description}
+                            href={project.href ?? "#"}
+                            cta="Learn more"
+                            background={
+                                <div className="absolute inset-0 flex flex-wrap items-start justify-end gap-2 p-4 pt-12 opacity-0 transition-opacity duration-300 group-hover:opacity-100">
+                                    {project.tags.map((tag) => (
+                                        <span
+                                            key={tag}
+                                            className="h-fit rounded-full border border-border/60 bg-background/60 px-2 py-0.5 text-xs text-muted-foreground"
+                                        >
+                                            {tag}
+                                        </span>
+                                    ))}
+                                </div>
+                            }
+                        />
+                    </MagicCard>
                     <div className="pointer-events-none absolute right-4 top-4 z-10 rounded-full border border-border px-2.5 py-0.5 text-xs text-muted-foreground">
                         {statusLabel[project.status]}
                     </div>

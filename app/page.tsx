@@ -8,6 +8,7 @@ import { GlyphMatrix } from "@/components/ui/glyph-matrix";
 import { ShineBorder } from "@/components/ui/shine-border";
 import { ShimmerButton } from "@/components/ui/shimmer-button";
 import { BentoGrid, BentoCard } from "@/components/ui/bento-grid";
+import { MagicCard } from "@/components/ui/magic-card";
 import { SidebarNav } from "@/components/sidebar-nav";
 
 export const revalidate = 60; // re-check Supabase for new content every 60s
@@ -145,16 +146,24 @@ export default async function Home() {
                         </div>
                         <BentoGrid className="mt-6 grid-cols-1 sm:grid-cols-3">
                             {featured.map((project) => (
-                                <BentoCard
+                                <MagicCard
                                     key={project.slug}
-                                    name={project.title}
-                                    className="col-span-1"
-                                    Icon={FolderKanban}
-                                    description={project.description}
-                                    href="/projects"
-                                    cta="Learn more"
-                                    background={<div className="absolute inset-0" />}
-                                />
+                                    className="col-span-1 rounded-xl"
+                                    gradientFrom="var(--primary)"
+                                    gradientTo="var(--chart-4)"
+                                    gradientColor="var(--accent)"
+                                    gradientOpacity={0.6}
+                                >
+                                    <BentoCard
+                                        name={project.title}
+                                        className="h-full !bg-transparent [box-shadow:none] dark:[box-shadow:none]"
+                                        Icon={FolderKanban}
+                                        description={project.description}
+                                        href="/projects"
+                                        cta="Learn more"
+                                        background={<div className="absolute inset-0" />}
+                                    />
+                                </MagicCard>
                             ))}
                         </BentoGrid>
                     </div>
