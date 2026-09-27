@@ -8,7 +8,7 @@ export function ProjectCard({ project }: { project: Project }) {
                     <p className="text-xs uppercase tracking-wider text-muted-foreground">
                         {project.category}
                     </p>
-                    <h3 className="mt-1 text-xl font-semibold text-foreground">
+                    <h3 className="mt-1 font-minecraft text-xl font-semibold text-foreground">
                         {project.title}
                     </h3>
                 </div>

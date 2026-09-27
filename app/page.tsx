@@ -17,7 +17,7 @@ export default async function Home() {
                     <p className="text-sm uppercase tracking-[0.2em] text-primary">
                         Portfolio
                     </p>
-                    <h1 className="mt-4 text-5xl font-bold tracking-tight text-foreground sm:text-6xl">
+                    <h1 className="mt-4 font-minecraft text-5xl font-bold tracking-tight text-foreground sm:text-6xl">
                         {identity.name}
                     </h1>
                     <p className="mt-5 max-w-xl text-lg text-muted-foreground">

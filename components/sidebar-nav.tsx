@@ -14,6 +14,11 @@ const navLinks = [
 const BALL = 48;
 const PANEL_W = 176;
 const PANEL_H = 168;
+const HOVER_MARGIN = 14;
+// A "liquidy" overshoot ease — settles past 100% then eases back, instead
+// of a flat linear-ish ease-out. Used for both directions (collapse and
+// expand) so it feels like one continuous material, not two animations.
+const LIQUID_EASE = "cubic-bezier(0.34, 1.56, 0.64, 1)";
 
 // NOTE: liquid-glass-react bug, confirmed by inspecting live rendered rects
 // (see the long comment on `.glass-anchor` in globals.css for the full
@@ -70,16 +75,25 @@ export function SidebarNav() {
             {/* Both states share one anchor point (top-center of this box)
                 so the panel visually grows out of the bubble in place —
                 never down-and-to-the-side — and only one of the two is
-                ever interactive/visible at a time. */}
-            <div className="relative" style={{ width: PANEL_W, height: PANEL_H }}>
+                ever interactive/visible at a time. Sized to whichever state
+                is active (+ a small margin) so the hover/tap hit-region
+                never extends past what's actually showing. */}
+            <div
+                className="relative"
+                style={{
+                    width: (open ? PANEL_W : BALL) + HOVER_MARGIN * 2,
+                    height: (open ? PANEL_H : BALL) + HOVER_MARGIN * 2,
+                }}
+            >
                 {/* Collapsed: round bubble. Scales/fades OUT from the shared
                     top-center anchor when the menu opens. */}
                 <div
-                    className={`absolute left-1/2 top-0 origin-top -translate-x-1/2 transition-all duration-300 ease-out ${
+                    className={`absolute left-1/2 top-0 origin-top -translate-x-1/2 transition-all duration-350 ${
                         open
-                            ? "pointer-events-none scale-75 opacity-0"
+                            ? "pointer-events-none scale-[0.4] opacity-0"
                             : "scale-100 opacity-100"
                     }`}
+                    style={{ transitionTimingFunction: LIQUID_EASE, transitionDuration: "350ms" }}
                 >
                     <div
                         className="glass-anchor"
@@ -103,7 +117,7 @@ export function SidebarNav() {
                                 tabIndex={open ? -1 : 0}
                                 onClick={() => setPinnedOpen((v) => !v)}
                                 style={{ width: BALL, height: BALL }}
-                                className="flex items-center justify-center text-base font-semibold leading-none text-foreground"
+                                className="flex items-center justify-center font-minecraft text-base font-semibold leading-none text-foreground"
                             >
                                 {identity.name.charAt(0)}
                             </button>
@@ -117,11 +131,12 @@ export function SidebarNav() {
                 <div
                     role="menu"
                     aria-hidden={!open}
-                    className={`absolute left-1/2 top-0 origin-top -translate-x-1/2 transition-all duration-300 ease-out ${
+                    className={`absolute left-1/2 top-0 origin-top -translate-x-1/2 transition-all ${
                         open
                             ? "scale-100 opacity-100"
-                            : "pointer-events-none scale-75 opacity-0"
+                            : "pointer-events-none scale-[0.4] opacity-0"
                     }`}
+                    style={{ transitionTimingFunction: LIQUID_EASE, transitionDuration: "350ms" }}
                 >
                     <div
                         className="glass-anchor"
@@ -137,12 +152,21 @@ export function SidebarNav() {
                             style={{ width: PANEL_W, height: PANEL_H }}
                             className="!block"
                         >
-                            <nav className="flex h-full w-full flex-col items-start gap-1 px-3 py-4">
+                            {/* Explicit pixel size, NOT w-full/h-full: liquid-glass-react
+                                measures its ghost/filter layer against children's
+                                intrinsic size on first paint. Percentage sizing resolves
+                                later, so the visible glass ends up smaller than this real
+                                content box and text spills outside it. Fixed pixels make
+                                the two agree immediately. */}
+                            <nav
+                                className="flex flex-col items-start gap-1 px-3 py-4"
+                                style={{ width: PANEL_W, height: PANEL_H }}
+                            >
                                 <Link
                                     href="/"
                                     tabIndex={open ? 0 : -1}
                                     onClick={() => setPinnedOpen(false)}
-                                    className="px-2 pb-2 text-sm font-semibold tracking-tight text-foreground"
+                                    className="px-2 pb-2 font-minecraft text-sm font-semibold tracking-tight text-foreground"
                                 >
                                     {identity.name}
                                 </Link>
