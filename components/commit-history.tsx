@@ -13,14 +13,6 @@ interface CommitEntry {
     subject: string;
 }
 
-interface GhCommit {
-    sha: string;
-    commit: {
-        author: { date: string } | null;
-        message: string;
-    };
-}
-
 const PAGE_SIZE_OPTIONS = [5, 10, 20] as const;
 
 // "September 28, 2026" — month spelled out, no leading zero on the day
@@ -36,14 +28,6 @@ function formatDate(iso: string): string {
         year: "numeric",
         timeZone: "UTC",
     });
-}
-
-function parseCommits(raw: GhCommit[]): CommitEntry[] {
-    return raw.map((c) => ({
-        hash: c.sha.slice(0, 7),
-        date: c.commit.author?.date ?? "",
-        subject: c.commit.message.split("\n")[0],
-    }));
 }
 
 // Clamp helper used in a few places below so "page" can never end up outside
@@ -106,17 +90,25 @@ export function CommitHistory({
         setLoading(true);
         setError(false);
 
-        fetch(
-            `https://api.github.com/repos/${repo}/commits?per_page=${perPage}&page=${page}`,
-            { headers: { Accept: "application/vnd.github+json" }, signal: controller.signal }
-        )
+        // Same-origin API route instead of hitting api.github.com straight
+        // from the browser: GitHub's unauthenticated REST API is capped at
+        // 60 requests/HOUR PER IP, and every page/page-size click used to
+        // spend one of those directly — a handful of clicks (or a shared
+        // office/school IP) could exhaust it and surface as "Couldn't reach
+        // the GitHub API" even though GitHub itself was fine. The route
+        // (app/api/commits/route.ts) fetches server-side with an hour-long
+        // cache, so many visitors paging around the same page/size combo
+        // share one real GitHub call instead of each spending their own.
+        fetch(`/api/commits?per_page=${perPage}&page=${page}`, {
+            signal: controller.signal,
+        })
             .then((res) => {
-                if (!res.ok) throw new Error(`GitHub API error: ${res.status}`);
+                if (!res.ok) throw new Error(`Commit API error: ${res.status}`);
                 return res.json();
             })
-            .then((raw: GhCommit[]) => {
+            .then((data: CommitEntry[]) => {
                 if (requestId.current !== thisRequest) return; // superseded — ignore
-                setCommits(parseCommits(raw));
+                setCommits(data);
             })
             .catch((err) => {
                 if (requestId.current !== thisRequest) return;
@@ -127,7 +119,7 @@ export function CommitHistory({
             });
 
         return () => controller.abort();
-    }, [page, perPage, repo]);
+    }, [page, perPage]);
 
     // Defensive clamp: if totalCommits ever changes (a revalidated server
     // fetch handing this component new props) or perPage changes in a way

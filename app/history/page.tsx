@@ -7,6 +7,19 @@ import { CommitHistory } from "@/components/commit-history";
 const REPO = "FreezingShock/nateanderson-dev";
 const INITIAL_PER_PAGE = 10;
 
+// Unauthenticated GitHub REST calls are capped at 60/hour PER IP — plenty
+// for one page's worth of server-rendered fetches, but easy to blow through
+// across repeated dev-server restarts/builds while iterating on this page.
+// GITHUB_TOKEN is entirely optional: if set (a fine-grained PAT with public
+// read access is enough), authenticated requests get 5,000/hour instead.
+function githubHeaders(): HeadersInit {
+    const headers: HeadersInit = { Accept: "application/vnd.github+json" };
+    if (process.env.GITHUB_TOKEN) {
+        headers.Authorization = `Bearer ${process.env.GITHUB_TOKEN}`;
+    }
+    return headers;
+}
+
 interface CommitEntry {
     hash: string;
     date: string;
@@ -55,7 +68,7 @@ const CODE_EXTENSIONS = new Set([
 // and counting newlines ourselves has no external dependency beyond GitHub
 // itself, which the rest of this page already trusts.
 async function getRepoStats(): Promise<{ fileCount: number; linesOfCode: number }> {
-    const headers: HeadersInit = { Accept: "application/vnd.github+json" };
+    const headers = githubHeaders();
     try {
         const repoRes = await fetch(`https://api.github.com/repos/${REPO}`, {
             headers,
@@ -103,7 +116,7 @@ async function getRepoStats(): Promise<{ fileCount: number; linesOfCode: number 
 }
 
 async function getCommits(): Promise<{ commits: CommitEntry[]; totalCommits: number }> {
-    const headers: HeadersInit = { Accept: "application/vnd.github+json" };
+    const headers = githubHeaders();
 
     const [listRes, countRes] = await Promise.all([
         fetch(`https://api.github.com/repos/${REPO}/commits?per_page=${INITIAL_PER_PAGE}`, {
