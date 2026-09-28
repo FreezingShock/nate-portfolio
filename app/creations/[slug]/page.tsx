@@ -1,6 +1,6 @@
 import { notFound } from "next/navigation";
 import Link from "next/link";
-import { ArrowLeft, ArrowUpRight, FolderKanban, Hammer } from "lucide-react";
+import { ArrowLeft, ArrowUpRight, FolderKanban, Axis3D } from "lucide-react";
 import { getProjectBySlug, getAllProjectSlugs, statusLabel } from "@/lib/content";
 import { PageHero } from "@/components/page-hero";
 import { PageBackground } from "@/components/page-background";
@@ -31,7 +31,7 @@ export default async function ProjectPage({
 
     const isProject = project.section === "projects";
     const accent = isProject ? "var(--mc-aqua)" : "var(--mc-gold)";
-    const Icon = isProject ? FolderKanban : Hammer;
+    const Icon = isProject ? FolderKanban : Axis3D;
     const bgColor = isProject ? "#55ffff" : "#ffaa00";
 
     return (

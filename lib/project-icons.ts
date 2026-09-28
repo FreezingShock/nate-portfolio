@@ -1,4 +1,4 @@
-import { Gamepad2, Hammer, Box } from "lucide-react";
+import { Gamepad2, Axis3D } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 
 export interface ProjectIcon {
@@ -12,11 +12,11 @@ const projectIconMap: Record<string, ProjectIcon> = {
         color: "var(--mc-light-purple)",
     },
     "topanga-willows": {
-        icon: Hammer,
+        icon: Axis3D,
         color: "var(--mc-blue)",
     },
     "blender-renovation": {
-        icon: Box,
+        icon: Axis3D,
         color: "var(--mc-gold)",
     },
 };
