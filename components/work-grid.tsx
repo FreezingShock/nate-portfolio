@@ -1,5 +1,6 @@
 import type { LucideIcon } from "lucide-react";
 import { Project, statusLabel } from "@/lib/content";
+import { mcColorFor } from "@/lib/mc-colors";
 import { BentoGrid, BentoCard } from "@/components/ui/bento-grid";
 import { ShineBorder } from "@/components/ui/shine-border";
 import { MagicCard } from "@/components/ui/magic-card";
@@ -51,19 +52,34 @@ export function WorkGrid({
                             cta="Learn more"
                             background={
                                 <div className="absolute inset-0 flex flex-wrap items-start justify-end gap-2 p-4 pt-12 opacity-0 transition-opacity duration-300 group-hover:opacity-100">
-                                    {project.tags.map((tag) => (
-                                        <span
-                                            key={tag}
-                                            className="h-fit rounded-full border border-border/60 bg-background/60 px-2 py-0.5 font-rubik text-xs text-muted-foreground"
-                                        >
-                                            {tag}
-                                        </span>
-                                    ))}
+                                    {project.tags.map((tag) => {
+                                        const tagColor = mcColorFor(tag);
+                                        return (
+                                            <span
+                                                key={tag}
+                                                className="h-fit rounded-full border px-2 py-0.5 font-rubik text-xs font-medium"
+                                                style={{
+                                                    color: tagColor,
+                                                    borderColor: `color-mix(in oklch, ${tagColor} 55%, transparent)`,
+                                                    backgroundColor: `color-mix(in oklch, ${tagColor} 15%, var(--background) 60%)`,
+                                                }}
+                                            >
+                                                {tag}
+                                            </span>
+                                        );
+                                    })}
                                 </div>
                             }
                         />
                     </MagicCard>
-                    <div className="pointer-events-none absolute right-4 top-4 z-10 rounded-full border border-border px-2.5 py-0.5 font-rubik text-xs text-muted-foreground">
+                    <div
+                        className="pointer-events-none absolute right-4 top-4 z-10 rounded-full border px-2.5 py-0.5 font-rubik text-xs font-medium backdrop-blur-sm"
+                        style={{
+                            color: mcColorFor(project.status),
+                            borderColor: `color-mix(in oklch, ${mcColorFor(project.status)} 55%, transparent)`,
+                            backgroundColor: `color-mix(in oklch, ${mcColorFor(project.status)} 18%, var(--background) 60%)`,
+                        }}
+                    >
                         {statusLabel[project.status]}
                     </div>
                 </div>

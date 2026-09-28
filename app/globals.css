@@ -8,7 +8,7 @@
 @theme inline {
     --color-background: var(--background);
     --color-foreground: var(--foreground);
-    --font-sans: var(--font-roboto-mono);
+    --font-sans: var(--font-noto-sans);
     --font-mono: var(--font-roboto-mono);
     --font-minecraft: "Minecraft", "Courier New", monospace;
     --font-rubik: var(--font-rubik);

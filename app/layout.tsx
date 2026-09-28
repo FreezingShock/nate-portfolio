@@ -1,14 +1,22 @@
 import type { Metadata, Viewport } from "next";
-import { Roboto_Mono, Rubik, Source_Serif_4 } from "next/font/google";
+import { Noto_Sans, Roboto_Mono, Rubik, Source_Serif_4 } from "next/font/google";
 import "./globals.css";
 import { ThemeProvider } from "@/components/theme-provider";
 import { SiteDock } from "@/components/site-dock";
 import { SiteFooter } from "@/components/site-footer";
 import { ThemeToggle } from "@/components/theme-toggle";
 
-// A deliberately "stacked" type system, four faces each with one job:
+// A deliberately "stacked" type system, five faces each with one job:
 // - Minecraft (fonts.css)     -> page titles, section labels (the signature)
-// - Roboto Mono (below)       -> body copy, eyebrows, general UI
+// - Noto Sans (below)         -> the actual default body font. Nothing set
+//                                a base font-family on <body> before this,
+//                                so every plain paragraph/div was silently
+//                                falling through to the OS default (Segoe UI
+//                                on Windows) instead of any font this site
+//                                chose — this is the fix, wired up as
+//                                --font-sans below and applied to <body>.
+// - Roboto Mono (below)       -> monospace UI accents (the "nateanderson.dev"
+//                                chip, code-styled bits) via font-mono
 // - Rubik (below)             -> pills/badges/tags — this is the actual font
 //                                the Hypixel SkyBlock Wiki renders in
 // - Source Serif 4 (below)    -> individual work titles ("Fractured Islands:
@@ -16,6 +24,11 @@ import { ThemeToggle } from "@/components/theme-toggle";
 //                                (Copernicus/Tiempos) is a licensed brand
 //                                typeface, not a public web font — this is
 //                                the closest freely-licensed stand-in.
+const notoSans = Noto_Sans({
+    variable: "--font-noto-sans",
+    subsets: ["latin"],
+});
+
 const robotoMono = Roboto_Mono({
     variable: "--font-roboto-mono",
     subsets: ["latin"],
@@ -69,7 +82,7 @@ export default function RootLayout({
     return (
         <html lang="en" suppressHydrationWarning>
             <body
-                className={`${robotoMono.variable} ${rubik.variable} ${sourceSerif.variable} antialiased`}
+                className={`${notoSans.variable} ${robotoMono.variable} ${rubik.variable} ${sourceSerif.variable} font-sans antialiased`}
             >
                 <ThemeProvider
                     attribute="class"
