@@ -15,29 +15,24 @@ export default function manifest(): MetadataRoute.Manifest {
         theme_color: "#4f46e5",
         icons: [
             {
-                src: "/favicon-16x16.png",
-                sizes: "16x16",
-                type: "image/png",
-            },
-            {
-                src: "/favicon-32x32.png",
+                src: "/favicon-32x32.png?v=2",
                 sizes: "32x32",
                 type: "image/png",
             },
             {
-                src: "/icon-192x192.png",
+                src: "/icon-192x192.png?v=2",
                 sizes: "192x192",
                 type: "image/png",
                 purpose: "any",
             },
             {
-                src: "/icon-512x512.png",
+                src: "/icon-512x512.png?v=2",
                 sizes: "512x512",
                 type: "image/png",
                 purpose: "maskable",
             },
             {
-                src: "/apple-touch-icon.png",
+                src: "/apple-touch-icon.png?v=2",
                 sizes: "180x180",
                 type: "image/png",
             },
