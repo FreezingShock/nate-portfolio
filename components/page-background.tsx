@@ -16,26 +16,28 @@ export function PageBackground({ variant, color }: { variant: Variant; color: st
     return (
         <div aria-hidden className="pointer-events-none fixed inset-0 -z-10 overflow-hidden">
             {variant === "interactive-grid" && (
-                // The 3D-floor look needs a skew, and a skewY(deg) displaces
-                // points sideways-in-effect by an amount proportional to
-                // their distance from the transform's vertical center — on
-                // a ~1920px-wide viewport that's roughly ±960px * tan(12°)
-                // ≈ ±200px of vertical displacement at the left/right edges.
-                // The original oversize (200% height, 0% width overflow)
-                // only padded vertically, so that horizontal displacement
-                // pushed the left/right edges of the grid clean outside the
-                // parent's overflow-hidden clip — which is what made most
-                // of a wide screen look empty. Padding width too (not just
-                // height) gives the skew room on both axes. The edge fade
-                // comes from the shared vignette div below, not a mask
-                // here — masking an already-oversized, skewed box in its
-                // own local (pre-transform) coordinate space doesn't line
-                // up with what's actually visible after the transform.
-                <InteractiveGridPattern
-                    className="inset-x-[-25%] inset-y-[-30%] h-[200%] w-[150%] skew-y-12 opacity-40"
-                    squaresClassName="hover:fill-[color-mix(in_oklch,var(--pattern-color)_25%,transparent)]"
-                    style={{ "--pattern-color": color } as CSSProperties}
-                />
+                // A real 3D floor, not a 2D shear: `skewY` only slants a
+                // flat plane (parallel lines stay parallel) — it can't
+                // produce the converging, receding-into-the-distance look
+                // MagicUI's own demo screenshot shows, because that demo
+                // relies on the SAME skewY trick only reading as "3D" at a
+                // small 500px-box scale, right up against a tight radial
+                // mask. A CSS `perspective` on the parent plus `rotateX` on
+                // the grid gives an actual perspective projection — lines
+                // genuinely converge toward the horizon. The grid is
+                // oversized (250%) on every axis so the corners, which move
+                // inward once foreshortened by the rotation, still reach
+                // past the viewport edges instead of leaving gaps.
+                <div
+                    className="absolute inset-0 flex items-center justify-center"
+                    style={{ perspective: "800px" }}
+                >
+                    <InteractiveGridPattern
+                        className="inset-[-75%] h-[250%] w-[250%] opacity-50 [transform:rotateX(62deg)]"
+                        squaresClassName="transition-colors duration-150 hover:fill-[color-mix(in_oklch,var(--pattern-color)_35%,transparent)]"
+                        style={{ "--pattern-color": color } as CSSProperties}
+                    />
+                </div>
             )}
             {variant === "retro" && (
                 <RetroGrid darkLineColor={color} lightLineColor={color} opacity={0.35} cellSize={50} />

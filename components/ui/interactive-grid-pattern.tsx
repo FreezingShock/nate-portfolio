@@ -53,7 +53,12 @@ export function InteractiveGridPattern({
       viewBox={`0 0 ${width * horizontal} ${height * vertical}`}
       preserveAspectRatio="none"
       className={cn(
-        "absolute inset-0 h-full w-full border border-gray-400/30",
+        // pointer-events-auto: the parent PageBackground wrapper is
+        // pointer-events-none (so the background never blocks clicks on
+        // real content), and pointer-events is an inherited CSS property —
+        // without this override every rect below silently never receives
+        // mouseenter/mouseleave, so "interactive" never actually was.
+        "pointer-events-auto absolute inset-0 h-full w-full border border-gray-400/30",
         className
       )}
       {...props}
