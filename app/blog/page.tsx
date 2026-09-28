@@ -1,4 +1,3 @@
-import { BookOpen, Lightbulb, PenLine, NotebookPen, Sparkles } from "lucide-react";
 import { PageHero } from "@/components/page-hero";
 import { SidebarNav } from "@/components/sidebar-nav";
 import { PageBackground } from "@/components/page-background";
@@ -6,7 +5,6 @@ import { BlogSection, type BlogSectionProps } from "@/components/blog-section";
 
 const blogSections: BlogSectionProps[] = [
     {
-        icon: Lightbulb,
         title: "Essays & Articles",
         description: "Long-form writing on design systems, game development, philosophy, and engineering. Deep dives into problems I'm thinking about.",
         color: "var(--mc-gold)",
@@ -22,7 +20,6 @@ const blogSections: BlogSectionProps[] = [
         ],
     },
     {
-        icon: BookOpen,
         title: "Research & Notes",
         description: "Research notes on sustainable systems, climate adaptation, circular design, and environmental engineering. Thinking in public.",
         color: "var(--mc-green)",
@@ -38,7 +35,6 @@ const blogSections: BlogSectionProps[] = [
         ],
     },
     {
-        icon: PenLine,
         title: "Poetry & Creative",
         description: "Poetry, short prose, and creative explorations. Kierkegaard-inspired existential meditations and design philosophy.",
         color: "var(--mc-light-purple)",
@@ -54,7 +50,6 @@ const blogSections: BlogSectionProps[] = [
         ],
     },
     {
-        icon: NotebookPen,
         title: "Dev & Design Log",
         description: "Technical writeups on building things. CAD, SketchUp, web development, game systems, and design iteration.",
         color: "var(--mc-blue)",
@@ -70,7 +65,6 @@ const blogSections: BlogSectionProps[] = [
         ],
     },
     {
-        icon: Sparkles,
         title: "Snippets & Ideas",
         description: "Short-form observations, design patterns, code snippets, and random thoughts. Quick hits on things worth sharing.",
         color: "var(--mc-aqua)",

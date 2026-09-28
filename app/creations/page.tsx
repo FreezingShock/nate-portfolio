@@ -21,7 +21,7 @@ export default async function CreationsPage() {
 
     return (
         <div className="pointer-events-none min-h-screen">
-            <PageBackground variant="interactive-grid" color="#55ffff" />
+            <PageBackground variant="grid" color="#55ffff" />
             <SidebarNav
                 sections={[
                     {

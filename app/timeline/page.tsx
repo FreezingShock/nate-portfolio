@@ -293,7 +293,7 @@ const phases: TimelinePhaseData[] = [
 export default function TimelinePage() {
     return (
         <div className="pointer-events-auto min-h-screen">
-            <PageBackground variant="retro" color="#55ff55" />
+            <PageBackground variant="grid" color="#55ff55" />
             <SidebarNav
                 sections={[
                     { id: "high-school", label: "High School" },
