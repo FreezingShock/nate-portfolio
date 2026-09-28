@@ -104,7 +104,7 @@ export function SiteDock() {
                                     this DockIcon). */}
                                 <span
                                     className={cn(
-                                        "pointer-events-none absolute -top-8 left-1/2 -translate-x-1/2 whitespace-nowrap rounded-md border border-border/60 bg-popover px-2 py-1 font-mono text-xs opacity-0 shadow-sm transition-opacity duration-150",
+                                        "pointer-events-none absolute -top-8 left-1/2 -translate-x-1/2 whitespace-nowrap rounded-md border border-border/60 bg-popover px-2 py-1 font-mono text-[10px] opacity-0 shadow-sm transition-opacity duration-150",
                                         active ? "group-hover/dock:opacity-100" : "group-hover:opacity-100"
                                     )}
                                     style={{ color: item.color }}

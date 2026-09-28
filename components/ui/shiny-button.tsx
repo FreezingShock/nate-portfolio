@@ -53,7 +53,8 @@ export const ShinyButton = React.forwardRef<
         {
           "--shine-accent": accentColor,
           borderColor: `color-mix(in oklch, ${accentColor} 40%, transparent)`,
-          backgroundImage: `radial-gradient(circle at 50% 0%, color-mix(in oklch, ${accentColor} 12%, transparent) 0%, transparent 60%)`,
+          backgroundColor: `color-mix(in oklch, ${accentColor} 15%, transparent)`,
+          backgroundImage: `radial-gradient(circle at 50% 0%, color-mix(in oklch, ${accentColor} 20%, transparent) 0%, transparent 60%)`,
         } as React.CSSProperties
       }
       onMouseEnter={(e) => {

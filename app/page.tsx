@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { ArrowRight, Gamepad2 } from "lucide-react";
 import { identity, getProjects, getRecentRenovations } from "@/lib/content";
+import { getProjectIcon } from "@/lib/project-icons";
 import { IdentityMarquee } from "@/components/identity-marquee";
 import { SiteBackground } from "@/components/site-background";
 import { AnimatedGradientText } from "@/components/ui/animated-gradient-text";
@@ -183,27 +184,30 @@ export default async function Home() {
                             that connects them — the work that best shows how I build.
                         </p>
                         <BentoGrid className="mt-6 grid-cols-1 sm:grid-cols-3">
-                            {featured.map((project) => (
-                                <MagicCard
-                                    key={project.slug}
-                                    className="col-span-1 rounded-xl"
-                                    gradientFrom="var(--mc-gold)"
-                                    gradientTo="var(--chart-4)"
-                                    gradientColor="var(--accent)"
-                                    gradientOpacity={0.6}
-                                >
-                                    <BentoCard
-                                        name={project.title}
-                                        className="h-full !bg-transparent [box-shadow:none] dark:[box-shadow:none]"
-                                        Icon={Gamepad2}
-                                        accentColor="var(--mc-gold)"
-                                        description={project.description}
-                                        href={`/creations/${project.slug}`}
-                                        cta="Learn more"
-                                        background={<div className="absolute inset-0" />}
-                                    />
-                                </MagicCard>
-                            ))}
+                            {featured.map((project) => {
+                                const { icon, color } = getProjectIcon(project.slug);
+                                return (
+                                    <MagicCard
+                                        key={project.slug}
+                                        className="col-span-1 rounded-xl"
+                                        gradientFrom="var(--mc-gold)"
+                                        gradientTo="var(--chart-4)"
+                                        gradientColor="var(--accent)"
+                                        gradientOpacity={0.6}
+                                    >
+                                        <BentoCard
+                                            name={project.title}
+                                            className="h-full !bg-transparent [box-shadow:none] dark:[box-shadow:none]"
+                                            Icon={icon}
+                                            accentColor={color}
+                                            description={project.description}
+                                            href={`/creations/${project.slug}`}
+                                            cta="Learn more"
+                                            background={<div className="absolute inset-0" />}
+                                        />
+                                    </MagicCard>
+                                );
+                            })}
                         </BentoGrid>
                     </div>
                 </section>
