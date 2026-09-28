@@ -35,71 +35,51 @@ export function BlogSection({ icon: Icon, title, description, color, posts }: Bl
                 </p>
             </div>
 
-            {/* Posts grid */}
-            <div className="grid gap-6 sm:grid-cols-2">
+            {/* Posts grid - Simplified MagicCard cards, less laggy */}
+            <div className="grid grid-cols-1 gap-6 sm:grid-cols-2">
                 {posts.length > 0 ? (
                     posts.map((post) => (
-                        <MagicCard
-                            key={post.id}
-                            gradientFrom={color}
-                            gradientTo="var(--chart-4)"
-                            gradientColor="var(--accent)"
-                            gradientOpacity={0.5}
-                            className="h-full rounded-xl"
-                        >
-                            <div className="relative flex h-full flex-col overflow-hidden rounded-xl bg-card/40 p-6 backdrop-blur-xl">
-                                <ShineBorder
-                                    borderWidth={1}
-                                    shineColor={[color, "var(--chart-4)"]}
-                                />
+                        <div key={post.id} className="relative">
+                            <MagicCard
+                                className="h-full rounded-xl"
+                                gradientFrom={color}
+                                gradientTo="var(--chart-4)"
+                                gradientColor="var(--accent)"
+                                gradientOpacity={0.6}
+                            >
+                                <div className="relative flex h-full flex-col overflow-hidden rounded-xl bg-card/40 p-6 backdrop-blur-xl">
+                                    <ShineBorder
+                                        borderWidth={1}
+                                        shineColor={[color, "var(--chart-4)"]}
+                                    />
 
-                                <div className="flex-1">
-                                    <div className="flex items-center justify-between mb-3">
-                                        <span
-                                            className="rounded-full border px-2 py-0.5 font-rubik text-xs font-medium"
-                                            style={{
-                                                color,
-                                                borderColor: `color-mix(in oklch, ${color} 55%, transparent)`,
-                                                backgroundColor: `color-mix(in oklch, ${color} 18%, var(--background) 60%)`,
-                                            }}
-                                        >
-                                            {post.status === "published"
-                                                ? "Published"
-                                                : post.status === "draft"
-                                                  ? "Draft"
-                                                  : "Coming Soon"}
-                                        </span>
-                                        {post.date && (
-                                            <span className="text-xs text-muted-foreground">
-                                                {post.date}
-                                            </span>
-                                        )}
+                                    {/* Status badge */}
+                                    <div
+                                        className="pointer-events-none absolute right-4 top-4 z-10 rounded-full border px-2.5 py-0.5 font-rubik text-xs font-medium backdrop-blur-sm"
+                                        style={{
+                                            color,
+                                            borderColor: `color-mix(in oklch, ${color} 55%, transparent)`,
+                                            backgroundColor: `color-mix(in oklch, ${color} 18%, var(--background) 60%)`,
+                                        }}
+                                    >
+                                        Coming Soon
                                     </div>
 
-                                    <h3
-                                        className="font-minecraft text-lg font-bold mb-2"
-                                        style={{ color }}
-                                    >
-                                        {post.title}
-                                    </h3>
-
-                                    <p className="text-sm text-muted-foreground">
-                                        {post.excerpt}
-                                    </p>
-                                </div>
-
-                                {post.status === "published" && (
-                                    <div className="mt-4 pt-4 border-t border-border/20">
-                                        <button
-                                            className="text-sm font-medium transition-colors hover:opacity-80"
+                                    <div className="flex-1">
+                                        <h3
+                                            className="font-minecraft text-lg font-bold mb-3 mt-2 pr-20"
                                             style={{ color }}
                                         >
-                                            Read more →
-                                        </button>
+                                            {post.title}
+                                        </h3>
+
+                                        <p className="text-sm text-muted-foreground">
+                                            {post.excerpt}
+                                        </p>
                                     </div>
-                                )}
-                            </div>
-                        </MagicCard>
+                                </div>
+                            </MagicCard>
+                        </div>
                     ))
                 ) : (
                     <div className="col-span-full rounded-lg border border-border/40 bg-background/20 p-8 text-center">
