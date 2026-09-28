@@ -4,14 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { ChevronsLeft, ChevronLeft, ChevronRight, ChevronsRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-
-interface CommitEntry {
-    hash: string;
-    date: string; // full ISO timestamp — kept whole so formatDate can render
-    // it in the site's UTC-anchored "Month Day, Year" style without a
-    // timezone-dependent off-by-one day.
-    subject: string;
-}
+import type { CommitEntry } from "@/lib/github";
 
 const PAGE_SIZE_OPTIONS = [5, 10, 20] as const;
 
@@ -28,6 +21,47 @@ function formatDate(iso: string): string {
         year: "numeric",
         timeZone: "UTC",
     });
+}
+
+const MINUTE = 60_000;
+const HOUR = 60 * MINUTE;
+const DAY = 24 * HOUR;
+const WEEK = 7 * DAY;
+const MONTH = 30 * DAY;
+const YEAR = 365 * DAY;
+
+// "10 hours ago" / "3 days ago" / "just now". `now` is passed in (rather
+// than read via Date.now() inline) so the caller controls when this is
+// allowed to run at all — see the `now` state below, which stays null until
+// after mount specifically to dodge a server/client render mismatch.
+function formatRelativeTime(iso: string, now: number): string {
+    const then = new Date(iso).getTime();
+    if (Number.isNaN(then)) return "";
+    const diff = Math.max(0, now - then);
+
+    if (diff < MINUTE) return "just now";
+    if (diff < HOUR) {
+        const n = Math.round(diff / MINUTE);
+        return `${n} minute${n === 1 ? "" : "s"} ago`;
+    }
+    if (diff < DAY) {
+        const n = Math.round(diff / HOUR);
+        return `${n} hour${n === 1 ? "" : "s"} ago`;
+    }
+    if (diff < WEEK) {
+        const n = Math.round(diff / DAY);
+        return `${n} day${n === 1 ? "" : "s"} ago`;
+    }
+    if (diff < MONTH) {
+        const n = Math.round(diff / WEEK);
+        return `${n} week${n === 1 ? "" : "s"} ago`;
+    }
+    if (diff < YEAR) {
+        const n = Math.round(diff / MONTH);
+        return `${n} month${n === 1 ? "" : "s"} ago`;
+    }
+    const n = Math.round(diff / YEAR);
+    return `${n} year${n === 1 ? "" : "s"} ago`;
 }
 
 // Clamp helper used in a few places below so "page" can never end up outside
@@ -57,6 +91,18 @@ export function CommitHistory({
     const [commits, setCommits] = useState(initialCommits);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState(false);
+
+    // Stays null through the server render and the very first client render
+    // so "10 hours ago" never disagrees between server and client (a
+    // hydration mismatch) — it fills in a tick after mount instead, then
+    // keeps itself fresh every minute so the relative times don't go stale
+    // on a long-open tab.
+    const [now, setNow] = useState<number | null>(null);
+    useEffect(() => {
+        setNow(Date.now());
+        const id = setInterval(() => setNow(Date.now()), MINUTE);
+        return () => clearInterval(id);
+    }, []);
 
     const totalPages = Math.max(1, Math.ceil(totalCommits / perPage));
 
@@ -233,35 +279,59 @@ export function CommitHistory({
                         Couldn&apos;t reach the GitHub API right now — check back shortly.
                     </p>
                 ) : (
-                    commits.map((entry, i) => (
-                        <li key={entry.hash} className="mb-6 last:mb-0">
-                            <span
-                                className="absolute -left-[7px] flex size-3.5 items-center justify-center rounded-full border-2 border-background"
-                                style={{ backgroundColor: accent }}
-                            />
-                            <p className="flex flex-wrap items-baseline gap-x-2 text-xs uppercase tracking-wider text-muted-foreground">
+                    commits.map((entry, i) => {
+                        const hasDiff = entry.additions !== null && entry.deletions !== null;
+                        return (
+                            <li key={entry.hash} className="mb-6 last:mb-0">
                                 <span
-                                    className="font-mono font-semibold normal-case"
-                                    style={{ color: accent }}
-                                >
-                                    #{Math.max(1, startNumber - i)}
-                                </span>
-                                <span>{formatDate(entry.date)}</span>
-                                <span aria-hidden>·</span>
-                                <a
-                                    href={`https://github.com/${repo}/commit/${entry.hash}`}
-                                    target="_blank"
-                                    rel="noreferrer"
-                                    className="font-mono hover:text-foreground"
-                                >
-                                    {entry.hash}
-                                </a>
-                            </p>
-                            <h3 className="mt-1 text-base font-semibold text-foreground">
-                                {entry.subject}
-                            </h3>
-                        </li>
-                    ))
+                                    className="absolute -left-[7px] flex size-3.5 items-center justify-center rounded-full border-2 border-background"
+                                    style={{ backgroundColor: accent }}
+                                />
+                                {/* Tagline: "#45 September 28, 2026 – 10 hours
+                                    ago · 3632492" — everything that isn't the
+                                    commit message itself lives on this one
+                                    line, so the title below reads as the
+                                    headline it is. */}
+                                <p className="flex flex-wrap items-baseline gap-x-1.5 text-xs uppercase tracking-wider text-muted-foreground">
+                                    <span
+                                        className="font-mono font-semibold normal-case"
+                                        style={{ color: accent }}
+                                    >
+                                        #{Math.max(1, startNumber - i)}
+                                    </span>
+                                    <span>{formatDate(entry.date)}</span>
+                                    {now !== null && (
+                                        <span className="normal-case text-muted-foreground/70">
+                                            – {formatRelativeTime(entry.date, now)}
+                                        </span>
+                                    )}
+                                    <span aria-hidden>·</span>
+                                    <a
+                                        href={`https://github.com/${repo}/commit/${entry.hash}`}
+                                        target="_blank"
+                                        rel="noreferrer"
+                                        className="font-mono hover:text-foreground"
+                                    >
+                                        {entry.hash}
+                                    </a>
+                                </p>
+                                <h3 className="mt-1 text-base font-semibold text-foreground">
+                                    {entry.subject}
+                                </h3>
+                                {hasDiff && (
+                                    <p className="mt-1 font-mono text-xs text-muted-foreground">
+                                        <span style={{ color: "var(--mc-green)" }}>
+                                            +{entry.additions}
+                                        </span>
+                                        {" / "}
+                                        <span style={{ color: "var(--mc-red)" }}>
+                                            -{entry.deletions}
+                                        </span>
+                                    </p>
+                                )}
+                            </li>
+                        );
+                    })
                 )}
             </ol>
 

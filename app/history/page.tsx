@@ -3,36 +3,9 @@ import { NumberTicker } from "@/components/ui/number-ticker";
 import { SidebarNav } from "@/components/sidebar-nav";
 import { PageBackground } from "@/components/page-background";
 import { CommitHistory } from "@/components/commit-history";
+import { REPO, githubHeaders, fetchCommitsPage, type CommitEntry } from "@/lib/github";
 
-const REPO = "FreezingShock/nateanderson-dev";
 const INITIAL_PER_PAGE = 10;
-
-// Unauthenticated GitHub REST calls are capped at 60/hour PER IP — plenty
-// for one page's worth of server-rendered fetches, but easy to blow through
-// across repeated dev-server restarts/builds while iterating on this page.
-// GITHUB_TOKEN is entirely optional: if set (a fine-grained PAT with public
-// read access is enough), authenticated requests get 5,000/hour instead.
-function githubHeaders(): HeadersInit {
-    const headers: HeadersInit = { Accept: "application/vnd.github+json" };
-    if (process.env.GITHUB_TOKEN) {
-        headers.Authorization = `Bearer ${process.env.GITHUB_TOKEN}`;
-    }
-    return headers;
-}
-
-interface CommitEntry {
-    hash: string;
-    date: string;
-    subject: string;
-}
-
-interface GhCommit {
-    sha: string;
-    commit: {
-        author: { date: string } | null;
-        message: string;
-    };
-}
 
 // Auto-updating changelog: reads straight from the GitHub REST API at
 // request time instead of a locally-generated lib/changelog.json. That file
@@ -118,11 +91,8 @@ async function getRepoStats(): Promise<{ fileCount: number; linesOfCode: number 
 async function getCommits(): Promise<{ commits: CommitEntry[]; totalCommits: number }> {
     const headers = githubHeaders();
 
-    const [listRes, countRes] = await Promise.all([
-        fetch(`https://api.github.com/repos/${REPO}/commits?per_page=${INITIAL_PER_PAGE}`, {
-            headers,
-            next: { revalidate: 3600 },
-        }),
+    const [commits, countRes] = await Promise.all([
+        fetchCommitsPage(1, INITIAL_PER_PAGE, headers),
         // The commits endpoint has no total-count field — the standard trick
         // is asking for 1-per-page and reading the last page number out of
         // the pagination Link header.
@@ -132,17 +102,9 @@ async function getCommits(): Promise<{ commits: CommitEntry[]; totalCommits: num
         }),
     ]);
 
-    if (!listRes.ok) {
-        console.error(`GitHub API error fetching commits: ${listRes.status}`);
+    if (commits === null) {
         return { commits: [], totalCommits: 0 };
     }
-
-    const raw = (await listRes.json()) as GhCommit[];
-    const commits: CommitEntry[] = raw.map((c) => ({
-        hash: c.sha.slice(0, 7),
-        date: c.commit.author?.date ?? "",
-        subject: c.commit.message.split("\n")[0],
-    }));
 
     let totalCommits = commits.length;
     const link = countRes.headers.get("Link");

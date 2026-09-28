@@ -1,15 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
+import { fetchCommitsPage } from "@/lib/github";
 
-const REPO = "FreezingShock/nateanderson-dev";
 const MAX_PER_PAGE = 20;
-
-interface GhCommit {
-    sha: string;
-    commit: {
-        author: { date: string } | null;
-        message: string;
-    };
-}
 
 // Server-side proxy for paginated commit fetches, so the browser never talks
 // to api.github.com directly. Unauthenticated GitHub REST calls are capped
@@ -18,9 +10,11 @@ interface GhCommit {
 // any one visitor paging around) could exhaust that budget entirely, which
 // surfaced as "Couldn't reach the GitHub API" even though GitHub itself was
 // fine. Routing through this route instead means:
-// - Next's fetch cache (`revalidate` below) shares one real GitHub call
+// - Next's fetch cache (see lib/github.ts) shares one real GitHub call
 //   across every visitor hitting the same page/per_page combo within the
-//   window, instead of each browser spending its own quota per click.
+//   window, instead of each browser spending its own quota per click. Each
+//   commit's diff stats are cached separately, by sha, for 30 days — they
+//   can never change, so that cost is paid at most once per commit ever.
 // - If GITHUB_TOKEN is ever set in the environment, authenticated requests
 //   get a 5,000/hour ceiling instead of 60 — optional, not required.
 export async function GET(request: NextRequest) {
@@ -30,34 +24,11 @@ export async function GET(request: NextRequest) {
     const perPageRaw = Number(searchParams.get("per_page")) || 10;
     const perPage = Math.min(MAX_PER_PAGE, Math.max(1, perPageRaw));
 
-    const headers: HeadersInit = { Accept: "application/vnd.github+json" };
-    if (process.env.GITHUB_TOKEN) {
-        headers.Authorization = `Bearer ${process.env.GITHUB_TOKEN}`;
-    }
-
     try {
-        const res = await fetch(
-            `https://api.github.com/repos/${REPO}/commits?per_page=${perPage}&page=${page}`,
-            { headers, next: { revalidate: 3600 } }
-        );
-
-        if (!res.ok) {
-            const remaining = res.headers.get("x-ratelimit-remaining");
-            console.error(
-                `GitHub API error fetching commits: ${res.status} (rate-limit remaining: ${remaining})`
-            );
-            return NextResponse.json(
-                { error: "Upstream GitHub API error" },
-                { status: 502 }
-            );
+        const commits = await fetchCommitsPage(page, perPage);
+        if (commits === null) {
+            return NextResponse.json({ error: "Upstream GitHub API error" }, { status: 502 });
         }
-
-        const raw = (await res.json()) as GhCommit[];
-        const commits = raw.map((c) => ({
-            hash: c.sha.slice(0, 7),
-            date: c.commit.author?.date ?? "",
-            subject: c.commit.message.split("\n")[0],
-        }));
 
         return NextResponse.json(commits, {
             headers: { "Cache-Control": "public, s-maxage=3600, stale-while-revalidate=86400" },
