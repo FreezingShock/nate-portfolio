@@ -5,7 +5,12 @@ import { navItems } from "@/lib/nav";
 
 export function SiteFooter() {
     return (
-        <footer id="footer" className="w-full scroll-mt-24 border-t border-border/40 bg-card/20 px-6 py-12 sm:px-10 lg:px-16">
+        // pointer-events-auto: the root layout's shared wrapper is
+        // pointer-events-none (so a page can make its own background
+        // interactive — see app/creations/page.tsx) and this footer is a
+        // sibling inside that same wrapper, so it always re-declares auto
+        // regardless of what that ancestor set.
+        <footer id="footer" className="pointer-events-auto w-full scroll-mt-24 border-t border-border/40 bg-card/20 px-6 py-12 sm:px-10 lg:px-16">
             <div className="mx-auto grid max-w-6xl gap-10 sm:grid-cols-3">
                 <div>
                     <p className="font-minecraft text-lg font-semibold text-foreground">

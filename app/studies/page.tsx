@@ -6,7 +6,7 @@ import { PageBackground } from "@/components/page-background";
 
 export default function StudiesPage() {
     return (
-        <div className="min-h-screen">
+        <div className="pointer-events-auto min-h-screen">
             <PageBackground variant="grid" color="#5555ff" />
             <SidebarNav sections={[{ id: "coursework", label: "Coursework" }]} />
             <section className="w-full px-6 pb-24 pt-28 sm:px-10 lg:px-16">

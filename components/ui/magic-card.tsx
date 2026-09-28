@@ -159,7 +159,13 @@ export function MagicCard(props: MagicCardProps) {
   return (
     <motion.div
       className={cn(
-        "group relative isolate overflow-hidden rounded-[inherit] border border-transparent",
+        // pointer-events-auto: a page that makes its background
+        // interactive (see app/creations/page.tsx) does so by setting
+        // pointer-events-none on its own content wrapper, which every
+        // descendant inherits unless it opts back in — MagicCard's own
+        // mouse-tracking spotlight needs real pointer events regardless of
+        // what ancestor set, so it always re-enables itself here.
+        "group relative isolate overflow-hidden rounded-[inherit] border border-transparent pointer-events-auto",
         className
       )}
       onPointerMove={handlePointerMove}

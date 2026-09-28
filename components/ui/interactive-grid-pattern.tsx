@@ -1,6 +1,4 @@
-"use client"
-
-import React, { useState } from "react"
+import React from "react"
 
 import { cn } from "@/lib/utils"
 
@@ -24,6 +22,19 @@ interface InteractiveGridPatternProps extends React.SVGProps<SVGSVGElement> {
 /**
  * The InteractiveGridPattern component.
  *
+ * Hover is pure CSS (`:hover` via the `hover:` variant on each `<rect>`) —
+ * not JS state tracked with onMouseEnter/onMouseLeave. That removes 2x the
+ * square count in event listeners (1152 of them at the default 24x24), lets
+ * the browser's own compositor handle the highlight with zero React
+ * re-renders, and — since it's a native CSS pseudo-class — sidesteps any
+ * bug where pointer-events inheritance from a `pointer-events-none`
+ * ancestor silently ate a JS mouseenter/mouseleave handler (which is
+ * exactly what broke this component before: the fix there still needed
+ * `pointer-events-auto` on the SVG, but CSS `:hover` alone doesn't depend
+ * on any JS handler actually being reached to work — one less moving part
+ * to go wrong). Cheaper to mount and unmount for the same reason: no
+ * `useState`, no state teardown, nothing for React to reconcile per hover.
+ *
  * @see InteractiveGridPatternProps for the props interface.
  * @returns A React component.
  */
@@ -36,7 +47,6 @@ export function InteractiveGridPattern({
   ...props
 }: InteractiveGridPatternProps) {
   const [horizontal, vertical] = squares
-  const [hoveredSquare, setHoveredSquare] = useState<number | null>(null)
 
   return (
     <svg
@@ -56,8 +66,10 @@ export function InteractiveGridPattern({
         // pointer-events-auto: the parent PageBackground wrapper is
         // pointer-events-none (so the background never blocks clicks on
         // real content), and pointer-events is an inherited CSS property —
-        // without this override every rect below silently never receives
-        // mouseenter/mouseleave, so "interactive" never actually was.
+        // without this override the whole SVG (and everything under it)
+        // would never receive pointer input, including the plain CSS
+        // :hover below, since a hidden-from-hit-testing element can't
+        // match :hover at all.
         "pointer-events-auto absolute inset-0 h-full w-full border border-gray-400/30",
         className
       )}
@@ -74,12 +86,9 @@ export function InteractiveGridPattern({
             width={width}
             height={height}
             className={cn(
-              "stroke-gray-400/30 transition-all duration-100 ease-in-out not-[&:hover]:duration-1000",
-              hoveredSquare === index ? "fill-gray-300/30" : "fill-transparent",
+              "fill-transparent stroke-gray-400/30 transition-colors duration-150 ease-in-out hover:fill-gray-300/30",
               squaresClassName
             )}
-            onMouseEnter={() => setHoveredSquare(index)}
-            onMouseLeave={() => setHoveredSquare(null)}
           />
         )
       })}

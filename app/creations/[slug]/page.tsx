@@ -35,7 +35,7 @@ export default async function ProjectPage({
     const bgColor = isProject ? "#55ffff" : "#ffaa00";
 
     return (
-        <div className="min-h-screen">
+        <div className="pointer-events-auto min-h-screen">
             <PageBackground variant="interactive-grid" color={bgColor} />
             <SidebarNav sections={[{ id: "detail", label: project.title }]} />
 

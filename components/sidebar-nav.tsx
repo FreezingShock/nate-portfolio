@@ -116,7 +116,13 @@ export function SidebarNav({ sections }: { sections: PageSection[] }) {
             // instead of outward from a horizontal center, which is what
             // was pushing it off-screen on narrow viewports. Desktop keeps
             // the original top-center placement.
-            className="fixed left-5 top-5 z-50 sm:left-1/2 sm:-translate-x-1/2"
+            // pointer-events-auto: a page can make its own content wrapper
+            // pointer-events-none to let an interactive background behind
+            // it receive hover/click (see app/creations/page.tsx) — this
+            // nav is a fixed-position descendant of that wrapper on every
+            // page, so it always re-declares auto regardless of what an
+            // ancestor set.
+            className="pointer-events-auto fixed left-5 top-5 z-50 sm:left-1/2 sm:-translate-x-1/2"
             onMouseEnter={() => setHovered(true)}
             onMouseLeave={() => setHovered(false)}
             onFocus={() => setHovered(true)}

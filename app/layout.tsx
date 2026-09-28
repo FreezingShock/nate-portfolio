@@ -84,8 +84,23 @@ export default function RootLayout({
                         <ThemeToggle />
                     </div>
                     {/* Bottom padding so page content never sits under the
-                        fixed Dock. */}
-                    <div className="flex min-h-screen flex-col pb-24">
+                        fixed Dock.
+                        pointer-events-none: a page can opt into an
+                        interactive background that needs real hover/click
+                        events to reach through wherever nothing is visibly
+                        drawn (see app/creations/page.tsx and
+                        components/page-background.tsx) — that only works if
+                        every ancestor box between the page's content and
+                        that fixed background also gets out of the way,
+                        since a plain box with default pointer-events still
+                        claims every hit inside its bounds even where it has
+                        nothing rendered. This wrapper and `flex-1` below are
+                        the two such ancestors shared by every page.
+                        Every real interactive element re-declares
+                        pointer-events-auto on itself instead (SiteFooter,
+                        SidebarNav, MagicCard, and the plain Links/anchors
+                        outside those three — see each for why). */}
+                    <div className="pointer-events-none flex min-h-screen flex-col pb-24">
                         <div className="flex-1">{children}</div>
                         <SiteFooter />
                     </div>

@@ -6,7 +6,7 @@ import { PageBackground } from "@/components/page-background";
 
 export default function BlogPage() {
     return (
-        <div className="min-h-screen">
+        <div className="pointer-events-auto min-h-screen">
             <PageBackground variant="dot" color="#ffff55" />
             <SidebarNav sections={[{ id: "posts", label: "Posts" }]} />
             <section className="w-full px-6 pb-24 pt-28 sm:px-10 lg:px-16">

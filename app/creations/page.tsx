@@ -20,7 +20,7 @@ export default async function CreationsPage() {
     ]);
 
     return (
-        <div className="min-h-screen">
+        <div className="pointer-events-none min-h-screen">
             <PageBackground variant="interactive-grid" color="#55ffff" />
             <SidebarNav
                 sections={[
@@ -48,7 +48,17 @@ export default async function CreationsPage() {
                     { id: "artwork", label: "Artwork" },
                 ]}
             />
-            <section className="w-full px-6 pb-24 pt-28 sm:px-10 lg:px-16">
+            {/* pointer-events-none here is what actually makes the fixed
+                interactive-grid background hoverable: without it, this
+                w-full section — not just its visible text/cards, its whole
+                box — sits in front of the -z-10 background in hit-testing
+                terms and swallows every pointer event across the entire
+                page, whether or not anything is visibly drawn at that
+                point. MagicCard (used by every card below) explicitly
+                re-enables pointer-events-auto on itself since its own
+                hover-spotlight effect needs real pointer events; links
+                inside cards work the same way through the card. */}
+            <section className="pointer-events-none w-full px-6 pb-24 pt-28 sm:px-10 lg:px-16">
                 <PageHero
                     eyebrow="Made"
                     title="Creations"

@@ -6,7 +6,7 @@ import { PageBackground } from "@/components/page-background";
 
 export default function AboutPage() {
     return (
-        <div className="min-h-screen">
+        <div className="pointer-events-auto min-h-screen">
             <PageBackground variant="particles" color="#00aaaa" />
             <SidebarNav sections={[{ id: "bio", label: "Bio" }]} />
             <section className="w-full px-6 pb-24 pt-28 sm:px-10 lg:px-16">

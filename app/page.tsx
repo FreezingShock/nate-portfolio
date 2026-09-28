@@ -31,8 +31,12 @@ export default async function Home() {
 
     const featured = [...projects, ...recentRenovations].slice(0, 3);
 
+    // pointer-events-auto: only the Creations page opts its own root out
+    // (to let its interactive-grid background receive hover) — every other
+    // page restores normal pointer-events here since the shared root
+    // layout wrapper is pointer-events-none for that page's benefit.
     return (
-        <div className="min-h-screen">
+        <div className="pointer-events-auto min-h-screen">
             <SiteBackground />
             <SidebarNav
                 sections={[
