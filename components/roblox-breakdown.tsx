@@ -156,7 +156,7 @@ export function RobloxBreakdown() {
                     </li>
                     <li className="flex gap-2">
                         <span className="text-mc-gold font-minecraft font-bold">4.</span>
-                        <span><span className="text-mc-lightpurple">Progression Loop</span> — Engagement mechanics</span>
+                        <span><span className="text-mc-light-purple">Progression Loop</span> — Engagement mechanics</span>
                     </li>
                 </ol>
             </div>

@@ -140,6 +140,7 @@ export default async function HistoryPage() {
                     title="Site History"
                     description="This website's own changelog — pulled live from the GitHub API, not written by hand or regenerated manually."
                     accent="var(--mc-red)"
+                    symbol="location"
                 />
 
                 <div className="mx-auto mt-10 grid max-w-2xl grid-cols-3 gap-3">

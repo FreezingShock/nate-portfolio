@@ -253,11 +253,12 @@ export default function StudiesPage() {
                     title="Studies"
                     description="Complete educational pathway: high school foundation, community college transfer, university specialization, and independent research. Integrated systems thinking across technical, creative, and philosophical domains."
                     accent="var(--mc-blue)"
+                    symbol="wisdom"
                 />
 
                 {/* Senior Year Classes */}
                 <div id="senior-year" className="mx-auto mt-14 max-w-6xl scroll-mt-24">
-                    <SectionLabel accent="var(--mc-blue)">
+                    <SectionLabel accent="var(--mc-blue)" symbol="intelligence">
                         Senior Year Classes
                     </SectionLabel>
                     <p className="mt-2 max-w-2xl text-sm text-muted-foreground">
@@ -272,7 +273,7 @@ export default function StudiesPage() {
 
                 {/* Community College */}
                 <div id="community-college" className="mx-auto mt-20 max-w-6xl scroll-mt-24">
-                    <SectionLabel accent="var(--mc-dark-aqua)">
+                    <SectionLabel accent="var(--mc-dark-aqua)" symbol="defense">
                         Community College
                     </SectionLabel>
                     <p className="mt-2 max-w-2xl text-sm text-muted-foreground">
@@ -289,7 +290,7 @@ export default function StudiesPage() {
 
                 {/* Cal Poly Pomona */}
                 <div id="cal-poly" className="mx-auto mt-20 max-w-6xl scroll-mt-24">
-                    <SectionLabel accent="var(--mc-dark-green)">
+                    <SectionLabel accent="var(--mc-dark-green)" symbol="fortune">
                         4-Year University: Cal Poly Pomona
                     </SectionLabel>
                     <p className="mt-2 max-w-2xl text-sm text-muted-foreground">
@@ -306,7 +307,7 @@ export default function StudiesPage() {
 
                 {/* Personal Studies */}
                 <div id="personal" className="mx-auto mt-20 max-w-6xl scroll-mt-24">
-                    <SectionLabel accent="var(--mc-light-purple)">
+                    <SectionLabel accent="var(--mc-light-purple)" symbol="wisdom">
                         Personal Studies & Independent Research
                     </SectionLabel>
                     <p className="mt-2 max-w-2xl text-sm text-muted-foreground">

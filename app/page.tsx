@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { ArrowRight, Gamepad2, User } from "lucide-react";
+import { ArrowRight, User } from "lucide-react";
 import { identity, getProjects, getRecentRenovations } from "@/lib/content";
 import { getProjectIcon } from "@/lib/project-icons";
 import { IdentityMarquee } from "@/components/identity-marquee";
@@ -149,7 +149,7 @@ export default async function Home() {
                 >
                     <div className="mx-auto max-w-6xl">
                         <div className="flex items-center justify-between gap-4">
-                            <SectionLabel accent="var(--mc-gold)" icon={Gamepad2}>
+                            <SectionLabel accent="var(--mc-gold)" symbol="attackSpeed">
                                 Selected Work
                             </SectionLabel>
                             <Link

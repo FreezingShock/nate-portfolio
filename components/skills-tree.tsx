@@ -2,6 +2,7 @@
 
 import { useState } from "react"
 import { motion } from "motion/react"
+import { McSymbol, type McSymbolName } from "@/components/mc-symbol"
 import { Code2, Palette, Brain, Zap, Users, Leaf } from "lucide-react"
 
 interface Skill {
@@ -145,6 +146,21 @@ const skillsData: Skill[] = [
     }
 ]
 
+const categorySymbols: Record<string, McSymbolName> = {
+    "Game Dev": "attackSpeed",
+    Design: "magicFind",
+    "Web Dev": "intelligence",
+    Engineering: "defense",
+    Leadership: "strength",
+}
+const categoryColors: Record<string, string> = {
+    "Game Dev": "#ffaa00",
+    Design: "#55ffff",
+    "Web Dev": "#5555ff",
+    Engineering: "#55ff55",
+    Leadership: "#ff55ff",
+}
+
 export function SkillsTree() {
     const [hoveredSkill, setHoveredSkill] = useState<string | null>(null)
 
@@ -174,13 +190,10 @@ export function SkillsTree() {
 
             {skillsByCategory.map(({ category, skills }) => (
                 <div key={category} className="space-y-3">
-                    <h3 className="font-minecraft text-lg font-bold text-mc-gold flex items-center gap-2">
+                    <h3 className="font-minecraft text-lg font-bold flex items-center gap-2"
+                        style={{ color: categoryColors[category] }}>
                         <span className="text-2xl">
-                            {category === "Game Dev" && "🎮"}
-                            {category === "Design" && "🎨"}
-                            {category === "Web Dev" && "💻"}
-                            {category === "Engineering" && "⚙️"}
-                            {category === "Leadership" && "🏆"}
+                            <McSymbol name={categorySymbols[category] ?? "arrow"} color={categoryColors[category]} />
                         </span>
                         {category}
                     </h3>

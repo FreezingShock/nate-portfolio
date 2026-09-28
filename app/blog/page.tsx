@@ -101,6 +101,7 @@ export default function BlogPage() {
                     title="Blog & Essays"
                     description="Notes on systems design, game dev, philosophy, and whatever else is worth writing down. Long essays, research, poetry, technical writeups, and quick thoughts."
                     accent="var(--mc-yellow)"
+                    symbol="intelligence"
                 />
 
                 <div className="mx-auto mt-16 max-w-4xl space-y-16 scroll-mt-24">

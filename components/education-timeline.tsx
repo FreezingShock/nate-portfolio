@@ -2,13 +2,14 @@
 
 import { useState } from "react"
 import { motion } from "motion/react"
+import { McSymbol, type McSymbolName } from "@/components/mc-symbol"
 import { ChevronLeft, ChevronRight } from "lucide-react"
 
 interface TimelinePhase {
     season: string
     year: string
     color: string
-    icon: string
+    icon: McSymbolName
     title: string
     description: string
     milestones: string[]
@@ -19,7 +20,7 @@ const phases: TimelinePhase[] = [
         season: "Fall",
         year: "2026",
         color: "#ffaa00",
-        icon: "🎓",
+        icon: "intelligence",
         title: "Senior Year",
         description: "High school completion, SAT prep, college applications, portfolio foundation",
         milestones: [
@@ -33,7 +34,7 @@ const phases: TimelinePhase[] = [
         season: "Spring",
         year: "2027",
         color: "#55ff55",
-        icon: "🏃",
+        icon: "speed",
         title: "College Transition",
         description: "Graduate high school, confirm recruited athlete status, prepare for SMC",
         milestones: [
@@ -47,7 +48,7 @@ const phases: TimelinePhase[] = [
         season: "Fall",
         year: "2027",
         color: "#5555ff",
-        icon: "🎪",
+        icon: "day",
         title: "Santa Monica College",
         description: "Begin SMC with recruited athlete status. Engineering foundation, athletic leadership",
         milestones: [
@@ -61,7 +62,7 @@ const phases: TimelinePhase[] = [
         season: "Spring",
         year: "2028",
         color: "#55ffff",
-        icon: "🏔",
+        icon: "fortune",
         title: "SMC Year 2",
         description: "Deepen engineering skills, grow as athlete-leader, portfolio progress",
         milestones: [
@@ -75,7 +76,7 @@ const phases: TimelinePhase[] = [
         season: "Fall",
         year: "2029",
         color: "#ff55ff",
-        icon: "🏛",
+        icon: "defense",
         title: "Cal Poly Pomona",
         description: "Transfer to 4-year program. Civil Engineering – Environmental specialization",
         milestones: [
@@ -89,7 +90,7 @@ const phases: TimelinePhase[] = [
         season: "Spring",
         year: "2030",
         color: "#ffff55",
-        icon: "🌍",
+        icon: "wisdom",
         title: "Pomona Year 2",
         description: "Advanced engineering coursework, portfolio maturation, mentor network",
         milestones: [
@@ -103,7 +104,7 @@ const phases: TimelinePhase[] = [
         season: "Fall",
         year: "2030",
         color: "#ff5555",
-        icon: "🔧",
+        icon: "forge",
         title: "Capstone Year",
         description: "Capstone project, final portfolio pieces, preparation for post-grad launch",
         milestones: [
@@ -117,7 +118,7 @@ const phases: TimelinePhase[] = [
         season: "Spring",
         year: "2031",
         color: "#aa00aa",
-        icon: "🚀",
+        icon: "comet",
         title: "Launch",
         description: "Graduation, business launch, independent sustainability/urban design work",
         milestones: [
@@ -179,7 +180,7 @@ export function EducationTimeline() {
                                             : "transparent",
                                 }}
                             >
-                                <div className="text-xl mb-1">{phase.icon}</div>
+                                <div className="mb-1 text-xl"><McSymbol name={phase.icon} color={phase.color} /></div>
                                 <div className="text-xs uppercase tracking-wider font-semibold" style={{ color: phase.color }}>
                                     {phase.season}
                                 </div>
@@ -210,7 +211,7 @@ export function EducationTimeline() {
                 }}
             >
                 <div className="flex items-start gap-4">
-                    <div className="text-4xl">{current.icon}</div>
+                    <div className="text-4xl"><McSymbol name={current.icon} color={current.color} /></div>
                     <div className="flex-1">
                         <div className="flex items-baseline gap-2 flex-wrap">
                             <h3

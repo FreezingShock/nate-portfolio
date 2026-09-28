@@ -246,6 +246,7 @@ export default async function CourseDetailPage({
                             title={course.title}
                             description={course.fullDescription}
                             accent={course.color}
+                            symbol="wisdom"
                         />
                     </div>
 

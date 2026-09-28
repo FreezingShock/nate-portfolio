@@ -83,7 +83,7 @@ export function PhilosophyCard() {
         <div className="space-y-6">
             <div className="rounded-lg border border-border/40 bg-card/30 p-4">
                 <p className="text-sm leading-relaxed text-muted-foreground">
-                    Philosophy shapes how I build. <span className="text-mc-lightpurple font-minecraft">Kierkegaard</span> informs authenticity and ethical choice. <span className="text-mc-aqua font-minecraft">Agnosticism and Egg Theory</span> ground my systems thinking in humility and interconnection.
+                    Philosophy shapes how I build. <span className="text-mc-light-purple font-minecraft">Kierkegaard</span> informs authenticity and ethical choice. <span className="text-mc-aqua font-minecraft">Agnosticism and Egg Theory</span> ground my systems thinking in humility and interconnection.
                 </p>
             </div>
 

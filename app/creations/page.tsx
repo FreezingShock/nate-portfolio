@@ -62,11 +62,12 @@ export default async function CreationsPage() {
                 <PageHero
                     eyebrow="Made"
                     title="Creations"
+                    symbol="forge"
                     description="Everything Nate builds — games and software, real-place renovation studies, and the creative practice around both."
                 />
 
                 <div id="projects" className="mx-auto mt-14 max-w-6xl scroll-mt-24">
-                    <SectionLabel accent="var(--mc-aqua)">Projects</SectionLabel>
+                    <SectionLabel accent="var(--mc-aqua)" symbol="magicFind">Projects</SectionLabel>
                     <p className="mt-2 max-w-xl text-sm text-muted-foreground">
                         Games and software — solo-built, systems-driven, shipped and
                         in-progress.
@@ -77,7 +78,7 @@ export default async function CreationsPage() {
                 </div>
 
                 <div id="renovations" className="mx-auto mt-20 max-w-6xl scroll-mt-24">
-                    <SectionLabel accent="var(--mc-gold)">Renovations</SectionLabel>
+                    <SectionLabel accent="var(--mc-gold)" symbol="forge">Renovations</SectionLabel>
                     <p className="mt-2 max-w-xl text-sm text-muted-foreground">
                         Studying and reimagining real places — measured, modeled, and
                         redesigned to be greener and more inviting.
@@ -88,7 +89,7 @@ export default async function CreationsPage() {
                 </div>
 
                 <div id="artwork" className="mx-auto mt-20 max-w-6xl scroll-mt-24">
-                    <SectionLabel accent="var(--mc-light-purple)">Artwork</SectionLabel>
+                    <SectionLabel accent="var(--mc-light-purple)" symbol="flower">Artwork</SectionLabel>
                     <p className="mt-2 max-w-xl text-sm text-muted-foreground">
                         Blender renders, drawing, poetry — the creative practice around
                         the engineering.

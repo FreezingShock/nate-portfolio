@@ -54,6 +54,7 @@ export default async function ProjectPage({
                             title={project.title}
                             description={project.description}
                             accent={accent}
+                            symbol="forge"
                         />
                     </div>
 

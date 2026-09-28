@@ -8,11 +8,15 @@ import { RunningStatsCard } from "@/components/running-stats-card"
 import { RobloxBreakdown } from "@/components/roblox-breakdown"
 import { PhilosophyCard } from "@/components/philosophy-card"
 import { EducationTimeline } from "@/components/education-timeline"
+import { McSymbol } from "@/components/mc-symbol"
 import { SkillsTree } from "@/components/skills-tree"
 
 export default function AboutPage() {
     return (
-        <div className="pointer-events-auto min-h-screen">
+        <div
+            className="pointer-events-auto min-h-screen"
+            style={{ ["--muted-foreground" as string]: "#ffffff", ["--foreground" as string]: "#ffffff" }}
+        >
             <PageBackground variant="particles" color="#00aaaa" />
             <SidebarNav
                 sections={[
@@ -34,6 +38,7 @@ export default function AboutPage() {
                         title="Who I Am"
                         description="Engineer, builder, runner, systems thinker. This page is the comprehensive story—how the parts connect."
                         accent="var(--mc-dark-aqua)"
+                        symbol="speed"
                     />
 
                     <div className="relative mx-auto mt-12 max-w-2xl overflow-hidden rounded-2xl border border-border/60 bg-card/40 p-8 backdrop-blur-xl scroll-mt-24">
@@ -44,13 +49,13 @@ export default function AboutPage() {
                         />
                         <div className="space-y-4 text-base leading-relaxed">
                             <p className="text-foreground">
-                                I'm <span className="text-mc-light-purple font-minecraft font-bold">Nate</span>, a senior in high school in Southern California studying toward a degree in <span className="text-mc-green font-minecraft font-bold">Environmental Engineering</span>. I build games, render systems, and design spaces—always with an eye toward sustainable, interconnected systems.
+                                I'm <span className="rainbow-text inline-block font-minecraft font-bold">Nate</span>, a senior in high school in Southern California studying toward a degree in <span className="mc-glow font-minecraft font-bold" style={{ ["--glow" as string]: "var(--mc-green)" }}>Environmental Engineering</span>. I build games, render systems, and design spaces—always with an eye toward sustainable, interconnected systems.
                             </p>
                             <p className="text-muted-foreground">
-                                I think through <span className="text-mc-lightpurple font-minecraft font-bold">philosophy</span> (Kierkegaard's ethics, agnosticism, interconnected systems), execute through <span className="text-mc-gold font-minecraft font-bold">discipline</span> (competitive running, strength training, precision), and create through <span className="text-mc-aqua font-minecraft font-bold">systems thinking</span> (game mechanics, urban design, code architecture).
+                                I think through <span className="mc-glow font-minecraft font-bold" style={{ ["--glow" as string]: "var(--mc-light-purple)" }}>philosophy</span> (Kierkegaard's ethics, agnosticism, interconnected systems), execute through <span className="mc-glow font-minecraft font-bold" style={{ ["--glow" as string]: "var(--mc-gold)" }}>discipline</span> (competitive running, strength training, precision), and create through <span className="mc-glow font-minecraft font-bold" style={{ ["--glow" as string]: "var(--mc-aqua)" }}>systems thinking</span> (game mechanics, urban design, code architecture).
                             </p>
                             <p className="text-muted-foreground">
-                                By Spring 2031, my goal: launch a <span className="text-mc-green font-minecraft font-bold">sustainable infrastructure/urban design business</span> after completing my degree at Cal Poly Pomona, with financial freedom and athletic leadership woven through the journey.
+                                By Spring 2031, my goal: launch a <span className="mc-glow font-minecraft font-bold" style={{ ["--glow" as string]: "var(--mc-green)" }}>sustainable infrastructure/urban design business</span> after completing my degree at Cal Poly Pomona, with financial freedom and athletic leadership woven through the journey.
                             </p>
                         </div>
                     </div>
@@ -58,26 +63,26 @@ export default function AboutPage() {
 
                 {/* What I'm Building Now */}
                 <div id="building" className="scroll-mt-24 mt-16">
-                    <SectionLabel accent="var(--mc-gold)">What I'm Building Now</SectionLabel>
+                    <SectionLabel accent="var(--mc-gold)" symbol="forge">What I'm Building Now</SectionLabel>
                     <div className="mt-6 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
                         {[
                             {
                                 title: "Fractured Islands: Ascension",
                                 desc: "Roblox game in active development. Stat systems, attribute mechanics, engagement loops.",
                                 color: "#ff55ff",
-                                emoji: "🎮"
+                                symbol: "attackSpeed" as const
                             },
                             {
                                 title: "Personal Portfolio",
                                 desc: "This site — a living project. Renovation studies, design work, creations across mediums.",
                                 color: "#55ffff",
-                                emoji: "🌐"
+                                symbol: "magicFind" as const
                             },
                             {
                                 title: "Engineering Foundation",
                                 desc: "College pathway through SMC → Cal Poly. Environmental specialization, capstone focus.",
                                 color: "#55ff55",
-                                emoji: "⚙️"
+                                symbol: "defense" as const
                             }
                         ].map((item) => (
                             <div
@@ -88,7 +93,7 @@ export default function AboutPage() {
                                     backgroundColor: `${item.color}08`,
                                 }}
                             >
-                                <div className="text-2xl mb-2">{item.emoji}</div>
+                                <div className="mb-2 text-2xl"><McSymbol name={item.symbol} color={item.color} /></div>
                                 <h4 className="font-minecraft font-bold text-sm" style={{ color: item.color }}>
                                     {item.title}
                                 </h4>
@@ -100,7 +105,7 @@ export default function AboutPage() {
 
                 {/* Running & Athletics */}
                 <div id="running" className="scroll-mt-24 mt-16">
-                    <SectionLabel accent="var(--mc-gold)">Running & Athletics</SectionLabel>
+                    <SectionLabel accent="var(--mc-gold)" symbol="speed">Running & Athletics</SectionLabel>
                     <div className="mt-6">
                         <RunningStatsCard />
                     </div>
@@ -108,7 +113,7 @@ export default function AboutPage() {
 
                 {/* Fractured Islands System Design */}
                 <div id="roblox" className="scroll-mt-24 mt-16">
-                    <SectionLabel accent="var(--mc-lightpurple)">Fractured Islands: System Design</SectionLabel>
+                    <SectionLabel accent="var(--mc-light-purple)" symbol="pristine">Fractured Islands: System Design</SectionLabel>
                     <div className="mt-6">
                         <RobloxBreakdown />
                     </div>
@@ -116,7 +121,7 @@ export default function AboutPage() {
 
                 {/* Philosophy */}
                 <div id="philosophy" className="scroll-mt-24 mt-16">
-                    <SectionLabel accent="var(--mc-lightpurple)">Philosophy & Thinking</SectionLabel>
+                    <SectionLabel accent="var(--mc-light-purple)" symbol="wisdom">Philosophy & Thinking</SectionLabel>
                     <div className="mt-6">
                         <PhilosophyCard />
                     </div>
@@ -124,7 +129,7 @@ export default function AboutPage() {
 
                 {/* Skills */}
                 <div id="skills" className="scroll-mt-24 mt-16">
-                    <SectionLabel accent="var(--mc-aqua)">Skills & Expertise</SectionLabel>
+                    <SectionLabel accent="var(--mc-aqua)" symbol="magicFind">Skills & Expertise</SectionLabel>
                     <div className="mt-6">
                         <SkillsTree />
                     </div>
@@ -132,7 +137,7 @@ export default function AboutPage() {
 
                 {/* Education Timeline */}
                 <div id="timeline" className="scroll-mt-24 mt-16">
-                    <SectionLabel accent="var(--mc-gold)">4-Year Education & Career Path</SectionLabel>
+                    <SectionLabel accent="var(--mc-gold)" symbol="arrow">4-Year Education & Career Path</SectionLabel>
                     <div className="mt-6">
                         <EducationTimeline />
                     </div>

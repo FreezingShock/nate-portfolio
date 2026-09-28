@@ -309,6 +309,7 @@ export default function TimelinePage() {
                     title="Timeline"
                     description="Complete educational pathway from high school through degree. Four phases: senior year, community college transfer, university specialization, and ongoing personal research. Where you are, and where you're heading."
                     accent="var(--mc-green)"
+                    symbol="arrow"
                 />
 
                 <div className="mx-auto mt-16 max-w-4xl space-y-20 scroll-mt-24">

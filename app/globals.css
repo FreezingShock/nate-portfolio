@@ -11,6 +11,16 @@
     --font-sans: var(--font-noto-sans);
     --font-mono: var(--font-roboto-mono);
     --font-minecraft: "Minecraft", "Courier New", monospace;
+    --color-mc-aqua: var(--mc-aqua);
+    --color-mc-dark-aqua: var(--mc-dark-aqua);
+    --color-mc-gold: var(--mc-gold);
+    --color-mc-green: var(--mc-green);
+    --color-mc-dark-green: var(--mc-dark-green);
+    --color-mc-blue: var(--mc-blue);
+    --color-mc-red: var(--mc-red);
+    --color-mc-light-purple: var(--mc-light-purple);
+    --color-mc-dark-purple: var(--mc-dark-purple);
+    --color-mc-yellow: var(--mc-yellow);
     --font-rubik: var(--font-rubik);
     --font-serif: var(--font-source-serif);
     --color-sidebar-ring: var(--sidebar-ring);
@@ -308,3 +318,43 @@
   ::view-transition-new(root) {
     clip-path: var(--magicui-theme-vt-clip-from, none);
   }
+/* Hypixel-style symbol glyphs: Minecraft font first, then symbol-capable
+   system fonts, and never emoji presentation. */
+.mc-symbol {
+    font-family: "Minecraft", "Apple Symbols", "Segoe UI Symbol", "Noto Sans Symbols 2",
+        "Noto Sans Symbols", "DejaVu Sans", sans-serif;
+    font-variant-emoji: text;
+    font-style: normal;
+    line-height: 1;
+    display: inline-block;
+    text-shadow: 0 0 10px color-mix(in oklch, var(--glow, currentColor) 70%, transparent);
+}
+
+/* Shared rainbow + glow text (same effect as the footer name). */
+@keyframes rainbowShift {
+    0% { background-position: 0% center; }
+    50% { background-position: 100% center; }
+    100% { background-position: 0% center; }
+}
+@keyframes rainbowGlow {
+    0% { filter: drop-shadow(0 0 8px #ff5555) brightness(1.1); }
+    25% { filter: drop-shadow(0 0 12px #ffaa00) brightness(1.15); }
+    50% { filter: drop-shadow(0 0 12px #55ff55) brightness(1.15); }
+    75% { filter: drop-shadow(0 0 12px #55ffff) brightness(1.15); }
+    100% { filter: drop-shadow(0 0 8px #ff5555) brightness(1.1); }
+}
+.rainbow-text {
+    background: linear-gradient(90deg, #ff5555, #ffaa00, #55ff55, #55ffff, #ff55ff, #ff5555);
+    background-size: 200% auto;
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    animation: rainbowShift 4s linear infinite, rainbowGlow 4s ease-in-out infinite;
+}
+
+/* Glowing colored text: set --glow on the element. */
+.mc-glow {
+    color: var(--glow);
+    text-shadow: 0 0 10px color-mix(in oklch, var(--glow) 75%, transparent),
+        0 0 22px color-mix(in oklch, var(--glow) 40%, transparent);
+}
