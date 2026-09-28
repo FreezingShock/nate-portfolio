@@ -6,12 +6,17 @@ interface RippleProps extends ComponentPropsWithoutRef<"div"> {
   mainCircleSize?: number
   mainCircleOpacity?: number
   numCircles?: number
+  // Stock MagicUI hardcodes `bg-foreground`/`border-(--foreground)` — a real
+  // color prop instead of relying on the caller overriding a semantic theme
+  // variable to fake theming (which the previous page-background.tsx did).
+  color?: string
 }
 
 export const Ripple = React.memo(function Ripple({
   mainCircleSize = 210,
   mainCircleOpacity = 0.24,
   numCircles = 8,
+  color = "var(--foreground)",
   className,
   ...props
 }: RippleProps) {
@@ -32,7 +37,7 @@ export const Ripple = React.memo(function Ripple({
         return (
           <div
             key={i}
-            className={`animate-ripple bg-foreground/25 absolute rounded-full border shadow-xl`}
+            className="animate-ripple absolute rounded-full border shadow-xl"
             style={
               {
                 "--i": i,
@@ -42,7 +47,8 @@ export const Ripple = React.memo(function Ripple({
                 animationDelay,
                 borderStyle,
                 borderWidth: "1px",
-                borderColor: `var(--foreground)`,
+                borderColor: color,
+                backgroundColor: `color-mix(in oklch, ${color} 25%, transparent)`,
                 top: "50%",
                 left: "50%",
                 transform: "translate(-50%, -50%) scale(1)",

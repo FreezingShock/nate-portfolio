@@ -16,9 +16,20 @@ export function PageBackground({ variant, color }: { variant: Variant; color: st
     return (
         <div aria-hidden className="pointer-events-none fixed inset-0 -z-10 overflow-hidden">
             {variant === "interactive-grid" && (
+                // MagicUI's own demo applies a skew + 200%-oversize + radial
+                // mask, but that combination is tuned for a small bounded
+                // hero box — stretched across an entire fixed viewport the
+                // skew pushes most of the grid outside the visible area and
+                // the mask's percentage sizing goes wrong against the
+                // oversized box, so most of the screen ends up with no grid
+                // at all. A plain full-bleed grid (still using the fixed
+                // viewBox/preserveAspectRatio fix so it actually stretches
+                // to fill any viewport size) covers the whole screen
+                // reliably instead.
                 <InteractiveGridPattern
                     className="opacity-40"
-                    squaresClassName="hover:fill-primary/20"
+                    squaresClassName="hover:fill-[color-mix(in_oklch,var(--pattern-color)_25%,transparent)]"
+                    style={{ "--pattern-color": color } as CSSProperties}
                 />
             )}
             {variant === "retro" && (
@@ -34,9 +45,13 @@ export function PageBackground({ variant, color }: { variant: Variant; color: st
                 <DotPattern glow className="opacity-50" style={{ color } as CSSProperties} />
             )}
             {variant === "ripple" && (
-                <div className="size-full" style={{ "--foreground": color } as CSSProperties}>
-                    <Ripple mainCircleOpacity={0.15} numCircles={6} />
-                </div>
+                <Ripple
+                    className="size-full"
+                    color={color}
+                    mainCircleSize={140}
+                    mainCircleOpacity={0.3}
+                    numCircles={10}
+                />
             )}
             {variant === "particles" && (
                 <Particles className="size-full" quantity={70} color={color} size={0.6} />

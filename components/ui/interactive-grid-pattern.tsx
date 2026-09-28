@@ -42,6 +42,16 @@ export function InteractiveGridPattern({
     <svg
       width={width * horizontal}
       height={height * vertical}
+      // Without a viewBox, an SVG's content coordinates never rescale when
+      // CSS stretches the element past its intrinsic width/height attrs —
+      // the drawn grid stays a fixed WxH pixel canvas (960x960 at the
+      // defaults) and everything past that in a wider box is just empty.
+      // That's why this pattern stopped covering the right/bottom of the
+      // screen on any desktop wider/taller than the default grid size.
+      // `preserveAspectRatio="none"` lets it stretch to fill whatever box
+      // it's given instead of preserving the grid's original aspect ratio.
+      viewBox={`0 0 ${width * horizontal} ${height * vertical}`}
+      preserveAspectRatio="none"
       className={cn(
         "absolute inset-0 h-full w-full border border-gray-400/30",
         className
