@@ -12,6 +12,7 @@ export interface CourseData {
     tags: string[];
     focus: string[];
     status: "In Progress" | "Completed" | "Upcoming";
+    href?: string;
 }
 
 export function CourseworkGrid({ courses }: { courses: CourseData[] }) {
@@ -19,8 +20,13 @@ export function CourseworkGrid({ courses }: { courses: CourseData[] }) {
         <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
             {courses.map((course) => {
                 const Icon = course.icon;
+                const CardWrapper = course.href ? 'a' : 'div';
                 return (
-                    <div key={course.slug} className="relative">
+                    <CardWrapper
+                        key={course.slug}
+                        href={course.href}
+                        className={`relative ${course.href ? 'hover:opacity-90 transition-opacity cursor-pointer' : ''}`}
+                    >
                         <MagicCard
                             className="h-full rounded-xl"
                             gradientFrom={course.color}
@@ -105,7 +111,7 @@ export function CourseworkGrid({ courses }: { courses: CourseData[] }) {
                                 </div>
                             </div>
                         </MagicCard>
-                    </div>
+                    </CardWrapper>
                 );
             })}
         </div>
