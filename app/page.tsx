@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { ArrowRight, Gamepad2 } from "lucide-react";
+import { ArrowRight, Gamepad2, User } from "lucide-react";
 import { identity, getProjects, getRecentRenovations } from "@/lib/content";
 import { getProjectIcon } from "@/lib/project-icons";
 import { IdentityMarquee } from "@/components/identity-marquee";
@@ -10,7 +10,6 @@ import { TypingAnimation } from "@/components/ui/typing-animation";
 import { GlyphMatrix } from "@/components/ui/glyph-matrix";
 import { ShineBorder } from "@/components/ui/shine-border";
 import { RainbowButton } from "@/components/ui/rainbow-button";
-import { ShinyButton } from "@/components/ui/shiny-button";
 import { BentoGrid, BentoCard } from "@/components/ui/bento-grid";
 import { MagicCard } from "@/components/ui/magic-card";
 import { SectionLabel } from "@/components/section-label";
@@ -126,20 +125,12 @@ export default async function Home() {
                                     <ArrowRight className="size-4" />
                                 </Link>
                             </RainbowButton>
-                            {/* Same pill footprint as View Projects so the pair
-                                reads as a matched set — a text-shine sweep
-                                instead of a rainbow border, visibly the calmer
-                                of the two, tinted with About's own page accent
-                                (dark_aqua) via ShinyButton's new accentColor
-                                prop instead of the site's default primary. */}
-                            <Link href="/about">
-                                <ShinyButton
-                                    accentColor="var(--mc-dark-aqua)"
-                                    className="flex h-11 items-center justify-center rounded-full px-8 text-sm font-semibold"
-                                >
+                            <RainbowButton asChild size="lg" className="rounded-full text-sm font-semibold">
+                                <Link href="/about" className="gap-2">
+                                    <User className="size-4" />
                                     About Me
-                                </ShinyButton>
-                            </Link>
+                                </Link>
+                            </RainbowButton>
                         </div>
                     </div>
                 </div>
