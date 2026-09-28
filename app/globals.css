@@ -297,3 +297,14 @@
         @apply bg-background text-foreground;
     }
 }
+  ::view-transition-old(root), ::view-transition-new(root) {
+    animation: none;
+    mix-blend-mode: normal;}
+  /* Pins the collapsed clip-path the instant the new theme's snapshot
+     exists, before AnimatedThemeToggler's own WAAPI animate() call takes
+     over on ready — without this, Firefox briefly paints the new theme
+     fully unclipped for one frame. Chrome/Edge don't strictly need it (the
+     animate() call wins fast enough) but it's harmless there too. */
+  ::view-transition-new(root) {
+    clip-path: var(--magicui-theme-vt-clip-from, none);
+  }

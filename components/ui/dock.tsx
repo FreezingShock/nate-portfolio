@@ -128,10 +128,14 @@ const DockIcon = ({
     [size, targetSize, size]
   )
 
+  // Snappier settle (higher stiffness, more damping) than the MagicUI
+  // default — the floaty original spring made rapid clicking between pages
+  // feel laggy since each icon kept animating size for a while after the
+  // cursor had already moved on.
   const scaleSize = useSpring(sizeTransform, {
     mass: 0.1,
-    stiffness: 150,
-    damping: 12,
+    stiffness: 300,
+    damping: 25,
   })
 
   return (

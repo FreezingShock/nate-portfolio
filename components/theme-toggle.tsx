@@ -1,9 +1,14 @@
 "use client";
 
 import * as React from "react";
-import { Moon, Sun } from "lucide-react";
 import { useTheme } from "next-themes";
+import { AnimatedThemeToggler } from "@/components/ui/animated-theme-toggler";
 
+// Controlled mode (per the component's own `theme`/`onThemeChange` props):
+// next-themes stays the single source of truth for persistence and the
+// `dark` class, while AnimatedThemeToggler owns only the View Transitions
+// circle-reveal animation. Uncontrolled mode would have it read/write the
+// class and localStorage itself, fighting next-themes for the same job.
 export function ThemeToggle() {
     const { resolvedTheme, setTheme } = useTheme();
     const [mounted, setMounted] = React.useState(false);
@@ -18,13 +23,11 @@ export function ThemeToggle() {
     const isDark = resolvedTheme === "dark";
 
     return (
-        <button
-            type="button"
+        <AnimatedThemeToggler
+            theme={isDark ? "dark" : "light"}
+            onThemeChange={(next) => setTheme(next)}
             aria-label={isDark ? "Switch to light mode" : "Switch to dark mode"}
-            onClick={() => setTheme(isDark ? "light" : "dark")}
-            className="flex size-8 items-center justify-center rounded-full text-foreground/80 transition-colors hover:text-foreground"
-        >
-            {isDark ? <Sun className="size-4" /> : <Moon className="size-4" />}
-        </button>
+            className="flex size-8 items-center justify-center rounded-full text-foreground/80 transition-colors hover:text-foreground [&_svg]:size-4"
+        />
     );
 }
