@@ -16,18 +16,23 @@ export function PageBackground({ variant, color }: { variant: Variant; color: st
     return (
         <div aria-hidden className="pointer-events-none fixed inset-0 -z-10 overflow-hidden">
             {variant === "interactive-grid" && (
-                // MagicUI's own demo applies a skew + 200%-oversize + radial
-                // mask, but that combination is tuned for a small bounded
-                // hero box — stretched across an entire fixed viewport the
-                // skew pushes most of the grid outside the visible area and
-                // the mask's percentage sizing goes wrong against the
-                // oversized box, so most of the screen ends up with no grid
-                // at all. A plain full-bleed grid (still using the fixed
-                // viewBox/preserveAspectRatio fix so it actually stretches
-                // to fill any viewport size) covers the whole screen
-                // reliably instead.
+                // The 3D-floor look needs a skew, and a skewY(deg) displaces
+                // points sideways-in-effect by an amount proportional to
+                // their distance from the transform's vertical center — on
+                // a ~1920px-wide viewport that's roughly ±960px * tan(12°)
+                // ≈ ±200px of vertical displacement at the left/right edges.
+                // The original oversize (200% height, 0% width overflow)
+                // only padded vertically, so that horizontal displacement
+                // pushed the left/right edges of the grid clean outside the
+                // parent's overflow-hidden clip — which is what made most
+                // of a wide screen look empty. Padding width too (not just
+                // height) gives the skew room on both axes. The edge fade
+                // comes from the shared vignette div below, not a mask
+                // here — masking an already-oversized, skewed box in its
+                // own local (pre-transform) coordinate space doesn't line
+                // up with what's actually visible after the transform.
                 <InteractiveGridPattern
-                    className="opacity-40"
+                    className="inset-x-[-25%] inset-y-[-30%] h-[200%] w-[150%] skew-y-12 opacity-40"
                     squaresClassName="hover:fill-[color-mix(in_oklch,var(--pattern-color)_25%,transparent)]"
                     style={{ "--pattern-color": color } as CSSProperties}
                 />
