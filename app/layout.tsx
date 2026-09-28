@@ -47,12 +47,12 @@ const sourceSerif = Source_Serif_4({
 
 export const metadata: Metadata = {
     metadataBase: new URL("https://nateanderson.dev"),
-    title: "Nate — Portfolio",
+    title: "Nate's Portfolio",
     description:
         "Games, renders, and systems — built while studying toward environmental engineering.",
     authors: [{ name: "Nate" }],
     creator: "Nate",
-    applicationName: "Nate Anderson — Portfolio",
+    applicationName: "Nate's Portfolio",
     formatDetection: { telephone: false },
     icons: {
         icon: "/favicon.ico",
@@ -61,15 +61,15 @@ export const metadata: Metadata = {
     openGraph: {
         type: "website",
         locale: "en_US",
-        title: "Nate — Portfolio",
+        title: "Nate's Portfolio",
         description:
             "Games, renders, and systems — built while studying toward environmental engineering.",
-        siteName: "Nate — Portfolio",
+        siteName: "Nate's Portfolio",
         url: "https://nateanderson.dev",
     },
     twitter: {
         card: "summary_large_image",
-        title: "Nate — Portfolio",
+        title: "Nate's Portfolio",
         description:
             "Games, renders, and systems — built while studying toward environmental engineering.",
     },

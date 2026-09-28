@@ -5,8 +5,8 @@ import type { MetadataRoute } from "next";
 // signal, and lets the site be added to a phone home screen.
 export default function manifest(): MetadataRoute.Manifest {
     return {
-        name: "Nate Anderson — Portfolio",
-        short_name: "Nate Anderson",
+        name: "Nate's Portfolio",
+        short_name: "Nate's Portfolio",
         description:
             "Games, renders, and systems — built while studying toward environmental engineering.",
         start_url: "/",
