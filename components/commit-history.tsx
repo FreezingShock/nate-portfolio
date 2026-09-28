@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { ChevronsLeft, ChevronLeft, ChevronRight, ChevronsRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -46,6 +46,15 @@ function parseCommits(raw: GhCommit[]): CommitEntry[] {
     }));
 }
 
+// Clamp helper used in a few places below so "page" can never end up outside
+// [1, totalPages] no matter what triggered the change — a stale prop, a
+// totalCommits of 0, a page-size change that shrinks the page count out from
+// under the current page, etc.
+function clampPage(page: number, totalPages: number): number {
+    if (!Number.isFinite(page)) return 1;
+    return Math.min(Math.max(1, page), Math.max(1, totalPages));
+}
+
 export function CommitHistory({
     repo,
     totalCommits,
@@ -67,12 +76,32 @@ export function CommitHistory({
 
     const totalPages = Math.max(1, Math.ceil(totalCommits / perPage));
 
-    useEffect(() => {
-        // Skip the initial mount — page 1 at the server-rendered perPage is
-        // already on screen via initialCommits, so this effect only needs
-        // to run for a page/perPage change the user actually makes.
-        if (page === 1 && perPage === initialPerPage) return;
+    // Guards against every source of staleness at once:
+    // - `isMounted`: skip exactly one fetch — the very first render, whose
+    //   data the server already sent as `initialCommits`. Everything after
+    //   that always fetches, so navigating back to page 1 / the default
+    //   page size re-fetches instead of silently reusing whatever the OLD
+    //   effect run last set (the previous bug: it compared page/perPage
+    //   back to their initial VALUES, which recur — page 1 and the default
+    //   page size are both things a user returns to — so the effect kept
+    //   bailing out and leaving stale commits on screen with a page number
+    //   that no longer matched what was rendered).
+    // - `requestId`: every effect run stamps a ticket; a response only ever
+    //   commits to state if its ticket is still the latest one. Two
+    //   in-flight requests (e.g. someone double-clicking Next) can now only
+    //   ever have the newer one win, regardless of which resolves first —
+    //   the AbortController below also cancels the network request itself,
+    //   but this is the guard that actually matters for correctness.
+    const isMounted = useRef(false);
+    const requestId = useRef(0);
 
+    useEffect(() => {
+        if (!isMounted.current) {
+            isMounted.current = true;
+            return;
+        }
+
+        const thisRequest = ++requestId.current;
         const controller = new AbortController();
         setLoading(true);
         setError(false);
@@ -85,22 +114,46 @@ export function CommitHistory({
                 if (!res.ok) throw new Error(`GitHub API error: ${res.status}`);
                 return res.json();
             })
-            .then((raw: GhCommit[]) => setCommits(parseCommits(raw)))
-            .catch((err) => {
-                if (err.name !== "AbortError") setError(true);
+            .then((raw: GhCommit[]) => {
+                if (requestId.current !== thisRequest) return; // superseded — ignore
+                setCommits(parseCommits(raw));
             })
-            .finally(() => setLoading(false));
+            .catch((err) => {
+                if (requestId.current !== thisRequest) return;
+                if (err?.name !== "AbortError") setError(true);
+            })
+            .finally(() => {
+                if (requestId.current === thisRequest) setLoading(false);
+            });
 
         return () => controller.abort();
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [page, perPage]);
+    }, [page, perPage, repo]);
+
+    // Defensive clamp: if totalCommits ever changes (a revalidated server
+    // fetch handing this component new props) or perPage changes in a way
+    // that shrinks totalPages below the current page, snap back into range
+    // instead of leaving `page` pointing past the end — the direct cause of
+    // the negative commit numbers, since a too-high page makes
+    // `(page - 1) * perPage` exceed totalCommits.
+    useEffect(() => {
+        setPage((p) => clampPage(p, totalPages));
+    }, [totalPages]);
 
     function handlePerPageChange(next: number) {
         setPerPage(next);
         setPage(1);
     }
 
-    const startNumber = totalCommits - (page - 1) * perPage;
+    function goToPage(next: number) {
+        setPage(clampPage(next, totalPages));
+    }
+
+    // Belt-and-suspenders against the exact symptom reported (negative
+    // numbers on mobile): even if `page`/`perPage` ever momentarily
+    // disagree with totalCommits between renders, neither the start number
+    // nor each row's number can go below 1.
+    const startNumber = Math.max(1, totalCommits - (page - 1) * perPage);
+    const busy = loading;
 
     const controls = (
         <div className="flex items-center justify-center gap-1.5 sm:justify-end">
@@ -108,8 +161,8 @@ export function CommitHistory({
                 variant="outline"
                 size="icon"
                 className="size-8"
-                disabled={page === 1}
-                onClick={() => setPage(1)}
+                disabled={busy || page <= 1}
+                onClick={() => goToPage(1)}
                 aria-label="First page"
             >
                 <ChevronsLeft className="size-4" />
@@ -118,8 +171,8 @@ export function CommitHistory({
                 variant="outline"
                 size="icon"
                 className="size-8"
-                disabled={page === 1}
-                onClick={() => setPage((p) => Math.max(1, p - 1))}
+                disabled={busy || page <= 1}
+                onClick={() => goToPage(page - 1)}
                 aria-label="Previous page"
             >
                 <ChevronLeft className="size-4" />
@@ -131,8 +184,8 @@ export function CommitHistory({
                 variant="outline"
                 size="icon"
                 className="size-8"
-                disabled={page === totalPages}
-                onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+                disabled={busy || page >= totalPages}
+                onClick={() => goToPage(page + 1)}
                 aria-label="Next page"
             >
                 <ChevronRight className="size-4" />
@@ -141,8 +194,8 @@ export function CommitHistory({
                 variant="outline"
                 size="icon"
                 className="size-8"
-                disabled={page === totalPages}
-                onClick={() => setPage(totalPages)}
+                disabled={busy || page >= totalPages}
+                onClick={() => goToPage(totalPages)}
                 aria-label="Last page"
             >
                 <ChevronsRight className="size-4" />
@@ -160,8 +213,9 @@ export function CommitHistory({
                     Show
                     <select
                         value={perPage}
+                        disabled={busy}
                         onChange={(e) => handlePerPageChange(Number(e.target.value))}
-                        className="rounded-md border border-border/60 bg-card/60 px-2 py-1 font-mono text-xs text-foreground outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50"
+                        className="rounded-md border border-border/60 bg-card/60 px-2 py-1 font-mono text-xs text-foreground outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50 disabled:opacity-50"
                         aria-label="Commits per page"
                     >
                         {PAGE_SIZE_OPTIONS.map((n) => (
@@ -198,7 +252,7 @@ export function CommitHistory({
                                     className="font-mono font-semibold normal-case"
                                     style={{ color: accent }}
                                 >
-                                    #{startNumber - i}
+                                    #{Math.max(1, startNumber - i)}
                                 </span>
                                 <span>{formatDate(entry.date)}</span>
                                 <span aria-hidden>·</span>
