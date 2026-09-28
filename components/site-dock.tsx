@@ -24,7 +24,7 @@ export function SiteDock() {
         <>
             <SiteDockMobile />
             <div className="fixed inset-x-0 bottom-5 z-50 hidden justify-center sm:flex">
-                <Dock className="liquid-glass overflow-hidden">
+                <Dock className="liquid-glass relative overflow-hidden">
                     {navItems.map((item) => {
                         const active =
                             item.href === "/" ? pathname === "/" : pathname.startsWith(item.href);

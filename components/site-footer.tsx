@@ -12,7 +12,7 @@ export function SiteFooter() {
         // regardless of what that ancestor set.
         <footer
             id="footer"
-            className="liquid-glass pointer-events-auto w-full scroll-mt-24 overflow-hidden px-6 py-12 sm:px-10 lg:px-16"
+            className="liquid-glass pointer-events-auto relative w-full scroll-mt-24 overflow-hidden px-6 py-12 sm:px-10 lg:px-16"
         >
             <div className="mx-auto grid max-w-6xl gap-10 sm:grid-cols-3">
                 <div>

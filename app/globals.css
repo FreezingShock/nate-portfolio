@@ -162,8 +162,15 @@
    engines that don't support a filter-function inside backdrop-filter
    (e.g. Safari) — an unsupported VALUE is dropped, not the whole rule, so
    it survives being "overridden" by the fancier line that follows. */
+/* No `position` set here on purpose: Tailwind v4 ships its utilities inside
+   a CSS @layer, and an unlayered plain rule like this one always wins over
+   ANY layered rule regardless of specificity — so a `position: relative`
+   here would silently beat Tailwind's `fixed` utility (as it did on the
+   mobile Dock bar) no matter how it's written (even :where()). Each
+   consumer supplies its own position instead: `relative` on the footer,
+   `fixed` already on both Dock bars — either is enough for the ::before
+   highlight below to anchor to the element itself. */
 .liquid-glass {
-    position: relative;
     background: linear-gradient(
         165deg,
         color-mix(in oklch, var(--foreground) 10%, transparent),
