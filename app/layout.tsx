@@ -55,12 +55,8 @@ export const metadata: Metadata = {
     applicationName: "Nate Anderson — Portfolio",
     formatDetection: { telephone: false },
     icons: {
-        icon: [
-            { url: "/favicon-16x16.png?v=2", sizes: "16x16", type: "image/png" },
-            { url: "/favicon-32x32.png?v=2", sizes: "32x32", type: "image/png" },
-            { url: "/favicon.ico?v=2", sizes: "any" },
-        ],
-        apple: "/apple-touch-icon.png?v=2",
+        icon: "/favicon.ico",
+        apple: "/apple-touch-icon.png",
     },
     openGraph: {
         type: "website",
