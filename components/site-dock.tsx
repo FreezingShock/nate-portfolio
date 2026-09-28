@@ -1,5 +1,6 @@
 "use client";
 
+import type { CSSProperties } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Dock, DockIcon } from "@/components/ui/dock";
@@ -25,36 +26,56 @@ export function SiteDock() {
             <SiteDockMobile />
             {/* No overflow-hidden on the Dock itself: a magnified icon and
                 the hover label both deliberately extend past the pill's own
-                box (the classic macOS dock look — the label floats above/
-                below the bar, not clipped inside it). overflow-hidden here
-                would silently cut both off; `.liquid-glass`'s own rounded
+                box (the classic macOS dock look — the label floats above the
+                bar, not clipped inside it). overflow-hidden here would
+                silently cut both off; `.liquid-glass`'s own rounded
                 highlight doesn't need it (border-radius on a ::before clips
                 only that pseudo-element's own background, not its parent's
                 other children).
-                `hover:pt-9`: growing the pill's own top padding on hover
-                reserves room for the label above each icon, so it never
-                overlaps the bar — anchored because only this element's
-                padding changes, not the fixed bottom-5 wrapper's position,
-                so the bar grows upward from its bottom edge rather than the
-                whole thing jumping around. */}
+                No padding growth on hover — that pushed the pill's own
+                bounds around instead of just letting the label float above
+                it, which read as the dock going "out of bounds." The pill
+                stays a fixed size; the label overflows above it. */}
             <div className="fixed inset-x-0 bottom-5 z-50 hidden justify-center sm:flex">
-                <Dock className="liquid-glass relative pt-2 transition-[padding-top] duration-300 ease-out hover:pt-9">
+                {/* group/dock: the CURRENT page's label should only appear
+                    while the pointer is somewhere over the dock, not
+                    permanently — named so it doesn't collide with each
+                    DockIcon's own `group` (that one gates an individual
+                    icon's own hover state: its color and its label when
+                    it's a non-active page). */}
+                <Dock className="liquid-glass group/dock relative">
                     {navItems.map((item) => {
                         const active =
                             item.href === "/" ? pathname === "/" : pathname.startsWith(item.href);
                         const Icon = item.icon;
                         return (
-                            <DockIcon key={item.href} className="group relative">
+                            <DockIcon
+                                key={item.href}
+                                className="group relative"
+                                style={{ "--item-color": item.color } as CSSProperties}
+                            >
                                 <Link
                                     href={item.href}
                                     aria-label={item.label}
                                     aria-current={active ? "page" : undefined}
                                     className="flex size-full items-center justify-center"
                                 >
+                                    {/* Active page: always tinted. Any other
+                                        page: tinted only while its own icon
+                                        is hovered (group-hover, scoped to
+                                        this DockIcon) — the arbitrary-value
+                                        "color colon var" syntax below is
+                                        Tailwind's escape hatch for a
+                                        per-item dynamic color a plain
+                                        utility class can't express, since
+                                        each nav item has a different
+                                        accent. */}
                                     <Icon
                                         className={cn(
                                             "size-full transition-all duration-200",
-                                            !active && "text-muted-foreground group-hover:text-foreground"
+                                            active
+                                                ? undefined
+                                                : "text-muted-foreground group-hover:[color:var(--item-color)] group-hover:drop-shadow-[0_0_6px_color-mix(in_oklch,var(--item-color)_65%,transparent)]"
                                         )}
                                         style={{
                                             color: active ? item.color : undefined,
@@ -73,14 +94,18 @@ export function SiteDock() {
                                         }}
                                     />
                                 )}
-                                {/* Label sits above the icon, tinted to that
-                                    page's own color always (not just while
-                                    active) — visibility is what's gated on
-                                    hover/active, not the color. */}
+                                {/* Label above the icon, tinted to that
+                                    page's own color always — visibility is
+                                    what's gated: the active page's label
+                                    needs the pointer somewhere over the
+                                    WHOLE dock (group-hover/dock), every
+                                    other page's label needs its own icon
+                                    hovered (plain group-hover, scoped to
+                                    this DockIcon). */}
                                 <span
                                     className={cn(
-                                        "pointer-events-none absolute -top-8 left-1/2 -translate-x-1/2 whitespace-nowrap rounded-md border border-border/60 bg-popover px-2 py-1 font-mono text-xs shadow-sm transition-opacity duration-150",
-                                        active ? "opacity-100" : "opacity-0 group-hover:opacity-100"
+                                        "pointer-events-none absolute -top-8 left-1/2 -translate-x-1/2 whitespace-nowrap rounded-md border border-border/60 bg-popover px-2 py-1 font-mono text-xs opacity-0 shadow-sm transition-opacity duration-150",
+                                        active ? "group-hover/dock:opacity-100" : "group-hover:opacity-100"
                                     )}
                                     style={{ color: item.color }}
                                 >
