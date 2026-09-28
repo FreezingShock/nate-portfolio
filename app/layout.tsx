@@ -5,6 +5,7 @@ import { ThemeProvider } from "@/components/theme-provider";
 import { SiteDock } from "@/components/site-dock";
 import { SiteFooter } from "@/components/site-footer";
 import { ThemeToggle } from "@/components/theme-toggle";
+import { LiquidGlassFilter } from "@/components/liquid-glass-filter";
 
 // A deliberately "stacked" type system, five faces each with one job:
 // - Minecraft (fonts.css)     -> page titles, section labels (the signature)
@@ -84,6 +85,7 @@ export default function RootLayout({
             <body
                 className={`${notoSans.variable} ${robotoMono.variable} ${rubik.variable} ${sourceSerif.variable} font-sans antialiased`}
             >
+                <LiquidGlassFilter />
                 <ThemeProvider
                     attribute="class"
                     defaultTheme="dark"
@@ -112,9 +114,17 @@ export default function RootLayout({
                         Every real interactive element re-declares
                         pointer-events-auto on itself instead (SiteFooter,
                         SidebarNav, MagicCard, and the plain Links/anchors
-                        outside those three — see each for why). */}
-                    <div className="pointer-events-none flex min-h-screen flex-col pb-24">
-                        <div className="flex-1">{children}</div>
+                        outside those three — see each for why).
+                        pb-24 lives on `flex-1` (the content), not this outer
+                        wrapper: it used to sit here, after <SiteFooter/>,
+                        which pushed a bare strip of raw page background
+                        (dot-pattern/grid, no glass) below the footer's own
+                        box, in the gap left for the fixed Dock. Moving it
+                        onto the content div reserves that same Dock
+                        clearance above the footer instead, so the footer
+                        renders flush with the bottom of the page. */}
+                    <div className="pointer-events-none flex min-h-screen flex-col">
+                        <div className="flex-1 pb-24">{children}</div>
                         <SiteFooter />
                     </div>
                     <SiteDock />

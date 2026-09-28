@@ -14,7 +14,7 @@ export function SiteDockMobile() {
     const pathname = usePathname();
 
     return (
-        <div className="fixed inset-x-0 bottom-0 z-50 border-t border-border/60 bg-card/90 pb-[env(safe-area-inset-bottom)] backdrop-blur-md sm:hidden">
+        <div className="liquid-glass fixed inset-x-0 bottom-0 z-50 overflow-hidden border-x-0 border-b-0 pb-[env(safe-area-inset-bottom)] sm:hidden">
             <div className="flex">
                 {navItems.map((item) => {
                     const active =

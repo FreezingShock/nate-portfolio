@@ -152,6 +152,53 @@
     --color-5: oklch(90.7% 0.231 133);
 }
 
+/* iOS26-style "liquid glass": a frosted surface with a subtle procedural
+   warp (SVG feTurbulence + feDisplacementMap, defined once in
+   <LiquidGlassFilter/> and referenced by #id below) instead of a flat
+   backdrop-blur, plus a soft top highlight and inner rim light to read as
+   a curved glass pane rather than a tinted rectangle. Used by the Dock and
+   the site footer.
+   Declaration order matters: the plain blur+saturate line is a fallback for
+   engines that don't support a filter-function inside backdrop-filter
+   (e.g. Safari) — an unsupported VALUE is dropped, not the whole rule, so
+   it survives being "overridden" by the fancier line that follows. */
+.liquid-glass {
+    position: relative;
+    background: linear-gradient(
+        165deg,
+        color-mix(in oklch, var(--foreground) 10%, transparent),
+        color-mix(in oklch, var(--foreground) 2%, transparent) 40%,
+        color-mix(in oklch, var(--background) 30%, transparent) 100%
+    );
+    backdrop-filter: blur(20px) saturate(1.6);
+    -webkit-backdrop-filter: blur(20px) saturate(1.6);
+    backdrop-filter: blur(6px) saturate(1.6) url(#liquid-glass-distortion);
+    box-shadow:
+        inset 0 1px 1px color-mix(in oklch, var(--foreground) 35%, transparent),
+        inset 0 0 24px color-mix(in oklch, var(--foreground) 6%, transparent),
+        inset 0 -1px 0 color-mix(in oklch, var(--background) 60%, transparent),
+        0 12px 40px -8px rgba(0, 0, 0, 0.55);
+    border: 1px solid color-mix(in oklch, var(--foreground) 18%, transparent);
+}
+
+/* A second, even lighter sheen along the very top edge — the highlight a
+   real curved glass edge catches — layered via ::before so it doesn't fight
+   the box-shadow/border above. Parent needs `relative` + `overflow-hidden`,
+   already true of the Dock/footer's own rounded containers. */
+.liquid-glass::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    background: linear-gradient(
+        180deg,
+        color-mix(in oklch, var(--foreground) 22%, transparent),
+        transparent 35%
+    );
+    opacity: 0.5;
+    pointer-events: none;
+}
+
 /* Redesigned 2026-09-27 for the Linear/Reflect-style relaunch: near-black
    surfaces, one crisp indigo primary (the "product" accent, used for links/
    focus/CTAs), and the old amber kept alive as --chart-4 — a secondary warm
