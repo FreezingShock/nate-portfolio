@@ -9,7 +9,6 @@
 
 import { useEffect, useState } from "react";
 import { motion } from "motion/react";
-import { DiaTextReveal } from "@/components/ui/dia-text-reveal";
 
 const FIRST_NAME = "Nate";
 const LAST_NAME = "Anderson";
@@ -33,8 +32,12 @@ function LastNameFlipIn() {
             {chars.map((ch, i) => (
                 <motion.span
                     key={i}
-                    className="inline-block"
-                    style={{ transformStyle: "preserve-3d" }}
+                    className="rainbow-text inline-block"
+                    style={{
+                        transformStyle: "preserve-3d",
+                        // offset each letter's hue so the name ripples in color
+                        animationDelay: `${-i * 0.35}s`,
+                    }}
                     initial={{ rotateX: -90, opacity: 0 }}
                     animate={show ? { rotateX: 0, opacity: 1 } : undefined}
                     transition={{
@@ -52,19 +55,20 @@ function LastNameFlipIn() {
 
 export function HeroFirstName() {
     return (
-        <DiaTextReveal
-            text={FIRST_NAME}
-            duration={REVEAL_DURATION}
-            colors={["var(--primary)", "var(--chart-4)"]}
-            textColor="var(--foreground)"
-            className="font-minecraft"
-        />
+        <motion.span
+            className="rainbow-text font-minecraft inline-block"
+            initial={{ opacity: 0, scale: 0.9, clipPath: "inset(-20% 100% -20% 0)" }}
+            animate={{ opacity: 1, scale: 1, clipPath: "inset(-20% -20% -20% 0)" }}
+            transition={{ duration: REVEAL_DURATION, ease: "easeOut" }}
+        >
+            {FIRST_NAME}
+        </motion.span>
     );
 }
 
 export function HeroLastName() {
     return (
-        <span className="font-minecraft" style={{ color: "var(--chart-4)" }}>
+        <span className="font-minecraft">
             <LastNameFlipIn />
         </span>
     );
