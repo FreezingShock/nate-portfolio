@@ -10,9 +10,11 @@ import { MagicCard } from "@/components/ui/magic-card";
 export function WorkGrid({
     projects,
     icon: Icon,
+    accentColor = "var(--primary)",
 }: {
     projects: Project[];
     icon: LucideIcon;
+    accentColor?: string;
 }) {
     if (projects.length === 0) {
         return (
@@ -34,7 +36,7 @@ export function WorkGrid({
                 >
                     <MagicCard
                         className="h-full rounded-xl"
-                        gradientFrom="var(--primary)"
+                        gradientFrom={accentColor}
                         gradientTo="var(--chart-4)"
                         gradientColor="var(--accent)"
                         gradientOpacity={0.6}
@@ -43,6 +45,7 @@ export function WorkGrid({
                             name={project.title}
                             className="h-full !bg-transparent [box-shadow:none] dark:[box-shadow:none]"
                             Icon={Icon}
+                            accentColor={accentColor}
                             description={project.description}
                             href={`/creations/${project.slug}`}
                             cta="Learn more"

@@ -1,4 +1,4 @@
-import { FolderKanban, Hammer, Boxes, Paintbrush, Feather } from "lucide-react";
+import { Gamepad2, Hammer, Boxes, Paintbrush, Feather } from "lucide-react";
 import { getProjects, getRecentRenovations } from "@/lib/content";
 import { WorkGrid } from "@/components/work-grid";
 import { ComingSoon } from "@/components/coming-soon";
@@ -72,7 +72,7 @@ export default async function CreationsPage() {
                         in-progress.
                     </p>
                     <div className="mt-6">
-                        <WorkGrid projects={projects} icon={FolderKanban} />
+                        <WorkGrid projects={projects} icon={Gamepad2} accentColor="var(--mc-aqua)" />
                     </div>
                 </div>
 
@@ -83,7 +83,7 @@ export default async function CreationsPage() {
                         redesigned to be greener and more inviting.
                     </p>
                     <div className="mt-6">
-                        <WorkGrid projects={renovations} icon={Hammer} />
+                        <WorkGrid projects={renovations} icon={Hammer} accentColor="var(--mc-gold)" />
                     </div>
                 </div>
 
@@ -95,6 +95,7 @@ export default async function CreationsPage() {
                     </p>
                     <div className="mt-6">
                         <ComingSoon
+                            accentColor="var(--mc-light-purple)"
                             cards={[
                                 {
                                     title: "Blender renders",

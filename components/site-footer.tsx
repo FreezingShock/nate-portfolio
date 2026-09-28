@@ -10,7 +10,10 @@ export function SiteFooter() {
         // interactive — see app/creations/page.tsx) and this footer is a
         // sibling inside that same wrapper, so it always re-declares auto
         // regardless of what that ancestor set.
-        <footer id="footer" className="pointer-events-auto w-full scroll-mt-24 border-t border-border/40 bg-card/20 px-6 py-12 sm:px-10 lg:px-16">
+        <footer
+            id="footer"
+            className="pointer-events-auto relative w-full scroll-mt-24 border-t border-border/60 bg-card/70 px-6 py-12 shadow-[0_-8px_30px_-12px_rgba(0,0,0,0.5)] backdrop-blur-xl sm:px-10 lg:px-16"
+        >
             <div className="mx-auto grid max-w-6xl gap-10 sm:grid-cols-3">
                 <div>
                     <p className="font-minecraft text-lg font-semibold text-foreground">

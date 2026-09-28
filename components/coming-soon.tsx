@@ -10,7 +10,13 @@ interface PlaceholderCard {
 // Shared "not written yet, but here's the shape of it" pattern for pages
 // that are structurally real but don't have real entries yet (Blog,
 // Creations, Studies). Each card is an honest placeholder, not fake content.
-export function ComingSoon({ cards }: { cards: PlaceholderCard[] }) {
+export function ComingSoon({
+    cards,
+    accentColor = "var(--primary)",
+}: {
+    cards: PlaceholderCard[];
+    accentColor?: string;
+}) {
     return (
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {cards.map((card) => {
@@ -19,13 +25,13 @@ export function ComingSoon({ cards }: { cards: PlaceholderCard[] }) {
                     <MagicCard
                         key={card.title}
                         className="rounded-xl"
-                        gradientFrom="var(--primary)"
+                        gradientFrom={accentColor}
                         gradientTo="var(--chart-4)"
                         gradientColor="var(--accent)"
                         gradientOpacity={0.6}
                     >
                         <div className="p-6">
-                            <Icon className="size-8 text-muted-foreground" />
+                            <Icon className="size-8" style={{ color: accentColor }} />
                             <h3 className="mt-4 font-serif text-lg font-semibold text-foreground">
                                 {card.title}
                             </h3>

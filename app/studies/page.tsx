@@ -18,6 +18,7 @@ export default function StudiesPage() {
                 />
                 <div id="coursework" className="mt-10 scroll-mt-24">
                     <ComingSoon
+                        accentColor="var(--mc-blue)"
                         cards={[
                             {
                                 title: "Coursework",

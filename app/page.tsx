@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { ArrowRight, FolderKanban } from "lucide-react";
+import { ArrowRight, Gamepad2 } from "lucide-react";
 import { identity, getProjects, getRecentRenovations } from "@/lib/content";
 import { IdentityMarquee } from "@/components/identity-marquee";
 import { SiteBackground } from "@/components/site-background";
@@ -157,7 +157,7 @@ export default async function Home() {
                 >
                     <div className="mx-auto max-w-6xl">
                         <div className="flex items-center justify-between gap-4">
-                            <SectionLabel accent="var(--mc-gold)" icon={FolderKanban}>
+                            <SectionLabel accent="var(--mc-gold)" icon={Gamepad2}>
                                 Selected Work
                             </SectionLabel>
                             <Link
@@ -187,7 +187,7 @@ export default async function Home() {
                                 <MagicCard
                                     key={project.slug}
                                     className="col-span-1 rounded-xl"
-                                    gradientFrom="var(--primary)"
+                                    gradientFrom="var(--mc-gold)"
                                     gradientTo="var(--chart-4)"
                                     gradientColor="var(--accent)"
                                     gradientOpacity={0.6}
@@ -195,7 +195,8 @@ export default async function Home() {
                                     <BentoCard
                                         name={project.title}
                                         className="h-full !bg-transparent [box-shadow:none] dark:[box-shadow:none]"
-                                        Icon={FolderKanban}
+                                        Icon={Gamepad2}
+                                        accentColor="var(--mc-gold)"
                                         description={project.description}
                                         href={`/creations/${project.slug}`}
                                         cta="Learn more"

@@ -222,7 +222,13 @@ export function MagicCard(props: MagicCardProps) {
           }}
         />
       )}
-      <div className="relative z-40">{children}</div>
+      {/* h-full: without it, this slot shrinks to its content's own height
+          (a plain block div with no height set never fills a parent whose
+          own height comes from a percentage/h-full chain) while MagicCard's
+          own background layer above still fills the whole card — the
+          visible "fold" where a card's real border/shadow ends partway
+          down a taller, plain-background rectangle. */}
+      <div className="relative z-40 h-full">{children}</div>
     </motion.div>
   )
 }

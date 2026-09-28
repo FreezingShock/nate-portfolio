@@ -18,6 +18,7 @@ export default function BlogPage() {
                 />
                 <div id="posts" className="mt-10 scroll-mt-24">
                     <ComingSoon
+                        accentColor="var(--mc-yellow)"
                         cards={[
                             {
                                 title: "First post",
