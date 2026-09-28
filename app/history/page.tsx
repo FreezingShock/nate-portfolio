@@ -2,9 +2,10 @@ import { PageHero } from "@/components/page-hero";
 import { NumberTicker } from "@/components/ui/number-ticker";
 import { SidebarNav } from "@/components/sidebar-nav";
 import { PageBackground } from "@/components/page-background";
+import { CommitHistory } from "@/components/commit-history";
 
 const REPO = "FreezingShock/nateanderson-dev";
-const SHOWN_COMMITS = 20;
+const INITIAL_PER_PAGE = 10;
 
 interface CommitEntry {
     hash: string;
@@ -105,7 +106,7 @@ async function getCommits(): Promise<{ commits: CommitEntry[]; totalCommits: num
     const headers: HeadersInit = { Accept: "application/vnd.github+json" };
 
     const [listRes, countRes] = await Promise.all([
-        fetch(`https://api.github.com/repos/${REPO}/commits?per_page=${SHOWN_COMMITS}`, {
+        fetch(`https://api.github.com/repos/${REPO}/commits?per_page=${INITIAL_PER_PAGE}`, {
             headers,
             next: { revalidate: 3600 },
         }),
@@ -126,7 +127,7 @@ async function getCommits(): Promise<{ commits: CommitEntry[]; totalCommits: num
     const raw = (await listRes.json()) as GhCommit[];
     const commits: CommitEntry[] = raw.map((c) => ({
         hash: c.sha.slice(0, 7),
-        date: (c.commit.author?.date ?? "").slice(0, 10),
+        date: c.commit.author?.date ?? "",
         subject: c.commit.message.split("\n")[0],
     }));
 
@@ -194,35 +195,18 @@ export default async function HistoryPage() {
                 </div>
 
                 <div id="log" className="mx-auto mt-10 max-w-2xl scroll-mt-24">
-                    {commits.length === 0 ? (
+                    {totalCommits === 0 ? (
                         <p className="text-sm text-muted-foreground">
                             Couldn&apos;t reach the GitHub API right now — check back shortly.
                         </p>
                     ) : (
-                        <ol className="relative border-l border-border/60 pl-8">
-                            {commits.map((entry) => (
-                                <li key={entry.hash} className="mb-6 last:mb-0">
-                                    <span
-                                        className="absolute -left-[7px] size-3.5 rounded-full border-2 border-background"
-                                        style={{ backgroundColor: "var(--mc-red)" }}
-                                    />
-                                    <p className="text-xs uppercase tracking-wider text-muted-foreground">
-                                        {entry.date} ·{" "}
-                                        <a
-                                            href={`https://github.com/${REPO}/commit/${entry.hash}`}
-                                            target="_blank"
-                                            rel="noreferrer"
-                                            className="font-mono hover:text-foreground"
-                                        >
-                                            {entry.hash}
-                                        </a>
-                                    </p>
-                                    <h3 className="mt-1 text-base font-semibold text-foreground">
-                                        {entry.subject}
-                                    </h3>
-                                </li>
-                            ))}
-                        </ol>
+                        <CommitHistory
+                            repo={REPO}
+                            totalCommits={totalCommits}
+                            initialCommits={commits}
+                            initialPerPage={INITIAL_PER_PAGE}
+                            accent="var(--mc-red)"
+                        />
                     )}
                 </div>
             </section>
