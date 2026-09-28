@@ -118,7 +118,7 @@ export function TimelineEvent({
                             {event.dateRange || event.date}
                         </p>
                         <h3
-                            className="mt-2 font-rubik text-base font-bold sm:text-lg"
+                            className="mt-2 font-minecraft text-base font-bold sm:text-lg"
                             style={{ color: event.color }}
                         >
                             {event.title}

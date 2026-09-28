@@ -293,7 +293,7 @@ const phases: TimelinePhaseData[] = [
 export default function TimelinePage() {
     return (
         <div className="pointer-events-auto min-h-screen">
-            <PageBackground variant="grid" color="#55ff55" />
+            <PageBackground variant="retro" color="#55ff55" />
             <SidebarNav
                 sections={[
                     { id: "high-school", label: "High School" },
@@ -322,7 +322,7 @@ export default function TimelinePage() {
                             <p className="text-sm font-semibold uppercase tracking-widest text-muted-foreground">
                                 Beyond Graduation
                             </p>
-                            <h2 className="mt-3 font-rubik text-3xl font-bold sm:text-4xl">
+                            <h2 className="mt-3 font-minecraft text-3xl font-bold sm:text-4xl">
                                 <span style={{ color: "var(--mc-gold)" }}>
                                     Future Horizons
                                 </span>
@@ -369,7 +369,7 @@ export default function TimelinePage() {
                                     }}
                                 >
                                     <h3
-                                        className="font-rubik text-lg font-bold"
+                                        className="font-minecraft text-lg font-bold"
                                         style={{ color: goal.color }}
                                     >
                                         {goal.title}

@@ -49,7 +49,7 @@ export function PageBackground({ variant, color }: { variant: Variant; color: st
                 />
             )}
             {variant === "dot" && (
-                <DotPattern glow className="opacity-50" style={{ color } as CSSProperties} />
+                <DotPattern glow cr={1.5} className="opacity-75" style={{ color } as CSSProperties} />
             )}
             {variant === "ripple" && (
                 <Ripple

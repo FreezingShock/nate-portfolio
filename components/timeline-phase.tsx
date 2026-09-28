@@ -23,7 +23,7 @@ export function TimelinePhase({ phase }: { phase: TimelinePhaseData }) {
                     {phase.timeline}
                 </p>
                 <h2
-                    className="mt-3 font-rubik text-3xl font-bold sm:text-4xl"
+                    className="mt-3 font-minecraft text-3xl font-bold sm:text-4xl"
                     style={{ color: phase.color }}
                 >
                     {phase.title}
