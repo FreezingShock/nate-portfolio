@@ -189,7 +189,7 @@ export function SidebarNav({ sections }: { sections: PageSection[] }) {
                             animate={{ opacity: 1 }}
                             exit={{ opacity: 0 }}
                             transition={{ duration: 0.18, delay: open ? 0.1 : 0 }}
-                            className="absolute inset-0 flex flex-col items-start gap-1 overflow-y-auto px-3 pb-4 pt-3"
+                            className="absolute inset-0 flex flex-col items-start gap-1 overflow-x-hidden overflow-y-auto overscroll-contain px-3 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden pb-4 pt-3"
                         >
                             {/* The title itself is the "go to this page's
                                 root" link — from a project detail page under
