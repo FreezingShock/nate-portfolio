@@ -22,20 +22,11 @@ import {
     geoConicEqualArea,
     geoDistance,
 } from "d3-geo";
+import { codeOf } from "./ne-filter.mjs";
 
 const src = process.argv[2];
 if (!src) throw new Error("Pass the Natural Earth GeoJSON path.");
 const data = JSON.parse(fs.readFileSync(src, "utf8"));
-
-// Disputed zones, bases, buffer zones and unnamed-ISO oddities are not
-// guessable countries.
-const EXCLUDE = new Set([
-    "Baikonur", "Brazilian I.", "Indian Ocean Ter.", "Coral Sea Is.",
-    "Ashmore and Cartier Is.", "Dhekelia", "Akrotiri", "Somaliland",
-    "N. Cyprus", "Cyprus U.N. Buffer Zone", "USNB Guantanamo Bay",
-    "Siachen Glacier", "Southern Patagonian Ice Field", "Bir Tawil",
-    "Spratly Is.", "Bajo Nuevo Bank", "Serranilla Bank", "Scarborough Reef",
-]);
 
 const NAME_FIX = {
     "United States of America": "United States",
@@ -132,8 +123,7 @@ function simplifyRing(ring, tol) {
 const out = [];
 for (const f of data.features) {
     const p = f.properties;
-    if (EXCLUDE.has(p.NAME)) continue;
-    const code = p.ISO_A2_EH !== "-99" ? p.ISO_A2_EH : p.ISO_A2 !== "-99" ? p.ISO_A2 : null;
+    const code = codeOf(p);
     if (!code || !f.geometry) continue;
 
     const polys = polygonsOf(f.geometry).map((coordinates) => ({

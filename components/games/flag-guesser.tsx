@@ -6,7 +6,8 @@ import { GlowCard } from "@/components/glow-card";
 import { cn } from "@/lib/utils";
 
 // First playable web game: a starter set of flags, four choices each.
-// Flag images come from flagcdn.com; best score lives in localStorage.
+// Flags are served from /public/flags (scripts/copy-flags.mjs); best score
+// lives in localStorage.
 // Expand COUNTRIES (or move it to its own data file) as the game grows.
 
 const COUNTRIES: [code: string, name: string][] = [
@@ -147,7 +148,7 @@ export function FlagGuesser() {
                         <div className="mt-3 grid place-items-center rounded-xl border border-border/60 bg-background/50 p-4">
                             {/* eslint-disable-next-line @next/next/no-img-element */}
                             <img
-                                src={`https://flagcdn.com/w320/${q.code}.png`}
+                                src={`/flags/${q.code}.svg`}
                                 alt="Mystery flag"
                                 width={320}
                                 height={213}

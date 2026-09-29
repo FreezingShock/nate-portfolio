@@ -224,6 +224,10 @@ export function seededShuffle<T>(list: T[], seed: number): T[] {
 /** Day 0 of the fixed daily schedule (Pacific time). */
 export const DAILY_EPOCH = "2026-09-28";
 
+/** Puzzle number shown to players: #1 is the epoch day. */
+export const dailyNumber = (date: string) =>
+    dayNumber(date) - dayNumber(DAILY_EPOCH) + 1;
+
 /**
  * The daily country: a committed, fixed order (lib/data/daily-schedule.json)
  * indexed by days since DAILY_EPOCH. It depends only on the date, so every
@@ -275,4 +279,125 @@ export function poolFor(
             (difficulties.length === 0 || difficulties.includes(c.t)) &&
             (regions.length === 0 || regions.includes(regionOf(c)))
     );
+}
+
+// ---- Round 2 (Neighbours) state, shared by the game and its lazy round ----
+
+export interface NeighborState {
+    guesses: string[];
+    status: "playing" | "won" | "lost";
+    hints: number;
+}
+export const EMPTY_NEIGHBOR_STATE: NeighborState = {
+    guesses: [],
+    status: "playing",
+    hints: 0,
+};
+
+// ---- Round 3 (Flag) ----
+
+export const FLAG_CHOICES = 6;
+export const FLAG_CHANCES = 3;
+
+/** Flags are served from /public/flags (scripts/copy-flags.mjs). */
+export const flagSrc = (code: string) => `/flags/${code.toLowerCase()}.svg`;
+
+export interface FlagState {
+    /** Country codes shown as flag choices, in display order. */
+    options: string[];
+    /** Codes picked so far. */
+    picks: string[];
+}
+
+export type RoundStatus = "playing" | "won" | "lost";
+
+export function flagStatus(f: FlagState | null, answer: string): RoundStatus {
+    if (!f) return "playing";
+    if (f.picks.includes(answer)) return "won";
+    return f.picks.length >= FLAG_CHANCES ? "lost" : "playing";
+}
+
+/**
+ * Six flags to choose from: the answer, two from the same continent (the
+ * tricky ones) and three from anywhere. `seed` makes the board reproducible
+ * (the daily uses the date so everyone sees the same six).
+ */
+export function makeFlagOptions(
+    countries: Country[],
+    answer: Country,
+    seed: number
+): string[] {
+    const others = countries
+        .filter((c) => c.c !== answer.c)
+        .sort((a, b) => a.c.localeCompare(b.c));
+    const near = seededShuffle(
+        others.filter((c) => c.k === answer.k),
+        seed
+    ).slice(0, 2);
+    const nearCodes = new Set(near.map((c) => c.c));
+    const far = seededShuffle(
+        others.filter((c) => !nearCodes.has(c.c)),
+        seed + 1
+    ).slice(0, FLAG_CHOICES - 1 - near.length);
+    return seededShuffle(
+        [answer, ...near, ...far].map((c) => c.c),
+        seed + 2
+    );
+}
+
+// ---- Score ----
+
+export interface GameResults {
+    r1: { status: RoundStatus; guesses: number; hints: number };
+    /** null when the country has no land neighbours (round skipped). */
+    r2: { total: number; found: number; played: boolean } | null;
+    r3: { status: RoundStatus; picks: number; played: boolean };
+}
+
+const R1_POINTS = [50, 42, 34, 26, 18, 10];
+const R3_POINTS = [20, 12, 6];
+
+export interface Score {
+    r1: number;
+    r2: number;
+    r3: number;
+    total: number;
+    max: number;
+    pct: number;
+    rating: string;
+}
+
+/**
+ * Round 1 is worth 50 (fewer guesses, more points; 3 off per hint), round 2
+ * 30 (by neighbours found), round 3 20 (by chances used). Countries without
+ * land neighbours have no round 2, so the score is out of 70 and shown as a
+ * percent. Skipped rounds score 0.
+ */
+export function scoreGame(r: GameResults): Score {
+    const r1 =
+        r.r1.status === "won"
+            ? Math.max(
+                  5,
+                  (R1_POINTS[r.r1.guesses - 1] ?? 10) - r.r1.hints * 3
+              )
+            : 0;
+    const r2 =
+        r.r2 && r.r2.played && r.r2.total > 0
+            ? Math.round((r.r2.found / r.r2.total) * 30)
+            : 0;
+    const r3 = r.r3.status === "won" ? (R3_POINTS[r.r3.picks - 1] ?? 6) : 0;
+    const max = 50 + (r.r2 ? 30 : 0) + 20;
+    const total = r1 + r2 + r3;
+    const pct = Math.round((total / max) * 100);
+    const rating =
+        pct >= 95
+            ? "Perfect"
+            : pct >= 80
+              ? "Great"
+              : pct >= 60
+                ? "Good"
+                : pct >= 35
+                  ? "Getting there"
+                  : "Keep practicing";
+    return { r1, r2, r3, total, max, pct, rating };
 }

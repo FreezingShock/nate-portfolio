@@ -9,6 +9,7 @@ import {
     type CSSProperties,
 } from "react";
 import {
+    ArrowRight,
     ArrowUp,
     BarChart3,
     Check,
@@ -20,37 +21,67 @@ import {
     Share2,
     Shuffle,
 } from "lucide-react";
+import dynamic from "next/dynamic";
+import { FlagRound } from "@/components/games/flag-round";
+import { GameSummary } from "@/components/games/game-summary";
 import { GlowCard } from "@/components/glow-card";
 import { cn } from "@/lib/utils";
+import neighborData from "@/lib/data/neighbors.json";
 import {
     ARROW_EMOJI,
     DIRECTION_NAME,
     DIFFICULTIES,
+    EMPTY_NEIGHBOR_STATE,
     MAX_GUESSES,
     MAX_HINTS,
     REGIONS,
     bearingDeg,
     dailyCountry,
+    dailyNumber,
     dayNumber,
     direction8,
     findExact,
+    flagSrc,
+    flagStatus,
     formatDistance,
     haversineKm,
+    makeFlagOptions,
     pctColor,
     pctSquares,
     poolFor,
     proximityPct,
+    scoreGame,
     searchNames,
     secondsToNextDaily,
     seededShuffle,
     todayPT,
     type Country,
+    type FlagState,
+    type GameResults,
+    type NeighborState,
 } from "@/lib/outline-game";
 
 // A Worldle-style country outline guesser. Outlines are built from Natural
 // Earth data (scripts/build-outlines.mjs), 238 countries and territories.
 // Distance and direction are measured between each country's main landmass
 // centre; closeness is 100 - distance / 20,000 km, as a percent.
+
+// Round 2 (map, d3-geo and the world TopoJSON) loads only when it is opened.
+const NeighborRound = dynamic(
+    () =>
+        import("@/components/games/neighbor-round").then(
+            (m) => m.NeighborRound
+        ),
+    {
+        ssr: false,
+        loading: () => (
+            <p className="py-16 text-center text-muted-foreground">
+                Loading the map...
+            </p>
+        ),
+    }
+);
+const NEIGHBORS = neighborData as Record<string, string[]>;
 
 const COLOR = "var(--mc-aqua)";
 type Mode = "daily" | "unlimited";
@@ -294,6 +325,10 @@ export function OutlineGuesser() {
     const [copied, setCopied] = useState(false);
     const [countdown, setCountdown] = useState(0);
     const [notice, setNotice] = useState("");
+    const [stage, setStage] = useState<1 | 2 | 3 | 4>(1);
+    const [flag, setFlag] = useState<FlagState | null>(null);
+    const [confirmRestart, setConfirmRestart] = useState(false);
+    const [nb, setNb] = useState<NeighborState>(EMPTY_NEIGHBOR_STATE);
     // Unlimited-mode filters; an empty list means "all".
     const [difficulties, setDifficulties] = useState<number[]>([]);
     const [regions, setRegions] = useState<string[]>([]);
@@ -308,6 +343,12 @@ export function OutlineGuesser() {
     const byCode = useMemo(
         () => new Map((countries ?? []).map((c) => [c.c, c])),
         [countries]
+    );
+
+    // Land neighbours of the current answer (empty for island countries).
+    const nbCodes = useMemo(
+        () => (answer ? (NEIGHBORS[answer.c] ?? []) : []),
+        [answer]
     );
 
     // ---- Loading ----
@@ -335,6 +376,9 @@ export function OutlineGuesser() {
             setStatus("playing");
             setHints(0);
             setGaveUp(false);
+            setStage(1);
+            setNb(EMPTY_NEIGHBOR_STATE);
+            setFlag(null);
             setConfirmGiveUp(false);
             setFreshIndex(-1);
             setRound((r) => r + 1);
@@ -354,8 +398,11 @@ export function OutlineGuesser() {
             status: Status;
             hints: number;
             gaveUp: boolean;
+            nb?: NeighborState;
+            flag?: FlagState | null;
         } | null>(K.daily, null);
         setAnswer(target);
+        setStage(1);
         setConfirmGiveUp(false);
         setFreshIndex(-1);
         setRound((r) => r + 1);
@@ -365,7 +412,11 @@ export function OutlineGuesser() {
             setStatus(saved.status);
             setHints(saved.hints);
             setGaveUp(saved.gaveUp);
+            setNb(saved.nb ?? EMPTY_NEIGHBOR_STATE);
+            setFlag(saved.flag ?? null);
         } else {
+            setNb(EMPTY_NEIGHBOR_STATE);
+            setFlag(null);
             setGuesses([]);
             setStatus("playing");
             setHints(0);
@@ -435,8 +486,10 @@ export function OutlineGuesser() {
             status,
             hints,
             gaveUp,
+            nb,
+            flag,
         });
-    }, [mode, answer, guesses, status, hints, gaveUp]);
+    }, [mode, answer, guesses, status, hints, gaveUp, nb, flag]);
 
     // Countdown to the next daily.
     useEffect(() => {
@@ -452,8 +505,10 @@ export function OutlineGuesser() {
         (result: "won" | "lost", used: number) => {
             setStatus(result);
             setStats((prev) => {
-                const s = { ...prev[mode], dist: [...prev[mode].dist] };
                 const today = todayPT();
+                // A replayed daily doesn't count twice.
+                if (mode === "daily" && prev.daily.last === today) return prev;
+                const s = { ...prev[mode], dist: [...prev[mode].dist] };
                 s.played += 1;
                 if (result === "won") {
                     s.won += 1;
@@ -529,19 +584,67 @@ export function OutlineGuesser() {
         finish("lost", guesses.length);
     };
 
+    // ---- Results of all three rounds (for the summary and share text) ----
+    const game = useMemo(() => {
+        const found = nb.guesses.filter((g) => nbCodes.includes(g)).length;
+        const r3Status = flagStatus(flag, answer?.c ?? "");
+        const results: GameResults = {
+            r1: { status, guesses: guesses.length, hints },
+            r2:
+                nbCodes.length > 0
+                    ? {
+                          total: nbCodes.length,
+                          found,
+                          played: nb.guesses.length > 0,
+                      }
+                    : null,
+            r3: {
+                status: r3Status,
+                picks: flag?.picks.length ?? 0,
+                played: !!flag && flag.picks.length > 0,
+            },
+        };
+        return { results, score: scoreGame(results) };
+    }, [status, guesses.length, hints, nb, nbCodes, flag, answer]);
+
     const share = async () => {
         if (!answer) return;
         const head =
             mode === "daily"
-                ? `Outline Guesser #${dayNumber(dailyDate.current)}`
+                ? `Outline Guesser #${dailyNumber(dailyDate.current)}`
                 : "Outline Guesser";
-        const score = status === "won" ? `${guesses.length}/${MAX_GUESSES}` : `X/${MAX_GUESSES}`;
+        const r1Score =
+            status === "won" ? `${guesses.length}/${MAX_GUESSES}` : `X/${MAX_GUESSES}`;
         const rows = guesses.map((g) =>
             g.pct === 100
                 ? "🟩🟩🟩🟩🟩 🎉"
                 : `${pctSquares(g.pct)} ${ARROW_EMOJI[direction8(g.bearing)]}`
         );
-        const text = `${head} ${score}${hints ? ` (${hints} hint${hints > 1 ? "s" : ""})` : ""}\n${rows.join("\n")}\n${window.location.origin}/creations/games/outline-guesser`;
+        const lines = [
+            `${head} ${game.score.pct}% ${game.score.rating}`,
+            `🌍 Country ${r1Score}${hints ? ` (${hints} hint${hints > 1 ? "s" : ""})` : ""}`,
+            ...rows,
+        ];
+        if (nbCodes.length > 0) {
+            lines.push(
+                game.results.r2?.played
+                    ? `🗺️ Neighbours ${game.results.r2.found}/${nbCodes.length} ${nb.guesses
+                          .map((g) => (nbCodes.includes(g) ? "🟩" : "🟥"))
+                          .join("")}`
+                    : "🗺️ Neighbours skipped"
+            );
+        }
+        lines.push(
+            game.results.r3.played
+                ? `🏳️ Flag ${
+                      game.results.r3.status === "won"
+                          ? `${game.results.r3.picks}/3`
+                          : "X/3"
+                  }`
+                : "🏳️ Flag skipped"
+        );
+        lines.push(`${window.location.origin}/creations/games/outline-guesser`);
+        const text = lines.join("\n");
         try {
             await navigator.clipboard.writeText(text);
             setCopied(true);
@@ -597,6 +700,156 @@ export function OutlineGuesser() {
                 : "border-border text-muted-foreground hover:text-foreground"
         );
 
+    // ---- Moving between rounds ----
+    const openRound = (n: 1 | 2 | 3 | 4) => {
+        if (n === 3 && !flag && answer && countries) {
+            const seed =
+                mode === "daily"
+                    ? dayNumber(dailyDate.current) * 7919
+                    : Math.floor(Math.random() * 1e9);
+            setFlag({
+                options: makeFlagOptions(countries, answer, seed),
+                picks: [],
+            });
+        }
+        setStage(n);
+    };
+
+    const restartGame = () => {
+        if (!countries) return;
+        const inProgress =
+            status === "playing"
+                ? guesses.length > 0
+                : (stage === 2 &&
+                      nb.status === "playing" &&
+                      nb.guesses.length > 0) ||
+                  (stage === 3 &&
+                      !!flag &&
+                      flagStatus(flag, answer.c) === "playing" &&
+                      flag.picks.length > 0);
+        if (inProgress && !confirmRestart) {
+            setConfirmRestart(true);
+            setTimeout(() => setConfirmRestart(false), 3000);
+            return;
+        }
+        setConfirmRestart(false);
+        if (mode === "daily") {
+            try {
+                localStorage.removeItem(K.daily);
+            } catch {}
+            startDaily(countries);
+        } else if (pool.length > 0) {
+            startUnlimited(pool, answer.c);
+        }
+    };
+
+    const bigButton = (
+        label: string,
+        onClick: () => void,
+        color: string
+    ) => (
+        <button
+            type="button"
+            onClick={onClick}
+            className="inline-flex items-center gap-2 rounded-xl border px-5 py-2.5 font-minecraft text-sm font-bold transition-transform hover:-translate-y-0.5"
+            style={{
+                color,
+                borderColor: `color-mix(in oklch, ${color} 60%, transparent)`,
+                backgroundColor: `color-mix(in oklch, ${color} 14%, transparent)`,
+                boxShadow: `0 0 18px -4px color-mix(in oklch, ${color} 60%, transparent)`,
+            }}
+        >
+            {label}
+            <ArrowRight className="size-4" />
+        </button>
+    );
+    const skipToSummary = (
+        <button
+            type="button"
+            onClick={() => openRound(4)}
+            className="font-mono text-xs uppercase tracking-wider text-muted-foreground underline underline-offset-2 hover:text-foreground"
+        >
+            Skip to summary
+        </button>
+    );
+    // What follows round 1: neighbours, or straight to the flag on an island.
+    const nav1 = (
+        <div className="mt-4 flex flex-col items-center gap-2.5">
+            {nbCodes.length > 0
+                ? bigButton(
+                      nb.guesses.length === 0
+                          ? "Play next round"
+                          : nb.status === "playing"
+                            ? "Continue neighbours round"
+                            : "Neighbours round",
+                      () => openRound(2),
+                      "var(--mc-yellow)"
+                  )
+                : bigButton(
+                      "Play next round: flag",
+                      () => openRound(3),
+                      "var(--mc-green)"
+                  )}
+            {skipToSummary}
+        </div>
+    );
+    const nav2 = (
+        <div className="mt-4 flex flex-col items-center gap-2.5">
+            {bigButton("Play next round: flag", () => openRound(3), "var(--mc-green)")}
+            {skipToSummary}
+        </div>
+    );
+    const nav3 = (
+        <div className="mt-4 flex flex-col items-center gap-2.5">
+            {bigButton("See summary", () => openRound(4), "var(--mc-aqua)")}
+        </div>
+    );
+
+    const actions = (
+        <div className="mt-4 flex flex-wrap items-center justify-center gap-2">
+            <button
+                type="button"
+                onClick={share}
+                className="inline-flex items-center gap-2 rounded-lg border px-4 py-2 font-minecraft text-sm font-bold transition-transform hover:-translate-y-0.5"
+                style={{
+                    color: COLOR,
+                    borderColor: `color-mix(in oklch, ${COLOR} 55%, transparent)`,
+                    backgroundColor: `color-mix(in oklch, ${COLOR} 12%, transparent)`,
+                }}
+            >
+                {copied ? <Check className="size-4" /> : <Share2 className="size-4" />}
+                {copied ? "Copied!" : "Share"}
+            </button>
+            {mode === "unlimited" ? (
+                <button
+                    type="button"
+                    onClick={() => startUnlimited(pool, answer.c)}
+                    className="inline-flex items-center gap-2 rounded-lg border px-4 py-2 font-minecraft text-sm font-bold transition-transform hover:-translate-y-0.5"
+                    style={{
+                        color: "var(--mc-green)",
+                        borderColor: "color-mix(in oklch, var(--mc-green) 55%, transparent)",
+                        backgroundColor: "color-mix(in oklch, var(--mc-green) 12%, transparent)",
+                    }}
+                >
+                    <RotateCcw className="size-4" /> Next country
+                </button>
+            ) : (
+                <>
+                    <span className="font-mono text-sm tabular-nums text-muted-foreground">
+                        Next daily in {fmtCountdown(countdown)}
+                    </span>
+                    <button
+                        type="button"
+                        onClick={() => switchMode("unlimited")}
+                        className="inline-flex items-center gap-2 rounded-lg border px-4 py-2 font-minecraft text-sm font-bold"
+                    >
+                        <Shuffle className="size-4" /> Play unlimited
+                    </button>
+                </>
+            )}
+        </div>
+    );
+
     return (
         <div
             className="relative mx-auto max-w-lg overflow-hidden rounded-3xl border border-white/15 p-4 shadow-2xl sm:p-6"
@@ -634,6 +887,22 @@ export function OutlineGuesser() {
                     </button>
                 </div>
                 <div className="flex gap-1.5">
+                    <button
+                        type="button"
+                        onClick={restartGame}
+                        className={cn(
+                            pill(confirmRestart),
+                            "inline-flex items-center gap-1"
+                        )}
+                        aria-label={
+                            mode === "daily"
+                                ? "Restart the daily puzzle"
+                                : "Restart with a new country"
+                        }
+                    >
+                        <RotateCcw className="size-3.5" />
+                        {confirmRestart ? "Sure?" : "Restart"}
+                    </button>
                     <button
                         type="button"
                         onClick={changeUnit}
@@ -786,6 +1055,105 @@ export function OutlineGuesser() {
                 </GlowCard>
             )}
 
+            {/* Round stepper: three rounds and a summary. Rounds 2 to 4 open
+                once round 1 is over, and any of them can be skipped. */}
+            <div className="mb-4 flex flex-wrap items-center justify-center gap-1.5">
+                {(
+                    [
+                        [1, "Country"],
+                        [2, "Neighbours"],
+                        [3, "Flag"],
+                        [4, "Summary"],
+                    ] as const
+                ).map(([n, label]) => {
+                    const locked =
+                        n > 1 && (playing || (n === 2 && nbCodes.length === 0));
+                    const current = stage === n;
+                    const done =
+                        n === 1
+                            ? !playing
+                            : n === 2
+                              ? nbCodes.length > 0 && nb.status !== "playing"
+                              : n === 3
+                                ? flagStatus(flag, answer.c) !== "playing"
+                                : false;
+                    return (
+                        <button
+                            key={n}
+                            type="button"
+                            disabled={locked}
+                            aria-current={current ? "step" : undefined}
+                            title={
+                                n === 2 && nbCodes.length === 0 && !playing
+                                    ? "No land neighbours: an island"
+                                    : locked
+                                      ? "Finish round 1 first"
+                                      : undefined
+                            }
+                            onClick={() => openRound(n)}
+                            className={cn(
+                                "inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 font-rubik text-xs font-semibold transition-colors disabled:cursor-not-allowed disabled:opacity-45",
+                                current
+                                    ? "border-[var(--mc-aqua)] bg-[var(--mc-aqua)]/15 text-[var(--mc-aqua)]"
+                                    : "border-border text-muted-foreground hover:text-foreground"
+                            )}
+                        >
+                            <span className="font-mono text-[10px]">
+                                {done ? <Check className="size-3" /> : n === 4 ? "★" : n}
+                            </span>
+                            {label}
+                        </button>
+                    );
+                })}
+            </div>
+
+            {stage === 2 && answer && nbCodes.length > 0 && (
+                <div className="og-hint">
+                    <NeighborRound
+                        key={`${answer.c}-${round}`}
+                        answer={answer}
+                        countries={countries}
+                        neighborCodes={nbCodes}
+                        initial={nb}
+                        onChange={setNb}
+                        footer={nav2}
+                    />
+                </div>
+            )}
+
+            {stage === 3 && flag && (
+                <div className="og-hint">
+                    <FlagRound
+                        key={`${answer.c}-${round}`}
+                        answer={answer}
+                        countries={countries}
+                        state={flag}
+                        onChange={setFlag}
+                        footer={nav3}
+                    />
+                </div>
+            )}
+
+            {stage === 4 && (
+                <div className="og-hint">
+                    <GameSummary
+                        key={`${answer.c}-${round}`}
+                        answer={answer}
+                        results={game.results}
+                        score={game.score}
+                        heading={
+                            mode === "daily"
+                                ? `Daily #${dailyNumber(dailyDate.current)}`
+                                : "Unlimited"
+                        }
+                        goto={(n) => openRound(n)}
+                        footer={actions}
+                    />
+                </div>
+            )}
+
+            {stage === 1 && (
+                <div className="og-hint">
             {/* The outline */}
             <div
                 key={`${answer.c}-${round}`}
@@ -850,7 +1218,7 @@ export function OutlineGuesser() {
                                 {h.text === "flag" ? (
                                     // eslint-disable-next-line @next/next/no-img-element
                                     <img
-                                        src={`https://flagcdn.com/w40/${answer.c.toLowerCase()}.png`}
+                                        src={flagSrc(answer.c)}
                                         alt="Flag hint"
                                         width={28}
                                         height={19}
@@ -1008,48 +1376,7 @@ export function OutlineGuesser() {
                     <p className="mt-1 text-sm text-muted-foreground">
                         It was <strong className="text-foreground">{answer.n}</strong>.
                     </p>
-                    <div className="mt-4 flex flex-wrap items-center justify-center gap-2">
-                        <button
-                            type="button"
-                            onClick={share}
-                            className="inline-flex items-center gap-2 rounded-lg border px-4 py-2 font-minecraft text-sm font-bold transition-transform hover:-translate-y-0.5"
-                            style={{
-                                color: COLOR,
-                                borderColor: `color-mix(in oklch, ${COLOR} 55%, transparent)`,
-                                backgroundColor: `color-mix(in oklch, ${COLOR} 12%, transparent)`,
-                            }}
-                        >
-                            {copied ? <Check className="size-4" /> : <Share2 className="size-4" />}
-                            {copied ? "Copied!" : "Share"}
-                        </button>
-                        {mode === "unlimited" ? (
-                            <button
-                                type="button"
-                                onClick={() => startUnlimited(pool, answer.c)}
-                                className="inline-flex items-center gap-2 rounded-lg border px-4 py-2 font-minecraft text-sm font-bold transition-transform hover:-translate-y-0.5"
-                                style={{
-                                    color: "var(--mc-green)",
-                                    borderColor: "color-mix(in oklch, var(--mc-green) 55%, transparent)",
-                                    backgroundColor: "color-mix(in oklch, var(--mc-green) 12%, transparent)",
-                                }}
-                            >
-                                <RotateCcw className="size-4" /> Next country
-                            </button>
-                        ) : (
-                            <>
-                                <span className="font-mono text-sm tabular-nums text-muted-foreground">
-                                    Next daily in {fmtCountdown(countdown)}
-                                </span>
-                                <button
-                                    type="button"
-                                    onClick={() => switchMode("unlimited")}
-                                    className="inline-flex items-center gap-2 rounded-lg border px-4 py-2 font-minecraft text-sm font-bold"
-                                >
-                                    <Shuffle className="size-4" /> Play unlimited
-                                </button>
-                            </>
-                        )}
-                    </div>
+                    {nav1}
                 </div>
             )}
 
@@ -1085,6 +1412,9 @@ export function OutlineGuesser() {
                     );
                 })}
             </div>
+
+                </div>
+            )}
 
             <p className="mt-6 text-center text-xs text-muted-foreground">
                 {countries.length} countries and territories. Outlines from Natural
