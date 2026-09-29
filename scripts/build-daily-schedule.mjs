@@ -6,8 +6,10 @@
 // DAILY_EPOCH in lib/outline-game.ts. Difficulty tiers are interleaved
 // proportionally so the daily mixes easy, medium, hard and expert days.
 //
-// Run:  node scripts/build-daily-schedule.mjs   (only to regenerate; this
-// changes every daily answer, so normally never).
+// Run:  node scripts/build-daily-schedule.mjs [seed] [outFile]
+//   outline daily (default): seed 20260928 -> lib/data/daily-schedule.json
+//   flag daily: node scripts/build-daily-schedule.mjs 20260929 lib/data/daily-flag-schedule.json
+// Regenerating changes every future daily answer, so normally never.
 
 import fs from "node:fs";
 
@@ -21,7 +23,9 @@ function mulberry32(seed) {
         return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
     };
 }
-const rand = mulberry32(20260928);
+const seed = Number(process.argv[2] ?? 20260928);
+const outFile = process.argv[3] ?? "lib/data/daily-schedule.json";
+const rand = mulberry32(seed);
 const shuffle = (a) => {
     const r = [...a];
     for (let i = r.length - 1; i > 0; i--) {
@@ -54,5 +58,5 @@ for (let i = 0; i < total; i++) {
     order.push(pools[tier].pop());
 }
 
-fs.writeFileSync("lib/data/daily-schedule.json", JSON.stringify(order));
+fs.writeFileSync(outFile, JSON.stringify(order));
 console.log(order.length, "days;", "first 12:", order.slice(0, 12).join(" "));

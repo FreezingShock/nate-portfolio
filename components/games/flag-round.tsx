@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useRef, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { Check, X } from "lucide-react";
 import {
     FLAG_CHANCES,
@@ -45,6 +45,68 @@ export function FlagRound({
     // Which pick to animate (only the newest one, not a restored board).
     const [fresh, setFresh] = useState<string | null>(null);
 
+    // Keyboard: 1-6 pick a flag, arrows move between them, and the cursor
+    // always sits on a flag you can still choose.
+    const buttons = () =>
+        Array.from(
+            gridRef.current?.querySelectorAll<HTMLButtonElement>("button") ?? []
+        );
+    const focusFlag = (from: number, dir: 1 | -1) => {
+        const list = buttons();
+        for (let n = 1; n <= list.length; n++) {
+            const b = list[(from + dir * n + list.length * 2) % list.length];
+            if (b && !b.disabled) {
+                b.focus({ preventScroll: true });
+                return;
+            }
+        }
+    };
+    useEffect(() => {
+        if (!playing) return;
+        const first = buttons().find((b) => !b.disabled);
+        first?.focus({ preventScroll: true });
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [state.picks.length, playing]);
+    useEffect(() => {
+        if (!playing) return;
+        const onKey = (e: KeyboardEvent) => {
+            if (e.ctrlKey || e.metaKey || e.altKey || e.defaultPrevented) return;
+            const el = gridRef.current;
+            if (!el) return;
+            const r = el.getBoundingClientRect();
+            if (r.bottom < 0 || r.top > window.innerHeight) return;
+            const n = Number(e.key);
+            if (n >= 1 && n <= state.options.length) {
+                const b = buttons()[n - 1];
+                if (b && !b.disabled) {
+                    e.preventDefault();
+                    b.click();
+                }
+            }
+        };
+        window.addEventListener("keydown", onKey);
+        return () => window.removeEventListener("keydown", onKey);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [playing, state.options.length, state.picks.length]);
+    const onGridKey = (e: React.KeyboardEvent) => {
+        const list = buttons();
+        const i = list.indexOf(document.activeElement as HTMLButtonElement);
+        if (i < 0) return;
+        const cols = 3;
+        const move: Record<string, number> = {
+            ArrowRight: 1,
+            ArrowLeft: -1,
+            ArrowDown: cols,
+            ArrowUp: -cols,
+        };
+        const d = move[e.key];
+        if (!d) return;
+        e.preventDefault();
+        const target = list[i + d];
+        if (target && !target.disabled) target.focus({ preventScroll: true });
+        else focusFlag(i, d > 0 ? 1 : -1);
+    };
+
     const pick = (code: string) => {
         if (!playing || state.picks.includes(code)) return;
         setFresh(code);
@@ -79,7 +141,11 @@ export function FlagRound({
                       : "Out of chances"}
             </p>
 
-            <div ref={gridRef} className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-3">
+            <div
+                ref={gridRef}
+                onKeyDown={onGridKey}
+                className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-3"
+            >
                 {state.options.map((code) => {
                     const picked = state.picks.includes(code);
                     const isAnswer = code === answer.c;

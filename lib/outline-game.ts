@@ -233,12 +233,16 @@ export const dailyNumber = (date: string) =>
  * indexed by days since DAILY_EPOCH. It depends only on the date, so every
  * browser gets the same country and later data changes never move it.
  */
-export function dailyCountry(countries: Country[], date: string): Country {
-    const n = dailySchedule.length;
+export function dailyCountry(
+    countries: Country[],
+    date: string,
+    schedule: readonly string[] = dailySchedule
+): Country {
+    const n = schedule.length;
     const offset = dayNumber(date) - dayNumber(DAILY_EPOCH);
     const byCode = new Map(countries.map((c) => [c.c, c]));
     for (let i = 0; i < n; i++) {
-        const code = dailySchedule[(((offset + i) % n) + n) % n];
+        const code = schedule[(((offset + i) % n) + n) % n];
         const hit = byCode.get(code);
         if (hit) return hit;
     }

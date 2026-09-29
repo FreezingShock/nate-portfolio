@@ -6,17 +6,14 @@ import {
     useMemo,
     useRef,
     useState,
-    type CSSProperties,
 } from "react";
 import {
     ArrowRight,
-    ArrowUp,
     BarChart3,
     Check,
     Flag,
     Globe2,
     Lightbulb,
-    PartyPopper,
     RotateCcw,
     Share2,
     Shuffle,
@@ -24,34 +21,43 @@ import {
 import dynamic from "next/dynamic";
 import { FlagRound } from "@/components/games/flag-round";
 import { GameSummary } from "@/components/games/game-summary";
-import { GlowCard } from "@/components/glow-card";
+import {
+    Burst,
+    KeyLegend,
+    focusGameInput,
+    useGameKeys,
+    CountryCombobox,
+    COLOR,
+    EMPTY_STATS,
+    FilterPanel,
+    GuessRow,
+    StatsPanel,
+    load,
+    makeGuess,
+    save,
+    type AllStats,
+    type Guess,
+    type Mode,
+    type Status,
+    type Unit,
+} from "@/components/games/guess-kit";
 import { cn } from "@/lib/utils";
 import neighborData from "@/lib/data/neighbors.json";
 import {
     ARROW_EMOJI,
-    DIRECTION_NAME,
-    DIFFICULTIES,
     EMPTY_NEIGHBOR_STATE,
     MAX_GUESSES,
     MAX_HINTS,
-    REGIONS,
-    bearingDeg,
     dailyCountry,
     dailyNumber,
     dayNumber,
     direction8,
-    findExact,
     flagSrc,
     flagStatus,
-    formatDistance,
-    haversineKm,
     makeFlagOptions,
-    pctColor,
     pctSquares,
     poolFor,
-    proximityPct,
     scoreGame,
-    searchNames,
     secondsToNextDaily,
     seededShuffle,
     todayPT,
@@ -83,36 +89,6 @@ const NeighborRound = dynamic(
 );
 const NEIGHBORS = neighborData as Record<string, string[]>;
 
-const COLOR = "var(--mc-aqua)";
-type Mode = "daily" | "unlimited";
-type Status = "playing" | "won" | "lost";
-type Unit = "km" | "mi";
-
-interface Guess {
-    code: string;
-    km: number;
-    bearing: number;
-    pct: number;
-}
-interface ModeStats {
-    played: number;
-    won: number;
-    streak: number;
-    best: number;
-    last: string;
-    dist: number[];
-}
-type AllStats = Record<Mode, ModeStats>;
-
-const EMPTY_STATS = (): ModeStats => ({
-    played: 0,
-    won: 0,
-    streak: 0,
-    best: 0,
-    last: "",
-    dist: Array(MAX_GUESSES).fill(0),
-});
-
 const K = {
     stats: "outline-stats-v1",
     daily: "outline-daily-v2",
@@ -120,177 +96,6 @@ const K = {
     mode: "outline-mode",
     filters: "outline-filters",
 };
-
-function load<T>(key: string, fallback: T): T {
-    try {
-        const raw = localStorage.getItem(key);
-        return raw ? (JSON.parse(raw) as T) : fallback;
-    } catch {
-        return fallback;
-    }
-}
-function save(key: string, value: unknown) {
-    try {
-        localStorage.setItem(key, JSON.stringify(value));
-    } catch {}
-}
-
-function makeGuess(guess: Country, answer: Country): Guess {
-    const correct = guess.c === answer.c;
-    const km = correct ? 0 : haversineKm(guess, answer);
-    return {
-        code: guess.c,
-        km,
-        bearing: correct ? 0 : bearingDeg(guess, answer),
-        pct: proximityPct(km, correct),
-    };
-}
-
-/** Counts up to `to` once when a fresh row appears. */
-function CountUp({ to, animate }: { to: number; animate: boolean }) {
-    const [v, setV] = useState(animate ? 0 : to);
-    useEffect(() => {
-        if (!animate) return;
-        const start = performance.now() + 550;
-        let raf = 0;
-        const tick = (now: number) => {
-            const t = Math.min(1, Math.max(0, (now - start) / 800));
-            setV(Math.round(to * (1 - (1 - t) ** 3)));
-            if (t < 1) raf = requestAnimationFrame(tick);
-        };
-        raf = requestAnimationFrame(tick);
-        return () => cancelAnimationFrame(raf);
-    }, [to, animate]);
-    return <>{animate ? v : to}%</>;
-}
-
-function GuessRow({
-    guess,
-    country,
-    unit,
-    fresh,
-}: {
-    guess: Guess;
-    country: Country;
-    unit: Unit;
-    fresh: boolean;
-}) {
-    const correct = guess.pct === 100;
-    const color = pctColor(guess.pct);
-    const dir = direction8(guess.bearing);
-    // Cells reveal one after another when the row is new.
-    const delay = (i: number): CSSProperties =>
-        fresh ? { animationDelay: `${0.15 + i * 0.22}s` } : { animation: "none" };
-
-    return (
-        <div
-            className={cn(
-                "grid grid-cols-[1fr_auto_2.25rem_3.25rem] items-center gap-2 rounded-xl border px-3 py-1.5 text-sm",
-                fresh ? "og-row" : ""
-            )}
-            style={{
-                borderColor: `color-mix(in oklch, ${color} 45%, transparent)`,
-                backgroundColor: `color-mix(in oklch, ${color} 9%, transparent)`,
-            }}
-            role="listitem"
-            aria-label={
-                correct
-                    ? `${country.n}, correct`
-                    : `${country.n}, ${formatDistance(guess.km, unit)} away, target is ${DIRECTION_NAME[dir]}, ${guess.pct} percent`
-            }
-        >
-            <span
-                className="og-cell truncate font-semibold uppercase tracking-wide"
-                style={delay(0)}
-            >
-                {country.n}
-            </span>
-            <span
-                className="og-cell font-mono text-xs tabular-nums text-muted-foreground"
-                style={delay(1)}
-            >
-                {formatDistance(guess.km, unit)}
-            </span>
-            <span className="grid place-items-center" style={delay(2)}>
-                {correct ? (
-                    <PartyPopper
-                        className={cn("size-5", fresh && "og-arrow")}
-                        style={
-                            {
-                                color,
-                                "--rot": "0deg",
-                                ...delay(2),
-                            } as CSSProperties
-                        }
-                    />
-                ) : (
-                    <ArrowUp
-                        className={cn("size-5", fresh && "og-arrow")}
-                        strokeWidth={3}
-                        style={
-                            {
-                                color,
-                                "--rot": `${dir * 45}deg`,
-                                transform: `rotate(${dir * 45}deg)`,
-                                ...delay(2),
-                            } as CSSProperties
-                        }
-                    />
-                )}
-            </span>
-            <span
-                className="og-cell text-right font-mono text-sm font-bold tabular-nums"
-                style={{ color, ...delay(3) }}
-            >
-                <CountUp to={guess.pct} animate={fresh} />
-            </span>
-        </div>
-    );
-}
-
-function Burst() {
-    const bits = useMemo(
-        () =>
-            Array.from({ length: 22 }, (_, i) => {
-                const a = (i / 22) * Math.PI * 2 + Math.random() * 0.3;
-                const r = 90 + Math.random() * 90;
-                return {
-                    bx: `${Math.cos(a) * r}px`,
-                    by: `${Math.sin(a) * r}px`,
-                    color: [
-                        "var(--mc-aqua)",
-                        "var(--mc-gold)",
-                        "var(--mc-green)",
-                        "var(--mc-light-purple)",
-                        "var(--mc-yellow)",
-                    ][i % 5],
-                    delay: `${Math.random() * 0.15}s`,
-                };
-            }),
-        []
-    );
-    return (
-        <div
-            aria-hidden
-            className="pointer-events-none absolute left-1/2 top-1/2 z-10"
-        >
-            {bits.map((b, i) => (
-                <span
-                    key={i}
-                    className="og-burst absolute size-2 rounded-sm"
-                    style={
-                        {
-                            backgroundColor: b.color,
-                            "--bx": b.bx,
-                            "--by": b.by,
-                            animationDelay: b.delay,
-                        } as CSSProperties
-                    }
-                />
-            ))}
-        </div>
-    );
-}
 
 export function OutlineGuesser() {
     const [countries, setCountries] = useState<Country[] | null>(null);
@@ -303,19 +108,6 @@ export function OutlineGuesser() {
     const [confirmGiveUp, setConfirmGiveUp] = useState(false);
     const [freshIndex, setFreshIndex] = useState(-1);
     const [round, setRound] = useState(0);
-    const formRef = useRef<HTMLFormElement>(null);
-    const shake = useCallback(() => {
-        formRef.current?.animate(
-            [
-                { transform: "translateX(0)" },
-                { transform: "translateX(-7px)" },
-                { transform: "translateX(6px)" },
-                { transform: "translateX(-4px)" },
-                { transform: "translateX(0)" },
-            ],
-            { duration: 380 }
-        );
-    }, []);
     const [unit, setUnit] = useState<Unit>("km");
     const [stats, setStats] = useState<AllStats>({
         daily: EMPTY_STATS(),
@@ -324,7 +116,6 @@ export function OutlineGuesser() {
     const [showStats, setShowStats] = useState(false);
     const [copied, setCopied] = useState(false);
     const [countdown, setCountdown] = useState(0);
-    const [notice, setNotice] = useState("");
     const [stage, setStage] = useState<1 | 2 | 3 | 4>(1);
     const [flag, setFlag] = useState<FlagState | null>(null);
     const [confirmRestart, setConfirmRestart] = useState(false);
@@ -333,12 +124,14 @@ export function OutlineGuesser() {
     const [difficulties, setDifficulties] = useState<number[]>([]);
     const [regions, setRegions] = useState<string[]>([]);
 
-    const [query, setQuery] = useState("");
-    const [open, setOpen] = useState(false);
-    const [active, setActive] = useState(0);
-    const inputRef = useRef<HTMLInputElement>(null);
     const deck = useRef<Country[]>([]);
     const dailyDate = useRef("");
+    const rootRef = useRef<HTMLDivElement>(null);
+    useGameKeys(rootRef);
+    // A new puzzle puts the cursor in the country box.
+    useEffect(() => {
+        if (round > 0) focusGameInput(rootRef.current);
+    }, [round]);
 
     const byCode = useMemo(
         () => new Map((countries ?? []).map((c) => [c.c, c])),
@@ -382,7 +175,6 @@ export function OutlineGuesser() {
             setConfirmGiveUp(false);
             setFreshIndex(-1);
             setRound((r) => r + 1);
-            setQuery("");
         },
         []
     );
@@ -406,7 +198,6 @@ export function OutlineGuesser() {
         setConfirmGiveUp(false);
         setFreshIndex(-1);
         setRound((r) => r + 1);
-        setQuery("");
         if (saved && saved.date === date && saved.answer === target.c) {
             setGuesses(saved.guesses);
             setStatus(saved.status);
@@ -473,8 +264,6 @@ export function OutlineGuesser() {
         const next = poolFor(countries, d, r);
         if (next.length > 0) startUnlimited(next, answer?.c);
     };
-    const toggle = <T,>(list: T[], v: T) =>
-        list.includes(v) ? list.filter((x) => x !== v) : [...list, v];
 
     // Persist the daily puzzle as it changes.
     useEffect(() => {
@@ -532,45 +321,22 @@ export function OutlineGuesser() {
     );
 
     // ---- Input ----
-    const suggestions = useMemo(
-        () => (countries ? searchNames(countries, query) : []),
-        [countries, query]
-    );
     const guessedCodes = useMemo(
         () => new Set(guesses.map((g) => g.code)),
         [guesses]
     );
 
-    const submit = useCallback(
-        (picked?: Country) => {
-            if (!answer || !countries || status !== "playing") return;
-            const target =
-                picked ??
-                findExact(countries, query) ??
-                (suggestions.length === 1 ? suggestions[0] : undefined);
-            if (!target) {
-                setNotice("Pick a country or territory from the list.");
-                shake();
-                return;
-            }
-            if (guessedCodes.has(target.c)) {
-                setNotice(`You already guessed ${target.n}.`);
-                shake();
-                return;
-            }
-            setNotice("");
+    const onPick = useCallback(
+        (target: Country) => {
+            if (!answer || status !== "playing") return;
             const g = makeGuess(target, answer);
             const next = [...guesses, g];
             setGuesses(next);
             setFreshIndex(next.length - 1);
-            setQuery("");
-            setOpen(false);
-            setActive(0);
             if (g.pct === 100) finish("won", next.length);
             else if (next.length >= MAX_GUESSES) finish("lost", next.length);
-            inputRef.current?.focus();
         },
-        [answer, countries, status, query, suggestions, guessedCodes, guesses, finish, shake]
+        [answer, status, guesses, finish]
     );
 
     const giveUp = () => {
@@ -649,9 +415,7 @@ export function OutlineGuesser() {
             await navigator.clipboard.writeText(text);
             setCopied(true);
             setTimeout(() => setCopied(false), 2000);
-        } catch {
-            setNotice("Couldn't copy. Select and copy manually.");
-        }
+        } catch {}
     };
 
     const changeUnit = () => {
@@ -750,6 +514,8 @@ export function OutlineGuesser() {
     ) => (
         <button
             type="button"
+            data-primary
+            autoFocus
             onClick={onClick}
             className="inline-flex items-center gap-2 rounded-xl border px-5 py-2.5 font-minecraft text-sm font-bold transition-transform hover:-translate-y-0.5"
             style={{
@@ -823,6 +589,8 @@ export function OutlineGuesser() {
             {mode === "unlimited" ? (
                 <button
                     type="button"
+                    data-primary
+                    autoFocus
                     onClick={() => startUnlimited(pool, answer.c)}
                     className="inline-flex items-center gap-2 rounded-lg border px-4 py-2 font-minecraft text-sm font-bold transition-transform hover:-translate-y-0.5"
                     style={{
@@ -840,6 +608,8 @@ export function OutlineGuesser() {
                     </span>
                     <button
                         type="button"
+                        data-primary
+                        autoFocus
                         onClick={() => switchMode("unlimited")}
                         className="inline-flex items-center gap-2 rounded-lg border px-4 py-2 font-minecraft text-sm font-bold"
                     >
@@ -852,6 +622,7 @@ export function OutlineGuesser() {
 
     return (
         <div
+            ref={rootRef}
             className="relative mx-auto max-w-lg overflow-hidden rounded-3xl border border-white/15 p-4 shadow-2xl sm:p-6"
             style={{
                 // Frosted glass: heavy blur plus a mostly opaque tint, so the
@@ -889,6 +660,7 @@ export function OutlineGuesser() {
                 <div className="flex gap-1.5">
                     <button
                         type="button"
+                        data-action="restart"
                         onClick={restartGame}
                         className={cn(
                             pill(confirmRestart),
@@ -923,137 +695,15 @@ export function OutlineGuesser() {
             </div>
 
             {mode === "unlimited" && (
-                <div className="mb-3 space-y-2 rounded-2xl border border-border/50 bg-foreground/5 p-3">
-                    <div className="flex flex-wrap items-center gap-1.5">
-                        <span className="w-16 font-mono text-[10px] uppercase tracking-wider text-muted-foreground">
-                            Difficulty
-                        </span>
-                        {DIFFICULTIES.map((d) => {
-                            const on = difficulties.includes(d.id);
-                            return (
-                                <button
-                                    key={d.id}
-                                    type="button"
-                                    aria-pressed={on}
-                                    onClick={() =>
-                                        applyFilters(toggle(difficulties, d.id), regions)
-                                    }
-                                    className="rounded-full border px-2.5 py-0.5 font-rubik text-xs font-semibold transition-all hover:scale-[1.04]"
-                                    style={{
-                                        color: d.color,
-                                        borderColor: `color-mix(in oklch, ${d.color} ${on ? 90 : 35}%, transparent)`,
-                                        backgroundColor: on
-                                            ? `color-mix(in oklch, ${d.color} 20%, transparent)`
-                                            : undefined,
-                                        boxShadow: on
-                                            ? `0 0 12px -3px ${d.color}`
-                                            : undefined,
-                                    }}
-                                >
-                                    {d.label}
-                                </button>
-                            );
-                        })}
-                    </div>
-                    <div className="flex flex-wrap items-center gap-1.5">
-                        <span className="w-16 font-mono text-[10px] uppercase tracking-wider text-muted-foreground">
-                            Region
-                        </span>
-                        {REGIONS.map((r) => {
-                            const on = regions.includes(r.id);
-                            return (
-                                <button
-                                    key={r.id}
-                                    type="button"
-                                    aria-pressed={on}
-                                    onClick={() =>
-                                        applyFilters(difficulties, toggle(regions, r.id))
-                                    }
-                                    className="rounded-full border px-2.5 py-0.5 font-rubik text-xs font-semibold transition-all hover:scale-[1.04]"
-                                    style={{
-                                        color: r.color,
-                                        borderColor: `color-mix(in oklch, ${r.color} ${on ? 90 : 35}%, transparent)`,
-                                        backgroundColor: on
-                                            ? `color-mix(in oklch, ${r.color} 20%, transparent)`
-                                            : undefined,
-                                        boxShadow: on
-                                            ? `0 0 12px -3px ${r.color}`
-                                            : undefined,
-                                    }}
-                                >
-                                    {r.label}
-                                </button>
-                            );
-                        })}
-                    </div>
-                    <div className="flex items-center justify-between font-mono text-[10px] uppercase tracking-wider text-muted-foreground">
-                        <span>
-                            {pool.length === 0
-                                ? "Nothing matches: loosen a filter"
-                                : `${pool.length} in pool${
-                                      difficulties.length + regions.length === 0
-                                          ? " (everything)"
-                                          : ""
-                                  }`}
-                        </span>
-                        {difficulties.length + regions.length > 0 && (
-                            <button
-                                type="button"
-                                onClick={() => applyFilters([], [])}
-                                className="underline underline-offset-2 hover:text-foreground"
-                            >
-                                Clear filters
-                            </button>
-                        )}
-                    </div>
-                </div>
+                <FilterPanel
+                    difficulties={difficulties}
+                    regions={regions}
+                    poolSize={pool.length}
+                    onChange={applyFilters}
+                />
             )}
 
-            {showStats && (
-                <GlowCard color={COLOR} className="og-hint mb-3 p-4">
-                    <p className="font-minecraft text-sm font-bold" style={{ color: COLOR }}>
-                        {mode === "daily" ? "Daily" : "Unlimited"} stats
-                    </p>
-                    <div className="mt-2 grid grid-cols-4 gap-2 text-center">
-                        {[
-                            ["Played", s.played],
-                            ["Win %", s.played ? Math.round((s.won / s.played) * 100) : 0],
-                            ["Streak", s.streak],
-                            ["Best", s.best],
-                        ].map(([label, v]) => (
-                            <div key={label}>
-                                <p className="font-mono text-xl font-bold tabular-nums" style={{ color: COLOR }}>
-                                    {v}
-                                </p>
-                                <p className="font-mono text-[10px] uppercase tracking-wider text-muted-foreground">
-                                    {label}
-                                </p>
-                            </div>
-                        ))}
-                    </div>
-                    <div className="mt-3 space-y-1">
-                        {s.dist.map((n, i) => {
-                            const max = Math.max(1, ...s.dist);
-                            return (
-                                <div key={i} className="flex items-center gap-2 text-xs">
-                                    <span className="w-3 font-mono text-muted-foreground">{i + 1}</span>
-                                    <div className="h-4 flex-1 rounded bg-foreground/10">
-                                        <div
-                                            className="flex h-full items-center justify-end rounded px-1.5 font-mono text-[10px] font-bold text-black transition-[width] duration-700"
-                                            style={{
-                                                width: `${Math.max(n ? 8 : 0, (n / max) * 100)}%`,
-                                                backgroundColor: COLOR,
-                                            }}
-                                        >
-                                            {n || ""}
-                                        </div>
-                                    </div>
-                                </div>
-                            );
-                        })}
-                    </div>
-                </GlowCard>
-            )}
+            {showStats && <StatsPanel mode={mode} s={s} />}
 
             {/* Round stepper: three rounds and a summary. Rounds 2 to 4 open
                 once round 1 is over, and any of them can be skipped. */}
@@ -1236,101 +886,17 @@ export function OutlineGuesser() {
 
             {/* Guess input */}
             {playing ? (
-                <form
-                    ref={formRef}
-                    className="mt-4"
-                    onSubmit={(e) => {
-                        e.preventDefault();
-                        if (open && suggestions[active] && !findExact(countries, query)) {
-                            submit(suggestions[active]);
-                        } else submit();
-                    }}
-                >
-                    <div className="relative flex gap-2">
-                        <div className="relative flex-1">
-                            <input
-                                ref={inputRef}
-                                value={query}
-                                autoComplete="off"
-                                spellCheck={false}
-                                placeholder="Country, territory..."
-                                aria-label="Guess a country"
-                                aria-expanded={open && suggestions.length > 0}
-                                aria-autocomplete="list"
-                                role="combobox"
-                                onChange={(e) => {
-                                    setQuery(e.target.value);
-                                    setOpen(true);
-                                    setActive(0);
-                                    setNotice("");
-                                }}
-                                onFocus={() => setOpen(true)}
-                                onBlur={() => setTimeout(() => setOpen(false), 120)}
-                                onKeyDown={(e) => {
-                                    if (e.key === "ArrowDown") {
-                                        e.preventDefault();
-                                        setActive((a) => Math.min(a + 1, suggestions.length - 1));
-                                    } else if (e.key === "ArrowUp") {
-                                        e.preventDefault();
-                                        setActive((a) => Math.max(a - 1, 0));
-                                    } else if (e.key === "Escape") setOpen(false);
-                                }}
-                                className="h-11 w-full rounded-xl border border-border bg-card/60 px-3 text-base outline-none transition-colors focus:border-[var(--mc-aqua)]"
-                            />
-                            {open && suggestions.length > 0 && (
-                                <ul
-                                    role="listbox"
-                                    className="absolute inset-x-0 top-full z-30 mt-1 max-h-60 overflow-y-auto rounded-xl border border-border bg-popover p-1 shadow-xl"
-                                >
-                                    {suggestions.map((c, i) => {
-                                        const used = guessedCodes.has(c.c);
-                                        return (
-                                            <li
-                                                key={c.c}
-                                                role="option"
-                                                aria-selected={i === active}
-                                                aria-disabled={used}
-                                                onMouseDown={(e) => {
-                                                    e.preventDefault();
-                                                    if (!used) submit(c);
-                                                }}
-                                                onMouseEnter={() => setActive(i)}
-                                                className={cn(
-                                                    "cursor-pointer rounded-lg px-3 py-2 text-sm",
-                                                    i === active && "bg-[var(--mc-aqua)]/15",
-                                                    used && "cursor-not-allowed opacity-40 line-through"
-                                                )}
-                                            >
-                                                {c.n}
-                                            </li>
-                                        );
-                                    })}
-                                </ul>
-                            )}
-                        </div>
-                        <button
-                            type="submit"
-                            className="inline-flex h-11 items-center gap-2 rounded-xl border px-4 font-minecraft text-sm font-bold transition-transform hover:-translate-y-0.5"
-                            style={{
-                                color: COLOR,
-                                borderColor: `color-mix(in oklch, ${COLOR} 55%, transparent)`,
-                                backgroundColor: `color-mix(in oklch, ${COLOR} 12%, transparent)`,
-                            }}
-                        >
-                            <Globe2 className="size-4" /> Guess
-                        </button>
-                    </div>
-                    <p
-                        className="mt-1.5 min-h-5 text-center text-xs"
-                        style={{ color: "var(--mc-red)" }}
-                        role="status"
-                    >
-                        {notice}
-                    </p>
+                <div className="mt-4">
+                    <CountryCombobox
+                        countries={countries}
+                        guessed={guessedCodes}
+                        onPick={onPick}
+                    />
                     <div className="mt-1 flex items-center justify-between gap-2">
                         <button
                             type="button"
                             disabled={hints >= MAX_HINTS}
+                            data-action="hint"
                             onClick={() => setHints((h) => Math.min(MAX_HINTS, h + 1))}
                             className="inline-flex items-center gap-1.5 rounded-full border px-3 py-1 font-rubik text-xs font-semibold transition-colors disabled:cursor-not-allowed disabled:opacity-40"
                             style={{
@@ -1345,6 +911,7 @@ export function OutlineGuesser() {
                         </span>
                         <button
                             type="button"
+                            data-action="giveup"
                             onClick={giveUp}
                             className="rounded-full border px-3 py-1 font-rubik text-xs font-semibold transition-colors"
                             style={{
@@ -1358,7 +925,7 @@ export function OutlineGuesser() {
                             {confirmGiveUp ? "Really give up?" : "Give up"}
                         </button>
                     </div>
-                </form>
+                </div>
             ) : (
                 <div className="og-hint mt-4 text-center">
                     <p
@@ -1415,6 +982,8 @@ export function OutlineGuesser() {
 
                 </div>
             )}
+
+            <KeyLegend />
 
             <p className="mt-6 text-center text-xs text-muted-foreground">
                 {countries.length} countries and territories. Outlines from Natural

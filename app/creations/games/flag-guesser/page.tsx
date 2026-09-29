@@ -9,10 +9,10 @@ export default function FlagGuesserPage() {
             bg="#55ffff"
             accent="var(--mc-aqua)"
             nav={[{ id: "play", label: "Play" }]}
-            eyebrow="Unlimited Games"
+            eyebrow="Daily and Unlimited"
             title="Flag Guesser"
-            symbol="speed"
-            description="Ten flags, four choices each. A starter set of countries for now; more flags and modes are on the way."
+            symbol="fortune"
+            description="Name the country from its flag. It starts hidden behind six tiles and every wrong guess flips another, with distance and direction clues to the right country."
             back={{ href: "/creations/games", label: "Back to Games" }}
         >
             <Section id="play" first accent="var(--mc-aqua)" symbol="fortune" title="Play">

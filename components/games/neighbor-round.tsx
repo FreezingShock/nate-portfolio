@@ -24,17 +24,15 @@ import {
     ChevronLeft,
     ChevronRight,
     Eye,
-    Globe2,
     Lightbulb,
     Minus,
     Plus,
     X,
 } from "lucide-react";
+import { CountryCombobox } from "@/components/games/guess-kit";
 import worldTopo from "@/lib/data/world.topo.json";
 import {
-    findExact,
     flagSrc,
-    searchNames,
     type Country,
     type NeighborState,
 } from "@/lib/outline-game";
@@ -245,7 +243,6 @@ export function NeighborRound({
 
     const [state, setState] = useState<NeighborState>(initial);
     const { guesses, status, hints } = state;
-    const [notice, setNotice] = useState("");
     const [flash, setFlash] = useState<{ code: string; id: number } | null>(null);
     const mapBoxRef = useRef<HTMLDivElement>(null);
     const [confirmGiveUp, setConfirmGiveUp] = useState(false);
@@ -406,22 +403,16 @@ export function NeighborRound({
     }, [zoomAt]);
 
     // ---- Guessing ----
-    const [query, setQuery] = useState("");
-    const [open, setOpen] = useState(false);
-    const [active, setActive] = useState(0);
-    const formRef = useRef<HTMLFormElement>(null);
-    const inputRef = useRef<HTMLInputElement>(null);
+    const guessBoxRef = useRef<HTMLDivElement>(null);
 
+    // The country in the middle can't be a neighbour, so it isn't offered.
     const candidates = useMemo(
         () => countries.filter((c) => c.c !== answer.c),
         [countries, answer.c]
     );
-    const suggestions = useMemo(
-        () => searchNames(candidates, query),
-        [candidates, query]
-    );
+    const guessedSet = useMemo(() => new Set(guesses), [guesses]);
     const shake = () =>
-        formRef.current?.animate(
+        guessBoxRef.current?.animate(
             [
                 { transform: "translateX(0)" },
                 { transform: "translateX(-7px)" },
@@ -432,31 +423,8 @@ export function NeighborRound({
             { duration: 380 }
         );
 
-    const submit = (picked?: Country) => {
+    const onPick = (target: Country) => {
         if (!playing) return;
-        const target =
-            picked ??
-            findExact(countries, query) ??
-            (suggestions.length === 1 ? suggestions[0] : undefined);
-        if (!target) {
-            setNotice("Pick a country or territory from the list.");
-            shake();
-            return;
-        }
-        if (target.c === answer.c) {
-            setNotice(`${answer.n} is the country in the middle.`);
-            shake();
-            return;
-        }
-        if (guesses.includes(target.c)) {
-            setNotice(`You already guessed ${target.n}.`);
-            shake();
-            return;
-        }
-        setNotice("");
-        setQuery("");
-        setOpen(false);
-        setActive(0);
         const nextGuesses = [...guesses, target.c];
         const isNeighbor = neighborCodes.includes(target.c);
         const foundNow = nextGuesses.filter((g) => neighborCodes.includes(g));
@@ -493,7 +461,6 @@ export function NeighborRound({
             );
             shake();
         }
-        inputRef.current?.focus();
     };
 
     const giveUp = () => {
@@ -742,101 +709,18 @@ export function NeighborRound({
             </div>
 
             {playing ? (
-                <form
-                    ref={formRef}
-                    className="mt-4"
-                    onSubmit={(e) => {
-                        e.preventDefault();
-                        if (open && suggestions[active] && !findExact(countries, query)) {
-                            submit(suggestions[active]);
-                        } else submit();
-                    }}
-                >
-                    <div className="relative flex gap-2">
-                        <div className="relative flex-1">
-                            <input
-                                ref={inputRef}
-                                value={query}
-                                autoComplete="off"
-                                spellCheck={false}
-                                placeholder="Country, territory..."
-                                aria-label="Guess a neighbour"
-                                role="combobox"
-                                aria-expanded={open && suggestions.length > 0}
-                                aria-autocomplete="list"
-                                onChange={(e) => {
-                                    setQuery(e.target.value);
-                                    setOpen(true);
-                                    setActive(0);
-                                    setNotice("");
-                                }}
-                                onFocus={() => setOpen(true)}
-                                onBlur={() => setTimeout(() => setOpen(false), 120)}
-                                onKeyDown={(e) => {
-                                    if (e.key === "ArrowDown") {
-                                        e.preventDefault();
-                                        setActive((a) => Math.min(a + 1, suggestions.length - 1));
-                                    } else if (e.key === "ArrowUp") {
-                                        e.preventDefault();
-                                        setActive((a) => Math.max(a - 1, 0));
-                                    } else if (e.key === "Escape") setOpen(false);
-                                }}
-                                className="h-11 w-full rounded-xl border border-border bg-card/60 px-3 text-base outline-none transition-colors focus:border-[var(--mc-aqua)]"
-                            />
-                            {open && suggestions.length > 0 && (
-                                <ul
-                                    role="listbox"
-                                    className="absolute inset-x-0 top-full z-30 mt-1 max-h-60 overflow-y-auto rounded-xl border border-border bg-popover p-1 shadow-xl"
-                                >
-                                    {suggestions.map((c, i) => {
-                                        const used = guesses.includes(c.c);
-                                        return (
-                                            <li
-                                                key={c.c}
-                                                role="option"
-                                                aria-selected={i === active}
-                                                aria-disabled={used}
-                                                onMouseDown={(e) => {
-                                                    e.preventDefault();
-                                                    if (!used) submit(c);
-                                                }}
-                                                onMouseEnter={() => setActive(i)}
-                                                className={cn(
-                                                    "cursor-pointer rounded-lg px-3 py-2 text-sm",
-                                                    i === active && "bg-[var(--mc-aqua)]/15",
-                                                    used && "cursor-not-allowed opacity-40 line-through"
-                                                )}
-                                            >
-                                                {c.n}
-                                            </li>
-                                        );
-                                    })}
-                                </ul>
-                            )}
-                        </div>
-                        <button
-                            type="submit"
-                            className="inline-flex h-11 items-center gap-2 rounded-xl border px-4 font-minecraft text-sm font-bold transition-transform hover:-translate-y-0.5"
-                            style={{
-                                color: "var(--mc-aqua)",
-                                borderColor: "color-mix(in oklch, var(--mc-aqua) 55%, transparent)",
-                                backgroundColor: "color-mix(in oklch, var(--mc-aqua) 12%, transparent)",
-                            }}
-                        >
-                            <Globe2 className="size-4" /> Guess
-                        </button>
-                    </div>
-                    <p
-                        className="mt-1.5 min-h-5 text-center text-xs"
-                        style={{ color: RED }}
-                        role="status"
-                    >
-                        {notice}
-                    </p>
+                <div ref={guessBoxRef} className="mt-4">
+                    <CountryCombobox
+                        countries={candidates}
+                        guessed={guessedSet}
+                        onPick={onPick}
+                        label="Guess a neighbour"
+                    />
                     <div className="mt-1 flex items-center justify-between gap-2">
                         <button
                             type="button"
                             disabled={hints > 0}
+                            data-action="hint"
                             onClick={() => setState({ ...state, hints: 1 })}
                             className="inline-flex items-center gap-1.5 rounded-full border px-3 py-1 font-rubik text-xs font-semibold transition-colors disabled:cursor-not-allowed disabled:opacity-40"
                             style={{
@@ -851,6 +735,7 @@ export function NeighborRound({
                         </span>
                         <button
                             type="button"
+                            data-action="giveup"
                             onClick={giveUp}
                             className="rounded-full border px-3 py-1 font-rubik text-xs font-semibold transition-colors"
                             style={{
@@ -864,7 +749,7 @@ export function NeighborRound({
                             {confirmGiveUp ? "Really give up?" : "Give up"}
                         </button>
                     </div>
-                </form>
+                </div>
             ) : (
                 <div className="og-hint mt-5 text-center">
                     <p
