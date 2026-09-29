@@ -18,9 +18,10 @@ import {
     upCost,
     writeSave,
 } from "@/lib/fractured-idle/engine";
-import { rebirthCost, type State } from "@/lib/fractured-idle/data";
+import type { State } from "@/lib/fractured-idle/data";
+import { Goals } from "./goals";
 import { Orbit } from "./orbit";
-import { CSS, IconBtn, Kbd, Progress, Stat, tint, type Ctx, type TipApi, type TipSource } from "./ui";
+import { CSS, IconBtn, Kbd, Stat, tint, type Ctx, type TipApi, type TipSource } from "./ui";
 import { MinionsTab } from "./tab-minions";
 import { UpgradeTip, UpgradesTab } from "./tab-upgrades";
 import { TrophiesTab, TrophyTip } from "./tab-trophies";
@@ -324,7 +325,6 @@ export function FracturedIdle() {
 
     const d = derive(s);
     const island = ISLANDS.find((i) => i.id === s.island && s.total >= i.at) ?? ISLANDS[0];
-    const nextIsland = ISLANDS.find((i) => s.total < i.at);
     const plan = rebirthPlan(s);
     const F = (n: number) => fmt(n, s.sci);
     const full = isFs || pseudoFs;
@@ -411,9 +411,9 @@ export function FracturedIdle() {
                 </div>
             </div>
 
-            <div className={`grid min-h-0 flex-1 grid-cols-[minmax(0,1fr)] gap-0 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.2fr)] ${full ? "" : "lg:h-[680px]"}`}>
+            <div className={`grid min-h-0 grid-cols-[minmax(0,1fr)] gap-0 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.2fr)] lg:grid-rows-[minmax(0,1fr)] ${full ? "flex-1 grid-rows-[auto_minmax(0,1fr)]" : "lg:h-[680px]"}`}>
                 {/* Button side */}
-                <div className="relative flex flex-col items-center justify-center gap-5 overflow-hidden px-4 py-8 lg:border-r lg:border-white/10">
+                <div className="relative flex flex-col items-center justify-center gap-3 overflow-hidden px-4 py-3 lg:border-r lg:border-white/10">
                     <div className="flex flex-wrap items-center justify-center gap-2 font-minecraft text-sm" style={{ color: island.color }}>
                         <McSymbol name={island.symbol} color={island.color} /> {island.name}
                         <span className="rounded-full border px-2 py-0.5 font-rubik text-[10px]" style={{ borderColor: tint(island.color, 50) }}>x{island.mult}</span>
@@ -449,17 +449,15 @@ export function FracturedIdle() {
                         Press <Kbd>Space</Kbd> or click. Crit {Math.round(d.critChance * 100)}% for +{Math.round(d.critDmg * 100)}%.
                     </div>
 
-                    <div className="w-full max-w-sm space-y-2">
-                        {nextIsland && (
-                            <Progress label={`Next island: ${nextIsland.name}`} color={nextIsland.color} pct={Math.log10(Math.max(1, s.total)) / Math.log10(nextIsland.at)} right={F(nextIsland.at)} />
-                        )}
-                        <Progress
-                            label={plan.count > 0 ? `Rebirth x${plan.count} ready!` : `Rebirth ${s.rebirths + 1}`}
-                            color="var(--mc-light-purple)"
-                            pct={Math.log10(Math.max(1, s.shards)) / Math.log10(rebirthCost(s.rebirths))}
-                            right={F(rebirthCost(s.rebirths))}
-                        />
-                    </div>
+                    <Goals
+                        s={s}
+                        d={d}
+                        F={F}
+                        open={(id) => {
+                            tip.hide();
+                            setTab(id as TabId);
+                        }}
+                    />
 
                     {bobber && (
                         <button
