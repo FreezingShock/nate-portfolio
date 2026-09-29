@@ -1,12 +1,12 @@
+import { HeroTagline } from "@/components/hero-tagline";
+import { DomainPill } from "@/components/domain-pill";
 import Link from "next/link";
 import { ArrowRight, User } from "lucide-react";
 import { identity, getProjects, getRecentRenovations } from "@/lib/content";
 import { getProjectIcon } from "@/lib/project-icons";
 import { IdentityMarquee } from "@/components/identity-marquee";
 import { SiteBackground } from "@/components/site-background";
-import { AnimatedGradientText } from "@/components/ui/animated-gradient-text";
 import { HeroFirstName, HeroLastName } from "@/components/hero-name";
-import { TypingAnimation } from "@/components/ui/typing-animation";
 import { GlyphMatrix } from "@/components/ui/glyph-matrix";
 import { ShineBorder } from "@/components/ui/shine-border";
 import { RainbowButton } from "@/components/ui/rainbow-button";
@@ -51,7 +51,7 @@ export default async function Home() {
                     <ShineBorder
                         borderWidth={1.5}
                         duration={10}
-                        shineColor={["var(--primary)", "var(--chart-4)"]}
+                        shineColor={["#ff5555", "#ffaa00", "#55ff55", "#55ffff", "#ff55ff"]}
                     />
                     {/* Glyph Matrix as a quiet backdrop texture behind the hero
                         copy — not a spotlight, a signature detail. */}
@@ -68,23 +68,7 @@ export default async function Home() {
                         {/* Domain first — reads like a browser/terminal chip,
                             establishes "this is a real site with a real URL"
                             before the name even renders. */}
-                        <div className="inline-flex items-center gap-2 rounded-full border border-border/60 bg-background/40 px-3.5 py-1 font-mono text-xs leading-none text-muted-foreground sm:text-sm">
-                            <span className="relative flex size-1.5">
-                                <span className="absolute inline-flex size-full animate-ping rounded-full bg-primary opacity-75" />
-                                <span className="relative inline-flex size-1.5 rounded-full bg-primary" />
-                            </span>
-                            <TypingAnimation delay={200} typeSpeed={70} showCursor={false}>
-                                nateanderson
-                            </TypingAnimation>
-                            <TypingAnimation
-                                delay={200 + 70 * "nateanderson".length}
-                                typeSpeed={70}
-                                cursorStyle="block"
-                                className="font-semibold text-primary"
-                            >
-                                .dev
-                            </TypingAnimation>
-                        </div>
+                        <DomainPill />
 
                         {/* Full name, multisized: "Nate" is the headline,
                             "Anderson" settles in smaller right underneath —
@@ -96,20 +80,14 @@ export default async function Home() {
                             <HeroLastName />
                         </div>
 
-                        <div className="mt-6 inline-flex items-center rounded-full border border-primary/30 bg-primary/5 px-3.5 py-1">
-                            <AnimatedGradientText
-                                speed={1.2}
-                                colorFrom="var(--primary)"
-                                colorTo="var(--chart-4)"
-                                className="font-mono text-sm font-semibold uppercase tracking-[0.2em]"
-                            >
+                        <div className="rainbow-bg relative mt-6 inline-flex items-center overflow-hidden rounded-full px-4 py-1.5">
+                            <ShineBorder borderWidth={1.5} duration={8} shineColor={["#ff5555", "#ffaa00", "#55ff55", "#55ffff", "#ff55ff"]} />
+                            <span className="rainbow-text font-mono text-sm font-bold uppercase tracking-[0.22em]">
                                 Portfolio
-                            </AnimatedGradientText>
+                            </span>
                         </div>
 
-                        <p className="mx-auto mt-5 max-w-xl text-lg text-muted-foreground">
-                            {identity.tagline}
-                        </p>
+                        <HeroTagline />
 
                         <div className="mt-8 flex flex-wrap items-center justify-center gap-4">
                             {/* The showcase CTA — animated rainbow border/glow,

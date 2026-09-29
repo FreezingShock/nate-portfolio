@@ -1,5 +1,6 @@
 "use client";
 
+import { ShineBorder } from "@/components/ui/shine-border";
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
@@ -73,8 +74,6 @@ export function SidebarNav({ sections }: { sections: PageSection[] }) {
         ) ?? navItems[0];
     const bubbleLetter = currentPage.title.charAt(0);
     const bubbleColor = currentPage.color;
-    const glassBg = `color-mix(in oklch, ${bubbleColor} 14%, var(--background) 86%)`;
-    const glassBorder = `color-mix(in oklch, ${bubbleColor} 45%, transparent)`;
 
     // Hover has no equivalent on touch devices, so tapping the ball toggles
     // an "open" state that sticks until you tap outside or hit Escape —
@@ -141,17 +140,16 @@ export function SidebarNav({ sections }: { sections: PageSection[] }) {
             <motion.div
                 layout
                 transition={LIQUID_SPRING}
-                className="relative origin-top-left overflow-hidden rounded-3xl border backdrop-blur-xl sm:origin-top"
+                className="rainbow-bg relative origin-top-left overflow-hidden rounded-3xl backdrop-blur-xl sm:origin-top"
                 style={{
                     width: (open ? PANEL_W : BALL) + HOVER_MARGIN,
                     height: (open ? panelH : BALL) + HOVER_MARGIN,
-                    backgroundColor: glassBg,
-                    borderColor: glassBorder,
                     boxShadow: open
                         ? `0 12px 40px -12px color-mix(in oklch, ${bubbleColor} 35%, transparent)`
                         : `0 0 14px color-mix(in oklch, ${bubbleColor} 30%, transparent)`,
                 }}
             >
+                <ShineBorder borderWidth={1.5} duration={8} shineColor={["#ff5555", "#ffaa00", "#55ff55", "#55ffff", "#ff55ff"]} />
                 <AnimatePresence mode="wait" initial={false}>
                     {!open ? (
                         <motion.button
@@ -167,7 +165,7 @@ export function SidebarNav({ sections }: { sections: PageSection[] }) {
                             transition={{ duration: 0.15 }}
                             className="absolute inset-0 flex items-center justify-center font-minecraft text-base font-semibold transition-transform hover:scale-105"
                         >
-                            <span style={{ color: bubbleColor }}>{bubbleLetter}</span>
+                            <span className="rainbow-text">{bubbleLetter}</span>
                         </motion.button>
                     ) : (
                         <motion.nav

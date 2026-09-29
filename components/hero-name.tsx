@@ -32,12 +32,7 @@ function LastNameFlipIn() {
             {chars.map((ch, i) => (
                 <motion.span
                     key={i}
-                    className="rainbow-text inline-block"
-                    style={{
-                        transformStyle: "preserve-3d",
-                        // offset each letter's hue so the name ripples in color
-                        animationDelay: `${-i * 0.35}s`,
-                    }}
+                    className="inline-block"
                     initial={{ rotateX: -90, opacity: 0 }}
                     animate={show ? { rotateX: 0, opacity: 1 } : undefined}
                     transition={{
@@ -57,8 +52,8 @@ export function HeroFirstName() {
     return (
         <motion.span
             className="rainbow-text font-minecraft inline-block"
-            initial={{ opacity: 0, scale: 0.9, clipPath: "inset(-20% 100% -20% 0)" }}
-            animate={{ opacity: 1, scale: 1, clipPath: "inset(-20% -20% -20% 0)" }}
+            initial={{ opacity: 0, scale: 0.9, clipPath: "inset(-40px 100% -40px -40px)" }}
+            animate={{ opacity: 1, scale: 1, clipPath: "inset(-40px -40px -40px -40px)" }}
             transition={{ duration: REVEAL_DURATION, ease: "easeOut" }}
         >
             {FIRST_NAME}
@@ -68,7 +63,9 @@ export function HeroFirstName() {
 
 export function HeroLastName() {
     return (
-        <span className="font-minecraft">
+        // One rainbow across the whole word: the gradient lives on this
+        // wrapper and the letters just inherit its clipped fill.
+        <span className="rainbow-text inline-block font-minecraft">
             <LastNameFlipIn />
         </span>
     );

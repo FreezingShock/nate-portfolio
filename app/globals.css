@@ -358,3 +358,25 @@
     text-shadow: 0 0 10px color-mix(in oklch, var(--glow) 75%, transparent),
         0 0 22px color-mix(in oklch, var(--glow) 40%, transparent);
 }
+
+@keyframes dotBlink {
+    0%, 45% { opacity: 1; }
+    55%, 100% { opacity: 0.15; }
+}
+.dot-blink { animation: dotBlink 1.1s steps(1, end) infinite; }
+.cursor-blink { animation: dotBlink 0.7s steps(1, end) infinite; }
+
+/* Translucent animated rainbow fill for chips/bubbles. */
+.rainbow-bg {
+    background-image: linear-gradient(
+        90deg,
+        rgba(255, 85, 85, 0.28),
+        rgba(255, 170, 0, 0.28),
+        rgba(85, 255, 85, 0.28),
+        rgba(85, 255, 255, 0.28),
+        rgba(255, 85, 255, 0.28),
+        rgba(255, 85, 85, 0.28)
+    );
+    background-size: 300% 100%;
+    animation: rainbowShift 8s linear infinite;
+}
