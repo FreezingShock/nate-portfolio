@@ -179,10 +179,11 @@ export const GAME_MODES: GameMode[] = [
             {
                 slug: "daily-outline",
                 title: "Daily Outline",
-                status: "planned",
+                status: "playable",
                 icon: Map,
-                blurb: "Name the country from nothing but its silhouette.",
-                features: ["Hints unlock per miss", "Distance and direction feedback", "Streaks"],
+                blurb: "One country outline a day, the same for everyone. Six guesses with distance, direction and closeness.",
+                features: ["238 countries and territories", "Streaks and stats", "Shareable result"],
+                href: "/creations/games/outline-guesser?mode=daily",
             },
             {
                 slug: "daily-flag",
@@ -215,10 +216,11 @@ export const GAME_MODES: GameMode[] = [
             {
                 slug: "outline-guesser",
                 title: "Outline Guesser",
-                status: "planned",
+                status: "playable",
                 icon: Map,
-                blurb: "Country outlines, endless rounds, difficulty by region.",
-                features: ["Region filters", "Timed mode", "High scores"],
+                blurb: "Endless country outlines: every country, island and territory, with arrows, distances, hints and a give-up button.",
+                features: ["Hints and give up", "km or miles", "Stats"],
+                href: "/creations/games/outline-guesser",
             },
             {
                 slug: "capital-quiz",
