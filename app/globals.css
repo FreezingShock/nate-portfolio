@@ -469,3 +469,68 @@
 :root[data-page-vt="fade"]::view-transition-new(root) {
     opacity: 0;
 }
+
+/* ---------- Timeline page ----------
+   "Chroma" = the animated rainbow reserved for super-special milestones.
+   Deliberately cheaper than .rainbow-text: that one also animates a
+   drop-shadow filter (repainting a blurred shadow every frame). These only
+   slide a gradient's background-position, and the timeline puts each phase
+   in `content-visibility: auto` so off-screen milestones don't animate. */
+.chroma-text {
+    background: linear-gradient(90deg, #ff5555, #ffaa00, #55ff55, #55ffff, #ff55ff, #ff5555);
+    background-size: 200% auto;
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    animation: rainbowShift 5s linear infinite;
+}
+.glow-card.chroma-card {
+    border: 1.5px solid transparent;
+    background:
+        linear-gradient(var(--card), var(--card)) padding-box,
+        linear-gradient(90deg, #ff5555, #ffaa00, #55ff55, #55ffff, #ff55ff, #ff5555) border-box;
+    background-size: 100% 100%, 300% 100%;
+    animation: rainbowShift 8s linear infinite;
+    box-shadow:
+        0 0 26px -12px rgba(255, 170, 0, 0.5),
+        0 0 26px -12px rgba(85, 255, 255, 0.4);
+}
+.glow-card.chroma-card::after {
+    display: none;
+}
+.glow-card.chroma-card:hover {
+    box-shadow:
+        0 0 34px -10px rgba(255, 170, 0, 0.65),
+        0 0 34px -10px rgba(85, 255, 255, 0.55);
+}
+.chroma-marker {
+    border: 2px solid transparent;
+    background:
+        linear-gradient(var(--card), var(--card)) padding-box,
+        linear-gradient(90deg, #ff5555, #ffaa00, #55ff55, #55ffff, #ff55ff, #ff5555) border-box;
+    background-size: 100% 100%, 300% 100%;
+    animation: rainbowShift 6s linear infinite;
+    box-shadow: 0 0 16px -2px rgba(255, 170, 0, 0.6);
+}
+.chroma-fill {
+    background: linear-gradient(90deg, #ff5555, #ffaa00, #55ff55, #55ffff, #ff55ff, #ff5555);
+    background-size: 200% 100%;
+    animation: rainbowShift 6s linear infinite;
+}
+/* Skip rendering (and animating) whole phases while they're off-screen. The
+   padding gives card glows/shadows room, since content-visibility applies
+   paint containment that would otherwise clip them at the box edge. */
+.tl-phase {
+    content-visibility: auto;
+    contain-intrinsic-size: auto 1100px;
+    padding: 1.75rem 1.5rem;
+    margin: -1.75rem -1.5rem;
+}
+@media (prefers-reduced-motion: reduce) {
+    .chroma-text,
+    .glow-card.chroma-card,
+    .chroma-marker,
+    .chroma-fill {
+        animation: none;
+    }
+}
