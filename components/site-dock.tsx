@@ -7,6 +7,15 @@ import { Dock, DockIcon } from "@/components/ui/dock";
 import { SiteDockMobile } from "@/components/site-dock-mobile";
 import { navItems } from "@/lib/nav";
 import { cn } from "@/lib/utils";
+import { useRecentCreations } from "@/lib/recent-creations";
+import type { LucideIcon } from "lucide-react";
+
+interface DockEntry {
+    href: string;
+    label: string;
+    color: string;
+    icon: LucideIcon;
+}
 
 // Cross-page navigation, macOS-dock style. Distinct from <SidebarNav /> (the
 // top-center bubble): the Dock moves you between PAGES, the bubble moves you
@@ -20,6 +29,7 @@ import { cn } from "@/lib/utils";
 // <SiteDockMobile /> gives each tab its own flex column instead.
 export function SiteDock() {
     const pathname = usePathname();
+    const recents = useRecentCreations();
 
     return (
         <>
@@ -44,9 +54,37 @@ export function SiteDock() {
                     icon's own hover state: its color and its label when
                     it's a non-active page). */}
                 <Dock className="liquid-glass group/dock relative">
-                    {navItems.map((item) => {
-                        const active =
-                            item.href === "/" ? pathname === "/" : pathname.startsWith(item.href);
+                    {[
+                        ...navItems.map((item) => ({
+                            item,
+                            active:
+                                item.href === "/"
+                                    ? pathname === "/"
+                                    : pathname.startsWith(item.href),
+                        })),
+                        // Recently opened creations: separator, then icons only.
+                        ...(recents.length > 0
+                            ? [
+                                  {
+                                      item: null,
+                                      active: false,
+                                  },
+                                  ...recents.map((item) => ({
+                                      item: item as DockEntry,
+                                      active: pathname === item.href,
+                                  })),
+                              ]
+                            : []),
+                    ].map(({ item, active }, i) => {
+                        if (!item) {
+                            return (
+                                <div
+                                    key="recent-sep"
+                                    aria-hidden
+                                    className="mx-0.5 h-8 w-px shrink-0 bg-border"
+                                />
+                            );
+                        }
                         const Icon = item.icon;
                         return (
                             <DockIcon

@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { navItems } from "@/lib/nav";
 import { cn } from "@/lib/utils";
+import { useRecentCreations } from "@/lib/recent-creations";
 
 // Plain equal-width tab bar for touch — the fancy hover-magnify <Dock /> packs
 // icons tightly with floating labels, which collide with each other on a
@@ -12,9 +13,41 @@ import { cn } from "@/lib/utils";
 // width and can never overlap a neighbor.
 export function SiteDockMobile() {
     const pathname = usePathname();
+    const recents = useRecentCreations();
 
     return (
         <div className="liquid-glass fixed inset-x-0 bottom-0 z-50 overflow-hidden border-x-0 border-b-0 pb-[env(safe-area-inset-bottom)] sm:hidden">
+            {/* Recently opened creations: icons only, above the tabs. */}
+            {recents.length > 0 && (
+                <div className="flex items-center justify-center gap-4 border-b border-border/50 py-1.5">
+                    {recents.map((r) => {
+                        const Icon = r.icon;
+                        const active = pathname === r.href;
+                        return (
+                            <Link
+                                key={r.href}
+                                href={r.href}
+                                aria-label={r.label}
+                                aria-current={active ? "page" : undefined}
+                                className="grid size-8 place-items-center rounded-full transition-colors"
+                                style={{
+                                    color: active ? r.color : undefined,
+                                    backgroundColor: active
+                                        ? `color-mix(in oklch, ${r.color} 16%, transparent)`
+                                        : undefined,
+                                }}
+                            >
+                                <Icon
+                                    className={cn(
+                                        "size-[18px]",
+                                        !active && "text-muted-foreground"
+                                    )}
+                                />
+                            </Link>
+                        );
+                    })}
+                </div>
+            )}
             <div className="flex">
                 {navItems.map((item) => {
                     const active =

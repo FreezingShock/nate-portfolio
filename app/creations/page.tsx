@@ -1,123 +1,158 @@
-import { Gamepad2, Axis3D, Boxes, Paintbrush, Feather } from "lucide-react";
+import Link from "next/link";
 import { getProjects, getRecentRenovations } from "@/lib/content";
-import { WorkGrid } from "@/components/work-grid";
-import { ComingSoon } from "@/components/coming-soon";
-import { PageHero } from "@/components/page-hero";
-import { SectionLabel } from "@/components/section-label";
-import { SidebarNav } from "@/components/sidebar-nav";
-import { PageBackground } from "@/components/page-background";
+import { GlowCard } from "@/components/glow-card";
+import { NumberTicker } from "@/components/ui/number-ticker";
+import {
+    CategoryGrid,
+    CreationsShell,
+    PhilosophyGrid,
+    Section,
+} from "@/components/creations-sections";
+import {
+    ART_COLLECTIONS,
+    GAME_MODES,
+    allGames,
+    categoryById,
+} from "@/lib/creations-data";
 
 export const revalidate = 60;
 
-// Consolidated hub for everything Nate makes — used to be three separate
-// Dock destinations (Projects, Renovations, Creations). One long page with
-// anchored sections keeps the Dock to a single icon while still giving each
-// category its own header, color accent, and grid.
+// The hub: overview numbers, the four doors (each its own page), and the
+// philosophy behind all of it. Projects and renovations still come from
+// Supabase; games and artwork live in lib/creations-data.ts.
 export default async function CreationsPage() {
     const [projects, renovations] = await Promise.all([
         getProjects(),
         getRecentRenovations(),
     ]);
+    const games = allGames();
+    const playable = games.filter((g) => g.status === "playable").length;
+
+    const stats = [
+        { label: "Web app games", value: games.length, color: "var(--mc-green)" },
+        { label: "Playable now", value: playable, color: "var(--mc-yellow)" },
+        { label: "Projects", value: projects.length, color: "var(--mc-aqua)" },
+        { label: "Renovations", value: renovations.length, color: "var(--mc-gold)" },
+        {
+            label: "Art collections",
+            value: ART_COLLECTIONS.length,
+            color: "var(--mc-light-purple)",
+        },
+    ];
 
     return (
-        <div className="pointer-events-none min-h-screen">
-            <PageBackground variant="grid" color="#55ffff" />
-            <SidebarNav
-                sections={[
-                    {
-                        id: "projects",
-                        label: "Projects",
-                        items: projects.map((p) => ({
-                            href: `/creations/${p.slug}`,
-                            label: p.title,
-                            // Matches the aqua title color that project's own
-                            // /creations/[slug] page renders — the nav entry
-                            // looks like the file it points to.
-                            color: "var(--mc-aqua)",
-                        })),
-                    },
-                    {
-                        id: "renovations",
-                        label: "Renovations",
-                        items: renovations.map((r) => ({
-                            href: `/creations/${r.slug}`,
-                            label: r.title,
-                            color: "var(--mc-gold)",
-                        })),
-                    },
-                    { id: "artwork", label: "Artwork" },
-                ]}
-            />
-            {/* pointer-events-none here is what actually makes the fixed
-                interactive-grid background hoverable: without it, this
-                w-full section — not just its visible text/cards, its whole
-                box — sits in front of the -z-10 background in hit-testing
-                terms and swallows every pointer event across the entire
-                page, whether or not anything is visibly drawn at that
-                point. MagicCard (used by every card below) explicitly
-                re-enables pointer-events-auto on itself since its own
-                hover-spotlight effect needs real pointer events; links
-                inside cards work the same way through the card. */}
-            <section className="pointer-events-none w-full px-6 pb-24 pt-28 sm:px-10 lg:px-16">
-                <PageHero
-                    eyebrow="Made"
-                    title="Creations"
-                    symbol="forge"
-                    description="Everything Nate builds — games and software, real-place renovation studies, and the creative practice around both."
+        <CreationsShell
+            bg="#55ffff"
+            accent="var(--mc-aqua)"
+            nav={[
+                { id: "overview", label: "Overview" },
+                { id: "explore", label: "Explore" },
+                { id: "philosophy", label: "Philosophy" },
+                { id: "roadmap", label: "Game Roadmap" },
+            ]}
+            eyebrow="Made"
+            title="Creations"
+            symbol="forge"
+            description="Everything I build: games you can play here, coding and Roblox projects, renovation studies of real places, and the artwork around it all."
+        >
+            <Section
+                id="overview"
+                first
+                accent="var(--mc-gold)"
+                symbol="flag"
+                title="At a Glance"
+                blurb="What's on the workbench right now."
+            >
+                <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
+                    {stats.map((s) => (
+                        <GlowCard
+                            key={s.label}
+                            color={s.color}
+                            className="p-4 text-center"
+                        >
+                            <p
+                                className="font-mono text-4xl font-bold tabular-nums"
+                                style={{ color: s.color }}
+                            >
+                                <NumberTicker
+                                    value={s.value}
+                                    style={{ color: s.color }}
+                                />
+                            </p>
+                            <p className="mt-1 font-mono text-[10px] uppercase tracking-wider text-muted-foreground">
+                                {s.label}
+                            </p>
+                        </GlowCard>
+                    ))}
+                </div>
+            </Section>
+
+            <Section
+                id="explore"
+                accent="var(--mc-light-purple)"
+                symbol="comet"
+                title="Explore Creations"
+                blurb="Four rooms, one workshop. Pick a door."
+            >
+                <CategoryGrid
+                    counts={{
+                        games: games.length,
+                        projects: projects.length,
+                        renovations: renovations.length,
+                        artwork: ART_COLLECTIONS.length,
+                    }}
                 />
+            </Section>
 
-                <div id="projects" className="mx-auto mt-14 max-w-6xl scroll-mt-24">
-                    <SectionLabel accent="var(--mc-aqua)" symbol="magicFind">Projects</SectionLabel>
-                    <p className="mt-2 max-w-xl text-sm text-muted-foreground">
-                        Games and software — solo-built, systems-driven, shipped and
-                        in-progress.
-                    </p>
-                    <div className="mt-6">
-                        <WorkGrid projects={projects} icon={Gamepad2} accentColor="var(--mc-aqua)" />
-                    </div>
-                </div>
+            <Section
+                id="philosophy"
+                accent="var(--mc-aqua)"
+                symbol="wisdom"
+                title="Creation Philosophy"
+                blurb="Why I make things the way I do. (Draft wording: I'll rewrite it in my own voice.)"
+            >
+                <PhilosophyGrid />
+            </Section>
 
-                <div id="renovations" className="mx-auto mt-20 max-w-6xl scroll-mt-24">
-                    <SectionLabel accent="var(--mc-gold)" symbol="forge">Renovations</SectionLabel>
-                    <p className="mt-2 max-w-xl text-sm text-muted-foreground">
-                        Studying and reimagining real places — measured, modeled, and
-                        redesigned to be greener and more inviting.
-                    </p>
-                    <div className="mt-6">
-                        <WorkGrid projects={renovations} icon={Axis3D} accentColor="var(--mc-gold)" />
-                    </div>
+            <Section
+                id="roadmap"
+                accent={categoryById("games").color}
+                symbol="fortune"
+                title="Game Roadmap"
+                blurb="The plan for games on this site, mode by mode. Each links to its full list."
+            >
+                <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+                    {GAME_MODES.map((m) => {
+                        const Icon = m.icon;
+                        return (
+                            <Link
+                                key={m.id}
+                                href={`/creations/games#${m.id}`}
+                                className="group block"
+                            >
+                                <GlowCard color={m.color} className="h-full p-5">
+                                    <Icon
+                                        className="size-6"
+                                        style={{ color: m.color }}
+                                    />
+                                    <h3
+                                        className="mt-3 font-minecraft text-base font-bold"
+                                        style={{ color: m.color }}
+                                    >
+                                        {m.title}
+                                    </h3>
+                                    <p className="mt-1.5 text-sm text-muted-foreground">
+                                        {m.tagline}
+                                    </p>
+                                    <p className="mt-3 font-mono text-xs text-muted-foreground">
+                                        {m.games.length} planned or playable
+                                    </p>
+                                </GlowCard>
+                            </Link>
+                        );
+                    })}
                 </div>
-
-                <div id="artwork" className="mx-auto mt-20 max-w-6xl scroll-mt-24">
-                    <SectionLabel accent="var(--mc-light-purple)" symbol="flower">Artwork</SectionLabel>
-                    <p className="mt-2 max-w-xl text-sm text-muted-foreground">
-                        Blender renders, drawing, poetry — the creative practice around
-                        the engineering.
-                    </p>
-                    <div className="mt-6">
-                        <ComingSoon
-                            accentColor="var(--mc-light-purple)"
-                            cards={[
-                                {
-                                    title: "Blender renders",
-                                    note: "Renovation studies and 3D renders will live here.",
-                                    icon: Boxes,
-                                },
-                                {
-                                    title: "Drawing",
-                                    note: "Sketches and illustration work.",
-                                    icon: Paintbrush,
-                                },
-                                {
-                                    title: "Poetry",
-                                    note: "Writing that doesn't fit the blog.",
-                                    icon: Feather,
-                                },
-                            ]}
-                        />
-                    </div>
-                </div>
-            </section>
-        </div>
+            </Section>
+        </CreationsShell>
     );
 }
