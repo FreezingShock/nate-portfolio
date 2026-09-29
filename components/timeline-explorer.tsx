@@ -439,12 +439,17 @@ export function TimelineExplorer({
             const owner = phases.find(
                 (p) => p.id === id || p.events.some((e) => e.id === id)
             );
-            if (!owner) return false;
-            setCollapsedPhases((c) => ({ ...c, [owner.id]: false }));
-            if (owner.id !== id) {
-                setMilestonesOnly(false);
-                setHiddenCats({});
-                setOpen((o) => ({ ...o, [id]: true }));
+            // Not a phase or event (#overview, #horizons, …): nothing to
+            // expand, but it still needs the safe-scroll treatment below,
+            // because it sits past the culled phases.
+            if (!owner && !document.getElementById(id)) return false;
+            if (owner) {
+                setCollapsedPhases((c) => ({ ...c, [owner.id]: false }));
+                if (owner.id !== id) {
+                    setMilestonesOnly(false);
+                    setHiddenCats({});
+                    setOpen((o) => ({ ...o, [id]: true }));
+                }
             }
             // Off-screen phases are skipped with `content-visibility: auto`,
             // so their heights are estimates until they render. A long
@@ -467,7 +472,7 @@ export function TimelineExplorer({
                         window.innerHeight * 3;
                     target.scrollIntoView({
                         behavior: smooth && near ? "smooth" : "auto",
-                        block: owner.id === id ? "start" : "center",
+                        block: !owner || owner.id === id ? "start" : "center",
                     });
                 }
                 cullingTimer.current = window.setTimeout(

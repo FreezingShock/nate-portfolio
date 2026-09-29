@@ -542,3 +542,108 @@
 .tl-cv-off .tl-phase {
     content-visibility: visible;
 }
+
+/* ---------- Journey tracker (components/journey-tracker.tsx) ---------- */
+
+/* Glossy "liquid glass" progress bar. No backdrop-filter (there are several on
+   screen, ticking every second): the glass look is built from an inset-lit
+   track, a gradient fill, a top gloss highlight and a sheen that slides across
+   with a transform-only animation (composited, so it costs almost nothing). */
+.glass-track {
+    position: relative;
+    overflow: hidden;
+    border-radius: 9999px;
+    background: color-mix(in oklch, var(--foreground) 7%, transparent);
+    box-shadow:
+        inset 0 2px 4px rgba(0, 0, 0, 0.55),
+        inset 0 -1px 0 rgba(255, 255, 255, 0.1),
+        0 0 0 1px rgba(255, 255, 255, 0.09);
+}
+.glass-fill {
+    position: absolute;
+    inset: 0 auto 0 0;
+    border-radius: 9999px;
+    background: linear-gradient(90deg, var(--from), var(--to));
+    box-shadow:
+        0 0 14px -2px var(--to),
+        inset 0 -2px 3px rgba(0, 0, 0, 0.25),
+        inset -2px 0 3px rgba(255, 255, 255, 0.35);
+    overflow: hidden;
+    transition: width 1s linear;
+}
+.glass-fill::before {
+    content: "";
+    position: absolute;
+    inset: 0 0 45% 0;
+    border-radius: inherit;
+    background: linear-gradient(
+        to bottom,
+        rgba(255, 255, 255, 0.6),
+        rgba(255, 255, 255, 0.08)
+    );
+}
+.glass-fill::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(
+        100deg,
+        transparent 30%,
+        rgba(255, 255, 255, 0.5) 50%,
+        transparent 70%
+    );
+    transform: translateX(-100%);
+    animation: glassSheen 3.6s ease-in-out infinite;
+}
+@keyframes glassSheen {
+    0% { transform: translateX(-100%); }
+    60%, 100% { transform: translateX(100%); }
+}
+
+/* Border-only rim for the journey tooltip: a gradient clipped to a 1.5px ring
+   with a mask, drawn over the glass. `.chroma-ring` swaps in the animated
+   rainbow; without it the element takes an inline themed gradient. */
+.tip-ring {
+    position: absolute;
+    inset: 0;
+    padding: 1.5px;
+    border-radius: inherit;
+    pointer-events: none;
+    mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+    -webkit-mask: linear-gradient(#fff 0 0) content-box,
+        linear-gradient(#fff 0 0);
+    mask-composite: exclude;
+    -webkit-mask-composite: xor;
+}
+.chroma-ring {
+    background: linear-gradient(
+        90deg,
+        #ff5555,
+        #ffaa00,
+        #55ff55,
+        #55ffff,
+        #ff55ff,
+        #ff5555
+    );
+    background-size: 300% 100%;
+    animation: rainbowShift 6s linear infinite;
+}
+
+@keyframes tlTipIn {
+    from { opacity: 0; transform: translateY(6px) scale(0.94); }
+    to { opacity: 1; transform: translateY(0) scale(1); }
+}
+.tl-tip-in {
+    animation: tlTipIn 0.16s ease-out;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .glass-fill::after,
+    .chroma-ring,
+    .tl-tip-in {
+        animation: none;
+    }
+    .glass-fill {
+        transition: none;
+    }
+}

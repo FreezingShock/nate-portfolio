@@ -2,22 +2,22 @@ import Link from "next/link";
 import { ArrowRight, Star } from "lucide-react";
 import { GlowCard } from "@/components/glow-card";
 import { SectionLabel } from "@/components/section-label";
-import { NumberTicker } from "@/components/ui/number-ticker";
+import {
+    JourneyTracker,
+    type JourneyBand,
+    type JourneyMarker,
+} from "@/components/journey-tracker";
 import {
     TimelineCountdowns,
     type Countdown,
 } from "@/components/timeline-countdowns";
 import {
     CATEGORIES,
-    JOURNEY_END,
-    JOURNEY_START,
     KEY_DATES,
     allEvents,
-    dayNum,
     getStatus,
     getUpNext,
     phases,
-    progressBetween,
 } from "@/lib/timeline-data";
 
 const COUNTDOWNS: Countdown[] = [
@@ -46,23 +46,63 @@ const COUNTDOWNS: Countdown[] = [
     },
 ];
 
-// Position of a date along the journey bar, as a percentage. Whole-day
-// arithmetic (see dayNum) so it never shifts with the server's timezone.
-const JOURNEY_DAYS = dayNum(JOURNEY_END) + 1 - dayNum(JOURNEY_START);
-const pos = (date: string) =>
-    (Math.min(Math.max(dayNum(date) - dayNum(JOURNEY_START), 0), JOURNEY_DAYS) /
-        JOURNEY_DAYS) *
-    100;
+// The events shown as markers on the journey axis: every rainbow milestone
+// plus each major event, plus the finish line itself (Launch). Data is
+// prepared here on the server; the interactive axis is a client component.
+function buildMarkers(nowMs: number): JourneyMarker[] {
+    const fromEvents = allEvents()
+        .filter(
+            (e) =>
+                e.phase.id !== "personal" && (e.special || e.type === "major")
+        )
+        .map<JourneyMarker>((e) => ({
+            id: e.id,
+            title: e.title,
+            when: e.when,
+            start: e.start,
+            description: e.description,
+            tags: e.tags,
+            color: CATEGORIES[e.category].color,
+            categoryLabel: CATEGORIES[e.category].label,
+            status: getStatus(e, nowMs),
+            special: !!e.special,
+            href: `#${e.id}`,
+        }));
+    return [
+        ...fromEvents,
+        {
+            id: "launch",
+            title: "Launch",
+            when: "Spring 2031",
+            start: "2031-05-31",
+            description:
+                "The point the whole plan builds toward: launching a sustainable infrastructure and urban design business or project, backed by an engineering degree, an executed portfolio, athletic leadership and a network of mentors.",
+            tags: ["Founding", "Sustainability"],
+            color: "var(--mc-gold)",
+            categoryLabel: "Finish line",
+            status: "upcoming",
+            special: true,
+            href: "#horizons",
+        },
+    ];
+}
 
 // Server component: static structure plus the live countdown island.
 export function TimelineOverview({ nowMs }: { nowMs: number }) {
     const events = allEvents();
     const total = phases.reduce((n, p) => n + p.events.length, 0);
     const done = events.filter((e) => getStatus(e, nowMs) === "done").length;
-    const journeyPct = progressBetween(JOURNEY_START, JOURNEY_END, nowMs) * 100;
-    const milestones = events.filter((e) => e.special);
+    const markers = buildMarkers(nowMs);
     const upNext = getUpNext(4, nowMs);
-    const journeyPhases = phases.filter((p) => p.id !== "personal");
+    const bands: JourneyBand[] = phases
+        .filter((p) => p.id !== "personal")
+        .map((p) => ({
+            id: p.id,
+            short: p.short,
+            color: p.color,
+            start: p.start,
+            end: p.end,
+        }));
 
     return (
         <div className="space-y-8">
@@ -79,135 +119,15 @@ export function TimelineOverview({ nowMs }: { nowMs: number }) {
                 </div>
             </div>
 
-            {/* Journey bar: the whole 2026 → 2031 stretch on one line. */}
-            <GlowCard color="var(--mc-green)" className="p-5 sm:p-6">
-                <div className="flex flex-wrap items-baseline justify-between gap-2">
-                    <h3
-                        className="font-minecraft text-lg font-bold"
-                        style={{ color: "var(--mc-green)" }}
-                    >
-                        The Whole Journey
-                    </h3>
-                    <span className="font-mono text-xs text-muted-foreground">
-                        Sept 2026 → May 2031
-                    </span>
-                </div>
-
-                <div className="relative mt-8 h-4">
-                    {/* base track + phase segments */}
-                    <div
-                        className="absolute inset-0 rounded-full"
-                        style={{
-                            backgroundColor:
-                                "color-mix(in oklch, var(--foreground) 10%, transparent)",
-                        }}
-                    />
-                    {journeyPhases.map((p) => (
-                        <div
-                            key={p.id}
-                            className="absolute inset-y-0 rounded-full"
-                            title={`${p.short}: ${p.range}`}
-                            style={{
-                                left: `${pos(p.start)}%`,
-                                width: `${pos(p.end) - pos(p.start)}%`,
-                                backgroundColor: `color-mix(in oklch, ${p.color} 55%, transparent)`,
-                                boxShadow: `0 0 12px -2px color-mix(in oklch, ${p.color} 60%, transparent)`,
-                            }}
-                        />
-                    ))}
-                    {/* elapsed overlay */}
-                    <div
-                        className="absolute inset-y-0 left-0 rounded-full"
-                        style={{
-                            width: `${Math.max(journeyPct, 0.8)}%`,
-                            background:
-                                "linear-gradient(90deg, var(--mc-blue), var(--mc-aqua))",
-                            boxShadow: "0 0 14px var(--mc-aqua)",
-                        }}
-                    />
-                    {/* special milestones */}
-                    {milestones.map((m) => (
-                        <span
-                            key={m.id}
-                            title={`${m.title}: ${m.when}`}
-                            className="chroma-marker absolute top-1/2 size-4 -translate-x-1/2 -translate-y-1/2 rounded-full"
-                            style={{ left: `${pos(m.start)}%` }}
-                        />
-                    ))}
-                    {/* today */}
-                    <span
-                        className="absolute -top-6 -translate-x-1/2 font-mono text-[10px] font-bold uppercase tracking-wider"
-                        style={{
-                            left: `${Math.max(journeyPct, 3)}%`,
-                            color: "var(--mc-aqua)",
-                        }}
-                    >
-                        ▼ You are here
-                    </span>
-                </div>
-
-                <div className="relative mt-3 h-10 text-[11px] font-semibold">
-                    {journeyPhases.map((p) => (
-                        <span
-                            key={p.id}
-                            className="absolute -translate-x-1/2 whitespace-nowrap text-center font-minecraft"
-                            style={{
-                                left: `${(pos(p.start) + pos(p.end)) / 2}%`,
-                                color: p.color,
-                            }}
-                        >
-                            {p.short}
-                        </span>
-                    ))}
-                </div>
-
-                <div
-                    className="mt-2 grid grid-cols-3 gap-3 border-t pt-4"
-                    style={{
-                        borderColor:
-                            "color-mix(in oklch, var(--mc-green) 25%, transparent)",
-                    }}
-                >
-                    <div>
-                        <p
-                            className="font-mono text-2xl font-bold tabular-nums"
-                            style={{ color: "var(--mc-aqua)" }}
-                        >
-                            {journeyPct < 1 ? (
-                                journeyPct.toFixed(1)
-                            ) : (
-                                <NumberTicker value={Math.round(journeyPct)} />
-                            )}
-                            <span className="text-base">%</span>
-                        </p>
-                        <p className="font-mono text-[10px] uppercase tracking-wider text-muted-foreground">
-                            of the journey
-                        </p>
-                    </div>
-                    <div>
-                        <p
-                            className="font-mono text-2xl font-bold tabular-nums"
-                            style={{ color: "var(--mc-gold)" }}
-                        >
-                            <NumberTicker value={total} />
-                        </p>
-                        <p className="font-mono text-[10px] uppercase tracking-wider text-muted-foreground">
-                            milestones planned
-                        </p>
-                    </div>
-                    <div>
-                        <p
-                            className="font-mono text-2xl font-bold tabular-nums"
-                            style={{ color: "var(--mc-green)" }}
-                        >
-                            <NumberTicker value={done} />
-                        </p>
-                        <p className="font-mono text-[10px] uppercase tracking-wider text-muted-foreground">
-                            already done
-                        </p>
-                    </div>
-                </div>
-            </GlowCard>
+            {/* The whole journey: interactive year/month axis with hoverable
+                milestones, plus live clock and progress tickers. */}
+            <JourneyTracker
+                markers={markers}
+                bands={bands}
+                nowMs={nowMs}
+                total={total}
+                done={done}
+            />
 
             {/* Up next */}
             <div>

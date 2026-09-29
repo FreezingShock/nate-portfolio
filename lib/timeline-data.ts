@@ -1027,3 +1027,53 @@ export function getUpNext(limit = 4, now = Date.now()) {
         .sort((a, b) => dayNum(a.start) - dayNum(b.start))
         .slice(0, limit);
 }
+
+export const JOURNEY_DAYS = dayNum(JOURNEY_END) + 1 - dayNum(JOURNEY_START);
+
+const PT_PARTS = new Intl.DateTimeFormat("en-US", {
+    timeZone: "America/Los_Angeles",
+    hourCycle: "h23",
+    year: "numeric",
+    month: "numeric",
+    day: "numeric",
+    hour: "numeric",
+    minute: "numeric",
+    second: "numeric",
+});
+
+const isLeap = (y: number) => (y % 4 === 0 && y % 100 !== 0) || y % 400 === 0;
+
+/** The current moment in Pacific time, with how far through the day, month,
+ *  year and whole journey it is (all 0–1, down to the second). */
+export function ptClock(now = Date.now()) {
+    const p: Record<string, number> = {};
+    for (const part of PT_PARTS.formatToParts(now)) {
+        if (part.type !== "literal") p[part.type] = Number(part.value);
+    }
+    const { year, month, day, hour, minute, second } = p;
+    const dayFrac = (hour * 3600 + minute * 60 + second) / 86400;
+    const daysInMonth = new Date(Date.UTC(year, month, 0)).getUTCDate();
+    const daysInYear = isLeap(year) ? 366 : 365;
+    const dayOfYear =
+        (Date.UTC(year, month - 1, day) - Date.UTC(year, 0, 1)) / DAY + 1;
+    const todayNum = Date.UTC(year, month - 1, day) / DAY;
+    const journeyFrac = Math.min(
+        1,
+        Math.max(0, (todayNum + dayFrac - dayNum(JOURNEY_START)) / JOURNEY_DAYS)
+    );
+    return {
+        year,
+        month,
+        day,
+        hour,
+        minute,
+        second,
+        dayFrac,
+        monthFrac: (day - 1 + dayFrac) / daysInMonth,
+        yearFrac: (dayOfYear - 1 + dayFrac) / daysInYear,
+        journeyFrac,
+        daysInMonth,
+        daysInYear,
+        dayOfYear,
+    };
+}
