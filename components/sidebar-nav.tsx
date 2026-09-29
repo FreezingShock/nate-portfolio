@@ -74,6 +74,13 @@ export function SidebarNav({ sections }: { sections: PageSection[] }) {
         ) ?? navItems[0];
     const bubbleLetter = currentPage.title.charAt(0);
     const bubbleColor = currentPage.color;
+    // Only the landing page gets the rainbow bubble; every other page's
+    // bubble wears that page's own title color for its fill, stroke and
+    // glow, matching its Dock icon and PageHero.
+    const isHome = pathname === "/";
+    const shineColors = isHome
+        ? ["#ff5555", "#ffaa00", "#55ff55", "#55ffff", "#ff55ff"]
+        : [bubbleColor, `color-mix(in oklch, ${bubbleColor} 55%, white)`];
 
     // Hover has no equivalent on touch devices, so tapping the ball toggles
     // an "open" state that sticks until you tap outside or hit Escape —
@@ -139,16 +146,19 @@ export function SidebarNav({ sections }: { sections: PageSection[] }) {
             <motion.div
                 layout
                 transition={LIQUID_SPRING}
-                className="rainbow-bg relative origin-top-left overflow-hidden rounded-3xl backdrop-blur-xl"
+                className={`relative origin-top-left overflow-hidden rounded-3xl backdrop-blur-xl ${isHome ? "rainbow-bg" : ""}`}
                 style={{
+                    backgroundColor: isHome
+                        ? undefined
+                        : `color-mix(in oklch, ${bubbleColor} 22%, transparent)`,
                     width: (open ? PANEL_W : BALL) + HOVER_MARGIN,
                     height: (open ? panelH : BALL) + HOVER_MARGIN,
                     boxShadow: open
-                        ? `0 12px 40px -12px color-mix(in oklch, ${bubbleColor} 35%, transparent)`
-                        : `0 0 14px color-mix(in oklch, ${bubbleColor} 30%, transparent)`,
+                        ? `0 12px 40px -12px color-mix(in oklch, ${bubbleColor} 45%, transparent)`
+                        : `0 0 16px color-mix(in oklch, ${bubbleColor} 45%, transparent)`,
                 }}
             >
-                <ShineBorder borderWidth={1.5} duration={8} shineColor={["#ff5555", "#ffaa00", "#55ff55", "#55ffff", "#ff55ff"]} />
+                <ShineBorder borderWidth={1.5} duration={8} shineColor={shineColors} />
                 <AnimatePresence mode="wait" initial={false}>
                     {!open ? (
                         <motion.button
@@ -164,7 +174,12 @@ export function SidebarNav({ sections }: { sections: PageSection[] }) {
                             transition={{ duration: 0.15 }}
                             className="absolute inset-0 flex items-center justify-center font-minecraft text-base font-semibold transition-transform hover:scale-105"
                         >
-                            <span className="rainbow-text">{bubbleLetter}</span>
+                            <span
+                                className={isHome ? "rainbow-text" : undefined}
+                                style={isHome ? undefined : { color: bubbleColor }}
+                            >
+                                {bubbleLetter}
+                            </span>
                         </motion.button>
                     ) : (
                         <motion.nav

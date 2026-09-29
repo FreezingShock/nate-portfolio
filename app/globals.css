@@ -380,3 +380,21 @@
     background-size: 300% 100%;
     animation: rainbowShift 8s linear infinite;
 }
+
+/* Twinkle layers for DotPattern's `glow` — slow and stepped on purpose (see
+   the note in components/ui/dot-pattern.tsx): a smooth per-frame fade would
+   force every backdrop-filter above it to re-blur each frame. Duration and
+   delay are set per layer inline. */
+@keyframes dot-twinkle {
+    0%, 100% { opacity: 0; }
+    50% { opacity: 1; }
+}
+.dot-twinkle {
+    animation-name: dot-twinkle;
+    animation-timing-function: steps(6, end);
+    animation-iteration-count: infinite;
+    will-change: opacity;
+}
+@media (prefers-reduced-motion: reduce) {
+    .dot-twinkle { animation: none; opacity: 0; }
+}
