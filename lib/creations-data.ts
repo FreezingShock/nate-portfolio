@@ -245,10 +245,11 @@ export const GAME_MODES: GameMode[] = [
             {
                 slug: "fractured-idle",
                 title: "Fractured Idle",
-                status: "planned",
+                status: "playable",
                 icon: Shapes,
-                blurb: "A shattered-islands incremental: gather shards, rebuild, ascend. A web echo of Fractured Islands.",
-                features: ["Offline progress", "Prestige layers", "Local saves"],
+                blurb: "A button-simulator incremental with SkyBlock flavor: click for shards, hire minions, unlock islands and rebirth. A web echo of Fractured Islands.",
+                features: ["Offline progress", "Rebirths and upgrades", "Fullscreen, local saves"],
+                href: "/creations/games/fractured-idle",
             },
             {
                 slug: "eco-loop",
