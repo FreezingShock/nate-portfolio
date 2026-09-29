@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Github, Mail, Twitch, Youtube } from "lucide-react";
+import { Github, Mail, Youtube } from "lucide-react";
 import { DiscordLogoIcon, InstagramLogoIcon } from "@radix-ui/react-icons";
 import { identity } from "@/lib/content";
 import { navItems } from "@/lib/nav";
@@ -15,16 +15,13 @@ function TikTokIcon({ className }: { className?: string }) {
 }
 
 // Each platform in its own brand color; the icon and stroke share it.
-// TODO(Nate): swap the placeholder profile URLs (Discord/Instagram/TikTok/
-// YouTube/Twitch currently point at the platform homepage) for real ones.
 const SOCIALS = [
     { label: "GitHub", href: "https://github.com/FreezingShock", color: "#e6edf3", Icon: Github },
-    { label: "Discord", href: "https://discord.com", color: "#5865f2", Icon: DiscordLogoIcon },
-    { label: "Instagram", href: "https://instagram.com", color: "#e4405f", Icon: InstagramLogoIcon },
-    { label: "TikTok", href: "https://tiktok.com", color: "#25f4ee", Icon: TikTokIcon },
-    { label: "YouTube", href: "https://youtube.com", color: "#ff0000", Icon: Youtube },
-    { label: "Twitch", href: "https://twitch.tv", color: "#9146ff", Icon: Twitch },
-    { label: "Email", href: "mailto:nateanderson36b2@gmail.com", color: "#ffaa00", Icon: Mail },
+    { label: "Discord", href: "https://discord.com/users/724456022722215966", color: "#5865f2", Icon: DiscordLogoIcon },
+    { label: "Instagram", href: "https://instagram.com/nate9anderson", color: "#e4405f", Icon: InstagramLogoIcon },
+    { label: "TikTok", href: "https://www.tiktok.com/@nate9anderson", color: "#25f4ee", Icon: TikTokIcon },
+    { label: "YouTube", href: "https://www.youtube.com/channel/UC_MMqRncSjzBoT2aDRhXj7Q", color: "#ff0000", Icon: Youtube },
+    { label: "Email", href: "mailto:nateanderson36b2@gmail.com", color: "#ffaa00", Icon: Mail, preferred: true },
 ];
 
 // Pages: Minecraft font, each in its page's Minecraft color + glyph.
@@ -210,7 +207,7 @@ export function SiteFooter() {
                 <div>
                     <Heading symbol="magicFind" color="#ff55ff">Find Me</Heading>
                     <ul className="mt-4 flex flex-wrap gap-2.5">
-                        {SOCIALS.map(({ label, href, color, Icon }) => (
+                        {SOCIALS.map(({ label, href, color, Icon, preferred }) => (
                             <li key={label}>
                                 <a
                                     href={href}
@@ -221,6 +218,12 @@ export function SiteFooter() {
                                 >
                                     <Icon className="size-4" />
                                     {label}
+                                    {preferred && (
+                                        <>
+                                            <span className="text-[#aaaaaa]">-</span>
+                                            <span className="font-minecraft font-bold text-[#55ff55]">PREFERRED</span>
+                                        </>
+                                    )}
                                 </a>
                             </li>
                         ))}
@@ -232,7 +235,7 @@ export function SiteFooter() {
                 <p>
                     © {new Date().getFullYear()} {identity.name} {identity.lastName}
                 </p>
-                <p>Built with Next.js, Supabase &amp; Vercel</p>
+                <p>Built with love. &lt;3</p>
             </div>
         </footer>
     );

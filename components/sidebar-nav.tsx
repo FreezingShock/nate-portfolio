@@ -109,19 +109,18 @@ export function SidebarNav({ sections }: { sections: PageSection[] }) {
     return (
         <div
             ref={rootRef}
-            // Mobile: pinned to the top-left corner so it never competes
-            // with the theme toggle (top-right) and — critically — so the
+            // Pinned to the top-left corner on every screen size so it
+            // never competes with the theme toggle (top-right) and the
             // expanded panel below grows rightward from a fixed left edge
             // instead of outward from a horizontal center, which is what
-            // was pushing it off-screen on narrow viewports. Desktop keeps
-            // the original top-center placement.
+            // was pushing it off-screen on narrow viewports.
             // pointer-events-auto: a page can make its own content wrapper
             // pointer-events-none to let an interactive background behind
             // it receive hover/click (see app/creations/page.tsx) — this
             // nav is a fixed-position descendant of that wrapper on every
             // page, so it always re-declares auto regardless of what an
             // ancestor set.
-            className="pointer-events-auto fixed left-5 top-5 z-50 sm:left-1/2 sm:-translate-x-1/2"
+            className="pointer-events-auto fixed left-5 top-5 z-50"
             onMouseEnter={() => setHovered(true)}
             onMouseLeave={() => setHovered(false)}
             onFocus={() => setHovered(true)}
@@ -135,12 +134,12 @@ export function SidebarNav({ sections }: { sections: PageSection[] }) {
                 and panel-size — the "liquid glass" morph is this box
                 resizing and re-rounding via a real spring (framer-motion
                 `layout`), not two elements cross-fading on top of each
-                other. Anchored top-left (mobile) / top-center (desktop) so
-                it always grows toward the content, never off-screen. */}
+                other. Anchored top-left so it always grows toward the
+                content, never off-screen. */}
             <motion.div
                 layout
                 transition={LIQUID_SPRING}
-                className="rainbow-bg relative origin-top-left overflow-hidden rounded-3xl backdrop-blur-xl sm:origin-top"
+                className="rainbow-bg relative origin-top-left overflow-hidden rounded-3xl backdrop-blur-xl"
                 style={{
                     width: (open ? PANEL_W : BALL) + HOVER_MARGIN,
                     height: (open ? panelH : BALL) + HOVER_MARGIN,
