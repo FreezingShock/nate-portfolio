@@ -488,7 +488,7 @@ export function FracturedIdle() {
                                     </div>
                                     <p className="font-rubik text-xs text-muted-foreground">
                                         Resets your shards, minions and upgrades. You keep islands, skills, trophies and rebirth upgrades.
-                                        Each rebirth adds +{Math.round(75 * (1 + 0.1 * (s.rups.core || 0)))}% to your multiplier (now x{F(d.rMult)}) and grants tokens.
+                                        Each rebirth multiplies everything by x{(1.5 + 0.05 * (s.rups.core || 0)).toFixed(2)} (now x{F(d.rMult)} total) and grants tokens.
                                     </p>
                                     <div className="mt-3 flex flex-wrap items-center gap-3">
                                         {confirmRebirth ? (

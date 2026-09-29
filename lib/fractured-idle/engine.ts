@@ -126,9 +126,9 @@ export function derive(s: State): Derived {
     critChance = Math.min(0.75, critChance);
 
     const core = s.rups.core || 0;
-    const rMult = 1 + 0.75 * s.rebirths * (1 + 0.1 * core);
+    const rMult = Math.pow(1.5 + 0.05 * core, s.rebirths);
     let islandMult = 1;
-    for (const i of ISLANDS) if (s.total >= i.at) islandMult *= i.mult;
+    for (const i of ISLANDS) if (s.total >= i.at) islandMult = Math.max(islandMult, i.mult);
     const achMult = 1 + 0.01 * s.ach.length;
     const all = rMult * islandMult * achMult * allUp;
 

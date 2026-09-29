@@ -35,22 +35,22 @@ export interface MinionDef {
     cps: number;
 }
 
-export const MINION_GROWTH = 1.15;
-export const MILESTONES = [25, 50, 100, 150, 200, 250, 300, 400, 500];
+export const MINION_GROWTH = 1.17;
+export const MILESTONES = [25, 50, 100, 200, 400];
 
 export const MINIONS: MinionDef[] = [
-    { id: "cobble", name: "Cobblestone Minion", color: "var(--mc-gray, #aaaaaa)", symbol: "defense", cost: 15, cps: 0.2 },
-    { id: "wheat", name: "Wheat Minion", color: "var(--mc-yellow)", symbol: "fortune", cost: 120, cps: 1.2 },
-    { id: "oak", name: "Oak Minion", color: "var(--mc-dark-green)", symbol: "regen", cost: 1.1e3, cps: 8 },
-    { id: "coal", name: "Coal Minion", color: "var(--mc-blue)", symbol: "heat", cost: 1.3e4, cps: 47 },
-    { id: "iron", name: "Iron Minion", color: "var(--mc-aqua)", symbol: "trueDefense", cost: 1.4e5, cps: 260 },
-    { id: "gold", name: "Gold Minion", color: "var(--mc-gold)", symbol: "magicFind", cost: 2e6, cps: 1.4e3 },
-    { id: "diamond", name: "Diamond Minion", color: "var(--mc-aqua)", symbol: "pristine", cost: 3.3e7, cps: 7.8e3 },
-    { id: "lapis", name: "Lapis Minion", color: "var(--mc-blue)", symbol: "intelligence", cost: 5.1e8, cps: 4.4e4 },
-    { id: "emerald", name: "Emerald Minion", color: "var(--mc-green)", symbol: "petLuck", cost: 7.5e9, cps: 2.6e5 },
-    { id: "obsidian", name: "Obsidian Minion", color: "var(--mc-dark-purple)", symbol: "night", cost: 1e11, cps: 1.6e6 },
-    { id: "glowstone", name: "Glowstone Minion", color: "var(--mc-yellow)", symbol: "speed", cost: 1.6e12, cps: 1e7 },
-    { id: "fractured", name: "Fractured Minion", color: "var(--mc-light-purple)", symbol: "portal", cost: 3e13, cps: 7e7 },
+    { id: "cobble", name: "Cobblestone Minion", color: "var(--mc-gray, #aaaaaa)", symbol: "defense", cost: 15, cps: 0.4 },
+    { id: "wheat", name: "Wheat Minion", color: "var(--mc-yellow)", symbol: "fortune", cost: 120, cps: 2.4 },
+    { id: "oak", name: "Oak Minion", color: "var(--mc-dark-green)", symbol: "regen", cost: 1.1e3, cps: 16 },
+    { id: "coal", name: "Coal Minion", color: "var(--mc-blue)", symbol: "heat", cost: 1.3e4, cps: 94 },
+    { id: "iron", name: "Iron Minion", color: "var(--mc-aqua)", symbol: "trueDefense", cost: 1.4e5, cps: 520 },
+    { id: "gold", name: "Gold Minion", color: "var(--mc-gold)", symbol: "magicFind", cost: 2e6, cps: 2800 },
+    { id: "diamond", name: "Diamond Minion", color: "var(--mc-aqua)", symbol: "pristine", cost: 3.3e7, cps: 15600 },
+    { id: "lapis", name: "Lapis Minion", color: "var(--mc-blue)", symbol: "intelligence", cost: 5.1e8, cps: 88000 },
+    { id: "emerald", name: "Emerald Minion", color: "var(--mc-green)", symbol: "petLuck", cost: 7.5e9, cps: 520000 },
+    { id: "obsidian", name: "Obsidian Minion", color: "var(--mc-dark-purple)", symbol: "night", cost: 1e11, cps: 3.2e+06 },
+    { id: "glowstone", name: "Glowstone Minion", color: "var(--mc-yellow)", symbol: "speed", cost: 1.6e12, cps: 2e+07 },
+    { id: "fractured", name: "Fractured Minion", color: "var(--mc-light-purple)", symbol: "portal", cost: 3e13, cps: 1.4e+08 },
 ];
 
 export type UpKind = "click" | "minion" | "all" | "auto" | "critChance" | "critDmg" | "synergy";
@@ -135,13 +135,13 @@ export interface RebirthUpDef {
 }
 
 export const REBIRTH_UPS: RebirthUpDef[] = [
-    { id: "core", name: "Fractured Core", desc: "+10% rebirth multiplier effect", cost: 1, growth: 2, max: 10, symbol: "portal", color: "var(--mc-light-purple)" },
-    { id: "head", name: "Head Start", desc: "Begin each rebirth with more shards", cost: 1, growth: 2.5, max: 8, symbol: "speed", color: "var(--mc-yellow)" },
+    { id: "core", name: "Fractured Core", desc: "+0.05 to the rebirth multiplier base (x1.5 per rebirth)", cost: 1, growth: 2, max: 10, symbol: "portal", color: "var(--mc-light-purple)" },
+    { id: "head", name: "Head Start", desc: "Begin each rebirth with more shards", cost: 1, growth: 2.5, max: 5, symbol: "speed", color: "var(--mc-yellow)" },
     { id: "disc", name: "Bulk Discount", desc: "-5% minion cost", cost: 2, growth: 2, max: 10, symbol: "fortune", color: "var(--mc-green)" },
     { id: "off", name: "Night Owl", desc: "+10% offline efficiency", cost: 1, growth: 2, max: 5, symbol: "night", color: "var(--mc-blue)" },
 ];
 
-export const rebirthCost = (r: number) => 1e6 * Math.pow(6, r);
+export const rebirthCost = (r: number) => 1e6 * Math.pow(16, r);
 
 export interface IslandDef {
     id: string;
@@ -149,18 +149,18 @@ export interface IslandDef {
     color: string;
     symbol: McSymbolName;
     at: number; // lifetime shards to unlock
-    mult: number;
+    mult: number; // total island bonus while this is the best unlocked (does not stack)
     blurb: string;
 }
 
 export const ISLANDS: IslandDef[] = [
     { id: "hub", name: "The Hub", color: "var(--mc-green)", symbol: "location", at: 0, mult: 1, blurb: "Where every adventure starts." },
-    { id: "mine", name: "Gold Mine", color: "var(--mc-gold)", symbol: "forge", at: 1e5, mult: 2, blurb: "Placeholder: a warm tunnel with veins of shard ore." },
-    { id: "caverns", name: "Deep Caverns", color: "var(--mc-aqua)", symbol: "pristine", at: 1e8, mult: 3, blurb: "Placeholder: crystal ceilings and echoing minecarts." },
-    { id: "den", name: "Spider's Den", color: "var(--mc-dark-purple)", symbol: "night", at: 1e11, mult: 5, blurb: "Placeholder: webs, eggs and something watching." },
-    { id: "fortress", name: "Blazing Fortress", color: "var(--mc-red)", symbol: "heat", at: 1e14, mult: 8, blurb: "Placeholder: lava bridges and blaze spawners." },
-    { id: "end", name: "The End", color: "var(--mc-light-purple)", symbol: "portal", at: 1e18, mult: 15, blurb: "Placeholder: pale stone floating in the dark." },
-    { id: "fractured", name: "Fractured Islands", color: "var(--mc-blue)", symbol: "comet", at: 1e24, mult: 50, blurb: "Placeholder: the shattered home of it all." },
+    { id: "mine", name: "Gold Mine", color: "var(--mc-gold)", symbol: "forge", at: 1e5, mult: 1.5, blurb: "Placeholder: a warm tunnel with veins of shard ore." },
+    { id: "caverns", name: "Deep Caverns", color: "var(--mc-aqua)", symbol: "pristine", at: 1e9, mult: 2.5, blurb: "Placeholder: crystal ceilings and echoing minecarts." },
+    { id: "den", name: "Spider's Den", color: "var(--mc-dark-purple)", symbol: "night", at: 1e13, mult: 4, blurb: "Placeholder: webs, eggs and something watching." },
+    { id: "fortress", name: "Blazing Fortress", color: "var(--mc-red)", symbol: "heat", at: 1e18, mult: 7, blurb: "Placeholder: lava bridges and blaze spawners." },
+    { id: "end", name: "The End", color: "var(--mc-light-purple)", symbol: "portal", at: 1e24, mult: 12, blurb: "Placeholder: pale stone floating in the dark." },
+    { id: "fractured", name: "Fractured Islands", color: "var(--mc-blue)", symbol: "comet", at: 1e32, mult: 25, blurb: "Placeholder: the shattered home of it all." },
 ];
 
 export interface AchDef {
