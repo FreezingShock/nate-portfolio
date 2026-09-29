@@ -1,22 +1,30 @@
-import Link from "next/link"
-import { PageHero } from "@/components/page-hero"
-import { SidebarNav } from "@/components/sidebar-nav"
-import { PageBackground } from "@/components/page-background"
-import { SectionLabel } from "@/components/section-label"
-import { ShineBorder } from "@/components/ui/shine-border"
-import { RunningStatsCard } from "@/components/running-stats-card"
-import { RobloxBreakdown } from "@/components/roblox-breakdown"
-import { PhilosophyCard } from "@/components/philosophy-card"
-import { EducationTimeline } from "@/components/education-timeline"
-import { McSymbol } from "@/components/mc-symbol"
-import { SkillsTree } from "@/components/skills-tree"
+import Link from "next/link";
+import { ArrowRight } from "lucide-react";
+import { PageHero } from "@/components/page-hero";
+import { SidebarNav } from "@/components/sidebar-nav";
+import { PageBackground } from "@/components/page-background";
+import { SectionLabel } from "@/components/section-label";
+import {
+    AboutStory,
+    BuildingCards,
+    PathGlance,
+    PhilosophySection,
+    RunningSection,
+} from "@/components/about-sections";
+import { SystemsExplorer } from "@/components/systems-explorer";
+import { SkillsExplorer } from "@/components/skills-explorer";
+
+// Statically generated, refreshed hourly: the days-to-graduation figure and
+// the path progress bars come from real dates at render time.
+export const revalidate = 3600;
 
 export default function AboutPage() {
+    // One clock reading shared by every component, so server HTML and client
+    // hydration agree exactly.
+    const nowMs = Date.now();
+
     return (
-        <div
-            className="pointer-events-auto min-h-screen"
-            style={{ ["--muted-foreground" as string]: "#ffffff", ["--foreground" as string]: "#ffffff" }}
-        >
+        <div className="pointer-events-auto min-h-screen">
             <PageBackground variant="particles" color="#00aaaa" />
             <SidebarNav
                 sections={[
@@ -26,151 +34,139 @@ export default function AboutPage() {
                     { id: "roblox", label: "Fractured Islands" },
                     { id: "philosophy", label: "Philosophy" },
                     { id: "skills", label: "Skills" },
-                    { id: "timeline", label: "Education" },
+                    { id: "timeline", label: "The Path" },
                 ]}
             />
 
             <section className="w-full px-6 pb-24 pt-28 sm:px-10 lg:px-16">
-                {/* Hero Section */}
-                <div id="hero" className="scroll-mt-24">
-                    <PageHero
-                        eyebrow="About"
-                        title="Who I Am"
-                        description="Engineer, builder, runner, systems thinker. This page is the comprehensive story—how the parts connect."
-                        accent="var(--mc-dark-aqua)"
-                        symbol="speed"
-                    />
+                <PageHero
+                    eyebrow="About"
+                    title="Who I Am"
+                    description="Engineer, builder, runner, systems thinker. This page is the comprehensive story: how the parts connect."
+                    accent="var(--mc-dark-aqua)"
+                    symbol="speed"
+                />
 
-                    <div className="relative mx-auto mt-12 max-w-2xl overflow-hidden rounded-2xl border border-border/60 bg-card/40 p-8 backdrop-blur-xl scroll-mt-24">
-                        <ShineBorder
-                            borderWidth={1}
-                            duration={12}
-                            shineColor={["var(--mc-dark-aqua)", "var(--chart-4)"]}
-                        />
-                        <div className="space-y-4 text-base leading-relaxed">
-                            <p className="text-foreground">
-                                I'm <span className="rainbow-text inline-block font-minecraft font-bold">Nate</span>, a senior in high school in Southern California studying toward a degree in <span className="mc-glow font-minecraft font-bold" style={{ ["--glow" as string]: "var(--mc-green)" }}>Environmental Engineering</span>. I build games, render systems, and design spaces—always with an eye toward sustainable, interconnected systems.
-                            </p>
-                            <p className="text-muted-foreground">
-                                I think through <span className="mc-glow font-minecraft font-bold" style={{ ["--glow" as string]: "var(--mc-light-purple)" }}>philosophy</span> (Kierkegaard's ethics, agnosticism, interconnected systems), execute through <span className="mc-glow font-minecraft font-bold" style={{ ["--glow" as string]: "var(--mc-gold)" }}>discipline</span> (competitive running, strength training, precision), and create through <span className="mc-glow font-minecraft font-bold" style={{ ["--glow" as string]: "var(--mc-aqua)" }}>systems thinking</span> (game mechanics, urban design, code architecture).
-                            </p>
-                            <p className="text-muted-foreground">
-                                By Spring 2031, my goal: launch a <span className="mc-glow font-minecraft font-bold" style={{ ["--glow" as string]: "var(--mc-green)" }}>sustainable infrastructure/urban design business</span> after completing my degree at Cal Poly Pomona, with financial freedom and athletic leadership woven through the journey.
-                            </p>
+                <div className="mx-auto mt-12 max-w-6xl">
+                    <section id="hero" className="scroll-mt-24">
+                        <AboutStory nowMs={nowMs} />
+                    </section>
+
+                    <section id="building" className="mt-20 scroll-mt-24">
+                        <SectionLabel accent="var(--mc-gold)" symbol="forge">
+                            What I&apos;m Building Now
+                        </SectionLabel>
+                        <div className="mt-6">
+                            <BuildingCards />
                         </div>
-                    </div>
-                </div>
+                    </section>
 
-                {/* What I'm Building Now */}
-                <div id="building" className="scroll-mt-24 mt-16">
-                    <SectionLabel accent="var(--mc-gold)" symbol="forge">What I'm Building Now</SectionLabel>
-                    <div className="mt-6 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-                        {[
-                            {
-                                title: "Fractured Islands: Ascension",
-                                desc: "Roblox game in active development. Stat systems, attribute mechanics, engagement loops.",
-                                color: "#ff55ff",
-                                symbol: "attackSpeed" as const
-                            },
-                            {
-                                title: "Personal Portfolio",
-                                desc: "This site — a living project. Renovation studies, design work, creations across mediums.",
-                                color: "#55ffff",
-                                symbol: "magicFind" as const
-                            },
-                            {
-                                title: "Engineering Foundation",
-                                desc: "College pathway through SMC → Cal Poly. Environmental specialization, capstone focus.",
-                                color: "#55ff55",
-                                symbol: "defense" as const
-                            }
-                        ].map((item) => (
-                            <div
-                                key={item.title}
-                                className="rounded-lg border p-4 transition-all hover:border-opacity-70"
-                                style={{
-                                    borderColor: `${item.color}40`,
-                                    backgroundColor: `${item.color}08`,
-                                }}
-                            >
-                                <div className="mb-2 text-2xl"><McSymbol name={item.symbol} color={item.color} /></div>
-                                <h4 className="font-minecraft font-bold text-sm" style={{ color: item.color }}>
-                                    {item.title}
-                                </h4>
-                                <p className="text-xs text-muted-foreground mt-2">{item.desc}</p>
-                            </div>
-                        ))}
-                    </div>
-                </div>
+                    <section id="running" className="mt-20 scroll-mt-24">
+                        <SectionLabel accent="var(--mc-gold)" symbol="speed">
+                            Running & Athletics
+                        </SectionLabel>
+                        <div className="mt-6">
+                            <RunningSection />
+                        </div>
+                    </section>
 
-                {/* Running & Athletics */}
-                <div id="running" className="scroll-mt-24 mt-16">
-                    <SectionLabel accent="var(--mc-gold)" symbol="speed">Running & Athletics</SectionLabel>
-                    <div className="mt-6">
-                        <RunningStatsCard />
-                    </div>
-                </div>
-
-                {/* Fractured Islands System Design */}
-                <div id="roblox" className="scroll-mt-24 mt-16">
-                    <SectionLabel accent="var(--mc-light-purple)" symbol="pristine">Fractured Islands: System Design</SectionLabel>
-                    <div className="mt-6">
-                        <RobloxBreakdown />
-                    </div>
-                </div>
-
-                {/* Philosophy */}
-                <div id="philosophy" className="scroll-mt-24 mt-16">
-                    <SectionLabel accent="var(--mc-light-purple)" symbol="wisdom">Philosophy & Thinking</SectionLabel>
-                    <div className="mt-6">
-                        <PhilosophyCard />
-                    </div>
-                </div>
-
-                {/* Skills */}
-                <div id="skills" className="scroll-mt-24 mt-16">
-                    <SectionLabel accent="var(--mc-aqua)" symbol="magicFind">Skills & Expertise</SectionLabel>
-                    <div className="mt-6">
-                        <SkillsTree />
-                    </div>
-                </div>
-
-                {/* Education Timeline */}
-                <div id="timeline" className="scroll-mt-24 mt-16">
-                    <SectionLabel accent="var(--mc-gold)" symbol="arrow">4-Year Education & Career Path</SectionLabel>
-                    <div className="mt-6">
-                        <EducationTimeline />
-                    </div>
-                </div>
-
-                {/* Call to Action */}
-                <div className="mt-16 rounded-lg border border-mc-gold/30 bg-gradient-to-r from-mc-gold/10 to-transparent p-6 sm:p-8">
-                    <h3 className="font-minecraft text-lg font-bold text-mc-gold">What's Next</h3>
-                    <p className="mt-3 text-sm text-muted-foreground leading-relaxed max-w-2xl">
-                        This page is a living document. Each section will deepen as projects launch, portfolio grows, and plans materialize. To see the work in progress:
-                    </p>
-                    <div className="mt-4 flex flex-wrap gap-3">
-                        <Link
-                            href="/creations#projects"
-                            className="inline-flex items-center gap-2 px-4 py-2 rounded-lg border border-mc-gold/40 text-mc-gold hover:bg-mc-gold/10 transition-colors font-minecraft text-sm font-bold"
+                    <section id="roblox" className="mt-20 scroll-mt-24">
+                        <SectionLabel
+                            accent="var(--mc-light-purple)"
+                            symbol="pristine"
                         >
-                            → View Projects
-                        </Link>
-                        <Link
-                            href="/blog"
-                            className="inline-flex items-center gap-2 px-4 py-2 rounded-lg border border-mc-aqua/40 text-mc-aqua hover:bg-mc-aqua/10 transition-colors font-minecraft text-sm font-bold"
+                            Fractured Islands: System Design
+                        </SectionLabel>
+                        <div className="mt-6">
+                            <SystemsExplorer />
+                        </div>
+                    </section>
+
+                    <section id="philosophy" className="mt-20 scroll-mt-24">
+                        <SectionLabel
+                            accent="var(--mc-light-purple)"
+                            symbol="wisdom"
                         >
-                            → Read Essays
-                        </Link>
-                        <Link
-                            href="/timeline"
-                            className="inline-flex items-center gap-2 px-4 py-2 rounded-lg border border-mc-green/40 text-mc-green hover:bg-mc-green/10 transition-colors font-minecraft text-sm font-bold"
+                            Philosophy & Thinking
+                        </SectionLabel>
+                        <div className="mt-6">
+                            <PhilosophySection />
+                        </div>
+                    </section>
+
+                    <section id="skills" className="mt-20 scroll-mt-24">
+                        <SectionLabel
+                            accent="var(--mc-aqua)"
+                            symbol="magicFind"
                         >
-                            → Full Timeline
-                        </Link>
+                            Skills & Expertise
+                        </SectionLabel>
+                        <p className="mt-3 max-w-2xl text-sm text-muted-foreground sm:text-base">
+                            Skills organized by domain. Each reflects hands-on
+                            experience and active development.
+                        </p>
+                        <div className="mt-6">
+                            <SkillsExplorer />
+                        </div>
+                    </section>
+
+                    <section id="timeline" className="mt-20 scroll-mt-24">
+                        <SectionLabel accent="var(--mc-gold)" symbol="arrow">
+                            The Path
+                        </SectionLabel>
+                        <p className="mt-3 max-w-2xl text-sm text-muted-foreground sm:text-base">
+                            Four years, three stages, one destination. The full
+                            plan, with every milestone, lives on the timeline.
+                        </p>
+                        <div className="mt-6">
+                            <PathGlance nowMs={nowMs} />
+                        </div>
+                    </section>
+
+                    <div className="mt-20 rounded-2xl border border-mc-gold/30 bg-gradient-to-r from-mc-gold/10 to-transparent p-6 sm:p-8">
+                        <h3 className="font-minecraft text-lg font-bold text-mc-gold">
+                            What&apos;s Next
+                        </h3>
+                        <p className="mt-3 max-w-2xl text-sm leading-relaxed text-muted-foreground">
+                            This page is a living document. Each section will
+                            deepen as projects launch, the portfolio grows, and
+                            plans materialize. To see the work in progress:
+                        </p>
+                        <div className="mt-4 flex flex-wrap gap-3">
+                            {[
+                                {
+                                    href: "/creations#projects",
+                                    label: "View Projects",
+                                    color: "var(--mc-gold)",
+                                },
+                                {
+                                    href: "/blog",
+                                    label: "Read Essays",
+                                    color: "var(--mc-aqua)",
+                                },
+                                {
+                                    href: "/timeline",
+                                    label: "Full Timeline",
+                                    color: "var(--mc-green)",
+                                },
+                            ].map((l) => (
+                                <Link
+                                    key={l.href}
+                                    href={l.href}
+                                    className="inline-flex items-center gap-2 rounded-lg border px-4 py-2 font-minecraft text-sm font-bold transition-transform hover:-translate-y-0.5"
+                                    style={{
+                                        color: l.color,
+                                        borderColor: `color-mix(in oklch, ${l.color} 45%, transparent)`,
+                                        backgroundColor: `color-mix(in oklch, ${l.color} 9%, transparent)`,
+                                    }}
+                                >
+                                    {l.label} <ArrowRight className="size-4" />
+                                </Link>
+                            ))}
+                        </div>
                     </div>
                 </div>
             </section>
         </div>
-    )
+    );
 }

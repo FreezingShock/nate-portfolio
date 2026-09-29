@@ -1,217 +1,31 @@
 import { notFound } from "next/navigation";
 import Link from "next/link";
-import { ArrowLeft, ArrowUpRight, BookOpen } from "lucide-react";
+import { ArrowLeft, ArrowRight, Check } from "lucide-react";
 import { PageHero } from "@/components/page-hero";
 import { PageBackground } from "@/components/page-background";
 import { SidebarNav } from "@/components/sidebar-nav";
-import { ShineBorder } from "@/components/ui/shine-border";
+import { GlowCard } from "@/components/glow-card";
+import { GlassBar } from "@/components/glass-bar";
+import { STUDY_ICONS } from "@/components/study-icons";
+import {
+    AP_WINDOW,
+    STUDY_AREAS,
+    courseBySlug,
+    courses,
+} from "@/lib/studies-data";
+import {
+    CATEGORIES,
+    KEY_DATES,
+    allEvents,
+    daysUntil,
+    phases,
+    progressBetween,
+} from "@/lib/timeline-data";
 
-interface CourseDetail {
-    slug: string;
-    title: string;
-    color: string;
-    description: string;
-    fullDescription: string;
-    tags: string[];
-    focus: string[];
-    resources: { title: string; url?: string }[];
-    timeline: string;
-    examDate?: string;
-    status: string;
-    goals: string[];
-}
-
-const courseDetails: Record<string, CourseDetail> = {
-    "senior-project": {
-        slug: "senior-project",
-        title: "Senior Project",
-        color: "#ffaa00",
-        description: "Landscape design and outdoor space transformation.",
-        fullDescription:
-            "A comprehensive capstone project exploring how thoughtful design can revitalize neglected public spaces. This project combines research, evidence-based design methodology, user behavior analysis, and systems thinking to create sustainable solutions for real-world spaces.",
-        tags: ["Design", "Engineering", "Research", "Leadership", "Capstone"],
-        focus: [
-            "Public space design",
-            "User behavior analysis",
-            "Systems thinking",
-            "Sustainable planning",
-            "Stakeholder engagement",
-        ],
-        resources: [
-            { title: "Research Notes & Case Studies" },
-            { title: "Design Framework Documentation" },
-            { title: "User Survey Data & Analysis" },
-            { title: "Final Presentation (May 2027)" },
-        ],
-        timeline: "September 2026 - May 2027",
-        status: "In Progress",
-        goals: [
-            "Complete comprehensive user research (surveys, interviews, observation)",
-            "Develop evidence-based design framework",
-            "Create 3+ design directions with full specifications",
-            "Deliver polished final presentation to stakeholders",
-            "Connect philosophy (Kierkegaard) to design practice",
-        ],
-    },
-    "ap-statistics": {
-        slug: "ap-statistics",
-        title: "AP Statistics",
-        color: "#ff5555",
-        description: "Statistical analysis, probability, and data interpretation.",
-        fullDescription:
-            "Master quantitative reasoning through probability theory, statistical inference, and data analysis. This course builds the mathematical foundation for research, environmental modeling, and informed decision-making.",
-        tags: ["Mathematics", "Data Analysis", "Research Methods", "AP Exam"],
-        focus: [
-            "Hypothesis testing",
-            "Probability distributions",
-            "Regression analysis",
-            "Data visualization",
-            "Experimental design",
-        ],
-        resources: [
-            { title: "Practice Problem Sets" },
-            { title: "AP Exam FRQ Archive" },
-            { title: "Khan Academy (Official Partner)" },
-            { title: "Real-world datasets (Kaggle, Census)" },
-        ],
-        timeline: "September 2026 - May 2027",
-        examDate: "May 2027",
-        status: "In Progress",
-        goals: [
-            "Score 4-5 on AP Statistics exam",
-            "Master hypothesis testing procedures",
-            "Build proficiency with regression analysis",
-            "Apply statistics to environmental data",
-        ],
-    },
-    "ap-biology": {
-        slug: "ap-biology",
-        title: "AP Biology",
-        color: "#55ff55",
-        description: "Cellular and organismal biology, ecology, and genetics.",
-        fullDescription:
-            "Build foundational understanding of living systems and environmental interconnectedness. From cellular processes to ecosystem dynamics, this course emphasizes systems thinking and the interconnected nature of life.",
-        tags: ["Life Sciences", "Laboratory", "Systems", "AP Exam", "Ecology"],
-        focus: [
-            "Cell structure and function",
-            "Genetics and evolution",
-            "Ecology and ecosystems",
-            "Photosynthesis & respiration",
-            "Energy flow in systems",
-        ],
-        resources: [
-            { title: "Lab Reports & Data Analysis" },
-            { title: "Concept Maps by Unit" },
-            { title: "AP Exam FRQ Responses" },
-            { title: "Ecology Simulation Tools" },
-        ],
-        timeline: "September 2026 - May 2027",
-        examDate: "May 2027",
-        status: "In Progress",
-        goals: [
-            "Score 4-5 on AP Biology exam",
-            "Master photosynthesis and cellular respiration",
-            "Understand population and ecosystem dynamics",
-            "Connect cellular biology to environmental engineering",
-        ],
-    },
-    "intro-communications": {
-        slug: "intro-communications",
-        title: "Intro to Communications & Public Speaking",
-        color: "#55ffff",
-        description: "Communication theory, interpersonal dynamics, and public speaking.",
-        fullDescription:
-            "Develop articulate presentation skills and authentic self-expression in professional and public contexts. Learn communication models, audience analysis, and persuasive messaging techniques.",
-        tags: ["Communication", "Public Speaking", "Interpersonal Skills", "Presentation"],
-        focus: [
-            "Communication models (transmission, interactive, transactional)",
-            "Public speaking techniques",
-            "Presentation design",
-            "Audience analysis",
-            "Persuasive messaging",
-        ],
-        resources: [
-            { title: "Speech Recordings & Feedback" },
-            { title: "Presentation Design Templates" },
-            { title: "Audience Analysis Worksheets" },
-            { title: "Public Speaking Best Practices" },
-        ],
-        timeline: "September 2026 - May 2027",
-        status: "In Progress",
-        goals: [
-            "Deliver 5+ polished presentations",
-            "Develop confident public speaking voice",
-            "Master audience analysis techniques",
-            "Apply to Senior Project stakeholder presentations",
-        ],
-    },
-    "ap-studio-art": {
-        slug: "ap-studio-art",
-        title: "AP 2-D Studio Art",
-        color: "#ff55ff",
-        description: "Visual composition, design principles, and artistic expression.",
-        fullDescription:
-            "Develop a cohesive portfolio demonstrating conceptual depth and technical mastery. Explore design principles, media techniques, and personal artistic voice through sustained inquiry.",
-        tags: ["Visual Arts", "Design", "Portfolio", "Creativity", "AP Exam"],
-        focus: [
-            "Composition and balance",
-            "Color theory",
-            "Drawing fundamentals",
-            "Mixed media techniques",
-            "Conceptual development",
-        ],
-        resources: [
-            { title: "Portfolio Pieces (12-15 images)" },
-            { title: "Design Principles Reference" },
-            { title: "Media Exploration Studies" },
-            { title: "Artist Statement Draft" },
-        ],
-        timeline: "September 2026 - May 2027",
-        examDate: "May 2027",
-        status: "In Progress",
-        goals: [
-            "Complete 12-15 portfolio pieces",
-            "Develop 4-5 pieces in depth (concentration)",
-            "Demonstrate range across media and subjects",
-            "Write compelling artist statement",
-            "Score well on AP Portfolio review",
-        ],
-    },
-    "ap-government": {
-        slug: "ap-government",
-        title: "AP Government & Politics",
-        color: "#5555ff",
-        description: "Constitutional law, political systems, and Supreme Court cases.",
-        fullDescription:
-            "Understand American democracy through constitutional law, political systems, and landmark Supreme Court decisions. Master the mechanisms that shape civic governance.",
-        tags: ["Government", "Law", "Civics", "Politics", "AP Exam"],
-        focus: [
-            "Constitutional law & interpretation",
-            "Supreme Court decisions & impact",
-            "Political ideologies & systems",
-            "Federalism & separation of powers",
-            "Civil liberties & rights",
-        ],
-        resources: [
-            { title: "Supreme Court Case Briefs" },
-            { title: "Constitutional Framework Guide" },
-            { title: "AP Exam FRQ Archive" },
-            { title: "Current Political Case Study Examples" },
-        ],
-        timeline: "September 2026 - May 2027",
-        examDate: "May 2027",
-        status: "In Progress",
-        goals: [
-            "Score 4-5 on AP Government exam",
-            "Master 20+ key Supreme Court cases",
-            "Understand constitutional principles",
-            "Connect civic understanding to personal responsibility",
-        ],
-    },
-};
+export const revalidate = 3600;
 
 export async function generateStaticParams() {
-    return Object.keys(courseDetails).map((slug) => ({ slug }));
+    return courses.map((c) => ({ slug: c.slug }));
 }
 
 export default async function CourseDetailPage({
@@ -220,19 +34,56 @@ export default async function CourseDetailPage({
     params: Promise<{ slug: string }>;
 }) {
     const { slug } = await params;
-    const course = courseDetails[slug];
-
+    const course = courseBySlug[slug];
     if (!course) notFound();
 
-    const bgColor = course.color;
+    const nowMs = Date.now();
+    const Icon = STUDY_ICONS[course.icon];
+    const area = STUDY_AREAS[course.area];
+    const { color } = course;
+
+    const index = courses.findIndex((c) => c.slug === slug);
+    const prev = courses[(index - 1 + courses.length) % courses.length];
+    const next = courses[(index + 1) % courses.length];
+
+    const events = allEvents();
+    const related = course.related
+        .map((id) => events.find((e) => e.id === id))
+        .filter((e): e is NonNullable<typeof e> => !!e);
+
+    const hs = phases.find((p) => p.id === "high-school")!;
+    const courseProgress = progressBetween(
+        hs.start,
+        KEY_DATES.graduation,
+        nowMs
+    );
+    const daysToExam = daysUntil(AP_WINDOW.start, nowMs);
+
+    const facts = [
+        { label: "Timeline", value: course.timeline },
+        { label: "Area", value: area.label, valueColor: area.color },
+        {
+            label: course.ap ? "AP exam window" : "Status",
+            value: course.ap ? AP_WINDOW.label : course.status,
+            valueColor: color,
+        },
+    ];
 
     return (
         <div className="pointer-events-auto min-h-screen">
-            <PageBackground variant="interactive-grid" color={bgColor} />
-            <SidebarNav sections={[{ id: "detail", label: course.title }]} />
+            <PageBackground variant="interactive-grid" color={color} />
+            <SidebarNav
+                sections={[
+                    { id: "detail", label: course.title },
+                    { id: "goals", label: "Goals & Materials" },
+                    ...(related.length
+                        ? [{ id: "related", label: "On the Timeline" }]
+                        : []),
+                ]}
+            />
 
             <section className="w-full px-6 pb-24 pt-28 sm:px-10 lg:px-16">
-                <div className="mx-auto max-w-3xl">
+                <div className="mx-auto max-w-4xl">
                     <Link
                         href="/studies"
                         className="inline-flex items-center gap-1.5 text-sm text-muted-foreground transition-colors hover:text-foreground"
@@ -242,141 +93,264 @@ export default async function CourseDetailPage({
 
                     <div className="mt-8">
                         <PageHero
-                            eyebrow="Course"
+                            eyebrow={course.ap ? "AP Course" : "Course"}
                             title={course.title}
                             description={course.fullDescription}
-                            accent={course.color}
+                            accent={color}
                             symbol="wisdom"
                         />
                     </div>
 
-                    {/* Overview */}
+                    {/* Quick facts */}
                     <div
                         id="detail"
-                        className="relative mt-10 overflow-hidden rounded-2xl border border-border/60 bg-card/40 p-8 backdrop-blur-xl scroll-mt-24"
+                        className="mt-10 grid gap-4 scroll-mt-24 sm:grid-cols-3"
                     >
-                        <ShineBorder
-                            borderWidth={1}
-                            shineColor={[course.color, "var(--chart-4)"]}
-                        />
-
-                        <div className="grid gap-6 sm:grid-cols-2">
-                            <div>
-                                <p className="text-xs font-semibold text-muted-foreground uppercase">
-                                    Timeline
+                        {facts.map((f) => (
+                            <GlowCard
+                                key={f.label}
+                                color={color}
+                                className="p-5"
+                            >
+                                <p className="font-mono text-[10px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
+                                    {f.label}
                                 </p>
-                                <p className="mt-2 text-sm">{course.timeline}</p>
-                            </div>
-                            {course.examDate && (
-                                <div>
-                                    <p className="text-xs font-semibold text-muted-foreground uppercase">
-                                        AP Exam Date
-                                    </p>
-                                    <p
-                                        className="mt-2 text-sm font-medium"
-                                        style={{ color: course.color }}
+                                <p
+                                    className="mt-2 font-minecraft text-base font-bold leading-snug"
+                                    style={{
+                                        color:
+                                            f.valueColor ?? "var(--foreground)",
+                                    }}
+                                >
+                                    {f.value}
+                                </p>
+                            </GlowCard>
+                        ))}
+                    </div>
+
+                    <div className="mt-4 grid gap-4 sm:grid-cols-3">
+                        <GlowCard color={color} className="p-5 sm:col-span-2">
+                            <GlassBar
+                                label="Through the school year"
+                                value={courseProgress}
+                                decimals={0}
+                                from={color}
+                                to={color}
+                                sub="Sept 2026 → June 10, 2027"
+                            />
+                        </GlowCard>
+                        {course.ap ? (
+                            <GlowCard
+                                color="var(--mc-gold)"
+                                className="chroma-card p-5 text-center"
+                            >
+                                <p className="font-mono text-[10px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
+                                    Days to the AP window
+                                </p>
+                                <p className="chroma-text mt-1 font-mono text-4xl font-bold tabular-nums">
+                                    {daysToExam > 0 ? daysToExam : "Now"}
+                                </p>
+                            </GlowCard>
+                        ) : (
+                            <GlowCard
+                                color={color}
+                                className="grid place-items-center p-5"
+                            >
+                                <span
+                                    className="grid size-14 place-items-center rounded-2xl"
+                                    style={{
+                                        color,
+                                        backgroundColor: `color-mix(in oklch, ${color} 16%, transparent)`,
+                                        boxShadow: `inset 0 0 0 1px color-mix(in oklch, ${color} 40%, transparent)`,
+                                    }}
+                                >
+                                    <Icon className="size-7" />
+                                </span>
+                            </GlowCard>
+                        )}
+                    </div>
+
+                    {/* Focus + goals + materials */}
+                    <div
+                        id="goals"
+                        className="mt-10 grid gap-5 scroll-mt-24 md:grid-cols-2"
+                    >
+                        <GlowCard color={color} className="p-6">
+                            <h3
+                                className="font-minecraft text-lg font-bold"
+                                style={{ color }}
+                            >
+                                Key Focus Areas
+                            </h3>
+                            <ul className="mt-4 space-y-2.5">
+                                {course.focus.map((item) => (
+                                    <li
+                                        key={item}
+                                        className="flex gap-3 text-sm text-muted-foreground"
                                     >
-                                        {course.examDate}
-                                    </p>
-                                </div>
-                            )}
-                        </div>
+                                        <span
+                                            className="mt-[7px] size-1.5 shrink-0 rounded-full"
+                                            style={{
+                                                backgroundColor: color,
+                                                boxShadow: `0 0 8px ${color}`,
+                                            }}
+                                        />
+                                        {item}
+                                    </li>
+                                ))}
+                            </ul>
+                        </GlowCard>
 
-                        <div className="mt-8 space-y-6">
-                            {/* Key Focus */}
-                            <div>
-                                <h3
-                                    className="mb-4 text-sm font-semibold uppercase tracking-wide"
-                                    style={{ color: course.color }}
-                                >
-                                    Key Focus Areas
-                                </h3>
-                                <ul className="space-y-2">
-                                    {course.focus.map((item, idx) => (
-                                        <li
-                                            key={idx}
-                                            className="flex items-start gap-3 text-sm text-muted-foreground"
-                                        >
-                                            <span
-                                                className="mt-1.5 inline-block size-1.5 rounded-full"
-                                                style={{ backgroundColor: course.color }}
-                                            />
-                                            {item}
-                                        </li>
-                                    ))}
-                                </ul>
+                        <GlowCard color={color} className="p-6">
+                            <h3
+                                className="font-minecraft text-lg font-bold"
+                                style={{ color }}
+                            >
+                                Learning Goals
+                            </h3>
+                            <ul className="mt-4 space-y-2.5">
+                                {course.goals.map((goal) => (
+                                    <li
+                                        key={goal}
+                                        className="flex gap-3 text-sm text-muted-foreground"
+                                    >
+                                        <Check
+                                            className="mt-0.5 size-4 shrink-0"
+                                            style={{ color }}
+                                        />
+                                        {goal}
+                                    </li>
+                                ))}
+                            </ul>
+                        </GlowCard>
+
+                        <GlowCard color={color} className="p-6 md:col-span-2">
+                            <h3
+                                className="font-minecraft text-lg font-bold"
+                                style={{ color }}
+                            >
+                                Work & Materials
+                            </h3>
+                            <div className="mt-4 grid gap-2 sm:grid-cols-2">
+                                {course.materials.map((m) => (
+                                    <div
+                                        key={m}
+                                        className="rounded-lg border px-3 py-2.5 text-sm text-muted-foreground"
+                                        style={{
+                                            borderColor: `color-mix(in oklch, ${color} 30%, transparent)`,
+                                            backgroundColor: `color-mix(in oklch, ${color} 6%, transparent)`,
+                                        }}
+                                    >
+                                        {m}
+                                    </div>
+                                ))}
                             </div>
-
-                            {/* Goals */}
-                            <div>
-                                <h3
-                                    className="mb-4 text-sm font-semibold uppercase tracking-wide"
-                                    style={{ color: course.color }}
-                                >
-                                    Learning Goals
-                                </h3>
-                                <ul className="space-y-2">
-                                    {course.goals.map((goal, idx) => (
-                                        <li
-                                            key={idx}
-                                            className="flex items-start gap-3 text-sm text-muted-foreground"
-                                        >
-                                            <span
-                                                className="mt-1.5 inline-block size-1.5 rounded-full"
-                                                style={{ backgroundColor: course.color }}
-                                            />
-                                            {goal}
-                                        </li>
-                                    ))}
-                                </ul>
-                            </div>
-
-                            {/* Resources */}
-                            <div>
-                                <h3
-                                    className="mb-4 text-sm font-semibold uppercase tracking-wide"
-                                    style={{ color: course.color }}
-                                >
-                                    Study Resources
-                                </h3>
-                                <ul className="space-y-3">
-                                    {course.resources.map((resource, idx) => (
-                                        <li
-                                            key={idx}
-                                            className="flex items-center justify-between rounded-lg border border-border/40 bg-background/40 p-3 text-sm"
-                                        >
-                                            <div className="flex items-center gap-2">
-                                                <BookOpen
-                                                    className="size-4"
-                                                    style={{ color: course.color }}
-                                                />
-                                                <span>{resource.title}</span>
-                                            </div>
-                                            {resource.url && (
-                                                <ArrowUpRight className="size-4 text-muted-foreground" />
-                                            )}
-                                        </li>
-                                    ))}
-                                </ul>
-                            </div>
-
-                            {/* Tags */}
-                            <div className="flex flex-wrap gap-2 pt-4">
+                            <div className="mt-5 flex flex-wrap gap-1.5">
                                 {course.tags.map((tag) => (
                                     <span
                                         key={tag}
-                                        className="rounded-full border px-3 py-1 text-xs font-medium"
+                                        className="rounded-full border px-2.5 py-0.5 font-rubik text-[11px] font-medium"
                                         style={{
-                                            color: course.color,
-                                            borderColor: `color-mix(in oklch, ${course.color} 55%, transparent)`,
-                                            backgroundColor: `color-mix(in oklch, ${course.color} 15%, var(--background) 60%)`,
+                                            color,
+                                            borderColor: `color-mix(in oklch, ${color} 45%, transparent)`,
+                                            backgroundColor: `color-mix(in oklch, ${color} 10%, transparent)`,
                                         }}
                                     >
                                         {tag}
                                     </span>
                                 ))}
                             </div>
+                        </GlowCard>
+                    </div>
+
+                    {/* Where this class shows up on the timeline */}
+                    {related.length > 0 && (
+                        <div id="related" className="mt-12 scroll-mt-24">
+                            <h3
+                                className="font-minecraft text-xl font-bold"
+                                style={{ color: "var(--mc-green)" }}
+                            >
+                                On the Timeline
+                            </h3>
+                            <div className="mt-4 grid gap-3 sm:grid-cols-2">
+                                {related.map((e) => {
+                                    const c = e.special
+                                        ? "var(--mc-gold)"
+                                        : CATEGORIES[e.category].color;
+                                    return (
+                                        <Link
+                                            key={e.id}
+                                            href={`/timeline#${e.id}`}
+                                            className="group block"
+                                        >
+                                            <GlowCard
+                                                color={c}
+                                                className="flex items-center gap-3 p-4"
+                                            >
+                                                <span
+                                                    className="size-2.5 shrink-0 rounded-full"
+                                                    style={{
+                                                        backgroundColor: c,
+                                                        boxShadow: `0 0 10px ${c}`,
+                                                    }}
+                                                />
+                                                <span className="min-w-0 flex-1">
+                                                    <span
+                                                        className="block font-mono text-[10px] font-semibold uppercase tracking-wider"
+                                                        style={{ color: c }}
+                                                    >
+                                                        {e.when}
+                                                    </span>
+                                                    <span className="mt-0.5 block truncate text-sm font-semibold">
+                                                        {e.title}
+                                                    </span>
+                                                </span>
+                                                <ArrowRight className="size-4 shrink-0 text-muted-foreground transition-transform duration-200 group-hover:translate-x-1" />
+                                            </GlowCard>
+                                        </Link>
+                                    );
+                                })}
+                            </div>
                         </div>
+                    )}
+
+                    {/* Previous / next class */}
+                    <div className="mt-14 grid gap-4 sm:grid-cols-2">
+                        {[
+                            { c: prev, dir: "Previous class", arrow: "left" },
+                            { c: next, dir: "Next class", arrow: "right" },
+                        ].map(({ c, dir, arrow }) => (
+                            <Link
+                                key={dir}
+                                href={`/studies/${c.slug}`}
+                                className="group block"
+                            >
+                                <GlowCard
+                                    color={c.color}
+                                    className="flex items-center justify-between gap-3 p-4"
+                                >
+                                    {arrow === "left" && (
+                                        <ArrowLeft className="size-4 shrink-0 text-muted-foreground transition-transform duration-200 group-hover:-translate-x-1" />
+                                    )}
+                                    <span
+                                        className={`min-w-0 flex-1 ${arrow === "left" ? "text-right" : ""}`}
+                                    >
+                                        <span className="block font-mono text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+                                            {dir}
+                                        </span>
+                                        <span
+                                            className="mt-0.5 block truncate font-minecraft text-sm font-bold"
+                                            style={{ color: c.color }}
+                                        >
+                                            {c.title}
+                                        </span>
+                                    </span>
+                                    {arrow === "right" && (
+                                        <ArrowRight className="size-4 shrink-0 text-muted-foreground transition-transform duration-200 group-hover:translate-x-1" />
+                                    )}
+                                </GlowCard>
+                            </Link>
+                        ))}
                     </div>
                 </div>
             </section>

@@ -10,6 +10,7 @@ import {
 } from "react";
 import { createPortal } from "react-dom";
 import { ArrowRight, Check, Star } from "lucide-react";
+import { GlassBar } from "@/components/glass-bar";
 import { NumberTicker } from "@/components/ui/number-ticker";
 import { cn } from "@/lib/utils";
 import {
@@ -760,62 +761,6 @@ function Axis({
 }
 
 // ---------------------------------------------------------------- tickers
-
-function GlassBar({
-    label,
-    value,
-    decimals,
-    from,
-    to,
-    gradient,
-    sub,
-}: {
-    label: string;
-    value: number;
-    decimals: number;
-    from: string;
-    to: string;
-    /** Overrides the two-stop from→to fill (e.g. a full rainbow). */
-    gradient?: string;
-    sub: string;
-}) {
-    const pct = Math.min(100, Math.max(0, value * 100));
-    return (
-        <div>
-            <div className="flex items-baseline justify-between gap-3">
-                <span
-                    className="font-minecraft text-sm font-bold"
-                    style={{ color: to, textShadow: `0 0 12px ${to}55` }}
-                >
-                    {label}
-                </span>
-                <span
-                    className="font-mono text-lg font-bold tabular-nums"
-                    style={{ color: to }}
-                >
-                    {pct.toFixed(decimals)}
-                    <span className="text-xs">%</span>
-                </span>
-            </div>
-            <div className="glass-track mt-1.5 h-4">
-                <div
-                    className="glass-fill"
-                    style={
-                        {
-                            width: `${Math.max(pct, 1.5)}%`,
-                            "--from": from,
-                            "--to": to,
-                            ...(gradient ? { background: gradient } : {}),
-                        } as React.CSSProperties
-                    }
-                />
-            </div>
-            <p className="mt-1 font-mono text-[10px] uppercase tracking-wider text-muted-foreground">
-                {sub}
-            </p>
-        </div>
-    );
-}
 
 function LiveTickers({
     nowMs,

@@ -1,323 +1,171 @@
-import {
-    GraduationCap,
-    PieChart,
-    Microscope,
-    Mic,
-    Palette,
-    Scale,
-    BookOpen,
-    Lightbulb,
-} from "lucide-react";
-import type { CourseData } from "@/components/coursework-grid";
-import { CourseworkGrid } from "@/components/coursework-grid";
-import type { ProgramCard } from "@/components/education-program-card";
-import { EducationProgramCard } from "@/components/education-program-card";
+import Link from "next/link";
+import { ArrowRight } from "lucide-react";
 import { PageHero } from "@/components/page-hero";
 import { SidebarNav } from "@/components/sidebar-nav";
 import { PageBackground } from "@/components/page-background";
 import { SectionLabel } from "@/components/section-label";
+import { StudiesOverview } from "@/components/studies-overview";
+import { CourseExplorer } from "@/components/course-explorer";
+import {
+    PathwayRail,
+    ProgramCardView,
+    ReadingQueue,
+    ToolRoadmap,
+} from "@/components/studies-sections";
+import { courses, personalStudies } from "@/lib/studies-data";
 
-const courses: CourseData[] = [
-    {
-        title: "Senior Project",
-        slug: "senior-project",
-        color: "var(--mc-gold)",
-        icon: GraduationCap,
-        description:
-            "Landscape design and outdoor space transformation. Exploring how thoughtful design revitalizes neglected public spaces through evidence-based methodology.",
-        tags: ["Design", "Engineering", "Research", "Leadership"],
-        focus: [
-            "Public space design",
-            "User behavior analysis",
-            "Systems thinking",
-            "Sustainable planning",
-        ],
-        status: "In Progress",
-        href: "/studies/senior-project",
-    },
-    {
-        title: "AP Statistics",
-        slug: "ap-statistics",
-        color: "var(--mc-red)",
-        icon: PieChart,
-        description:
-            "Statistical analysis, probability, and data interpretation. Mastering quantitative reasoning for research and decision-making.",
-        tags: ["Mathematics", "Data Analysis", "Research Methods"],
-        focus: [
-            "Hypothesis testing",
-            "Probability distributions",
-            "Regression analysis",
-            "Data visualization",
-        ],
-        status: "In Progress",
-        href: "/studies/ap-statistics",
-    },
-    {
-        title: "AP Biology",
-        slug: "ap-biology",
-        color: "var(--mc-green)",
-        icon: Microscope,
-        description:
-            "Cellular and organismal biology, ecology, and genetics. Building foundational understanding of living systems and environmental interconnectedness.",
-        tags: ["Life Sciences", "Laboratory", "Systems"],
-        focus: [
-            "Cell structure and function",
-            "Genetics and evolution",
-            "Ecology and ecosystems",
-            "Photosynthesis & respiration",
-        ],
-        status: "In Progress",
-        href: "/studies/ap-biology",
-    },
-    {
-        title: "Intro to Communications & Public Speaking",
-        slug: "intro-communications",
-        color: "var(--mc-aqua)",
-        icon: Mic,
-        description:
-            "Communication theory, interpersonal dynamics, and public speaking. Developing articulate presentation and persuasive messaging skills.",
-        tags: ["Communication", "Public Speaking", "Interpersonal Skills"],
-        focus: [
-            "Communication models",
-            "Public speaking",
-            "Presentation design",
-            "Audience analysis",
-        ],
-        status: "In Progress",
-        href: "/studies/intro-communications",
-    },
-    {
-        title: "AP 2-D Studio Art",
-        slug: "ap-studio-art",
-        color: "var(--mc-light-purple)",
-        icon: Palette,
-        description:
-            "Visual composition, design principles, and artistic expression. Developing a portfolio demonstrating conceptual depth and technical mastery.",
-        tags: ["Visual Arts", "Design", "Portfolio", "Creativity"],
-        focus: [
-            "Composition and balance",
-            "Color theory",
-            "Drawing fundamentals",
-            "Mixed media techniques",
-        ],
-        status: "In Progress",
-        href: "/studies/ap-studio-art",
-    },
-    {
-        title: "AP Government & Politics",
-        slug: "ap-government",
-        color: "var(--mc-blue)",
-        icon: Scale,
-        description:
-            "Constitutional law, political systems, and Supreme Court case studies. Understanding the mechanics of American democracy and civic governance.",
-        tags: ["Government", "Law", "Civics", "Politics"],
-        focus: [
-            "Constitutional law",
-            "Supreme Court decisions",
-            "Political ideologies",
-            "Federalism and separation of powers",
-        ],
-        status: "In Progress",
-        href: "/studies/ap-government",
-    },
-];
-
-const communityCollege: ProgramCard[] = [
-    {
-        title: "Santa Monica College",
-        color: "var(--mc-dark-aqua)",
-        icon: GraduationCap,
-        description:
-            "Transfer pathway for foundational STEM coursework. Complete core engineering prerequisites (Calculus I/II, Physics I/II, Chemistry I/II) while competing as a recruited cross-country athlete.",
-        institution: "SMC - Corsairs XC",
-        timeline: "Fall 2027 - Spring 2029 (2 years)",
-        courses: [
-            "Calculus I & II",
-            "Physics I & II",
-            "Chemistry I & II",
-            "Engineering Design",
-        ],
-        placeholder: false,
-    },
-    {
-        title: "General Education",
-        color: "var(--mc-yellow)",
-        icon: BookOpen,
-        description:
-            "Breadth requirements and electives. Explore areas that deepen systems thinking and connect to environmental engineering philosophy.",
-        institution: "SMC",
-        timeline: "Fall 2027 - Spring 2029",
-        courses: [
-            "Environmental Science",
-            "Technical Writing",
-            "Philosophy Electives",
-        ],
-        placeholder: false,
-    },
-];
-
-const calPolyPomona: ProgramCard[] = [
-    {
-        title: "Civil Engineering",
-        color: "var(--mc-dark-green)",
-        icon: GraduationCap,
-        description:
-            "Specialization: Environmental Engineering. 2-year completion after SMC transfer. Capstone project applying systems thinking to real-world infrastructure challenges.",
-        institution: "Cal Poly Pomona",
-        timeline: "Fall 2029 - Spring 2031 (2 years)",
-        courses: [
-            "Water Resources",
-            "Environmental Engineering",
-            "Sustainable Infrastructure",
-            "Capstone Design",
-        ],
-        placeholder: false,
-    },
-    {
-        title: "Professional Development",
-        color: "var(--mc-light-purple)",
-        icon: Lightbulb,
-        description:
-            "Internships, industry projects, and professional networking. Build experience with civil engineering firms focused on environmental design.",
-        institution: "Cal Poly Pomona",
-        timeline: "Ongoing throughout program",
-        courses: [
-            "Summer Internships",
-            "Industry Projects",
-            "Consulting Work",
-        ],
-        placeholder: false,
-    },
-];
-
-const personalStudies: ProgramCard[] = [
-    {
-        title: "Philosophy & Existentialism",
-        color: "var(--mc-light-purple)",
-        icon: BookOpen,
-        description:
-            "Independent deep dive into Kierkegaard, Sartre, and existential philosophy. How do authentic philosophical frameworks inform design practice and ethical decision-making?",
-        timeline: "Ongoing (ongoing)",
-        courses: [
-            "Fear and Trembling",
-            "Either/Or",
-            "The Concept of Anxiety",
-        ],
-        placeholder: false,
-    },
-    {
-        title: "Sustainable Systems Research",
-        color: "var(--mc-dark-green)",
-        icon: Lightbulb,
-        description:
-            "Investigate climate adaptation strategies, circular design, and regenerative systems. Connect personal research to Senior Project and future engineering work.",
-        timeline: "Fall 2026 - ongoing",
-        courses: [
-            "Climate Modeling",
-            "Regenerative Design",
-            "Water Systems",
-        ],
-        placeholder: false,
-    },
-    {
-        title: "Design & Creativity Practice",
-        color: "var(--mc-gold)",
-        icon: Palette,
-        description:
-            "Sketching, visual thinking, and design iteration. Daily creative practice connecting Studio Art coursework to engineering design thinking.",
-        timeline: "Daily practice",
-        courses: [
-            "Digital Design Tools",
-            "SketchUp Mastery",
-            "CAD Fundamentals",
-        ],
-        placeholder: false,
-    },
-];
+// Statically generated, refreshed hourly: progress bars and countdown starting
+// values are computed from real dates at render time, so the page keeps
+// moving forward on its own.
+export const revalidate = 3600;
 
 export default function StudiesPage() {
+    // One clock reading shared by every component, so server HTML and client
+    // hydration agree exactly.
+    const nowMs = Date.now();
+
     return (
         <div className="pointer-events-auto min-h-screen">
             <PageBackground variant="grid" color="#5555ff" />
             <SidebarNav
                 sections={[
-                    { id: "senior-year", label: "Senior Year Classes" },
-                    { id: "community-college", label: "Community College" },
-                    { id: "cal-poly", label: "Cal Poly Pomona" },
+                    { id: "overview", label: "The School Year" },
+                    { id: "classes", label: "Senior Year Classes" },
+                    { id: "pathway", label: "Education Pathway" },
                     { id: "personal", label: "Personal Studies" },
+                    { id: "reading", label: "Reading Queue" },
+                    { id: "tools", label: "Tools Roadmap" },
                 ]}
             />
             <section className="w-full px-6 pb-24 pt-28 sm:px-10 lg:px-16">
                 <PageHero
                     eyebrow="Learning"
                     title="Studies"
-                    description="Complete educational pathway: high school foundation, community college transfer, university specialization, and independent research. Integrated systems thinking across technical, creative, and philosophical domains."
+                    description="The complete educational pathway: this year's classes, the community college transfer, university specialization, and the independent research running alongside all of it. Systems thinking across technical, creative and philosophical work."
                     accent="var(--mc-blue)"
                     symbol="wisdom"
                 />
 
-                {/* Senior Year Classes */}
-                <div id="senior-year" className="mx-auto mt-14 max-w-6xl scroll-mt-24">
-                    <SectionLabel accent="var(--mc-blue)" symbol="intelligence">
-                        Senior Year Classes
-                    </SectionLabel>
-                    <p className="mt-2 max-w-2xl text-sm text-muted-foreground">
-                        Six interdisciplinary courses building toward environmental engineering
-                        and systems-thinking. Click any course for details on focus areas,
-                        resources, and learning goals.
-                    </p>
-                    <div className="mt-8">
-                        <CourseworkGrid courses={courses} />
-                    </div>
-                </div>
+                <div className="mx-auto mt-14 max-w-6xl">
+                    <section id="overview" className="scroll-mt-24">
+                        <StudiesOverview nowMs={nowMs} />
+                    </section>
 
-                {/* Community College */}
-                <div id="community-college" className="mx-auto mt-20 max-w-6xl scroll-mt-24">
-                    <SectionLabel accent="var(--mc-dark-aqua)" symbol="defense">
-                        Community College
-                    </SectionLabel>
-                    <p className="mt-2 max-w-2xl text-sm text-muted-foreground">
-                        Santa Monica College transfer pathway (2027-2029). Complete STEM
-                        prerequisites while competing as recruited athlete. Built-in flexibility
-                        for foundational coursework before upper-level engineering specialization.
-                    </p>
-                    <div className="mt-8 grid grid-cols-1 gap-6 sm:grid-cols-2">
-                        {communityCollege.map((card, idx) => (
-                            <EducationProgramCard key={idx} card={card} index={idx} />
-                        ))}
-                    </div>
-                </div>
+                    <section id="classes" className="mt-20 scroll-mt-24">
+                        <SectionLabel
+                            accent="var(--mc-blue)"
+                            symbol="intelligence"
+                        >
+                            Senior Year Classes
+                        </SectionLabel>
+                        <p className="mt-3 max-w-2xl text-sm text-muted-foreground sm:text-base">
+                            Six interdisciplinary classes building toward
+                            environmental engineering and systems thinking.
+                            Filter by area, and open any class for its goals and
+                            materials.
+                        </p>
+                        <div className="mt-6">
+                            <CourseExplorer courses={courses} />
+                        </div>
+                    </section>
 
-                {/* Cal Poly Pomona */}
-                <div id="cal-poly" className="mx-auto mt-20 max-w-6xl scroll-mt-24">
-                    <SectionLabel accent="var(--mc-dark-green)" symbol="fortune">
-                        4-Year University: Cal Poly Pomona
-                    </SectionLabel>
-                    <p className="mt-2 max-w-2xl text-sm text-muted-foreground">
-                        Transfer to Cal Poly Pomona as junior (2029). Civil Engineering with
-                        Environmental specialization. Capstone project + professional development
-                        pathway. Target graduation: Spring 2031.
-                    </p>
-                    <div className="mt-8 grid grid-cols-1 gap-6 sm:grid-cols-2">
-                        {calPolyPomona.map((card, idx) => (
-                            <EducationProgramCard key={idx} card={card} index={idx} />
-                        ))}
-                    </div>
-                </div>
+                    <section id="pathway" className="mt-24 scroll-mt-24">
+                        <SectionLabel accent="var(--mc-aqua)" symbol="defense">
+                            Education Pathway
+                        </SectionLabel>
+                        <p className="mt-3 max-w-2xl text-sm text-muted-foreground sm:text-base">
+                            From high school through Santa Monica College to Cal
+                            Poly Pomona and a 2031 degree, with live progress
+                            through each stage.
+                        </p>
+                        <div className="mt-8">
+                            <PathwayRail nowMs={nowMs} />
+                        </div>
+                    </section>
 
-                {/* Personal Studies */}
-                <div id="personal" className="mx-auto mt-20 max-w-6xl scroll-mt-24">
-                    <SectionLabel accent="var(--mc-light-purple)" symbol="wisdom">
-                        Personal Studies & Independent Research
-                    </SectionLabel>
-                    <p className="mt-2 max-w-2xl text-sm text-muted-foreground">
-                        Self-directed learning alongside formal coursework. Philosophy,
-                        sustainable systems, design practice, and technical skill development.
-                        These areas inform and deepen engagement with all academic work.
-                    </p>
-                    <div className="mt-8 grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
-                        {personalStudies.map((card, idx) => (
-                            <EducationProgramCard key={idx} card={card} index={idx} />
+                    <section id="personal" className="mt-16 scroll-mt-24">
+                        <SectionLabel
+                            accent="var(--mc-light-purple)"
+                            symbol="wisdom"
+                        >
+                            Personal Studies
+                        </SectionLabel>
+                        <p className="mt-3 max-w-2xl text-sm text-muted-foreground sm:text-base">
+                            Self-directed learning alongside formal coursework:
+                            philosophy, sustainable systems and design practice.
+                            These areas inform and deepen all of the academic
+                            work.
+                        </p>
+                        <div className="mt-6 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+                            {personalStudies.map((p) => (
+                                <ProgramCardView key={p.title} program={p} />
+                            ))}
+                        </div>
+                    </section>
+
+                    <section id="reading" className="mt-20 scroll-mt-24">
+                        <SectionLabel
+                            accent="var(--mc-yellow)"
+                            symbol="intelligence"
+                        >
+                            Reading Queue
+                        </SectionLabel>
+                        <p className="mt-3 max-w-2xl text-sm text-muted-foreground sm:text-base">
+                            What&apos;s on the shelf, in the order it&apos;s
+                            getting read.
+                        </p>
+                        <div className="mt-6">
+                            <ReadingQueue />
+                        </div>
+                    </section>
+
+                    <section id="tools" className="mt-20 scroll-mt-24">
+                        <SectionLabel
+                            accent="var(--mc-gold)"
+                            symbol="magicFind"
+                        >
+                            Tools Roadmap
+                        </SectionLabel>
+                        <p className="mt-3 max-w-2xl text-sm text-muted-foreground sm:text-base">
+                            The design and engineering toolset, in the order it
+                            gets learned: SketchUp, then Revit and AutoCAD, then
+                            Civil 3D.
+                        </p>
+                        <div className="mt-6">
+                            <ToolRoadmap />
+                        </div>
+                    </section>
+
+                    <div className="mt-20 flex flex-wrap gap-3">
+                        {[
+                            {
+                                href: "/timeline",
+                                label: "Full Timeline",
+                                color: "var(--mc-green)",
+                            },
+                            {
+                                href: "/about",
+                                label: "About Me",
+                                color: "var(--mc-dark-aqua)",
+                            },
+                            {
+                                href: "/creations",
+                                label: "See the Work",
+                                color: "var(--mc-aqua)",
+                            },
+                        ].map((l) => (
+                            <Link
+                                key={l.href}
+                                href={l.href}
+                                className="inline-flex items-center gap-2 rounded-lg border px-4 py-2 font-minecraft text-sm font-bold transition-transform hover:-translate-y-0.5"
+                                style={{
+                                    color: l.color,
+                                    borderColor: `color-mix(in oklch, ${l.color} 45%, transparent)`,
+                                    backgroundColor: `color-mix(in oklch, ${l.color} 9%, transparent)`,
+                                }}
+                            >
+                                {l.label} <ArrowRight className="size-4" />
+                            </Link>
                         ))}
                     </div>
                 </div>
