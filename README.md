@@ -1,285 +1,170 @@
-# Next.js + Shadcn UI + Tailwind CSS + Supabase Template
+<div align="center">
 
-This template provides a solid foundation for building full-stack applications with Next.js, Shadcn UI components, Tailwind CSS, and Supabase.
+<img src="public/icon-512x512.png" alt="Nate's Portfolio logo" width="96" height="96" />
 
-## Features
+# ✦ Nate's Portfolio ✦
 
-- **Next.js 15** with App Router
-- **Shadcn UI** components for beautiful, accessible UI
-- **Tailwind CSS** for utility-first styling
-- **Supabase** integration for authentication, database, and storage
-- **TypeScript** for type safety
-- **ESLint** and **Prettier** configuration
-- **Turbopack** for faster development experience
+### Games, renders, and systems — built while studying toward environmental engineering.
 
-## Prerequisites
+<br />
 
-- Node.js 18.17 or later
-- pnpm (recommended) or npm/yarn/bun
-- Supabase account (free tier available)
+[![Live](https://img.shields.io/badge/LIVE-nateanderson.dev-55FFFF?style=for-the-badge&labelColor=0b0b1a)](https://nateanderson.dev)
+[![Deploys](https://img.shields.io/badge/DEPLOYS-Vercel-FFFFFF?style=for-the-badge&logo=vercel&logoColor=white&labelColor=0b0b1a)](https://vercel.com)
 
-## Setup Instructions
+![Next.js](https://img.shields.io/badge/Next.js_16-000000?style=flat-square&logo=nextdotjs&logoColor=white)
+![React](https://img.shields.io/badge/React_19-55FFFF?style=flat-square&logo=react&logoColor=0b0b1a)
+![TypeScript](https://img.shields.io/badge/TypeScript-5555FF?style=flat-square&logo=typescript&logoColor=white)
+![Tailwind](https://img.shields.io/badge/Tailwind_v4-00AAAA?style=flat-square&logo=tailwindcss&logoColor=white)
+![Motion](https://img.shields.io/badge/Motion-FF55FF?style=flat-square&logo=framer&logoColor=0b0b1a)
+![Supabase](https://img.shields.io/badge/Supabase-55FF55?style=flat-square&logo=supabase&logoColor=0b0b1a)
 
-### 1. Clone the repository
+<br />
+
+**🟦 [Visit the site](https://nateanderson.dev)** &nbsp;·&nbsp; **🟩 [Play the games](https://nateanderson.dev/creations/games)** &nbsp;·&nbsp; **🟪 [About me](https://nateanderson.dev/about)**
+
+</div>
+
+<br />
+
+---
+
+## ✧ What is this?
+
+My personal corner of the internet: a portfolio, a playground, and a running log of everything I make. The whole site is themed like a **Minecraft / Hypixel SkyBlock menu** — pixel headers, glowing rainbow text, glassy panels, and a floating dock for navigation — while staying fast, responsive, and readable.
+
+> [!NOTE]
+> The site is a work in progress. Some pages are placeholders while I build them out one at a time.
+
+---
+
+## ✦ Explore
+
+| | Section | What you'll find |
+| :-: | :-- | :-- |
+| 🏠 | **[Home](https://nateanderson.dev)** | Glowing rainbow name, rotating tagline, identity marquee, landing timeline |
+| 🙋 | **[About](https://nateanderson.dev/about)** | Running stats, race breakdown, philosophy, education timeline, skills tree |
+| 🛠️ | **[Creations](https://nateanderson.dev/creations)** | Hub for games, projects, renovations, and artwork |
+| 🎮 | **[Games](https://nateanderson.dev/creations/games)** | Browser games — daily puzzles, unlimited practice, and more on the way |
+| 📚 | **[Studies](https://nateanderson.dev/studies)** | Coursework explorer and study notes |
+| 🗓️ | **[Timeline](https://nateanderson.dev/timeline)** | Milestones and countdowns |
+| 📜 | **[History](https://nateanderson.dev/history)** | Commit history pulled live from GitHub |
+| ✍️ | **[Blog](https://nateanderson.dev/blog)** | Writing and updates |
+
+---
+
+## 🎮 Games
+
+Playable right in the browser, with a **daily** mode (same puzzle for everyone) and an **unlimited** mode for practice.
+
+| Game | Description |
+| :-- | :-- |
+| 🗺️ **Outline Guesser** | Worldle-style: identify a country from its outline. Daily schedule, filters, a neighbours round, a flag round, and an end-of-run summary. |
+| 🚩 **Flag Guesser** | Name the country from its flag. Tile-flip reveal, country dice, and full keyboard controls. |
+
+More daily and repeatable games are planned.
+
+---
+
+## 🎨 Design language
+
+<table>
+<tr>
+<td width="50%" valign="top">
+
+**Look & feel**
+
+- Minecraft pixel font for titles and section labels
+- Rainbow glow text and animated blinking accents
+- Glass panels with a liquid-glass filter
+- Floating dock navigation (mobile dock included)
+- Page transitions and smooth motion throughout
+
+</td>
+<td width="50%" valign="top">
+
+**The palette**
+
+| Token | Color |
+| :-- | :-- |
+| `mc-aqua` | ![#55FFFF](https://img.shields.io/badge/-55FFFF-55FFFF?style=flat-square) |
+| `mc-green` | ![#55FF55](https://img.shields.io/badge/-55FF55-55FF55?style=flat-square) |
+| `mc-yellow` | ![#FFFF55](https://img.shields.io/badge/-FFFF55-FFFF55?style=flat-square) |
+| `mc-gold` | ![#FFAA00](https://img.shields.io/badge/-FFAA00-FFAA00?style=flat-square) |
+| `mc-red` | ![#FF5555](https://img.shields.io/badge/-FF5555-FF5555?style=flat-square) |
+| `mc-light-purple` | ![#FF55FF](https://img.shields.io/badge/-FF55FF-FF55FF?style=flat-square) |
+| `mc-blue` | ![#5555FF](https://img.shields.io/badge/-5555FF-5555FF?style=flat-square) |
+
+</td>
+</tr>
+</table>
+
+---
+
+## 🧱 Tech stack
+
+| Layer | Tools |
+| :-- | :-- |
+| **Framework** | Next.js 16 (App Router, Turbopack), React 19, TypeScript |
+| **Styling** | Tailwind CSS v4, shadcn/ui, Radix UI, `next-themes` |
+| **Motion** | `motion/react` |
+| **Maps & data** | `d3-geo`, `topojson-client` (country outlines) |
+| **Backend** | Supabase |
+| **Hosting** | Vercel, auto-deployed from `main` |
+
+---
+
+## 🚀 Run it locally
 
 ```bash
-git clone https://github.com/Codelab-Davis/next-shadcn-tailwind-supabase.git my-app
-cd my-app
+git clone https://github.com/FreezingShock/nateanderson-dev.git
+cd nateanderson-dev
+npm install
 ```
 
-### 2. Install dependencies
+Create a `.env.local` file:
 
 ```bash
-pnpm install
+NEXT_PUBLIC_SUPABASE_URL=your-supabase-url
+NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=your-supabase-publishable-key
+GITHUB_TOKEN=your-github-token   # optional, used for the History page
 ```
 
-### 3. Set up Supabase
-
-1. Create a new project at [supabase.com](https://supabase.com)
-2. Copy your project URL and anon key from the API settings
-3. Create a `.env.local` file in the project root:
-
-```
-NEXT_PUBLIC_SUPABASE_URL=YOUR_SUPABASE_URL
-NEXT_PUBLIC_SUPABASE_ANON_KEY=YOUR_SUPABASE_ANON_KEY
-```
-
-### 4. Run the development server
+Start the dev server:
 
 ```bash
-pnpm dev
+npm run dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result. (This is the default port for Next.js.)
+Then open [http://localhost:3000](http://localhost:3000).
 
-## Project Structure
+| Command | Does |
+| :-- | :-- |
+| `npm run dev` | Dev server with Turbopack |
+| `npm run build` | Production build |
+| `npm run start` | Serve the production build |
+| `npm run lint` | Lint the code |
+| `npm run format` | Format with Prettier |
 
-```
-├── actions/          # Server actions
-├── app/              # Next.js App Router
-├── components/       # React components
-│   ├── ui/           # Shadcn UI components
-├── lib/              # Utility functions
-│   ├── supabase/     # Supabase client configurations
-│   └── utils.ts      # Helper functions
-├── public/           # Static assets
-└── types/            # TypeScript type definitions
-```
+---
 
-## Working with Next.js
+## 🗂️ Project structure
 
-This template uses the Next.js App Router for file-based routing.
-
-### Pages and Layouts
-
-- Create pages by adding files to the app directory
-- Use layout.tsx files for shared layouts
-- Create loading.tsx files for loading states
-
-```tsx
-// app/dashboard/page.tsx
-export default function Dashboard() {
-    return <div>Dashboard Content</div>;
-}
+```text
+├── app/            # Routes (App Router): about, creations, studies, timeline, history, blog
+├── components/     # Site UI: dock, hero, footer, games, explorers, glass panels
+│   └── ui/         # shadcn/ui primitives
+├── lib/            # Data and helpers: creations, timeline, studies, GitHub, Supabase
+├── actions/        # Server actions
+├── scripts/        # Build scripts for game data (outlines, neighbours, flags, daily schedule)
+└── public/         # Icons, flags, static assets
 ```
 
-### Server vs Client Components
+---
 
-By default, all components in Next.js are Server Components. To use client-side features:
+<div align="center">
 
-```tsx
-"use client";
+**Built by [Nate](https://github.com/FreezingShock)** &nbsp;·&nbsp; [nateanderson.dev](https://nateanderson.dev)
 
-import { useState } from "react";
+<sub>✦ made with too much rainbow ✦</sub>
 
-export default function Counter() {
-    const [count, setCount] = useState(0);
-    return <button onClick={() => setCount(count + 1)}>Count: {count}</button>;
-}
-```
-
-## Working with Shadcn UI
-
-This template includes Shadcn UI, a collection of reusable components built with Radix UI and Tailwind CSS.
-
-### Adding new components
-
-1. Use the CLI to add components:
-
-```bash
-pnpm dlx shadcn-ui@latest add button
-```
-
-2. Import and use components in your pages:
-
-```tsx
-import { Button } from "@/components/ui/button";
-
-export default function Page() {
-    return <Button>Click me</Button>;
-}
-```
-
-### Customizing components
-
-All components are installed in the ui directory and can be customized as needed.
-
-## Working with Tailwind CSS
-
-Tailwind CSS is configured and ready to use. The template includes:
-
-- Custom colors and theming
-- Dark mode support
-- Shadcn UI integration
-
-### Customizing theme
-
-Tailwind CSS v4 uses CSS variables for theming. Edit your `app/globals.css` file to customize the theme:
-
-```css
-@import "tailwindcss";
-
-@theme {
-    --color-primary: oklch(0.49 0.23 275.75);
-    --color-primary-foreground: white;
-
-    --font-sans: "Inter", system-ui;
-
-    --radius-md: 0.5rem;
-}
-
-/* You can also create semantic aliases for your theme values */
-@theme {
-    --app-background: var(--color-zinc-950);
-    --app-foreground: var(--color-zinc-50);
-}
-```
-
-For complex customizations, you can also extend or override components:
-
-```css
-@utility card {
-    background-color: var(--card-background);
-    border-radius: var(--radius-md);
-    border: 1px solid var(--border);
-    padding: 1.5rem;
-    box-shadow: var(--shadow-sm);
-}
-
-/* Customizing Shadcn UI components */
-@layer components {
-    .button-gradient {
-        background-image: linear-gradient(
-            to right,
-            var(--color-blue-500),
-            var(--color-purple-500)
-        );
-    }
-}
-```
-
-## Working with Supabase
-
-This template includes configurations for Supabase authentication, database, and storage.
-
-### Authentication
-
-```tsx
-"use client";
-
-import { createClient } from "@/lib/supabase/client";
-
-export default function LoginButton() {
-    const supabase = createClient();
-
-    const handleLogin = async () => {
-        await supabase.auth.signInWithOAuth({
-            provider: "github",
-        });
-    };
-
-    return <button onClick={handleLogin}>Sign in with GitHub</button>;
-}
-```
-
-### Database Operations
-
-```tsx
-import { createClient } from "@/lib/supabase/server";
-
-export default async function Posts() {
-    const supabase = await createClient();
-    const { data: posts } = await supabase.from("posts").select("*");
-
-    return (
-        <div>{posts?.map((post) => <div key={post.id}>{post.title}</div>)}</div>
-    );
-}
-```
-
-### Storage
-
-```tsx
-"use client";
-
-import { createClient } from "@/lib/supabase/client";
-
-export default function FileUpload() {
-    const supabase = createClient();
-
-    const handleUpload = async (event) => {
-        const file = event.target.files[0];
-        const { data, error } = await supabase.storage
-            .from("avatars")
-            .upload(`public/${file.name}`, file);
-    };
-
-    return <input type="file" onChange={handleUpload} />;
-}
-```
-
-## Linting and Formatting
-
-This template includes ESLint and Prettier configuration. Run:
-
-```bash
-# Lint code
-pnpm lint
-
-# Format code
-pnpm format
-```
-
-## Deployment
-
-### Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use [Vercel](https://vercel.com/new).
-
-1. Push your code to a GitHub repository
-2. Import the project to Vercel
-3. Add your Supabase environment variables
-4. Deploy
-
-## Contributing
-
-Contributions are welcome! Please feel free to submit a Pull Request.
-
-1. Fork the repository
-2. Create your feature branch (`git checkout -b feature/amazing-feature`)
-3. Commit your changes (`git commit -m 'Add some amazing feature'`)
-4. Push to the branch (`git push origin feature/amazing-feature`)
-5. Open a Pull Request
-
-## License
-
-This project is licensed under the MIT License - see the LICENSE file for details.
-
-## Acknowledgments
-
-- [Next.js](https://nextjs.org)
-- [Shadcn UI](https://ui.shadcn.com)
-- [Tailwind CSS](https://tailwindcss.com)
-- [Supabase](https://supabase.com)
-
-Similar code found with 2 license types
+</div>
