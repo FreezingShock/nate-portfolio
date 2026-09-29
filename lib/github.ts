@@ -97,3 +97,32 @@ export async function fetchCommitsPage(
         })
     );
 }
+
+export interface RecentCommit {
+    sha: string;
+    hash: string;
+    date: string;
+    subject: string;
+}
+
+// List-only fetch (ONE API call, no per-commit stats) for the landing page's
+// latest-commit card and commit ticker. Cached 5 minutes so "latest commit"
+// stays fresh without spending much of the 60/hour unauthenticated budget.
+export async function fetchRecentCommits(count = 8): Promise<RecentCommit[]> {
+    try {
+        const res = await fetch(
+            `https://api.github.com/repos/${REPO}/commits?per_page=${count}`,
+            { headers: githubHeaders(), next: { revalidate: 300 } }
+        );
+        if (!res.ok) return [];
+        const raw = (await res.json()) as GhCommit[];
+        return raw.map((c) => ({
+            sha: c.sha,
+            hash: c.sha.slice(0, 7),
+            date: c.commit.author?.date ?? "",
+            subject: c.commit.message.split("\n")[0],
+        }));
+    } catch {
+        return [];
+    }
+}

@@ -398,3 +398,65 @@
 @media (prefers-reduced-motion: reduce) {
     .dot-twinkle { animation: none; opacity: 0; }
 }
+
+/* GlowCard (components/glow-card.tsx): cursor-following spotlight + lit
+   border, all CSS. --gc is the card's accent (set inline); --mx/--my are the
+   pointer position, written by GlowCard's throttled pointermove. Nothing
+   here uses backdrop-filter on purpose: many cards sit over the animated
+   site background, and blurring that behind every card is what makes pages
+   lag. The translucent fill below gives the same layered look for free. */
+.glow-card {
+    position: relative;
+    isolation: isolate;
+    overflow: hidden;
+    border-radius: 0.875rem;
+    border: 1px solid color-mix(in oklch, var(--gc) 32%, var(--border));
+    background: color-mix(in oklch, var(--gc) 7%, var(--card));
+    transition: transform 0.25s ease, border-color 0.25s ease, box-shadow 0.25s ease;
+}
+.glow-card::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    z-index: -1;
+    border-radius: inherit;
+    background: radial-gradient(
+        280px circle at var(--mx, 50%) var(--my, 50%),
+        color-mix(in oklch, var(--gc) 30%, transparent),
+        transparent 70%
+    );
+    opacity: 0;
+    transition: opacity 0.25s ease;
+    pointer-events: none;
+}
+.glow-card::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    padding: 1px;
+    background: radial-gradient(
+        220px circle at var(--mx, 50%) var(--my, 50%),
+        var(--gc),
+        transparent 70%
+    );
+    mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+    -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+    mask-composite: exclude;
+    -webkit-mask-composite: xor;
+    opacity: 0;
+    transition: opacity 0.25s ease;
+    pointer-events: none;
+}
+.glow-card:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 14px 34px -14px color-mix(in oklch, var(--gc) 60%, transparent);
+}
+.glow-card:hover::before,
+.glow-card:hover::after {
+    opacity: 1;
+}
+@media (prefers-reduced-motion: reduce) {
+    .glow-card { transition: none; }
+    .glow-card:hover { transform: none; }
+}

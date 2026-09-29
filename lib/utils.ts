@@ -10,7 +10,7 @@ export function getProjectAccentColor(slug: string): string {
     const colorMap: Record<string, string> = {
         "fractured-islands": "var(--mc-light-purple)",
         "topanga-willows": "var(--mc-blue)",
-        "blender-renovation": "var(--mc-gold)",
+        "blender-studies": "var(--mc-gold)",
     };
     return colorMap[slug] || "var(--mc-gold)";
 }

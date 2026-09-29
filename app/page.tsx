@@ -1,5 +1,6 @@
 import { HeroTagline } from "@/components/hero-tagline";
 import { DomainPill } from "@/components/domain-pill";
+import { Suspense } from "react";
 import Link from "next/link";
 import { ArrowRight, User } from "lucide-react";
 import { identity, getProjects, getRecentRenovations } from "@/lib/content";
@@ -10,10 +11,13 @@ import { HeroFirstName, HeroLastName } from "@/components/hero-name";
 import { GlyphMatrix } from "@/components/ui/glyph-matrix";
 import { ShineBorder } from "@/components/ui/shine-border";
 import { RainbowButton } from "@/components/ui/rainbow-button";
-import { BentoGrid, BentoCard } from "@/components/ui/bento-grid";
-import { MagicCard } from "@/components/ui/magic-card";
+import { FeaturedWorkCard } from "@/components/featured-work-card";
 import { SectionLabel } from "@/components/section-label";
 import { SidebarNav } from "@/components/sidebar-nav";
+import { SiteStatistics, SiteStatisticsSkeleton } from "@/components/site-statistics";
+import { LandingTimeline } from "@/components/landing-timeline";
+import { RecentPosts } from "@/components/recent-posts";
+import { ExploreGrid } from "@/components/explore-grid";
 
 export const revalidate = 60; // re-check Supabase for new content every 60s
 
@@ -42,6 +46,10 @@ export default async function Home() {
                 sections={[
                     { id: "stack", label: "Stack" },
                     { id: "work", label: "Selected Work" },
+                    { id: "stats", label: "Site Statistics" },
+                    { id: "timeline", label: "Timeline View" },
+                    { id: "blog", label: "Recent Posts" },
+                    { id: "explore", label: "Explore the Site" },
                 ]}
             />
 
@@ -152,36 +160,46 @@ export default async function Home() {
                             </span>{" "}
                             that connects them — the work that best shows how I build.
                         </p>
-                        <BentoGrid className="mt-6 grid-cols-1 sm:grid-cols-3">
+                        <div className="mt-6 grid grid-cols-1 gap-4 sm:grid-cols-3">
                             {featured.map((project) => {
                                 const { icon, color } = getProjectIcon(project.slug);
                                 return (
-                                    <MagicCard
+                                    <FeaturedWorkCard
                                         key={project.slug}
-                                        className="col-span-1 rounded-xl"
-                                        gradientFrom="var(--mc-gold)"
-                                        gradientTo="var(--chart-4)"
-                                        gradientColor="var(--accent)"
-                                        gradientOpacity={0.6}
-                                    >
-                                        <BentoCard
-                                            name={project.title}
-                                            className="h-full !bg-transparent [box-shadow:none] dark:[box-shadow:none]"
-                                            Icon={icon}
-                                            accentColor={color}
-                                            description={project.description}
-                                            href={`/creations/${project.slug}`}
-                                            cta="Learn more"
-                                            background={<div className="absolute inset-0" />}
-                                        />
-                                    </MagicCard>
+                                        slug={project.slug}
+                                        tags={project.tags}
+                                        title={project.title}
+                                        description={project.description}
+                                        href={`/creations/${project.slug}`}
+                                        Icon={icon}
+                                        color={color}
+                                    />
                                 );
                             })}
-                        </BentoGrid>
+                        </div>
                     </div>
                 </section>
             )}
 
+            {/* Site Statistics — streamed in via Suspense so the GitHub
+                calls behind it never hold up the hero on a cold cache. */}
+            <section id="stats" className="w-full px-6 pb-24 scroll-mt-24 sm:px-10 lg:px-16">
+                <Suspense fallback={<SiteStatisticsSkeleton />}>
+                    <SiteStatistics />
+                </Suspense>
+            </section>
+
+            <section id="timeline" className="w-full px-6 pb-24 scroll-mt-24 sm:px-10 lg:px-16">
+                <LandingTimeline />
+            </section>
+
+            <section id="blog" className="w-full px-6 pb-24 scroll-mt-24 sm:px-10 lg:px-16">
+                <RecentPosts />
+            </section>
+
+            <section id="explore" className="w-full px-6 pb-8 scroll-mt-24 sm:px-10 lg:px-16">
+                <ExploreGrid />
+            </section>
         </div>
     );
 }
