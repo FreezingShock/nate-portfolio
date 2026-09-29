@@ -1,19 +1,23 @@
 import {
     Award,
     BookOpen,
+    Brain,
     Briefcase,
+    CalendarCheck,
     CheckCircle,
     Code2,
     Compass,
     Flag,
     Footprints,
     GraduationCap,
-    Brain,
     Leaf,
     Lightbulb,
+    Mountain,
     Palette,
+    PenLine,
     Rocket,
     Send,
+    Smartphone,
     Sun,
     Target,
     Trophy,
@@ -24,23 +28,29 @@ import {
 import type { TimelineIconName } from "@/lib/timeline-data";
 
 // Data files store icon NAMES (plain strings survive the server → client
-// boundary; component functions don't), and this resolves them.
+// boundary; component functions don't), and this resolves them. Typed as a
+// full Record so adding a name to TimelineIconName without an icon here is a
+// compile error, not a runtime crash.
 export const TIMELINE_ICONS: Record<TimelineIconName, LucideIcon> = {
     Award,
     BookOpen,
+    Brain,
     Briefcase,
+    CalendarCheck,
     CheckCircle,
     Code2,
     Compass,
     Flag,
     Footprints,
     GraduationCap,
-    Brain,
     Leaf,
     Lightbulb,
+    Mountain,
     Palette,
+    PenLine,
     Rocket,
     Send,
+    Smartphone,
     Sun,
     Target,
     Trophy,

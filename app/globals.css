@@ -534,3 +534,11 @@
         animation: none;
     }
 }
+
+/* Set briefly by the timeline while it jumps to a deep link (see `reveal` in
+   components/timeline-explorer.tsx): renders every phase so their heights are
+   real, not content-visibility estimates, while a programmatic scroll crosses
+   them. */
+.tl-cv-off .tl-phase {
+    content-visibility: visible;
+}

@@ -2,10 +2,11 @@
 // to know the plan): phases, events, real dates and the helpers that turn
 // dates into status/progress. Edit here and the whole page follows.
 //
-// Dates are ISO (YYYY-MM-DD). `start`/`end` are what drive status ("done",
-// "now", "upcoming") and progress, so keep them accurate; `when` is only the
-// human label shown on the card. `special: true` marks the super-special
-// milestones that get the animated rainbow ("chroma") treatment.
+// Dates are ISO (YYYY-MM-DD). `start`/`end` drive status ("done", "now",
+// "upcoming") and progress, so keep them accurate; `when` is only the human
+// label on the card. Events render in the order listed, so keep each phase
+// chronological. `special: true` marks the super-special milestones that get
+// the animated rainbow ("chroma") treatment.
 
 export type PhaseId = "high-school" | "smc" | "cal-poly" | "personal";
 
@@ -29,7 +30,40 @@ export type TimelineIconName =
     | "Compass"
     | "Code2"
     | "Leaf"
-    | "Brain";
+    | "Brain"
+    | "PenLine"
+    | "Mountain"
+    | "CalendarCheck"
+    | "Smartphone";
+
+// What kind of thing an event is. Color carries meaning across the whole page:
+// the same category is the same color in every phase, and the toolbar legend
+// filters by it.
+export type Category =
+    | "academics"
+    | "exams"
+    | "applications"
+    | "athletics"
+    | "portfolio"
+    | "career"
+    | "milestone"
+    | "mind"
+    | "build";
+
+export const CATEGORIES: Record<Category, { label: string; color: string }> = {
+    academics: { label: "Coursework", color: "var(--mc-blue)" },
+    exams: { label: "Exams", color: "var(--mc-red)" },
+    applications: { label: "Applications", color: "var(--mc-aqua)" },
+    athletics: { label: "Athletics", color: "var(--mc-green)" },
+    portfolio: { label: "Portfolio", color: "var(--mc-light-purple)" },
+    career: { label: "Career", color: "var(--mc-gold)" },
+    milestone: { label: "Landmarks", color: "var(--mc-yellow)" },
+    mind: {
+        label: "Mind",
+        color: "color-mix(in oklch, var(--mc-dark-purple) 60%, white)",
+    },
+    build: { label: "Building", color: "var(--mc-dark-aqua)" },
+};
 
 export interface TimelineEventData {
     id: string;
@@ -42,6 +76,9 @@ export interface TimelineEventData {
     end?: string;
     /** Open-ended, never "done" (independent work that runs alongside school). */
     ongoing?: boolean;
+    /** An idea with no date yet. */
+    planned?: boolean;
+    category: Category;
     type: "major" | "minor";
     icon: TimelineIconName;
     tags?: string[];
@@ -79,13 +116,13 @@ export const phases: TimelinePhaseData[] = [
         id: "high-school",
         title: "High School Senior Year",
         short: "Senior Year",
-        range: "September 2026 — June 2027",
+        range: "September 2026 — Summer 2027",
         description:
-            "The final year before college. Six interdisciplinary courses, college applications, the SAT retake, AP exams and the Senior Project capstone, all pointed at an environmental engineering pathway.",
+            "The final year before college. Six interdisciplinary courses, college applications, the SAT retake, the Senior Project, AP exams and graduation, all pointed at an environmental engineering pathway.",
         color: "var(--mc-blue)",
         icon: "BookOpen",
         start: "2026-09-01",
-        end: "2027-06-10",
+        end: "2027-08-31",
         events: [
             {
                 id: "hs-1",
@@ -95,6 +132,7 @@ export const phases: TimelinePhaseData[] = [
                 when: "Sept 2026 — Ongoing",
                 start: "2026-09-01",
                 end: "2027-06-10",
+                category: "academics",
                 type: "major",
                 icon: "BookOpen",
                 tags: ["Coursework", "6 Courses"],
@@ -108,30 +146,105 @@ export const phases: TimelinePhaseData[] = [
                 ],
             },
             {
-                id: "hs-2",
-                title: "College Outreach & SAT Registration",
+                id: "hs-11",
+                title: "SMC Coach Outreach",
                 description:
-                    "Open the door with Santa Monica College's cross-country program and lock in a January SAT date.",
+                    "The first move of the recruiting process: introducing myself to Santa Monica College's cross-country program.",
+                when: "By Sept 30, 2026",
+                start: "2026-09-28",
+                end: "2026-09-30",
+                category: "athletics",
+                type: "minor",
+                icon: "Send",
+                tags: ["Recruiting", "Cross-Country"],
+                details: [
+                    "Introduce myself with race results, graduation year and engineering interest",
+                    "Ask about recruited-athlete status, scholarship availability and the transfer pathway to Cal Poly Pomona",
+                ],
+            },
+            {
+                id: "hs-2",
+                title: "Essays & Recommendation Letters",
+                description:
+                    "Getting the application story written down while there's plenty of runway: personal narrative first, letters second.",
                 when: "October 2026",
                 start: "2026-10-01",
                 end: "2026-10-31",
+                category: "applications",
                 type: "minor",
-                icon: "Send",
-                tags: ["Athletics", "SAT"],
+                icon: "PenLine",
+                tags: ["Essays", "Applications"],
                 details: [
-                    "Reach out to the SMC cross-country coach about recruited-athlete status",
-                    "Register for the January SAT",
-                    "Pull together an athletic resume: race results and training history",
+                    "Draft 2–3 versions of the SMC essay and personal narrative by the end of October",
+                    "Ask two teachers who know my ambitions for recommendation letters by mid-October",
+                    "SMC is open-admission, so the essays carry the narrative and the letters are a bonus",
+                ],
+            },
+            {
+                id: "hs-12",
+                title: "Transfer Mapping & Logistics",
+                description:
+                    "Mapping exactly what the SMC → Cal Poly Pomona route requires, and how the daily logistics will work.",
+                when: "October 2026",
+                start: "2026-10-01",
+                end: "2026-10-31",
+                category: "applications",
+                type: "minor",
+                icon: "Compass",
+                tags: ["Transfer", "Planning"],
+                details: [
+                    "Use ASSIST.org to pull the SMC → Cal Poly Pomona Civil Engineering course agreements",
+                    "Get high school transcripts and AP score reports ready",
+                    "Weigh commuting against living near campus during cross-country season",
+                ],
+            },
+            {
+                id: "hs-16",
+                title: "Senior Project: Sites & Research",
+                description:
+                    "Choosing the neglected outdoor spaces to redesign and studying what actually makes public spaces work.",
+                when: "Oct 2026 — Jan 2027",
+                start: "2026-10-01",
+                end: "2027-01-31",
+                category: "academics",
+                type: "minor",
+                icon: "Leaf",
+                tags: ["Senior Project", "Research"],
+                details: [
+                    "Choose the sites: learning facilities and shopping centers",
+                    "Study authentic precedents: spaces that actually get used, not just beautiful renderings",
+                    "Community needs assessment: what's broken, and why is the space empty?",
+                    "Sustainability research: local durable materials, native plants, honest water management, accessibility",
+                ],
+            },
+            {
+                id: "hs-13",
+                title: "SAT Prep Sprint",
+                description:
+                    "Three focused months of steady practice, aimed squarely at the reading section where scores jump the most.",
+                when: "Oct — Dec 2026",
+                start: "2026-10-01",
+                end: "2026-12-31",
+                category: "exams",
+                type: "minor",
+                icon: "Brain",
+                tags: ["SAT", "Prep"],
+                details: [
+                    "Khan Academy's personalized practice, 10+ hours on weak areas",
+                    "2–3 timed, full-length official practice tests by December",
+                    "Review every wrong answer: what's the pattern?",
+                    "Focus on reading comprehension: dense passages from science and philosophy, and pacing",
                 ],
             },
             {
                 id: "hs-3",
                 title: "First Portfolio Project",
                 description:
-                    "Start the first real design piece: a SketchUp redesign of a local space, documented from the existing conditions forward.",
-                when: "Nov — Dec 2026",
+                    "The first real design piece: a SketchUp redesign of a local space, documented from the existing conditions forward.",
+                when: "Nov 2026 — Feb 2027",
                 start: "2026-11-01",
-                end: "2026-12-31",
+                end: "2027-02-28",
+                category: "portfolio",
                 type: "major",
                 icon: "Palette",
                 tags: ["Portfolio", "SketchUp", "Design"],
@@ -139,40 +252,72 @@ export const phases: TimelinePhaseData[] = [
                     "Choose and survey the space, then document what's there",
                     "Model the redesign in SketchUp",
                     "Write up the reasoning so the process is part of the piece",
-                    "Feeds the Recent Renovations section of this site",
+                    "Complete by February 2027; it also feeds the Recent Renovations section of this site",
                 ],
             },
             {
                 id: "hs-4",
-                title: "College Applications",
+                title: "SMC Application",
                 description:
-                    "Apply to Santa Monica College and line up the transfer pathway to Cal Poly Pomona.",
-                when: "December 2026",
+                    "Prepare in December, submit after the SAT, and line up the transfer pathway to Cal Poly Pomona.",
+                when: "Dec 2026 — Jan 2027",
                 start: "2026-12-01",
-                end: "2026-12-31",
+                end: "2027-01-31",
+                category: "applications",
                 type: "major",
                 icon: "Send",
                 tags: ["SMC", "Transfer"],
                 details: [
-                    "Submit the Santa Monica College application (rolling admissions)",
-                    "Get the SMC → Cal Poly Pomona transfer agreement in writing",
+                    "Prepare the application in December (rolling admissions)",
+                    "Submit the Santa Monica College application in January, after the SAT",
+                    "Acceptance is expected within about two weeks",
                     "Confirm backup schools",
                 ],
             },
             {
+                id: "hs-14",
+                title: "SAT Registration Deadline",
+                description: "The last day to register for the January test.",
+                when: "Dec 15, 2026",
+                start: "2026-12-15",
+                category: "exams",
+                type: "minor",
+                icon: "CalendarCheck",
+                tags: ["SAT", "Deadline"],
+            },
+            {
                 id: "hs-5",
                 title: "SAT Retake",
-                description: "One more attempt at a stronger score, after months of steady prep.",
+                description:
+                    "One more attempt at a stronger score, after months of steady prep.",
                 when: "January 2027",
                 start: "2027-01-01",
                 end: "2027-01-31",
+                category: "exams",
                 type: "minor",
                 icon: "Target",
                 tags: ["SAT", "Exam"],
                 details: [
-                    "Sit the January SAT",
+                    "Sit the January SAT (arrive early, bring ID)",
                     "Send scores to the colleges that need them",
                     "Decide whether another attempt is worth it",
+                ],
+            },
+            {
+                id: "hs-15",
+                title: "Senior Project: Analysis & Concepts",
+                description:
+                    "Turning research into a clear problem statement and several honest design directions.",
+                when: "February 2027",
+                start: "2027-02-01",
+                end: "2027-02-28",
+                category: "academics",
+                type: "minor",
+                icon: "Lightbulb",
+                tags: ["Senior Project", "Design"],
+                details: [
+                    "Site analysis and problem statement: define the authentic problem to solve",
+                    "2–3 design concepts that show multiple solutions to real constraints",
                 ],
             },
             {
@@ -183,6 +328,7 @@ export const phases: TimelinePhaseData[] = [
                 when: "Feb — Apr 2027",
                 start: "2027-02-01",
                 end: "2027-04-30",
+                category: "portfolio",
                 type: "minor",
                 icon: "Palette",
                 tags: ["Studio Art", "Portfolio"],
@@ -193,6 +339,59 @@ export const phases: TimelinePhaseData[] = [
                 ],
             },
             {
+                id: "hs-17",
+                title: "SMC Acceptance & Athlete Confirmation",
+                description:
+                    "The answers arrive: admission to Santa Monica College and confirmation of recruited-athlete status.",
+                when: "Feb — Mar 2027",
+                start: "2027-02-01",
+                end: "2027-03-31",
+                category: "applications",
+                type: "major",
+                icon: "CheckCircle",
+                tags: ["SMC", "Recruiting"],
+                details: [
+                    "Expected SMC acceptance",
+                    "Confirm recruited-athlete status with the cross-country coach",
+                    "Finalize the housing or commute plan for fall 2027",
+                ],
+            },
+            {
+                id: "hs-18",
+                title: "Senior Project: Final Design & Spec",
+                description:
+                    "Refining the chosen concept into portfolio-ready documentation, with every choice defensible.",
+                when: "March 2027",
+                start: "2027-03-01",
+                end: "2027-03-31",
+                category: "academics",
+                type: "minor",
+                icon: "PenLine",
+                tags: ["Senior Project", "Documentation"],
+                details: [
+                    "Iterate with community feedback",
+                    "Sustainability analysis: quantify the environmental choices",
+                    "Portfolio documentation that shows the thinking, not just the drawings",
+                ],
+            },
+            {
+                id: "hs-19",
+                title: "Senior Project: Implementation Plan",
+                description:
+                    "Proving the design could actually be built, and maintained by the people who'd have to.",
+                when: "April 2027",
+                start: "2027-04-01",
+                end: "2027-04-30",
+                category: "academics",
+                type: "minor",
+                icon: "Compass",
+                tags: ["Senior Project", "Planning"],
+                details: [
+                    "How it actually gets built: phasing, materials and cost",
+                    "Maintenance realism: design for who will really maintain it",
+                ],
+            },
+            {
                 id: "hs-7",
                 title: "AP Exam Window",
                 description:
@@ -200,6 +399,7 @@ export const phases: TimelinePhaseData[] = [
                 when: "May 3 – 13, 2027",
                 start: KEY_DATES.apStart,
                 end: KEY_DATES.apEnd,
+                category: "exams",
                 type: "major",
                 icon: "Award",
                 special: true,
@@ -219,12 +419,14 @@ export const phases: TimelinePhaseData[] = [
                 when: "Late May – early June 2027",
                 start: "2027-05-14",
                 end: "2027-06-05",
+                category: "academics",
                 type: "minor",
                 icon: "Users",
                 tags: ["Capstone", "Presentation"],
                 details: [
                     "Final Senior Project presentation to stakeholders",
                     "The research, the design thinking and the case for the change",
+                    "Doubles as the first executed portfolio piece for college",
                 ],
             },
             {
@@ -234,6 +436,7 @@ export const phases: TimelinePhaseData[] = [
                     "June 10, 2027: the official end of high school, and the start of the college pathway.",
                 when: "June 10, 2027",
                 start: KEY_DATES.graduation,
+                category: "milestone",
                 type: "major",
                 icon: "GraduationCap",
                 special: true,
@@ -252,13 +455,14 @@ export const phases: TimelinePhaseData[] = [
                 when: "Summer 2027",
                 start: "2027-06-11",
                 end: "2027-08-31",
+                category: "athletics",
                 type: "minor",
                 icon: "Sun",
                 tags: ["Prep", "Running"],
                 details: [
-                    "Lock in the housing and commute plan for SMC",
+                    "Finalize the athletic scholarship details",
                     "Build the running base for cross-country season",
-                    "Placement, orientation and registration",
+                    "Placement, orientation, registration and the housing or commute plan",
                 ],
             },
         ],
@@ -269,8 +473,8 @@ export const phases: TimelinePhaseData[] = [
         short: "Santa Monica College",
         range: "September 2027 — May 2029",
         description:
-            "Two years of STEM prerequisites while competing as a recruited cross-country athlete. A strong foundation before upper-level engineering specialization.",
-        color: "var(--mc-dark-aqua)",
+            "Two years of STEM prerequisites while competing as a recruited cross-country athlete. A strong, affordable foundation before upper-level engineering specialization.",
+        color: "var(--mc-aqua)",
         icon: "Rocket",
         start: "2027-09-01",
         end: "2029-05-31",
@@ -283,6 +487,7 @@ export const phases: TimelinePhaseData[] = [
                 when: "Fall 2027",
                 start: "2027-09-01",
                 end: "2027-12-20",
+                category: "academics",
                 type: "major",
                 icon: "Rocket",
                 tags: ["Transfer", "STEM", "Athlete"],
@@ -290,9 +495,9 @@ export const phases: TimelinePhaseData[] = [
                     "Calculus I & II sequence",
                     "Physics I & II (with labs)",
                     "Chemistry I & II (with labs)",
-                    "Engineering design electives",
+                    "Engineering design electives and CAD",
                     "General education breadth requirements",
-                    "Maintain a 3.5+ GPA for transfer",
+                    "Maintain a 3.5+ GPA for a competitive transfer",
                 ],
             },
             {
@@ -303,13 +508,14 @@ export const phases: TimelinePhaseData[] = [
                 when: "Fall 2027",
                 start: "2027-09-01",
                 end: "2027-11-30",
+                category: "athletics",
                 type: "minor",
                 icon: "Footprints",
                 tags: ["Athletics", "Cross-Country"],
                 details: [
                     "Compete as a recruited athlete",
-                    "Build toward captain or vice-captain",
-                    "Balance training load with a full STEM schedule",
+                    "Balance the training load with a full STEM schedule",
+                    "Build toward the captain role",
                 ],
             },
             {
@@ -320,6 +526,7 @@ export const phases: TimelinePhaseData[] = [
                 when: "Spring 2028",
                 start: "2028-01-15",
                 end: "2028-05-31",
+                category: "academics",
                 type: "minor",
                 icon: "CheckCircle",
                 tags: ["Checkpoint"],
@@ -331,37 +538,57 @@ export const phases: TimelinePhaseData[] = [
                 ],
             },
             {
-                id: "smc-4",
-                title: "Transfer Applications",
-                description:
-                    "The application window for Cal Poly Pomona, with grades and prerequisites locked in.",
-                when: "Fall 2028",
-                start: "2028-09-01",
-                end: "2028-11-30",
-                type: "major",
-                icon: "Send",
-                tags: ["Transfer", "Applications"],
-                details: [
-                    "Submit the Cal Poly Pomona transfer application",
-                    "Confirm every prerequisite is on track",
-                    "Keep the GPA above the 3.5 target",
-                ],
-            },
-            {
                 id: "smc-5",
                 title: "Two Portfolio Projects Complete",
                 description:
                     "Two finished design portfolio pieces, plus real CAD and Revit skills, ready for the next step.",
-                when: "By Spring 2029",
-                start: "2028-01-01",
+                when: "Spring 2028 — Spring 2029",
+                start: "2028-01-15",
                 end: "2029-05-31",
+                category: "portfolio",
                 type: "minor",
                 icon: "Palette",
                 tags: ["Portfolio", "CAD", "Revit"],
                 details: [
                     "Two polished design projects by the end of SMC",
-                    "CAD and Revit fundamentals",
+                    "Skills: Revit, AutoCAD, technical drawing and project documentation",
                     "Each piece documents the thinking, not just the drawings",
+                ],
+            },
+            {
+                id: "smc-4",
+                title: "Transfer Applications",
+                description:
+                    "The application window for Cal Poly Pomona, with units, grades and prerequisites locked in.",
+                when: "Fall 2028",
+                start: "2028-09-01",
+                end: "2028-11-30",
+                category: "applications",
+                type: "major",
+                icon: "Send",
+                tags: ["Transfer", "Applications"],
+                details: [
+                    "Submit the Cal Poly Pomona transfer application, declaring the major",
+                    "60+ transferable semester units and the general education pattern complete or on track",
+                    "Earn the Associate Degree for Transfer in Engineering, if available",
+                    "Keep the GPA above the 3.5 target",
+                ],
+            },
+            {
+                id: "smc-8",
+                title: "Captain Year at SMC",
+                description:
+                    "Stepping into a leadership role on the team: discipline, teamwork and resilience, all rehearsals for founding something.",
+                when: "2028 — 2029",
+                start: "2028-09-01",
+                end: "2029-05-31",
+                category: "athletics",
+                type: "minor",
+                icon: "Trophy",
+                tags: ["Athletics", "Leadership"],
+                details: [
+                    "Goal: captain or vice-captain of the SMC cross-country team",
+                    "Team management is practice for building a company",
                 ],
             },
             {
@@ -372,6 +599,7 @@ export const phases: TimelinePhaseData[] = [
                 when: "May 2029",
                 start: "2029-05-01",
                 end: "2029-05-31",
+                category: "milestone",
                 type: "major",
                 icon: "Zap",
                 special: true,
@@ -391,8 +619,8 @@ export const phases: TimelinePhaseData[] = [
         short: "Cal Poly Pomona",
         range: "September 2029 — May 2031",
         description:
-            "Transfer as a junior and finish in two years, specializing in Environmental Engineering. A capstone project and a professional development track.",
-        color: "var(--mc-dark-green)",
+            "Transfer as a junior and finish in two years, specializing in Environmental Engineering. A capstone project, a growing network and the first real steps toward a business.",
+        color: "var(--mc-green)",
         icon: "Leaf",
         start: "2029-09-01",
         end: "2031-05-31",
@@ -405,6 +633,7 @@ export const phases: TimelinePhaseData[] = [
                 when: "Fall 2029",
                 start: "2029-09-01",
                 end: "2029-12-20",
+                category: "academics",
                 type: "major",
                 icon: "Rocket",
                 tags: ["Upper-Level", "Specialization"],
@@ -425,21 +654,42 @@ export const phases: TimelinePhaseData[] = [
                 when: "2029 — 2031",
                 start: "2029-09-01",
                 end: "2031-05-31",
+                category: "athletics",
                 type: "minor",
                 icon: "Footprints",
                 tags: ["Athletics", "Leadership"],
                 details: [
-                    "Goal: captain of the Pomona cross-country team",
-                    "Team management is practice for founding a company",
+                    "Goal: captain of the Pomona cross-country team, likely by senior year",
+                    "Keep racing competitively through the end of college",
+                ],
+            },
+            {
+                id: "cpp-7",
+                title: "Building the Founding Network",
+                description:
+                    "Professors, mentors and potential co-founders: the people who make a launch possible.",
+                when: "2029 — 2031",
+                start: "2029-09-01",
+                end: "2031-05-31",
+                category: "career",
+                type: "minor",
+                icon: "Users",
+                tags: ["Network", "Mentors"],
+                details: [
+                    "Build 3–5 real mentor relationships with professors and professionals",
+                    "Find collaborators and potential co-founders",
+                    "Advisors for post-graduation planning",
                 ],
             },
             {
                 id: "cpp-3",
                 title: "Capstone Planning",
-                description: "Midpoint: the capstone proposal and team formation.",
+                description:
+                    "Midpoint: the capstone proposal and team formation.",
                 when: "Spring 2030",
                 start: "2030-01-15",
                 end: "2030-05-31",
+                category: "portfolio",
                 type: "minor",
                 icon: "Lightbulb",
                 tags: ["Capstone"],
@@ -458,12 +708,14 @@ export const phases: TimelinePhaseData[] = [
                 when: "Summer 2030",
                 start: "2030-06-01",
                 end: "2030-08-31",
+                category: "career",
                 type: "minor",
                 icon: "Briefcase",
                 tags: ["Internship", "Career"],
                 details: [
                     "Work on live infrastructure or environmental projects",
-                    "Build the professional network that starts the career",
+                    "Build the professional experience that starts the career",
+                    "Skills: environmental impact assessment and compliance",
                 ],
             },
             {
@@ -474,6 +726,7 @@ export const phases: TimelinePhaseData[] = [
                 when: "Fall 2030 — Spring 2031",
                 start: "2030-09-01",
                 end: "2031-04-30",
+                category: "portfolio",
                 type: "major",
                 icon: "Zap",
                 tags: ["Capstone", "Design"],
@@ -481,6 +734,24 @@ export const phases: TimelinePhaseData[] = [
                     "Design development with the capstone team",
                     "Analysis, modeling and iteration",
                     "Final presentation and documentation",
+                    "Brings the portfolio to 4–5 executed projects",
+                ],
+            },
+            {
+                id: "cpp-8",
+                title: "The Business Idea Takes Shape",
+                description:
+                    "By senior year at Pomona, a clear idea for the business or project, and first steps toward launching it.",
+                when: "Fall 2030 — Spring 2031",
+                start: "2030-09-01",
+                end: "2031-05-31",
+                category: "career",
+                type: "minor",
+                icon: "Rocket",
+                tags: ["Founding", "Planning"],
+                details: [
+                    "A clear concept in sustainable infrastructure and urban design",
+                    "First concrete steps toward launch, backed by the portfolio and the network",
                 ],
             },
             {
@@ -491,6 +762,7 @@ export const phases: TimelinePhaseData[] = [
                 when: "May 2031",
                 start: "2031-05-01",
                 end: "2031-05-31",
+                category: "milestone",
                 type: "major",
                 icon: "GraduationCap",
                 special: true,
@@ -510,7 +782,7 @@ export const phases: TimelinePhaseData[] = [
         short: "Personal Studies",
         range: "Ongoing",
         description:
-            "Independent research and creative work running in parallel with formal education: philosophy, sustainable systems, design practice, game development, running and this website.",
+            "Independent research and creative work running in parallel with formal education: philosophy, sustainable systems, design practice, game development, running, writing and this website.",
         color: "var(--mc-light-purple)",
         icon: "Brain",
         start: "2026-09-01",
@@ -524,14 +796,15 @@ export const phases: TimelinePhaseData[] = [
                 when: "Sept 2026 — Career",
                 start: "2026-09-01",
                 ongoing: true,
+                category: "mind",
                 type: "major",
                 icon: "Lightbulb",
                 tags: ["Philosophy", "Self-Directed"],
                 details: [
-                    "Primary texts: Fear and Trembling, Either/Or, The Concept of Anxiety",
-                    "Connection to design authenticity (avoid fake solutions)",
-                    "Individual responsibility in engineering decisions",
-                    "A philosophical framework for life decisions",
+                    "Reading now: Fear and Trembling. Next: Either/Or, then The Concept of Anxiety",
+                    "Kierkegaard's authenticity as a design principle: avoid fake solutions",
+                    "Individual responsibility: design has ethical weight",
+                    "A philosophical framework for engineering and life decisions",
                 ],
             },
             {
@@ -542,14 +815,15 @@ export const phases: TimelinePhaseData[] = [
                 when: "2026 — Indefinite",
                 start: "2026-09-01",
                 ongoing: true,
+                category: "build",
                 type: "major",
                 icon: "Zap",
-                tags: ["Game Dev", "Solo Project"],
+                tags: ["Game Dev", "Solo Project", "Luau"],
                 details: [
-                    "100+ attributes and progression systems",
+                    "Roadmap: the Ascension Menu, then the Stat System, then the 100+ attribute system",
                     "Dual progression model (button sim + skill tree)",
-                    "Community engagement and feature feedback",
-                    "Systems thinking that transfers to academic work",
+                    "Combo system, bestiary and time-based milestones",
+                    "Systems thinking that transfers straight into engineering work",
                 ],
             },
             {
@@ -560,6 +834,7 @@ export const phases: TimelinePhaseData[] = [
                 when: "Fall 2026 — Career",
                 start: "2026-09-01",
                 ongoing: true,
+                category: "mind",
                 type: "minor",
                 icon: "Leaf",
                 tags: ["Sustainability", "Research"],
@@ -572,19 +847,20 @@ export const phases: TimelinePhaseData[] = [
             },
             {
                 id: "personal-4",
-                title: "Design & Creativity Practice",
+                title: "Design & CAD Practice",
                 description:
                     "Daily creative work: sketching, visual thinking and CAD skill development, connecting Studio Art to engineering design thinking.",
                 when: "Daily practice",
                 start: "2026-09-01",
                 ongoing: true,
+                category: "portfolio",
                 type: "minor",
                 icon: "Palette",
-                tags: ["Creativity", "Skills"],
+                tags: ["Creativity", "Skills", "CAD"],
                 details: [
-                    "SketchUp mastery and intermediate modeling",
-                    "CAD fundamentals (AutoCAD, Civil 3D readiness)",
-                    "Digital illustration and visual communication",
+                    "The tool progression: SketchUp, then Revit, then Civil 3D",
+                    "Concept sketching and technical drawing",
+                    "Blender studies of real places, feeding the Recent Renovations section",
                     "A bridge between artistic and technical thinking",
                 ],
             },
@@ -592,16 +868,18 @@ export const phases: TimelinePhaseData[] = [
                 id: "personal-5",
                 title: "Running & Cross-Country",
                 description:
-                    "Staying competitive and consistent through senior year and on into college racing.",
+                    "Four years of running, and captain of the Cross Country and Track team this year. The plan keeps racing through both colleges.",
                 when: "Year-round",
                 start: "2026-09-01",
                 ongoing: true,
+                category: "athletics",
                 type: "minor",
                 icon: "Footprints",
-                tags: ["Athletics", "Discipline"],
+                tags: ["Athletics", "Captain"],
                 details: [
                     "Training built around the recruiting and college seasons",
                     "Daily progress over grinding: calm, paced and consistent",
+                    "Staying as fit as possible: cardio and strength, not just running",
                 ],
             },
             {
@@ -612,56 +890,140 @@ export const phases: TimelinePhaseData[] = [
                 when: "Always building",
                 start: "2026-09-01",
                 ongoing: true,
+                category: "build",
                 type: "minor",
                 icon: "Code2",
                 tags: ["Web", "Portfolio"],
                 details: [
-                    "Every change is public in the Site History page",
+                    "Every change is public on the Site History page",
                     "New sections, pages and experiments ship continuously",
+                ],
+            },
+            {
+                id: "personal-7",
+                title: "Poetry, Writing & Drawing",
+                description:
+                    "Writing about feelings is a core outlet: dark-romantic poetry, alongside drawing and other creative experiments.",
+                when: "Ongoing",
+                start: "2026-09-01",
+                ongoing: true,
+                category: "mind",
+                type: "minor",
+                icon: "PenLine",
+                tags: ["Poetry", "Creative"],
+                details: [
+                    "Poetry and personal writing as regular practice",
+                    "Drawing as a genuine creative outlet",
+                    "Kept deliberately separate from the professional track: let it breathe",
+                ],
+            },
+            {
+                id: "personal-8",
+                title: "Adventure & Travel",
+                description:
+                    "Deliberately enjoying life alongside the building: hiking, travel and time outdoors, especially before 20.",
+                when: "Alongside everything",
+                start: "2026-09-01",
+                ongoing: true,
+                category: "athletics",
+                type: "minor",
+                icon: "Mountain",
+                tags: ["Outdoors", "Balance"],
+                details: [
+                    "Hiking, mountain biking and trips are part of the plan, not a reward for after it",
+                    "Calm and paced, not grinding: burnout doesn't compound, progress does",
+                ],
+            },
+            {
+                id: "personal-9",
+                title: "App Store Apps",
+                description:
+                    "A planned set of passion-project iOS apps, starting with a workout-gamification idea that turns real exercise into in-game progression.",
+                when: "Someday soon",
+                start: "2026-09-01",
+                planned: true,
+                category: "build",
+                type: "minor",
+                icon: "Smartphone",
+                tags: ["iOS", "Gamification", "Planned"],
+                details: [
+                    "Steps and calories drive in-game progress and multipliers",
+                    "Shares its progression design language with Fractured Islands",
+                    "Idea stage: waiting on funding the Apple developer account",
                 ],
             },
         ],
     },
 ];
 
-export type EventStatus = "done" | "now" | "upcoming" | "ongoing";
+export type EventStatus = "done" | "now" | "upcoming" | "ongoing" | "planned";
 
 const DAY = 24 * 60 * 60 * 1000;
 
-function at(date: string, endOfDay = false) {
-    return new Date(`${date}T${endOfDay ? "23:59:59" : "00:00:00"}`).getTime();
+/** Today's calendar date in Pacific time ("YYYY-MM-DD"). Pinning the zone
+ *  means the server (UTC) and every visitor's browser agree on what day it is. */
+export function todayPT(now = Date.now()): string {
+    return new Intl.DateTimeFormat("en-CA", {
+        timeZone: "America/Los_Angeles",
+        year: "numeric",
+        month: "2-digit",
+        day: "2-digit",
+    }).format(now);
 }
 
-export function getStatus(event: TimelineEventData, now = Date.now()): EventStatus {
+/** Days since the epoch for an ISO date, using UTC arithmetic (no DST, no zone drift). */
+export function dayNum(date: string): number {
+    const [y, m, d] = date.split("-").map(Number);
+    return Date.UTC(y, m - 1, d) / DAY;
+}
+
+export function getStatus(
+    event: TimelineEventData,
+    now = Date.now()
+): EventStatus {
+    if (event.planned) return "planned";
     if (event.ongoing) return "ongoing";
-    const start = at(event.start);
-    const end = at(event.end ?? event.start, true);
-    if (now > end) return "done";
-    if (now >= start) return "now";
+    const today = dayNum(todayPT(now));
+    if (today > dayNum(event.end ?? event.start)) return "done";
+    if (today >= dayNum(event.start)) return "now";
     return "upcoming";
 }
 
-/** 0–1: how far through a date range "now" is. */
-export function progressBetween(start: string, end: string, now = Date.now()): number {
-    const s = at(start);
-    const e = at(end, true);
-    return Math.min(1, Math.max(0, (now - s) / (e - s)));
+/** 0–1: how far through a date range (inclusive) today is. */
+export function progressBetween(
+    start: string,
+    end: string,
+    now = Date.now()
+): number {
+    const s = dayNum(start);
+    const e = dayNum(end) + 1;
+    return Math.min(1, Math.max(0, (dayNum(todayPT(now)) - s) / (e - s)));
 }
 
-/** Whole days from now until the start of `date` (negative once it has passed). */
+/** Whole days from today until `date` (0 = today, negative once passed). */
 export function daysUntil(date: string, now = Date.now()): number {
-    return Math.ceil((at(date) - now) / DAY);
+    return dayNum(date) - dayNum(todayPT(now));
 }
 
 export function allEvents() {
-    return phases.flatMap((phase) => phase.events.map((event) => ({ ...event, phase })));
+    return phases.flatMap((phase) =>
+        phase.events.map((event) => ({ ...event, phase }))
+    );
 }
 
-/** The next few dated (non-ongoing) events that haven't finished yet. */
+/** The next few concrete steps, soonest first: anything upcoming, plus events
+ *  already underway but short enough (about a quarter or less) to count as a
+ *  "next step" rather than a year-long backdrop like the school year itself. */
 export function getUpNext(limit = 4, now = Date.now()) {
     return allEvents()
-        .filter((e) => !e.ongoing && e.phase.id !== "personal" && getStatus(e, now) !== "done")
-        .sort((a, b) => at(a.start) - at(b.start))
-        .filter((e, i, arr) => arr.findIndex((x) => x.id === e.id) === i)
+        .filter((e) => {
+            if (e.phase.id === "personal") return false;
+            const status = getStatus(e, now);
+            if (status === "upcoming") return true;
+            if (status === "now")
+                return dayNum(e.end ?? e.start) - dayNum(e.start) <= 92;
+            return false;
+        })
+        .sort((a, b) => dayNum(a.start) - dayNum(b.start))
         .slice(0, limit);
 }

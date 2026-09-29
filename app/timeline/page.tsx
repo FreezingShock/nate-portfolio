@@ -81,55 +81,85 @@ export default function TimelinePage() {
                         <TimelineExplorer phases={phases} nowMs={nowMs} />
                     </div>
 
-                    <section id="horizons" className="mt-24 scroll-mt-24 border-t border-border/40 pt-16">
+                    <section
+                        id="horizons"
+                        className="mt-24 scroll-mt-24 border-t border-border/40 pt-16"
+                    >
                         <SectionLabel accent="var(--mc-gold)" symbol="comet">
                             Future Horizons
                         </SectionLabel>
                         <p className="mt-3 max-w-2xl text-sm text-muted-foreground sm:text-base">
-                            After the BS in Civil Engineering (2031): a trajectory toward impact in environmental
-                            infrastructure, sustainable design and systems thinking applied to real-world challenges.
+                            After the BS in Civil Engineering (2031): a
+                            trajectory toward impact in environmental
+                            infrastructure, sustainable design and systems
+                            thinking applied to real-world challenges.
                         </p>
 
                         {/* tl-phase: skips rendering (and the rainbow animation) while
                             off-screen; its padding/negative margin cancel out. */}
                         <div className="tl-phase">
-                        <div className="mt-6 grid gap-4 sm:grid-cols-2">
-                            {/* The finish line of the whole plan: rainbow, like the other
+                            <div className="mt-6 grid gap-4 sm:grid-cols-2">
+                                {/* The finish line of the whole plan: rainbow, like the other
                                 super-special milestones. */}
-                            <GlowCard color="var(--mc-gold)" className="chroma-card p-5 sm:col-span-2 sm:p-6">
-                                <div className="flex flex-wrap items-center gap-2">
-                                    <span className="font-mono text-[11px] font-bold uppercase tracking-wider" style={{ color: "var(--mc-gold)" }}>
-                                        Spring 2031
-                                    </span>
-                                    <span className="chroma-text inline-flex items-center gap-1 font-minecraft text-[10px] font-bold uppercase tracking-wider">
-                                        <Star className="size-3 text-[#ffaa00]" fill="#ffaa00" /> Milestone
-                                    </span>
-                                </div>
-                                <h3 className="chroma-text mt-2 font-minecraft text-2xl font-bold sm:text-3xl">
-                                    Launch
-                                </h3>
-                                <p className="mt-2 max-w-3xl text-sm leading-relaxed text-muted-foreground sm:text-base">
-                                    The point the whole plan builds toward: launching a sustainable infrastructure and
-                                    urban design business or project, backed by an engineering degree, an executed
-                                    portfolio, proven athletic leadership and a network of mentors.
-                                </p>
-                            </GlowCard>
-
-                            {HORIZONS.map((goal) => (
-                                <GlowCard key={goal.title} color={goal.color} className="p-5">
-                                    <p className="font-mono text-[11px] font-bold uppercase tracking-wider" style={{ color: goal.color }}>
-                                        {goal.when}
-                                    </p>
-                                    <h3
-                                        className="mt-1 font-minecraft text-lg font-bold"
-                                        style={{ color: goal.color, textShadow: `0 0 14px color-mix(in oklch, ${goal.color} 35%, transparent)` }}
-                                    >
-                                        {goal.title}
+                                <GlowCard
+                                    color="var(--mc-gold)"
+                                    className="chroma-card p-5 sm:col-span-2 sm:p-6"
+                                >
+                                    <div className="flex flex-wrap items-center gap-2">
+                                        <span
+                                            className="font-mono text-[11px] font-bold uppercase tracking-wider"
+                                            style={{ color: "var(--mc-gold)" }}
+                                        >
+                                            Spring 2031
+                                        </span>
+                                        <span className="chroma-text inline-flex items-center gap-1 font-minecraft text-[10px] font-bold uppercase tracking-wider">
+                                            <Star
+                                                className="size-3 text-[#ffaa00]"
+                                                fill="#ffaa00"
+                                            />{" "}
+                                            Milestone
+                                        </span>
+                                    </div>
+                                    <h3 className="chroma-text mt-2 font-minecraft text-2xl font-bold sm:text-3xl">
+                                        Launch
                                     </h3>
-                                    <p className="mt-2 text-sm leading-relaxed text-muted-foreground">{goal.description}</p>
+                                    <p className="mt-2 max-w-3xl text-sm leading-relaxed text-muted-foreground sm:text-base">
+                                        The point the whole plan builds toward:
+                                        launching a sustainable infrastructure
+                                        and urban design business or project,
+                                        backed by an engineering degree, an
+                                        executed portfolio, proven athletic
+                                        leadership and a network of mentors.
+                                    </p>
                                 </GlowCard>
-                            ))}
-                        </div>
+
+                                {HORIZONS.map((goal) => (
+                                    <GlowCard
+                                        key={goal.title}
+                                        color={goal.color}
+                                        className="p-5"
+                                    >
+                                        <p
+                                            className="font-mono text-[11px] font-bold uppercase tracking-wider"
+                                            style={{ color: goal.color }}
+                                        >
+                                            {goal.when}
+                                        </p>
+                                        <h3
+                                            className="mt-1 font-minecraft text-lg font-bold"
+                                            style={{
+                                                color: goal.color,
+                                                textShadow: `0 0 14px color-mix(in oklch, ${goal.color} 35%, transparent)`,
+                                            }}
+                                        >
+                                            {goal.title}
+                                        </h3>
+                                        <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
+                                            {goal.description}
+                                        </p>
+                                    </GlowCard>
+                                ))}
+                            </div>
                         </div>
                     </section>
                 </div>
