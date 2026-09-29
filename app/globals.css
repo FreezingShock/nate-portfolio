@@ -460,3 +460,12 @@
     .glow-card { transition: none; }
     .glow-card:hover { transform: none; }
 }
+
+/* Page transitions (components/page-transitions.tsx): pin the incoming page's
+   starting state for the styles that don't use a clip-path, so it can't flash
+   fully visible for a frame before the JS animation takes over. Circle/wipe
+   are pinned through --magicui-theme-vt-clip-from (see the rule above). */
+:root[data-page-vt="zoom"]::view-transition-new(root),
+:root[data-page-vt="fade"]::view-transition-new(root) {
+    opacity: 0;
+}

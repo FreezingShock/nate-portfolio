@@ -1,7 +1,8 @@
+import Link from "next/link";
 import { ArrowRight } from "lucide-react";
 import { SectionLabel } from "@/components/section-label";
 import { GlowCard } from "@/components/glow-card";
-import { TransitionLink } from "@/components/transition-link";
+
 import { McSymbol, type McSymbolName } from "@/components/mc-symbol";
 import { navItems } from "@/lib/nav";
 
@@ -47,8 +48,9 @@ const PAGE_INFO: Record<string, { description: string; tags: string[]; symbol: M
 };
 
 // Server component: renders each card's icon as an element (functions can't
-// cross into client components), while GlowCard/TransitionLink supply the
-// hover spotlight and the click-point circle-reveal page transition.
+// cross into client components), while GlowCard supplies the hover
+// spotlight. The page transition itself is site-wide (PageTransitions in the
+// root layout), so these are plain links.
 export function ExploreGrid() {
     const pages = navItems.filter((item) => PAGE_INFO[item.href]);
 
@@ -66,7 +68,7 @@ export function ExploreGrid() {
                     const info = PAGE_INFO[item.href];
                     const Icon = item.icon;
                     return (
-                        <TransitionLink key={item.href} href={item.href} className="group block">
+                        <Link key={item.href} href={item.href} className="group block">
                             <GlowCard color={item.color} className="h-full p-5">
                                 <div className="flex items-start justify-between">
                                     <span
@@ -108,7 +110,7 @@ export function ExploreGrid() {
                                     </span>
                                 </div>
                             </GlowCard>
-                        </TransitionLink>
+                        </Link>
                     );
                 })}
             </div>
