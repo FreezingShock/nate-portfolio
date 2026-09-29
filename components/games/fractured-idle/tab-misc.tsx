@@ -3,33 +3,9 @@
 import { useState } from "react";
 import { Download, RotateCcw, Save, Upload } from "lucide-react";
 import { McSymbol } from "@/components/mc-symbol";
-import { ACHIEVEMENTS, COMING_SOON } from "@/lib/fractured-idle/data";
+import { COMING_SOON } from "@/lib/fractured-idle/data";
 import { exportSave, importSave, newState, offlineEff, writeSave } from "@/lib/fractured-idle/engine";
-import { ActionBtn, Badge, LockedBadge, Toggle, type Ctx } from "./ui";
-
-export function TrophiesTab({ s }: Ctx) {
-    return (
-        <>
-            <p className="font-rubik text-xs text-muted-foreground">
-                {s.ach.length}/{ACHIEVEMENTS.length} unlocked. Each trophy adds +1% to everything.
-            </p>
-            {ACHIEVEMENTS.map((a) => {
-                const got = s.ach.includes(a.id);
-                return (
-                    <div key={a.id} className={`flex items-center gap-3 rounded-xl border border-white/10 p-3 ${got ? "" : "opacity-45"}`}>
-                        <Badge color={got ? "var(--mc-yellow)" : "var(--muted-foreground)"}>
-                            {got ? <McSymbol name="check" /> : <LockedBadge />}
-                        </Badge>
-                        <div>
-                            <div className="font-minecraft text-sm" style={{ color: got ? "var(--mc-yellow)" : undefined }}>{a.name}</div>
-                            <div className="font-rubik text-[11px] text-muted-foreground">{a.desc}</div>
-                        </div>
-                    </div>
-                );
-            })}
-        </>
-    );
-}
+import { ActionBtn, Badge, Toggle, type Ctx } from "./ui";
 
 export function SoonTab(_: Ctx) {
     return (

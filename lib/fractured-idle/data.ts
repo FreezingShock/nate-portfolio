@@ -32,7 +32,8 @@ export interface State {
     fishing: number;
     crits: number;
     bobbers: number; // treasure bobbers caught
-    ach: string[];
+    tro: Record<string, number>; // trophy id -> tiers unlocked
+    peak: { minions: number; types: number };
     playTime: number; // seconds
     savedAt: number;
     island: string;
@@ -52,6 +53,14 @@ export interface MinionDef {
 
 export const MINION_GROWTH = 1.17;
 export const MILESTONES = [25, 50, 100, 200, 400];
+
+export const SKILL_CAP = 60;
+const XP_BASE = 20;
+const XP_GROWTH = 1.45;
+export const skillLevel = (xp: number) =>
+    Math.min(SKILL_CAP, Math.floor(Math.log((xp * (XP_GROWTH - 1)) / XP_BASE + 1) / Math.log(XP_GROWTH)));
+export const skillXpFor = (level: number) =>
+    (XP_BASE * (Math.pow(XP_GROWTH, level) - 1)) / (XP_GROWTH - 1);
 
 export const MINIONS: MinionDef[] = [
     { id: "cobble", name: "Cobblestone Minion", color: "var(--mc-gray, #aaaaaa)", symbol: "defense", cost: 15, cps: 0.4 },
@@ -129,6 +138,10 @@ export const UPGRADES: UpgradeDef[] = [
     once("diap", "Diamond Pickaxe", "click", 3, 2.5e8, "strength", "var(--mc-aqua)"),
     once("nethp", "Netherite Pickaxe", "click", 4, 1e11, "strength", "var(--mc-dark-purple)"),
     once("fracp", "Fractured Pickaxe", "click", 5, 5e14, "strength", "var(--mc-light-purple)"),
+    once("drill1", "Mining Drill", "click", 6, 5e16, "forge", "var(--mc-gold)"),
+    once("drill2", "Titanium Drill", "click", 8, 2e18, "forge", "var(--mc-aqua)"),
+    once("drill3", "Gemstone Drill", "click", 10, 1e20, "forge", "var(--mc-green)"),
+    once("drill4", "Divan's Drill", "click", 15, 5e22, "forge", "var(--mc-light-purple)"),
     // Fuel (minions)
     once("fuel1", "Coal Fuel", "minion", 2, 1.5e3, "heat", "var(--mc-blue)"),
     once("fuel2", "Enchanted Coal", "minion", 2, 5e4, "heat", "var(--mc-blue)"),
@@ -142,6 +155,11 @@ export const UPGRADES: UpgradeDef[] = [
     once("tal3", "Speed Talisman", "all", 1.5, 1e9, "wisdom", "var(--mc-aqua)"),
     once("tal4", "Feather Talisman", "all", 1.5, 1e11, "wisdom", "var(--mc-yellow)"),
     once("tal5", "Bat Talisman", "all", 1.5, 1e13, "wisdom", "var(--mc-dark-purple)"),
+    once("tal0", "Village Talisman", "all", 1.25, 2e4, "wisdom", "var(--mc-yellow)"),
+    once("tal6", "Wolf Talisman", "all", 1.5, 5e15, "wisdom", "#ffffff"),
+    once("tal7", "Hunter Ring", "all", 1.75, 2e17, "wisdom", "var(--mc-red)"),
+    once("tal8", "Ender Artifact", "all", 2, 1e19, "wisdom", "var(--mc-light-purple)"),
+    once("tal9", "Fractured Relic", "all", 3, 1e21, "wisdom", "var(--mc-blue)"),
 ];
 
 export interface RebirthUpDef {
@@ -156,11 +174,23 @@ export interface RebirthUpDef {
 }
 
 export const REBIRTH_UPS: RebirthUpDef[] = [
-    { id: "core", name: "Fractured Core", desc: "+0.05 to the rebirth multiplier base (x1.5 per rebirth)", cost: 1, growth: 2, max: 10, symbol: "portal", color: "var(--mc-light-purple)" },
+    { id: "stack", name: "Rebirth Stack", desc: "Rebirth +1 level at once (up to 15)", cost: 2, growth: 1.3, max: 14, symbol: "portal", color: "var(--mc-light-purple)" },
+    { id: "core", name: "Fractured Core", desc: "+0.05 to the rebirth multiplier base (x1.5 per rebirth)", cost: 1, growth: 2, max: 10, symbol: "comet", color: "var(--mc-aqua)" },
+    { id: "magnet", name: "Token Magnet", desc: "+25% tokens from every rebirth", cost: 2, growth: 1.6, max: 10, symbol: "magicFind", color: "var(--mc-yellow)" },
+    { id: "might", name: "Fractured Might", desc: "+5% click power, permanently", cost: 2, growth: 1.5, max: 20, symbol: "strength", color: "var(--mc-gold)" },
+    { id: "engine", name: "Fractured Engine", desc: "+5% minion output, permanently", cost: 2, growth: 1.5, max: 20, symbol: "forge", color: "var(--mc-green)" },
+    { id: "luck", name: "Lucky Charm", desc: "+1% crit chance, permanently", cost: 3, growth: 1.5, max: 15, symbol: "critChance", color: "var(--mc-blue)" },
     { id: "head", name: "Head Start", desc: "Begin each rebirth with more shards", cost: 1, growth: 2.5, max: 5, symbol: "speed", color: "var(--mc-yellow)" },
-    { id: "disc", name: "Bulk Discount", desc: "-5% minion cost", cost: 2, growth: 2, max: 10, symbol: "fortune", color: "var(--mc-green)" },
+    { id: "kit", name: "Starter Kit", desc: "Begin each rebirth with free Cobblestone and Wheat Minions", cost: 3, growth: 1.8, max: 10, symbol: "fortune", color: "var(--mc-green)" },
+    { id: "keep", name: "Muscle Memory", desc: "Keep 20% of your training upgrade levels through rebirth", cost: 5, growth: 2, max: 5, symbol: "attackSpeed", color: "var(--mc-red)" },
+    { id: "disc", name: "Bulk Discount", desc: "-5% minion cost", cost: 2, growth: 2, max: 10, symbol: "petLuck", color: "var(--mc-green)" },
     { id: "off", name: "Night Owl", desc: "+10% offline efficiency", cost: 1, growth: 2, max: 5, symbol: "night", color: "var(--mc-blue)" },
 ];
+
+/** Bonus tokens for reaching a rebirth level (level -> tokens). */
+export const REBIRTH_MILESTONES: Record<number, number> = {
+    5: 5, 10: 10, 15: 15, 20: 20, 25: 30, 30: 35, 40: 50, 50: 75, 75: 100, 100: 150,
+};
 
 export const rebirthCost = (r: number) => 1e6 * Math.pow(16, r);
 
@@ -184,37 +214,84 @@ export const ISLANDS: IslandDef[] = [
     { id: "fractured", name: "Fractured Islands", color: "var(--mc-blue)", symbol: "comet", at: 1e32, mult: 25, blurb: "Placeholder: the shattered home of it all." },
 ];
 
-export interface AchDef {
+// ---- Trophies ----
+// A trophy is a chain of tiers. Each tier gives a small permanent bonus, and
+// later tiers give slightly more. Bonuses are fractions (0.01 = 1%).
+
+export type RewardStat = "all" | "click" | "minion" | "critChance" | "critDmg" | "tokens" | "skillXp" | "offline" | "bobber";
+
+export const REWARD_LABEL: Record<RewardStat, string> = {
+    all: "all shards",
+    click: "click power",
+    minion: "minion output",
+    critChance: "crit chance",
+    critDmg: "crit damage",
+    tokens: "rebirth tokens",
+    skillXp: "skill XP",
+    offline: "offline efficiency",
+    bobber: "bobber rewards",
+};
+
+export interface TrophyCategory {
     id: string;
     name: string;
-    desc: string;
-    check: (s: State) => boolean;
+    color: string;
+    symbol: McSymbolName;
 }
 
-const owned = (s: State) => s.minions.reduce((a, b) => a + b, 0);
+export const TROPHY_CATEGORIES: TrophyCategory[] = [
+    { id: "clicking", name: "Clicking", color: "var(--mc-aqua)", symbol: "strength" },
+    { id: "wealth", name: "Wealth", color: "var(--mc-gold)", symbol: "magicFind" },
+    { id: "minions", name: "Minions", color: "var(--mc-green)", symbol: "forge" },
+    { id: "rebirth", name: "Rebirth", color: "var(--mc-light-purple)", symbol: "portal" },
+    { id: "skills", name: "Skills", color: "var(--mc-red)", symbol: "wisdom" },
+    { id: "explore", name: "Exploration", color: "var(--mc-blue)", symbol: "location" },
+    { id: "unique", name: "Unique", color: "var(--mc-yellow)", symbol: "pristine" },
+];
 
-export const ACHIEVEMENTS: AchDef[] = [
-    { id: "c1", name: "First Click", desc: "Click the button once", check: (s) => s.clicks >= 1 },
-    { id: "c2", name: "Button Masher", desc: "Click 500 times", check: (s) => s.clicks >= 500 },
-    { id: "c3", name: "Carpal Tunnel", desc: "Click 10,000 times", check: (s) => s.clicks >= 1e4 },
-    { id: "c4", name: "Unstoppable", desc: "Click 100,000 times", check: (s) => s.clicks >= 1e5 },
-    { id: "t1", name: "Pocket Change", desc: "Earn 1,000 lifetime shards", check: (s) => s.total >= 1e3 },
-    { id: "t2", name: "Shard Hoarder", desc: "Earn 1 million lifetime shards", check: (s) => s.total >= 1e6 },
-    { id: "t3", name: "Billionaire", desc: "Earn 1 billion lifetime shards", check: (s) => s.total >= 1e9 },
-    { id: "t4", name: "Trillion Club", desc: "Earn 1 trillion lifetime shards", check: (s) => s.total >= 1e12 },
-    { id: "m1", name: "Hired Help", desc: "Own 10 minions", check: (s) => owned(s) >= 10 },
-    { id: "m2", name: "Small Business", desc: "Own 100 minions", check: (s) => owned(s) >= 100 },
-    { id: "m3", name: "Minion Empire", desc: "Own 500 minions", check: (s) => owned(s) >= 500 },
-    { id: "r1", name: "Second Wind", desc: "Rebirth once", check: (s) => s.rebirths >= 1 },
-    { id: "r2", name: "Cycle of Shards", desc: "Rebirth 5 times", check: (s) => s.rebirths >= 5 },
-    { id: "r3", name: "Ever Fractured", desc: "Rebirth 15 times", check: (s) => s.rebirths >= 15 },
-    { id: "s1", name: "Apprentice Miner", desc: "Reach Mining 10", check: (s) => s.mining >= 20 * (Math.pow(1.45, 10) - 1) / 0.45 },
-    { id: "s2", name: "Sharp Eyed", desc: "Land 1,000 critical hits", check: (s) => s.crits >= 1e3 },
-    { id: "s3", name: "Gone Fishing", desc: "Catch 10 treasure bobbers", check: (s) => s.bobbers >= 10 },
-    { id: "s4", name: "Bounty Hunter", desc: "Reach Combat 10", check: (s) => s.combat >= 20 * (Math.pow(1.45, 10) - 1) / 0.45 },
-    { id: "u1", name: "Fully Upgraded", desc: "Max out the Auto-Clicker", check: (s) => (s.ups.auto || 0) >= 25 },
-    { id: "i1", name: "Explorer", desc: "Unlock 3 islands", check: (s) => ISLANDS.filter((i) => s.total >= i.at).length >= 3 },
-    { id: "i2", name: "Island Hopper", desc: "Unlock every island", check: (s) => ISLANDS.every((i) => s.total >= i.at) },
+export interface TrophyTier {
+    at: number;
+    reward: number;
+}
+
+export interface TrophyDef {
+    id: string;
+    name: string;
+    category: string;
+    symbol: McSymbolName;
+    stat: RewardStat;
+    /** What the metric counts, e.g. "clicks". */
+    unit: string;
+    metric: (s: State) => number;
+    tiers: TrophyTier[];
+}
+
+const tiers = (at: number[], reward: number[]): TrophyTier[] => at.map((a, i) => ({ at: a, reward: reward[i] }));
+const owned = (s: State) => s.minions.reduce((a, b) => a + b, 0);
+const skillSum = (s: State) => skillLevel(s.mining) + skillLevel(s.farming) + skillLevel(s.combat) + skillLevel(s.fishing);
+const islands = (s: State) => ISLANDS.filter((i) => s.total >= i.at).length;
+
+export const TROPHIES: TrophyDef[] = [
+    { id: "clicks", name: "Button Masher", category: "clicking", symbol: "strength", stat: "click", unit: "clicks", metric: (s) => s.clicks, tiers: tiers([100, 1e3, 1e4, 1e5, 1e6, 1e7], [0.01, 0.01, 0.02, 0.03, 0.05, 0.08]) },
+    { id: "crits", name: "Sharp Eyed", category: "clicking", symbol: "critChance", stat: "critChance", unit: "critical hits", metric: (s) => s.crits, tiers: tiers([50, 500, 5e3, 5e4, 5e5], [0.005, 0.005, 0.01, 0.01, 0.02]) },
+    { id: "exec", name: "Executioner", category: "clicking", symbol: "critDamage", stat: "critDmg", unit: "critical hits", metric: (s) => s.crits, tiers: tiers([1e3, 1e4, 1e5, 1e6], [0.05, 0.05, 0.1, 0.15]) },
+    { id: "hoard", name: "Shard Hoarder", category: "wealth", symbol: "speed", stat: "all", unit: "lifetime shards", metric: (s) => s.total, tiers: tiers([1e3, 1e6, 1e9, 1e12, 1e15, 1e18, 1e21, 1e24], [0.01, 0.01, 0.01, 0.02, 0.02, 0.03, 0.03, 0.05]) },
+    { id: "hired", name: "Hired Help", category: "minions", symbol: "forge", stat: "minion", unit: "minions owned (best)", metric: (s) => Math.max(s.peak.minions, owned(s)), tiers: tiers([10, 50, 100, 250, 500, 1000], [0.01, 0.02, 0.03, 0.04, 0.06, 0.1]) },
+    { id: "roster", name: "Full Roster", category: "minions", symbol: "petLuck", stat: "all", unit: "minion types owned (best)", metric: (s) => Math.max(s.peak.types, s.minions.filter((n) => n > 0).length), tiers: tiers([3, 6, 9, 12, 16], [0.01, 0.01, 0.02, 0.02, 0.03]) },
+    { id: "reborn", name: "Ever Reborn", category: "rebirth", symbol: "portal", stat: "tokens", unit: "rebirths", metric: (s) => s.rebirths, tiers: tiers([1, 3, 5, 10, 15, 25, 50], [0.05, 0.05, 0.1, 0.1, 0.15, 0.2, 0.25]) },
+    { id: "s-mining", name: "Master Miner", category: "skills", symbol: "strength", stat: "click", unit: "Mining level", metric: (s) => skillLevel(s.mining), tiers: tiers([5, 10, 20, 30, 40, 50, 60], [0.01, 0.01, 0.02, 0.02, 0.03, 0.03, 0.05]) },
+    { id: "s-farming", name: "Green Thumb", category: "skills", symbol: "fortune", stat: "minion", unit: "Farming level", metric: (s) => skillLevel(s.farming), tiers: tiers([5, 10, 20, 30, 40, 50, 60], [0.01, 0.01, 0.02, 0.02, 0.03, 0.03, 0.05]) },
+    { id: "s-combat", name: "Slayer", category: "skills", symbol: "critDamage", stat: "critDmg", unit: "Combat level", metric: (s) => skillLevel(s.combat), tiers: tiers([5, 10, 20, 30, 40, 50, 60], [0.02, 0.02, 0.03, 0.04, 0.05, 0.06, 0.1]) },
+    { id: "s-fishing", name: "Deep Angler", category: "skills", symbol: "fishing", stat: "bobber", unit: "Fishing level", metric: (s) => skillLevel(s.fishing), tiers: tiers([5, 10, 20, 30, 40, 50, 60], [0.05, 0.05, 0.1, 0.1, 0.15, 0.15, 0.25]) },
+    { id: "s-total", name: "Well Rounded", category: "skills", symbol: "intelligence", stat: "skillXp", unit: "total skill levels", metric: skillSum, tiers: tiers([20, 50, 100, 150, 200], [0.05, 0.05, 0.1, 0.1, 0.15]) },
+    { id: "isles", name: "Island Hopper", category: "explore", symbol: "location", stat: "all", unit: "islands unlocked", metric: islands, tiers: tiers([2, 3, 4, 5, 6, 7], [0.01, 0.01, 0.02, 0.02, 0.03, 0.05]) },
+    { id: "bobbers", name: "Gone Fishing", category: "explore", symbol: "fishing", stat: "bobber", unit: "bobbers caught", metric: (s) => s.bobbers, tiers: tiers([1, 10, 50, 250, 1000], [0.05, 0.1, 0.15, 0.2, 0.25]) },
+    { id: "time", name: "Dedicated", category: "explore", symbol: "day", stat: "offline", unit: "hours played", metric: (s) => s.playTime / 3600, tiers: tiers([1, 5, 24, 100], [0.05, 0.05, 0.1, 0.1]) },
+    { id: "u-first", name: "First Click", category: "unique", symbol: "check", stat: "all", unit: "clicks", metric: (s) => s.clicks, tiers: tiers([1], [0.01]) },
+    { id: "u-auto", name: "Fully Automated", category: "unique", symbol: "attackSpeed", stat: "click", unit: "Auto-Clicker level", metric: (s) => s.ups.auto || 0, tiers: tiers([25], [0.1]) },
+    { id: "u-speed", name: "Speedrunner", category: "unique", symbol: "speed", stat: "tokens", unit: "rebirths inside the first 30 min", metric: (s) => (s.rebirths >= 1 && s.playTime < 1800 ? 1 : 0), tiers: tiers([1], [0.1]) },
+    { id: "u-crit", name: "Critical Mass", category: "unique", symbol: "critDamage", stat: "critDmg", unit: "Crushing Blows level", metric: (s) => s.ups.critd || 0, tiers: tiers([30], [0.2]) },
+    { id: "u-lucky", name: "Lucky Streak", category: "unique", symbol: "critChance", stat: "critChance", unit: "Critical Eye level", metric: (s) => s.ups.critc || 0, tiers: tiers([25], [0.03]) },
 ];
 
 // Not built yet: shown as locked cards so the roadmap is visible in-game.

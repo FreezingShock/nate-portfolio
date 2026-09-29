@@ -7,7 +7,7 @@ import { ISLANDS, MINIONS, MINION_GROWTH, UPGRADES } from "@/lib/fractured-idle/
 import {
     advance,
     bulk,
-    checkAchievements,
+    checkTrophies,
     derive,
     fmt,
     income,
@@ -23,11 +23,12 @@ import { Orbit } from "./orbit";
 import { CSS, IconBtn, Kbd, Progress, Stat, tint, type Ctx, type TipApi, type TipSource } from "./ui";
 import { MinionsTab } from "./tab-minions";
 import { UpgradeTip, UpgradesTab } from "./tab-upgrades";
+import { TrophiesTab, TrophyTip } from "./tab-trophies";
 import { IslandsTab } from "./tab-islands";
 import { SkillsTab } from "./tab-skills";
 import { StatsTab } from "./tab-stats";
 import { RebirthTab } from "./tab-rebirth";
-import { SettingsTab, SoonTab, TrophiesTab } from "./tab-misc";
+import { SettingsTab, SoonTab } from "./tab-misc";
 
 // Fractured Idle: a button-simulator incremental with SkyBlock flavor.
 // State lives in a ref and is mutated by the pure functions in
@@ -173,7 +174,7 @@ export function FracturedIdle() {
 
             if (sinceAch >= 1) {
                 sinceAch = 0;
-                const fresh = checkAchievements(s);
+                const fresh = checkTrophies(s);
                 if (fresh.length) say(`Trophy unlocked: ${fresh.join(", ")}`);
             }
             if (sinceSave >= 10) {
@@ -249,10 +250,10 @@ export function FracturedIdle() {
         s.shards += v;
         s.total += v;
         s.clicks += 1;
-        s.mining += 1;
+        s.mining += d.xpMult;
         if (crit) {
             s.crits += 1;
-            s.combat += 3;
+            s.combat += 3 * d.xpMult;
         }
         if (s.fx && x !== undefined && y !== undefined) {
             spawnFloat(x + (Math.random() - 0.5) * 60, y - 20, fmt(v, s.sci), crit);
@@ -269,11 +270,11 @@ export function FracturedIdle() {
         if (!s) return;
         const d = derive(s);
         const lvl = skillLevel(s.fishing);
-        const reward = Math.max(d.click * 40, d.cps * (30 + lvl));
+        const reward = Math.max(d.click * 40, d.cps * (30 + lvl)) * d.bobberMult;
         s.shards += reward;
         s.total += reward;
         s.bobbers += 1;
-        s.fishing += 30;
+        s.fishing += 30 * d.xpMult;
         bob.current.left = 0;
         bob.current.next = nextBobber(s);
         setBobber(null);
@@ -368,6 +369,25 @@ export function FracturedIdle() {
                 <Stat label="Per second" value={F(income(d))} color="var(--mc-green)" />
                 <Stat label="Per click" value={F(d.click)} color="var(--mc-aqua)" />
                 <Stat label="Multiplier" value={`x${F(d.all)}`} color="var(--mc-gold)" />
+                <button
+                    type="button"
+                    title="Open Rebirth"
+                    onClick={() => {
+                        tip.hide();
+                        setTab("rebirth");
+                    }}
+                    className="text-left"
+                >
+                    <div className="font-minecraft text-[10px] uppercase tracking-widest text-muted-foreground">Rebirth</div>
+                    <div className="flex items-center gap-1.5 font-minecraft text-lg leading-none" style={{ color: "var(--mc-light-purple)" }}>
+                        {s.rebirths}
+                        {plan.count > 0 && (
+                            <span className="fi-afford rounded-full px-1.5 py-0.5 text-[10px] text-black" style={{ backgroundColor: "var(--mc-light-purple)", ["--c" as string]: "var(--mc-light-purple)" }}>
+                                x{plan.count} ready
+                            </span>
+                        )}
+                    </div>
+                </button>
                 <div className="ml-auto flex items-center gap-2">
                     <div className="flex overflow-hidden rounded-lg border border-white/15">
                         {BUY_OPTIONS.map((o) => (
@@ -391,7 +411,7 @@ export function FracturedIdle() {
                 </div>
             </div>
 
-            <div className={`grid min-h-0 flex-1 gap-0 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.2fr)] ${full ? "" : "lg:h-[680px]"}`}>
+            <div className={`grid min-h-0 flex-1 grid-cols-[minmax(0,1fr)] gap-0 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.2fr)] ${full ? "" : "lg:h-[680px]"}`}>
                 {/* Button side */}
                 <div className="relative flex flex-col items-center justify-center gap-5 overflow-hidden px-4 py-8 lg:border-r lg:border-white/10">
                     <div className="flex flex-wrap items-center justify-center gap-2 font-minecraft text-sm" style={{ color: island.color }}>
@@ -462,7 +482,7 @@ export function FracturedIdle() {
                 </div>
 
                 {/* Panels */}
-                <div className="flex min-h-0 flex-col">
+                <div className="flex min-h-0 min-w-0 flex-col">
                     <div className="flex gap-1 overflow-x-auto border-b border-white/10 px-2 py-2 [scrollbar-width:none]">
                         {TABS.map((t, i) => {
                             const on = tab === t.id;
@@ -503,7 +523,7 @@ export function FracturedIdle() {
 
             <div ref={tipRef} className="pointer-events-none absolute left-0 top-0 z-30" aria-hidden="true">
                 <div className="fi-tip" data-open={tipState.open}>
-                    {tipState.id && <UpgradeTip id={tipState.id} s={s} d={d} F={F} />}
+                    {tipState.id.startsWith("t:") ? <TrophyTip id={tipState.id.slice(2)} s={s} F={F} /> : tipState.id && <UpgradeTip id={tipState.id} s={s} d={d} F={F} />}
                 </div>
             </div>
 

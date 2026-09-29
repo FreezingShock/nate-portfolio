@@ -1,15 +1,22 @@
 import {
-    ACHIEVEMENTS,
     ISLANDS,
     MILESTONES,
     MINIONS,
     MINION_GROWTH,
+    REBIRTH_MILESTONES,
     REBIRTH_UPS,
+    SKILL_CAP,
+    TROPHIES,
     UPGRADES,
     rebirthCost,
+    skillLevel,
+    skillXpFor,
+    type RewardStat,
     type State,
     type UpgradeDef,
 } from "@/lib/fractured-idle/data";
+
+export { SKILL_CAP, skillLevel, skillXpFor };
 
 // Pure game logic: no React, no DOM. The UI keeps one State object in a ref,
 // mutates it through these functions and re-renders on a timer, so a tick
@@ -35,7 +42,8 @@ export function newState(): State {
         fishing: 0,
         crits: 0,
         bobbers: 0,
-        ach: [],
+        tro: {},
+        peak: { minions: 0, types: 0 },
         playTime: 0,
         savedAt: Date.now(),
         island: "hub",
@@ -82,7 +90,10 @@ export interface Derived {
     auto: number; // automatic clicks per second
     rMult: number;
     islandMult: number;
-    achMult: number;
+    achMult: number; // 1 + trophy "all" bonus
+    xpMult: number;
+    bobberMult: number;
+    bonus: Record<RewardStat, number>;
     all: number;
     mining: number; // skill levels
     farming: number;
@@ -95,17 +106,15 @@ export interface Derived {
     minionCps: number[]; // per-minion shards/sec, for the shop
 }
 
-export const SKILL_CAP = 60;
-const XP_BASE = 20;
-const XP_GROWTH = 1.45;
-
-export const skillLevel = (xp: number) =>
-    Math.min(
-        SKILL_CAP,
-        Math.floor(Math.log((xp * (XP_GROWTH - 1)) / XP_BASE + 1) / Math.log(XP_GROWTH)),
-    );
-export const skillXpFor = (level: number) =>
-    (XP_BASE * (Math.pow(XP_GROWTH, level) - 1)) / (XP_GROWTH - 1);
+/** Sum of every unlocked trophy tier's reward, per stat. */
+export function trophyBonus(s: State): Record<RewardStat, number> {
+    const b: Record<RewardStat, number> = { all: 0, click: 0, minion: 0, critChance: 0, critDmg: 0, tokens: 0, skillXp: 0, offline: 0, bobber: 0 };
+    for (const tr of TROPHIES) {
+        const n = s.tro[tr.id] || 0;
+        for (let i = 0; i < n; i++) b[tr.stat] += tr.tiers[i].reward;
+    }
+    return b;
+}
 
 export function milestoneMult(owned: number): number {
     let m = 1;
@@ -134,6 +143,11 @@ export function derive(s: State): Derived {
             case "synergy": synergy += u.value * l; break;
         }
     }
+    const bonus = trophyBonus(s);
+    clickMult *= (1 + bonus.click) * (1 + 0.05 * (s.rups.might || 0));
+    minionMult *= (1 + bonus.minion) * (1 + 0.05 * (s.rups.engine || 0));
+    critChance += bonus.critChance + 0.01 * (s.rups.luck || 0);
+    critDmg += bonus.critDmg;
     const mining = skillLevel(s.mining);
     const farming = skillLevel(s.farming);
     const combat = skillLevel(s.combat);
@@ -145,7 +159,7 @@ export function derive(s: State): Derived {
     const rMult = Math.pow(1.5 + 0.05 * core, s.rebirths);
     let islandMult = 1;
     for (const i of ISLANDS) if (s.total >= i.at) islandMult = Math.max(islandMult, i.mult);
-    const achMult = 1 + 0.01 * s.ach.length;
+    const achMult = 1 + bonus.all;
     const all = rMult * islandMult * achMult * allUp * (1 + 0.01 * fishing);
 
     const shared = minionMult * (1 + 0.03 * farming) * all;
@@ -167,6 +181,9 @@ export function derive(s: State): Derived {
         rMult,
         islandMult,
         achMult,
+        xpMult: 1 + bonus.skillXp,
+        bobberMult: 1 + bonus.bobber,
+        bonus,
         all,
         mining,
         farming,
@@ -183,7 +200,8 @@ export function derive(s: State): Derived {
 // ---- Costs ----
 
 export const minionDiscount = (s: State) => 1 - 0.05 * (s.rups.disc || 0);
-export const offlineEff = (s: State) => Math.min(1, 0.5 + 0.1 * (s.rups.off || 0));
+export const offlineEff = (s: State) =>
+    Math.min(1, 0.5 + 0.1 * (s.rups.off || 0) + trophyBonus(s).offline);
 
 /** Cost of buying `want` items (or as many as affordable when want = -1). */
 export function bulk(base: number, g: number, owned: number, money: number, want: number) {
@@ -238,16 +256,25 @@ export function buyRebirthUp(s: State, id: string): boolean {
 export const rebirthBase = (s: State) => 1.5 + 0.05 * (s.rups.core || 0);
 export const rebirthMultAt = (s: State, r: number) => Math.pow(rebirthBase(s), r);
 
-/** Tokens earned for clearing rebirth level `r` while holding `shards`. */
+/** Base tokens for clearing rebirth cost index `r` while holding `shards`. */
 export const tokensFor = (shards: number, r: number) =>
     Math.max(1, Math.floor(1 + Math.log10(shards / rebirthCost(r)) * 2));
 
-/** How many rebirths you could take right now, and the tokens they pay. */
-export function rebirthPlan(s: State) {
+export const rebirthCap = (s: State) => 1 + (s.rups.stack || 0);
+export const tokenMult = (s: State) => 1 + trophyBonus(s).tokens + 0.25 * (s.rups.magnet || 0);
+export const milestoneTokens = (level: number) => REBIRTH_MILESTONES[level] || 0;
+
+/** Tokens for taking rebirth number `level` (1-based) while holding `shards`. */
+export const tokensAt = (s: State, shards: number, level: number) =>
+    Math.max(1, Math.round(tokensFor(shards, level - 1) * tokenMult(s))) + milestoneTokens(level);
+
+/** How many rebirths you could take right now (up to your stack cap) and what they pay. */
+export function rebirthPlan(s: State, take?: number) {
+    const limit = Math.min(rebirthCap(s), take ?? Infinity);
     let count = 0;
     let tokens = 0;
-    while (count < 200 && s.shards >= rebirthCost(s.rebirths + count)) {
-        tokens += tokensFor(s.shards, s.rebirths + count);
+    while (count < limit && s.shards >= rebirthCost(s.rebirths + count)) {
+        tokens += tokensAt(s, s.shards, s.rebirths + count + 1);
         count++;
     }
     return { count, tokens };
@@ -258,14 +285,21 @@ export const income = (d: Derived) => d.cps + d.auto * d.avgClick;
 
 export const startShards = (s: State) => (s.rups.head ? 500 * Math.pow(5, s.rups.head) : 0);
 
-export function rebirth(s: State): boolean {
-    const plan = rebirthPlan(s);
+const TRAINING = ["auto", "critc", "critd", "syn"];
+
+export function rebirth(s: State, take?: number): boolean {
+    const plan = rebirthPlan(s, take);
     if (plan.count < 1) return false;
+    const keep = 0.2 * (s.rups.keep || 0);
+    const kept = TRAINING.map((id) => [id, Math.floor((s.ups[id] || 0) * keep)] as const);
     s.tokens += plan.tokens;
     s.rebirths += plan.count;
     s.shards = startShards(s);
     s.minions = MINIONS.map(() => 0);
+    s.minions[0] = 5 * (s.rups.kit || 0);
+    s.minions[1] = 2 * (s.rups.kit || 0);
     s.ups = {};
+    for (const [id, lvl] of kept) if (lvl > 0) s.ups[id] = lvl;
     return true;
 }
 
@@ -299,16 +333,32 @@ export function upgradeInfo(d: Derived, u: UpgradeDef, sci = false): UpInfo {
     }
 }
 
-export function checkAchievements(s: State): string[] {
+const ROMAN = ["", "I", "II", "III", "IV", "V", "VI", "VII", "VIII", "IX", "X"];
+
+/** Unlock any trophy tiers reached. Returns display names of the new ones. */
+export function checkTrophies(s: State): string[] {
     const fresh: string[] = [];
-    for (const a of ACHIEVEMENTS) {
-        if (!s.ach.includes(a.id) && a.check(s)) {
-            s.ach.push(a.id);
-            fresh.push(a.name);
+    const owned = s.minions.reduce((a, b) => a + b, 0);
+    s.peak.minions = Math.max(s.peak.minions, owned);
+    s.peak.types = Math.max(s.peak.types, s.minions.filter((n) => n > 0).length);
+    for (const tr of TROPHIES) {
+        const m = tr.metric(s);
+        let n = 0;
+        while (n < tr.tiers.length && m >= tr.tiers[n].at) n++;
+        const had = s.tro[tr.id] || 0;
+        if (n > had) {
+            s.tro[tr.id] = n;
+            fresh.push(tr.tiers.length > 1 ? `${tr.name} ${ROMAN[n] ?? n}` : tr.name);
         }
     }
     return fresh;
 }
+
+/** How many trophy tiers are unlocked / exist. */
+export const trophyCounts = (s: State) => ({
+    got: TROPHIES.reduce((a, t) => a + (s.tro[t.id] || 0), 0),
+    all: TROPHIES.reduce((a, t) => a + t.tiers.length, 0),
+});
 
 /** Advance the simulation. Production is linear between purchases, so a large dt is exact. */
 export function advance(s: State, d: Derived, dt: number) {
@@ -316,12 +366,12 @@ export function advance(s: State, d: Derived, dt: number) {
     s.shards += gain;
     s.total += gain;
     s.clicks += d.auto * dt;
-    s.mining += d.auto * dt;
+    s.mining += d.auto * dt * d.xpMult;
     const autoCrits = d.auto * d.critChance * dt;
     s.crits += autoCrits;
-    s.combat += autoCrits * 3;
-    s.fishing += 0.2 * dt;
-    s.farming += (d.cps > 0 ? 1 + 2 * Math.log10(d.cps + 1) : 0) * dt;
+    s.combat += autoCrits * 3 * d.xpMult;
+    s.fishing += 0.2 * dt * d.xpMult;
+    s.farming += (d.cps > 0 ? 1 + 2 * Math.log10(d.cps + 1) : 0) * dt * d.xpMult;
     s.playTime += dt;
 }
 
@@ -345,7 +395,8 @@ export function parseSave(raw: string): State | null {
         s.minions = MINIONS.map((_, i) => Number(o.minions?.[i]) || 0);
         s.ups = { ...(o.ups ?? {}) };
         s.rups = { ...(o.rups ?? {}) };
-        s.ach = Array.isArray(o.ach) ? o.ach : [];
+        s.tro = { ...(o.tro ?? {}) };
+        s.peak = { minions: Number(o.peak?.minions) || 0, types: Number(o.peak?.types) || 0 };
         if (!isFinite(s.shards) || !isFinite(s.total)) return null;
         return s;
     } catch {

@@ -12,7 +12,7 @@ import { ActionBtn, SectionTitle, tint, type Ctx } from "./ui";
 
 const GROUPS: { title: string; color: string; kinds: UpgradeDef["kind"][] }[] = [
     { title: "Training", color: "var(--mc-red)", kinds: ["auto", "critChance", "critDmg", "synergy"] },
-    { title: "Pickaxes", color: "var(--mc-gold)", kinds: ["click"] },
+    { title: "Pickaxes and Drills", color: "var(--mc-gold)", kinds: ["click"] },
     { title: "Minion fuel", color: "var(--mc-blue)", kinds: ["minion"] },
     { title: "Talismans", color: "var(--mc-green)", kinds: ["all"] },
 ];

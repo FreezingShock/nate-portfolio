@@ -1,5 +1,5 @@
-import { ACHIEVEMENTS, ISLANDS, MINIONS } from "@/lib/fractured-idle/data";
-import { fmtTime, income, offlineEff } from "@/lib/fractured-idle/engine";
+import { ISLANDS, MINIONS, REWARD_LABEL, type RewardStat } from "@/lib/fractured-idle/data";
+import { fmtTime, income, offlineEff, rebirthCap, tokenMult, trophyCounts } from "@/lib/fractured-idle/engine";
 import { SectionTitle, type Ctx } from "./ui";
 
 type Row = [label: string, value: string, hint?: string];
@@ -66,12 +66,19 @@ export function StatsTab({ s, d, F }: Ctx) {
                 ["Rebirths", String(s.rebirths)],
                 ["Tokens", String(s.tokens)],
                 ["Islands", `${unlocked}/${ISLANDS.length}`],
-                ["Trophies", `${s.ach.length}/${ACHIEVEMENTS.length}`],
+                ["Trophy tiers", `${trophyCounts(s).got}/${trophyCounts(s).all}`],
+                ["Rebirth stack", `${rebirthCap(s)}/15`, "levels per rebirth"],
+                ["Token bonus", `x${tokenMult(s).toFixed(2)}`, "trophies + Token Magnet"],
                 ["Play time", fmtTime(s.playTime)],
                 ["Offline efficiency", pct(offlineEff(s)), "up to 8 hours"],
             ],
         },
     ];
+
+    const bonusRows: Row[] = (Object.keys(REWARD_LABEL) as RewardStat[])
+        .filter((k) => d.bonus[k] > 0)
+        .map((k) => [REWARD_LABEL[k], `+${+(d.bonus[k] * 100).toFixed(1)}%`]);
+    if (bonusRows.length) groups.push({ title: "Trophy bonuses", color: "var(--mc-yellow)", rows: bonusRows });
 
     return (
         <>
