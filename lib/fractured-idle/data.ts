@@ -1,5 +1,16 @@
 import type { McSymbolName } from "@/components/mc-symbol";
 
+// HOW TO EXPAND (everything below is data-driven):
+//  - New minion: add a row to MINIONS (order = shop order; saves map by index,
+//    so only ever append).
+//  - New upgrade: add a row to UPGRADES (kind decides which stat it feeds).
+//  - New skill: add to SKILLS, add its xp field to State + newState, feed xp in
+//    engine.advance / the click handler, and apply its bonus in engine.derive.
+//  - New island / trophy / rebirth upgrade: add a row to ISLANDS / ACHIEVEMENTS
+//    / REBIRTH_UPS.
+//  - New tab: add a file under components/games/fractured-idle/ and register it
+//    in TABS in index.tsx.
+//
 // Content tables for Fractured Idle. Everything named here (minions, islands,
 // upgrades, achievements) is a WORKING PLACEHOLDER: edit the names, colors and
 // numbers here and the game picks them up. Balance is untuned; treat every
@@ -17,6 +28,10 @@ export interface State {
     rups: Record<string, number>;
     mining: number; // skill xp
     farming: number;
+    combat: number;
+    fishing: number;
+    crits: number;
+    bobbers: number; // treasure bobbers caught
     ach: string[];
     playTime: number; // seconds
     savedAt: number;
@@ -48,9 +63,13 @@ export const MINIONS: MinionDef[] = [
     { id: "diamond", name: "Diamond Minion", color: "var(--mc-aqua)", symbol: "pristine", cost: 3.3e7, cps: 15600 },
     { id: "lapis", name: "Lapis Minion", color: "var(--mc-blue)", symbol: "intelligence", cost: 5.1e8, cps: 88000 },
     { id: "emerald", name: "Emerald Minion", color: "var(--mc-green)", symbol: "petLuck", cost: 7.5e9, cps: 520000 },
-    { id: "obsidian", name: "Obsidian Minion", color: "var(--mc-dark-purple)", symbol: "night", cost: 1e11, cps: 3.2e+06 },
-    { id: "glowstone", name: "Glowstone Minion", color: "var(--mc-yellow)", symbol: "speed", cost: 1.6e12, cps: 2e+07 },
-    { id: "fractured", name: "Fractured Minion", color: "var(--mc-light-purple)", symbol: "portal", cost: 3e13, cps: 1.4e+08 },
+    { id: "obsidian", name: "Obsidian Minion", color: "var(--mc-dark-purple)", symbol: "night", cost: 1e11, cps: 3.2e6 },
+    { id: "glowstone", name: "Glowstone Minion", color: "var(--mc-yellow)", symbol: "speed", cost: 1.6e12, cps: 2e7 },
+    { id: "fractured", name: "Fractured Minion", color: "var(--mc-light-purple)", symbol: "portal", cost: 3e13, cps: 1.4e8 },
+    { id: "redstone", name: "Redstone Minion", color: "var(--mc-red)", symbol: "critChance", cost: 6e14, cps: 2.5e9 },
+    { id: "quartz", name: "Quartz Minion", color: "#ffffff", symbol: "defense", cost: 1.2e16, cps: 4.5e10 },
+    { id: "ice", name: "Ice Minion", color: "var(--mc-aqua)", symbol: "night", cost: 2.4e17, cps: 8e11 },
+    { id: "prismarine", name: "Prismarine Minion", color: "var(--mc-dark-aqua)", symbol: "fishing", cost: 5e18, cps: 1.4e13 },
 ];
 
 export type UpKind = "click" | "minion" | "all" | "auto" | "critChance" | "critDmg" | "synergy";
@@ -100,6 +119,8 @@ export const UPGRADES: UpgradeDef[] = [
     { id: "critc", name: "Critical Eye", desc: "+2% crit chance", kind: "critChance", value: 0.02, cost: 1e3, growth: 1.8, max: 25, symbol: "critChance", color: "var(--mc-blue)" },
     { id: "critd", name: "Crushing Blows", desc: "+25% crit damage", kind: "critDmg", value: 0.25, cost: 2e3, growth: 1.7, max: 30, symbol: "critDamage", color: "var(--mc-blue)" },
     { id: "syn", name: "Pocket Minion", desc: "Each click also gives +1% of your shards/sec", kind: "synergy", value: 0.01, cost: 5e3, growth: 2.2, max: 20, symbol: "intelligence", color: "var(--mc-aqua)" },
+    { id: "gold", name: "Golden Touch", desc: "+5% to all shards", kind: "all", value: 1.05, cost: 1e6, growth: 3.5, max: 20, symbol: "magicFind", color: "var(--mc-gold)" },
+    { id: "overclock", name: "Minion Overclock", desc: "+10% minion output", kind: "minion", value: 1.1, cost: 1e5, growth: 3, max: 20, symbol: "speed", color: "var(--mc-yellow)" },
     // Pickaxes (click)
     once("wood", "Wooden Pickaxe", "click", 2, 100, "strength", "var(--mc-gold)"),
     once("stone", "Stone Pickaxe", "click", 2, 2.5e3, "strength", "var(--mc-gold)"),
@@ -187,6 +208,11 @@ export const ACHIEVEMENTS: AchDef[] = [
     { id: "r1", name: "Second Wind", desc: "Rebirth once", check: (s) => s.rebirths >= 1 },
     { id: "r2", name: "Cycle of Shards", desc: "Rebirth 5 times", check: (s) => s.rebirths >= 5 },
     { id: "r3", name: "Ever Fractured", desc: "Rebirth 15 times", check: (s) => s.rebirths >= 15 },
+    { id: "s1", name: "Apprentice Miner", desc: "Reach Mining 10", check: (s) => s.mining >= 20 * (Math.pow(1.45, 10) - 1) / 0.45 },
+    { id: "s2", name: "Sharp Eyed", desc: "Land 1,000 critical hits", check: (s) => s.crits >= 1e3 },
+    { id: "s3", name: "Gone Fishing", desc: "Catch 10 treasure bobbers", check: (s) => s.bobbers >= 10 },
+    { id: "s4", name: "Bounty Hunter", desc: "Reach Combat 10", check: (s) => s.combat >= 20 * (Math.pow(1.45, 10) - 1) / 0.45 },
+    { id: "u1", name: "Fully Upgraded", desc: "Max out the Auto-Clicker", check: (s) => (s.ups.auto || 0) >= 25 },
     { id: "i1", name: "Explorer", desc: "Unlock 3 islands", check: (s) => ISLANDS.filter((i) => s.total >= i.at).length >= 3 },
     { id: "i2", name: "Island Hopper", desc: "Unlock every island", check: (s) => ISLANDS.every((i) => s.total >= i.at) },
 ];
@@ -197,4 +223,24 @@ export const COMING_SOON = [
     { name: "Enchanting", symbol: "intelligence" as McSymbolName, color: "var(--mc-blue)", desc: "Enchant your pickaxe with rolling perks." },
     { name: "Ascension", symbol: "comet" as McSymbolName, color: "var(--mc-aqua)", desc: "A second prestige layer above rebirths." },
     { name: "Bazaar", symbol: "magicFind" as McSymbolName, color: "var(--mc-gold)", desc: "A fake market where resources swing in price." },
+];
+
+export type SkillId = "mining" | "farming" | "combat" | "fishing";
+
+export interface SkillDef {
+    id: SkillId;
+    name: string;
+    symbol: McSymbolName;
+    color: string;
+    earn: string; // how xp is earned
+    perk: string; // what a level does
+    /** Bonus text at a given level, e.g. "+9%". */
+    bonus: (level: number) => string;
+}
+
+export const SKILLS: SkillDef[] = [
+    { id: "mining", name: "Mining", symbol: "strength", color: "var(--mc-gold)", earn: "Every click", perk: "+3% click power per level", bonus: (l) => `+${l * 3}%` },
+    { id: "farming", name: "Farming", symbol: "fortune", color: "var(--mc-green)", earn: "Minions working", perk: "+3% minion output per level", bonus: (l) => `+${l * 3}%` },
+    { id: "combat", name: "Combat", symbol: "critDamage", color: "var(--mc-red)", earn: "Critical hits", perk: "+2% crit damage per level", bonus: (l) => `+${l * 2}%` },
+    { id: "fishing", name: "Fishing", symbol: "fishing", color: "var(--mc-aqua)", earn: "Treasure bobbers", perk: "+1% all shards per level, bobbers appear sooner", bonus: (l) => `+${l}%` },
 ];

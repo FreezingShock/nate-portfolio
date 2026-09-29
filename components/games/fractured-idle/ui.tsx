@@ -1,0 +1,179 @@
+import type { ComponentProps, ReactNode } from "react";
+import { Lock } from "lucide-react";
+import { McSymbol } from "@/components/mc-symbol";
+import type { State } from "@/lib/fractured-idle/data";
+import type { Derived } from "@/lib/fractured-idle/engine";
+
+// Shared pieces for every Fractured Idle tab. Tabs receive one Ctx object:
+// the live state (mutate it only through engine functions), derived stats,
+// a number formatter, and helpers to re-render and show a toast.
+
+export interface Ctx {
+    s: State;
+    d: Derived;
+    F: (n: number) => string;
+    /** Run an engine action; re-renders when it returns true. */
+    act: (fn: () => boolean) => void;
+    render: () => void;
+    say: (msg: string) => void;
+    tip: TipApi;
+}
+
+/** Point (client coords) or an element to anchor the tooltip to. */
+export type TipSource = { clientX: number; clientY: number } | Element;
+
+export interface TipApi {
+    show: (id: string, src: TipSource) => void;
+    move: (src: TipSource) => void;
+    hide: () => void;
+}
+
+export type SymbolName = ComponentProps<typeof McSymbol>["name"];
+
+export const tint = (c: string, pct: number) => `color-mix(in oklch, ${c} ${pct}%, transparent)`;
+
+export const CSS = `
+.fi-float{position:absolute;transform:translate(-50%,-50%);font-family:var(--font-minecraft,inherit);font-size:1.05rem;color:#fff;text-shadow:0 2px 0 #000,0 0 10px currentColor;animation:fi-rise .9s ease-out forwards;pointer-events:none;will-change:transform,opacity;white-space:nowrap}
+.fi-crit{color:var(--mc-yellow);font-size:1.5rem}
+@keyframes fi-rise{from{opacity:1;transform:translate(-50%,-50%) scale(.9)}to{opacity:0;transform:translate(-50%,-260%) scale(1.15)}}
+.fi-btn{transition:transform .06s ease,box-shadow .2s ease}
+.fi-btn:active{transform:translateY(6px) scale(.98)}
+@keyframes fi-pulse{0%,100%{opacity:.55}50%{opacity:1}}
+.fi-pulse{animation:fi-pulse 2.4s ease-in-out infinite}
+@keyframes fi-afford{0%,100%{box-shadow:0 0 5px -2px var(--c)}50%{box-shadow:0 0 15px 0 var(--c)}}
+.fi-afford{animation:fi-afford 1.8s ease-in-out infinite}
+@keyframes fi-bob{0%,100%{transform:translateY(0) rotate(-6deg)}50%{transform:translateY(-8px) rotate(6deg)}}
+.fi-bob{animation:fi-bob 1.1s ease-in-out infinite}
+@keyframes fi-pop{from{transform:scale(.6);opacity:0}to{transform:scale(1);opacity:1}}
+.fi-pop{animation:fi-pop .25s ease-out}
+.fi-tip{background:#100010f2;box-shadow:0 0 0 2px #100010,0 0 0 4px #2a0a55,inset 0 0 0 2px #5000ff59,0 8px 24px rgba(0,0,0,.55);padding:9px 11px;font-family:var(--font-minecraft,inherit);font-size:13px;line-height:1.35;min-width:190px;max-width:290px;transition:opacity .14s ease,transform .14s ease;transform-origin:0 100%}
+.fi-tip[data-open="false"]{opacity:0;transform:scale(.94) translateY(4px)}
+.fi-tip[data-open="true"]{opacity:1;transform:none}
+.fi-tip .tl{text-shadow:2px 2px 0 color-mix(in srgb,currentColor 25%,black);white-space:normal}
+@media (prefers-reduced-motion:reduce){.fi-float{animation-duration:.01s}.fi-pulse,.fi-afford,.fi-bob,.fi-pop{animation:none}.fi-tip{transition:none}.fi-btn{transition:none}}
+`;
+
+export function Stat({ label, value, color }: { label: string; value: string; color: string }) {
+    return (
+        <div>
+            <div className="font-minecraft text-[10px] uppercase tracking-widest text-muted-foreground">{label}</div>
+            <div className="font-minecraft text-lg leading-none" style={{ color }}>{value}</div>
+        </div>
+    );
+}
+
+export function Kbd({ children }: { children: ReactNode }) {
+    return <kbd className="rounded border border-white/20 bg-white/5 px-1.5 py-0.5 font-mono text-[10px]">{children}</kbd>;
+}
+
+export function Badge({ color, size = "md", children }: { color: string; size?: "md" | "sm"; children: ReactNode }) {
+    return (
+        <span
+            className={`grid shrink-0 place-items-center rounded-xl ${size === "md" ? "size-10 text-lg" : "size-8 text-base"}`}
+            style={{ color, backgroundColor: tint(color, 16), boxShadow: `inset 0 0 0 1px ${tint(color, 35)}` }}
+        >
+            {children}
+        </span>
+    );
+}
+
+export function IconBtn({ label, onClick, children }: { label: string; onClick: () => void; children: ReactNode }) {
+    return (
+        <button type="button" title={label} aria-label={label} onClick={onClick} className="grid size-9 place-items-center rounded-lg border border-white/15 text-muted-foreground transition-colors hover:bg-white/10 hover:text-foreground">
+            {children}
+        </button>
+    );
+}
+
+export function ActionBtn({ icon, onClick, danger, children }: { icon?: ReactNode; onClick: () => void; danger?: boolean; children: ReactNode }) {
+    return (
+        <button
+            type="button"
+            onClick={onClick}
+            className="flex items-center gap-1.5 rounded-lg border px-3 py-1.5 font-rubik text-xs font-semibold transition-colors hover:bg-white/10"
+            style={{ borderColor: danger ? tint("var(--mc-red)", 55) : "rgba(255,255,255,0.15)", color: danger ? "var(--mc-red)" : undefined }}
+        >
+            {icon} {children}
+        </button>
+    );
+}
+
+export function Toggle({ label, on, onChange }: { label: string; on: boolean; onChange: (v: boolean) => void }) {
+    return (
+        <button type="button" role="switch" aria-checked={on} onClick={() => onChange(!on)} className="flex w-full items-center justify-between rounded-lg border border-white/10 px-3 py-2 font-rubik text-xs">
+            {label}
+            <span className="rounded-full px-2 py-0.5 text-[10px] font-semibold" style={{ backgroundColor: tint(on ? "var(--mc-green)" : "var(--muted-foreground)", 20), color: on ? "var(--mc-green)" : undefined }}>
+                {on ? "ON" : "OFF"}
+            </span>
+        </button>
+    );
+}
+
+export function Teaser({ text }: { text: string }) {
+    return <div className="rounded-xl border border-dashed border-white/15 p-3 text-center font-rubik text-xs text-muted-foreground">{text}</div>;
+}
+
+export function SectionTitle({ children, color = "var(--mc-aqua)" }: { children: ReactNode; color?: string }) {
+    return (
+        <div className="mb-1.5 mt-3 flex items-center gap-2 font-minecraft text-[11px] uppercase tracking-widest first:mt-0" style={{ color }}>
+            {children}
+            <span className="h-px flex-1" style={{ backgroundColor: tint(color, 30) }} />
+        </div>
+    );
+}
+
+export function Progress({ label, pct, color, right }: { label: string; pct: number; color: string; right: string }) {
+    const p = Math.max(0, Math.min(1, isFinite(pct) ? pct : 0));
+    return (
+        <div>
+            <div className="mb-1 flex justify-between font-rubik text-[10px] text-muted-foreground">
+                <span>{label}</span>
+                <span>{right}</span>
+            </div>
+            <div className="h-2 overflow-hidden rounded-full bg-white/10">
+                <div className="h-full rounded-full transition-[width] duration-200" style={{ width: `${p * 100}%`, backgroundColor: color, boxShadow: `0 0 10px ${color}` }} />
+            </div>
+        </div>
+    );
+}
+
+export function ShopRow({
+    color, symbol, title, badge, sub, price, buyLabel, can, onClick,
+}: {
+    color: string;
+    symbol: SymbolName;
+    title: string;
+    badge?: string;
+    sub: string;
+    price: string;
+    buyLabel: string;
+    can: boolean;
+    onClick: () => void;
+}) {
+    return (
+        <button
+            type="button"
+            disabled={!can}
+            onClick={onClick}
+            className="group flex w-full items-center gap-3 rounded-xl border p-3 text-left transition-all enabled:hover:-translate-y-px enabled:hover:bg-white/5 disabled:cursor-not-allowed disabled:opacity-55"
+            style={{ borderColor: can ? tint(color, 55) : "rgba(255,255,255,0.1)", boxShadow: can ? `0 0 16px -6px ${color}` : undefined }}
+        >
+            <Badge color={color}><McSymbol name={symbol} /></Badge>
+            <div className="min-w-0 flex-1">
+                <div className="flex items-center gap-2">
+                    <span className="truncate font-minecraft text-sm" style={{ color }}>{title}</span>
+                    {badge && <span className="rounded-full border border-white/15 px-1.5 font-rubik text-[10px] text-muted-foreground">{badge}</span>}
+                </div>
+                <div className="truncate font-rubik text-[11px] text-muted-foreground">{sub}</div>
+            </div>
+            <div className="shrink-0 text-right">
+                <div className="font-minecraft text-sm" style={{ color: can ? "var(--mc-yellow)" : undefined }}>{price}</div>
+                <div className="font-rubik text-[10px] text-muted-foreground">{buyLabel}</div>
+            </div>
+        </button>
+    );
+}
+
+export function LockedBadge() {
+    return <Lock className="size-4" />;
+}

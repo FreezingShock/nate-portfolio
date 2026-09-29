@@ -8,6 +8,7 @@ import {
     UPGRADES,
     rebirthCost,
     type State,
+    type UpgradeDef,
 } from "@/lib/fractured-idle/data";
 
 // Pure game logic: no React, no DOM. The UI keeps one State object in a ref,
@@ -30,6 +31,10 @@ export function newState(): State {
         rups: {},
         mining: 0,
         farming: 0,
+        combat: 0,
+        fishing: 0,
+        crits: 0,
+        bobbers: 0,
         ach: [],
         playTime: 0,
         savedAt: Date.now(),
@@ -81,6 +86,12 @@ export interface Derived {
     all: number;
     mining: number; // skill levels
     farming: number;
+    combat: number;
+    fishing: number;
+    clickUp: number; // upgrade-only multipliers, for the stats page
+    minionUp: number;
+    allUp: number;
+    synergy: number;
     minionCps: number[]; // per-minion shards/sec, for the shop
 }
 
@@ -123,17 +134,19 @@ export function derive(s: State): Derived {
             case "synergy": synergy += u.value * l; break;
         }
     }
+    const mining = skillLevel(s.mining);
+    const farming = skillLevel(s.farming);
+    const combat = skillLevel(s.combat);
+    const fishing = skillLevel(s.fishing);
     critChance = Math.min(0.75, critChance);
+    critDmg += 0.02 * combat;
 
     const core = s.rups.core || 0;
     const rMult = Math.pow(1.5 + 0.05 * core, s.rebirths);
     let islandMult = 1;
     for (const i of ISLANDS) if (s.total >= i.at) islandMult = Math.max(islandMult, i.mult);
     const achMult = 1 + 0.01 * s.ach.length;
-    const all = rMult * islandMult * achMult * allUp;
-
-    const mining = skillLevel(s.mining);
-    const farming = skillLevel(s.farming);
+    const all = rMult * islandMult * achMult * allUp * (1 + 0.01 * fishing);
 
     const shared = minionMult * (1 + 0.03 * farming) * all;
     let cps = 0;
@@ -157,6 +170,12 @@ export function derive(s: State): Derived {
         all,
         mining,
         farming,
+        combat,
+        fishing,
+        clickUp: clickMult,
+        minionUp: minionMult,
+        allUp,
+        synergy,
         minionCps,
     };
 }
@@ -216,19 +235,68 @@ export function buyRebirthUp(s: State, id: string): boolean {
     return true;
 }
 
-export const rebirthTokens = (s: State) =>
-    Math.max(1, Math.floor(1 + Math.log10(s.shards / rebirthCost(s.rebirths)) * 2));
+export const rebirthBase = (s: State) => 1.5 + 0.05 * (s.rups.core || 0);
+export const rebirthMultAt = (s: State, r: number) => Math.pow(rebirthBase(s), r);
+
+/** Tokens earned for clearing rebirth level `r` while holding `shards`. */
+export const tokensFor = (shards: number, r: number) =>
+    Math.max(1, Math.floor(1 + Math.log10(shards / rebirthCost(r)) * 2));
+
+/** How many rebirths you could take right now, and the tokens they pay. */
+export function rebirthPlan(s: State) {
+    let count = 0;
+    let tokens = 0;
+    while (count < 200 && s.shards >= rebirthCost(s.rebirths + count)) {
+        tokens += tokensFor(s.shards, s.rebirths + count);
+        count++;
+    }
+    return { count, tokens };
+}
+
+/** Best estimate of shards/sec for ETAs: minions + auto-clicks. */
+export const income = (d: Derived) => d.cps + d.auto * d.avgClick;
 
 export const startShards = (s: State) => (s.rups.head ? 500 * Math.pow(5, s.rups.head) : 0);
 
 export function rebirth(s: State): boolean {
-    if (s.shards < rebirthCost(s.rebirths)) return false;
-    s.tokens += rebirthTokens(s);
-    s.rebirths += 1;
+    const plan = rebirthPlan(s);
+    if (plan.count < 1) return false;
+    s.tokens += plan.tokens;
+    s.rebirths += plan.count;
     s.shards = startShards(s);
     s.minions = MINIONS.map(() => 0);
     s.ups = {};
     return true;
+}
+
+// ---- Upgrade stat readout: "current -> next" ----
+
+export interface UpInfo {
+    label: string;
+    cur: string;
+    next: string;
+}
+
+const pct = (n: number) => `${Math.round(n * 100)}%`;
+
+export function upgradeInfo(d: Derived, u: UpgradeDef, sci = false): UpInfo {
+    const x = (n: number) => `x${fmt(n, sci)}`;
+    switch (u.kind) {
+        case "click":
+            return { label: "Click power", cur: x(d.clickUp), next: x(d.clickUp * u.value) };
+        case "minion":
+            return { label: "Minion output", cur: x(d.minionUp), next: x(d.minionUp * u.value) };
+        case "all":
+            return { label: "All shards", cur: x(d.allUp), next: x(d.allUp * u.value) };
+        case "auto":
+            return { label: "Auto-clicks/sec", cur: fmt(d.auto, sci), next: fmt(d.auto + u.value, sci) };
+        case "critChance":
+            return { label: "Crit chance", cur: pct(d.critChance), next: pct(Math.min(0.75, d.critChance + u.value)) };
+        case "critDmg":
+            return { label: "Crit damage", cur: pct(d.critDmg), next: pct(d.critDmg + u.value) };
+        case "synergy":
+            return { label: "Click bonus from shards/sec", cur: pct(d.synergy), next: pct(d.synergy + u.value) };
+    }
 }
 
 export function checkAchievements(s: State): string[] {
@@ -249,6 +317,10 @@ export function advance(s: State, d: Derived, dt: number) {
     s.total += gain;
     s.clicks += d.auto * dt;
     s.mining += d.auto * dt;
+    const autoCrits = d.auto * d.critChance * dt;
+    s.crits += autoCrits;
+    s.combat += autoCrits * 3;
+    s.fishing += 0.2 * dt;
     s.farming += (d.cps > 0 ? 1 + 2 * Math.log10(d.cps + 1) : 0) * dt;
     s.playTime += dt;
 }
@@ -318,4 +390,15 @@ export function writeSave(s: State) {
     } catch {
         /* storage full or blocked */
     }
+}
+
+export function fmtEta(seconds: number): string {
+    if (!isFinite(seconds)) return "never (earn income first)";
+    if (seconds < 1) return "now";
+    if (seconds < 60) return `${Math.ceil(seconds)}s`;
+    if (seconds < 3600) return `${Math.ceil(seconds / 60)}m`;
+    const h = Math.floor(seconds / 3600);
+    if (h < 48) return `${h}h ${Math.floor((seconds % 3600) / 60)}m`;
+    const days = Math.floor(h / 24);
+    return days > 999 ? "practically never" : `${days}d ${h % 24}h`;
 }
