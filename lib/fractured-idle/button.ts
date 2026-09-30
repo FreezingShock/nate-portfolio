@@ -1,5 +1,6 @@
 import type { McSymbolName } from "@/components/mc-symbol";
-import { ISLANDS, type State } from "./data";
+import type { State } from "./data";
+import { openIslands } from "./island-logic";
 
 // The click button's wardrobe. Every look unlocks from progress (clicks,
 // crits, rebirths, ascensions, trophies...), never from a currency. Whatever
@@ -56,7 +57,7 @@ export function statValue(s: State, stat: BtnStat): number {
         case "rebirths": return Math.max(s.rebirths, s.btn.rb);
         case "trophies": return Object.values(s.tro).reduce((a, b) => a + b, 0);
         case "hours": return s.playTime / 3600;
-        case "islands": return ISLANDS.filter((i) => s.total >= i.at).length;
+        case "islands": return openIslands(s).length;
         default: return s[stat] as number;
     }
 }

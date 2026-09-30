@@ -5,7 +5,8 @@ import { Expand, Minimize } from "lucide-react";
 import { McSymbol } from "@/components/mc-symbol";
 import { HOLD_BASE, critColor, holdMax, lookName, unlockedKeys } from "@/lib/fractured-idle/button";
 import { COMBO_TIERS, comboFill, holdRate, newCombo, stepCombo, type ComboCfg } from "@/lib/fractured-idle/combo";
-import { EGGS, ISLANDS, MINIONS, MINION_GROWTH, PETS, RARITIES, UPGRADES, petLevel } from "@/lib/fractured-idle/data";
+import { activeIsland } from "@/lib/fractured-idle/island-logic";
+import { EGGS, MINIONS, MINION_GROWTH, PETS, RARITIES, UPGRADES, petLevel } from "@/lib/fractured-idle/data";
 import {
     addPetXp,
     advance,
@@ -31,6 +32,10 @@ import { Goals } from "./goals";
 import { Aura, BTN_CSS, ButtonFace, skinAccent } from "./button-face";
 import { COMBO_CSS, ComboMeter, type ComboApi } from "./combo-meter";
 import { BuffBar, POPUP_CSS, Popups } from "./popups";
+import { ISLAND_CSS, IslandScene } from "./island-art";
+import { IslandsMenu, MENU_CSS } from "./islands-menu";
+import { ISLAND_BY_ID, MASTERY_AT, perkText } from "@/lib/fractured-idle/islands";
+import { masteryInfo, openIslands } from "@/lib/fractured-idle/island-logic";
 import { kick, shake, spawnBurst, spawnCrit, spawnNumber } from "./button-fx";
 import { ButtonTab } from "./tab-button";
 import { Orbit } from "./orbit";
@@ -70,12 +75,15 @@ const TABS: { id: TabId; label: string; symbol: React.ComponentProps<typeof McSy
 ];
 
 
+const NAMES: Record<string, string> = Object.fromEntries(MINIONS.map((m) => [m.id, m.name.replace(" Minion", "")]));
+
 export function FracturedIdle() {
     const ref = useRef<State | null>(null);
     const [ready, setReady] = useState(false);
     const [, render] = useReducer((x: number) => x + 1, 0);
     const [tab, setTab] = useState<TabId>("minions");
     const [toast, setToast] = useState<string | null>(null);
+    const [menu, setMenu] = useState<string | null>(null); // travel map: island id to focus, or closed
     const [isFs, setIsFs] = useState(false);
     const [pseudoFs, setPseudoFs] = useState(false);
     const rootRef = useRef<HTMLDivElement>(null);
@@ -95,6 +103,7 @@ export function FracturedIdle() {
     const dRef = useRef<Derived | null>(null); // latest derived stats, for the popup scheduler
     const lastTiers = useRef<number[]>([]);
     const lastLooks = useRef<string[]>([]);
+    const lastIslands = useRef<string[]>([]);
     const tipRef = useRef<HTMLDivElement>(null);
     const anchor = useRef({ x: 0, y: 0 });
     const [tipState, setTipState] = useState<{ id: string; open: boolean }>({ id: "", open: false });
@@ -160,6 +169,7 @@ export function FracturedIdle() {
         ref.current = state;
         lastTiers.current = colTiers(state);
         lastLooks.current = unlockedKeys(state);
+        lastIslands.current = openIslands(state).map((i) => i.id);
         setReady(true);
         if (offline > 0) say(`Welcome back! Your minions earned ${fmt(offline, state.sci)} shards while you were away.`);
 
@@ -195,6 +205,12 @@ export function FracturedIdle() {
                     say(`New button look: ${fresh.slice(0, 2).map(lookName).join(", ")}${fresh.length > 2 ? ` and ${fresh.length - 2} more` : ""}`);
                 }
                 lastLooks.current = keys;
+                const isl = openIslands(s).map((i) => i.id);
+                if (isl.length > lastIslands.current.length) {
+                    const fresh = isl.filter((id) => !lastIslands.current.includes(id)).map((id) => ISLAND_BY_ID[id].name);
+                    say(`Island unlocked: ${fresh.join(", ")}. Press I to travel.`);
+                }
+                lastIslands.current = isl;
             }
             if (sinceSave >= 10) {
                 sinceSave = 0;
@@ -256,15 +272,15 @@ export function FracturedIdle() {
         s.shards += v;
         s.total += v;
         s.clicks += 1;
-        s.mining += d.xpMult;
-        if (s.equip.length) addPetXp(s, 0.4);
+        s.mining += d.xpMult * d.xpSkill.mining;
+        if (s.equip.length) addPetXp(s, 0.4 * d.petXp);
         if (crit) {
             s.crits += 1;
-            s.combat += 3 * d.xpMult;
+            s.combat += 3 * d.xpMult * d.xpSkill.combat;
         }
         const host = floatRef.current;
         if (s.fx && host && x !== undefined && y !== undefined) {
-            const isl = ISLANDS.find((i) => i.id === s.island && s.total >= i.at) ?? ISLANDS[0];
+            const isl = activeIsland(s);
             const accent = skinAccent(s.btn.skin, isl.color);
             const col = critColor(s, accent, s.crits);
             spawnNumber(host, x, y - 12, (crit ? "✦ " : "+") + fmt(v, s.sci), { crit, color: col, accent, style: s.btn.nums });
@@ -417,9 +433,12 @@ export function FracturedIdle() {
         const onKey = (e: KeyboardEvent) => {
             const t = e.target as HTMLElement | null;
             if (t && (t.tagName === "INPUT" || t.tagName === "TEXTAREA")) return;
+            if (menu !== null) return; // the travel map owns the keyboard while open
             if (e.code === "Space") {
                 e.preventDefault();
                 if (!e.repeat) press("space", buttonCenter());
+            } else if (e.key === "i" || e.key === "I") {
+                setMenu("");
             } else if (e.key === "f" || e.key === "F") {
                 toggleFs();
             } else if (e.key === "b" || e.key === "B") {
@@ -454,7 +473,7 @@ export function FracturedIdle() {
     }
 
     const d = derive(s);
-    const island = ISLANDS.find((i) => i.id === s.island && s.total >= i.at) ?? ISLANDS[0];
+    const island = activeIsland(s);
     const plan = rebirthPlan(s);
     const asc = ascPlan(s);
     const F = (n: number) => fmt(n, s.sci);
@@ -488,7 +507,7 @@ export function FracturedIdle() {
                 backgroundColor: "color-mix(in oklch, var(--background) 92%, black)",
             }}
         >
-            <style>{CSS}{BTN_CSS}{COMBO_CSS}{POPUP_CSS}</style>
+            <style>{CSS}{BTN_CSS}{COMBO_CSS}{POPUP_CSS}{ISLAND_CSS}{MENU_CSS}</style>
 
             {/* HUD */}
             <div className="flex flex-wrap items-center gap-x-6 gap-y-2 border-b border-white/10 px-4 py-3">
@@ -566,14 +585,25 @@ export function FracturedIdle() {
 
             <div className={`grid min-h-0 grid-cols-[minmax(0,1fr)] gap-0 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.2fr)] lg:grid-rows-[minmax(0,1fr)] ${full ? "flex-1 grid-rows-[auto_minmax(0,1fr)]" : "lg:h-[680px]"}`}>
                 {/* Button side */}
-                <div className="relative flex flex-col items-center justify-center gap-3 overflow-hidden px-4 py-3 lg:border-r lg:border-white/10">
-                    <div className="flex flex-wrap items-center justify-center gap-2 font-minecraft text-sm" style={{ color: island.color }}>
+                <div className="relative isolate flex flex-col items-center justify-center gap-3 overflow-hidden px-4 py-3 lg:border-r lg:border-white/10">
+                    <IslandScene key={island.id} island={island} variant="backdrop" className="fi-backdrop absolute inset-0 -z-10 size-full" />
+                    <button
+                        type="button"
+                        onClick={() => {
+                            tip.hide();
+                            setMenu("");
+                        }}
+                        title={`Open the travel map (I). Active perks:\n${island.perks.filter((p) => p.k !== "affinity").map((p) => perkText(p, masteryInfo(s.isec[island.id] || 0).strength, NAMES)).join("\n")}`}
+                        className="group flex flex-wrap items-center justify-center gap-2 rounded-full border border-white/10 bg-black/25 px-3 py-1 font-minecraft text-sm backdrop-blur-sm transition-colors hover:bg-black/45"
+                        style={{ color: island.color }}
+                    >
                         <McSymbol name={island.symbol} color={island.color} /> {island.name}
                         <span className="rounded-full border px-2 py-0.5 font-rubik text-[10px]" style={{ borderColor: tint(island.color, 50) }}>x{island.mult}</span>
                         <span className="rounded-full border border-white/15 px-2 py-0.5 font-rubik text-[10px] text-muted-foreground">
                             {totalMinions.toLocaleString()} minion{totalMinions === 1 ? "" : "s"}
                         </span>
-                    </div>
+                        <span className="rounded-full border border-white/15 px-2 py-0.5 font-rubik text-[10px] text-muted-foreground transition-colors group-hover:text-foreground">Travel ▸</span>
+                    </button>
 
                     {s.equip.length > 0 && (
                         <div className="flex flex-wrap items-center justify-center gap-1.5">
@@ -705,7 +735,7 @@ export function FracturedIdle() {
                         {tab === "upgrades" && <UpgradesTab {...ctx} />}
                         {tab === "button" && <ButtonTab {...ctx} />}
                         {tab === "pets" && <PetsTab {...ctx} />}
-                        {tab === "islands" && <IslandsTab {...ctx} />}
+                        {tab === "islands" && <IslandsTab {...ctx} openMenu={(id) => setMenu(id)} />}
                         {tab === "skills" && <SkillsTab {...ctx} />}
                         {tab === "stats" && <StatsTab {...ctx} />}
                         {tab === "rebirth" && <RebirthTab {...ctx} />}
@@ -722,6 +752,25 @@ export function FracturedIdle() {
                     {tipState.id.startsWith("t:") ? <TrophyTip id={tipState.id.slice(2)} s={s} F={F} /> : tipState.id && <UpgradeTip id={tipState.id} s={s} d={d} F={F} />}
                 </div>
             </div>
+
+            {menu !== null && (
+                <IslandsMenu
+                    s={s}
+                    d={d}
+                    F={F}
+                    startId={menu || undefined}
+                    onClose={() => setMenu(null)}
+                    onTravel={(id) => {
+                        s.island = id;
+                        const isl = ISLAND_BY_ID[id];
+                        if (!s.visited.includes(id)) {
+                            s.visited.push(id);
+                            say(`Discovered ${isl.name}! +0.5% all shards forever`);
+                        }
+                        render();
+                    }}
+                />
+            )}
 
             {toast && (
                 <div

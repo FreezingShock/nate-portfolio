@@ -15,7 +15,7 @@ import {
     type Looks,
     type LookDef,
 } from "@/lib/fractured-idle/button";
-import { ISLANDS } from "@/lib/fractured-idle/data";
+import { activeIsland } from "@/lib/fractured-idle/island-logic";
 import { kick, spawnBurst, spawnCrit, spawnNumber } from "./button-fx";
 import { Aura, ButtonFace, skinAccent } from "./button-face";
 import { SetupPage, randomLooks } from "./button-setup";
@@ -46,7 +46,7 @@ export function ButtonTab({ s, render, F }: Ctx) {
     const wrapRef = useRef<HTMLDivElement>(null);
     const flip = useRef(false);
 
-    const island = ISLANDS.find((i) => i.id === s.island && s.total >= i.at) ?? ISLANDS[0];
+    const island = activeIsland(s);
     const looks: Looks = {
         shape: b.shape, skin: b.skin, burst: b.burst, crit: b.crit, color: b.color, nums: b.nums, aura: b.aura, glyph: b.glyph,
         ...(focus ? { [focus.cat]: focus.id } : {}),

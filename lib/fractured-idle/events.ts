@@ -268,7 +268,7 @@ export function resolveBobber(s: State, d: Derived, fishingLevel: number, rng: (
     const reward = Math.max(d.click * 40, d.cps * (30 + fishingLevel)) * d.bobberMult;
     give(s, reward);
     s.bobbers += 1;
-    s.fishing += 30 * d.xpMult;
+    s.fishing += 30 * d.xpMult * d.xpSkill.fishing;
     if (rng() < 0.1) {
         s.freeEggs += 1;
         return { title: "Treasure!", sub: "shards and a Wooden Egg", color: "var(--mc-aqua)", tone: "loot", shards: reward };

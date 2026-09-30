@@ -1,3 +1,4 @@
+import { openIslands } from "@/lib/fractured-idle/island-logic";
 import { COL_AT, ISLANDS, MINIONS, PETS, PET_LABEL, REWARD_LABEL, type PetStat, type RewardStat } from "@/lib/fractured-idle/data";
 import { colTiers, fmtTime, income, offlineEff, petSlots, rebirthCap, tokenMult, trophyCounts } from "@/lib/fractured-idle/engine";
 import { SectionTitle, type Ctx } from "./ui";
@@ -7,7 +8,7 @@ type Row = [label: string, value: string, hint?: string];
 export function StatsTab({ s, d, F }: Ctx) {
     const pct = (n: number) => `${(n * 100).toFixed(n * 100 < 10 ? 1 : 0)}%`;
     const owned = s.minions.reduce((a, b) => a + b, 0);
-    const unlocked = ISLANDS.filter((i) => s.total >= i.at).length;
+    const unlocked = openIslands(s).length;
 
     const groups: { title: string; color: string; rows: Row[] }[] = [
         {

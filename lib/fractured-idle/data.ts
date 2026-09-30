@@ -1,5 +1,6 @@
 import type { McSymbolName } from "@/components/mc-symbol";
 import type { BtnPrefs } from "./button";
+import { ISLANDS } from "./islands";
 import type { ActiveBuff, EventStats } from "./events";
 
 // HOW TO EXPAND (everything below is data-driven):
@@ -42,6 +43,8 @@ export interface State {
     playTime: number; // seconds
     savedAt: number;
     island: string;
+    visited: string[]; // island ids you have travelled to (+0.5% all shards each)
+    isec: Record<string, number>; // seconds spent on each island (mastery)
     sci: boolean;
     fx: boolean;
     buy: number; // 1 | 10 | 100 | -1 (max)
@@ -361,25 +364,8 @@ export const REBIRTH_MILESTONES: Record<number, number> = {
 export const ASC_COST = 12;
 export const rebirthCost = (r: number, asc = 0) => 1e6 * Math.pow(16, r) * Math.pow(ASC_COST, asc);
 
-export interface IslandDef {
-    id: string;
-    name: string;
-    color: string;
-    symbol: McSymbolName;
-    at: number; // lifetime shards to unlock
-    mult: number; // total island bonus while this is the best unlocked (does not stack)
-    blurb: string;
-}
-
-export const ISLANDS: IslandDef[] = [
-    { id: "hub", name: "The Hub", color: "var(--mc-green)", symbol: "location", at: 0, mult: 1, blurb: "Where every adventure starts." },
-    { id: "mine", name: "Gold Mine", color: "var(--mc-gold)", symbol: "forge", at: 1e5, mult: 1.5, blurb: "A warm tunnel lined with veins of raw shard ore." },
-    { id: "caverns", name: "Deep Caverns", color: "var(--mc-aqua)", symbol: "pristine", at: 1e9, mult: 2.5, blurb: "Crystal ceilings and the far-off echo of minecarts." },
-    { id: "den", name: "Spider's Den", color: "var(--mc-dark-purple)", symbol: "night", at: 1e13, mult: 4, blurb: "Webs, egg sacs and something watching from the dark." },
-    { id: "fortress", name: "Blazing Fortress", color: "var(--mc-red)", symbol: "heat", at: 1e18, mult: 7, blurb: "Lava bridges, blaze spawners and a constant, shimmering heat." },
-    { id: "end", name: "The End", color: "var(--mc-light-purple)", symbol: "portal", at: 1e24, mult: 12, blurb: "Pale stone drifting in an endless dark." },
-    { id: "fractured", name: "Fractured Islands", color: "var(--mc-blue)", symbol: "comet", at: 1e32, mult: 25, blurb: "The shattered home of it all." },
-];
+export { ISLANDS } from "./islands";
+export type { IslandDef } from "./islands";
 
 // ---- Trophies ----
 // A trophy is a chain of tiers. Each tier gives a small permanent bonus, and
@@ -437,7 +423,7 @@ export interface TrophyDef {
 const tiers = (at: number[], reward: number[]): TrophyTier[] => at.map((a, i) => ({ at: a, reward: reward[i] }));
 const owned = (s: State) => s.minions.reduce((a, b) => a + b, 0);
 const skillSum = (s: State) => skillLevel(s.mining) + skillLevel(s.farming) + skillLevel(s.combat) + skillLevel(s.fishing);
-const islands = (s: State) => ISLANDS.filter((i) => s.total >= i.at).length;
+const islands = (s: State) => ISLANDS.filter((i) => Number.isFinite(i.at) && s.total >= i.at).length;
 
 export const TROPHIES: TrophyDef[] = [
     { id: "clicks", name: "Button Masher", category: "clicking", symbol: "strength", stat: "click", unit: "clicks", metric: (s) => s.clicks, tiers: tiers([100, 1e3, 1e4, 1e5, 1e6, 1e7], [0.01, 0.01, 0.02, 0.03, 0.05, 0.08]) },

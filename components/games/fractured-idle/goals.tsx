@@ -14,6 +14,7 @@ import {
     tokensAt,
     SKILL_CAP,
 } from "@/lib/fractured-idle/engine";
+import { islandOpen, islandProgress, islandStat } from "@/lib/fractured-idle/island-logic";
 import { tint, type Ctx, type SymbolName } from "./ui";
 
 // The four cards under the big button: what you are working toward right now.
@@ -120,20 +121,28 @@ export function Goals({ s, d, F, open }: Pick<Ctx, "s" | "d" | "F"> & { open: (t
         });
     }
 
-    // ---- Island ----
-    const next = ISLANDS.find((i) => s.total < i.at);
-    if (next) {
+    // ---- Island (whichever locked one is closest) ----
+    let nextIsl: { i: (typeof ISLANDS)[number]; f: number } | null = null;
+    for (const i of ISLANDS) {
+        if (islandOpen(s, i)) continue;
+        const f = islandProgress(s, i);
+        if (!nextIsl || f > nextIsl.f) nextIsl = { i, f };
+    }
+    if (nextIsl) {
+        const i = nextIsl.i;
+        const have = i.need ? islandStat(s, i.need.stat) : s.total;
+        const need = i.need ? i.need.n : i.at;
         goals.push({
             key: "island",
             tab: "islands",
-            symbol: next.symbol,
-            color: next.color,
-            title: `Island: ${next.name}`,
-            chip: fmtEta((next.at - s.total) / rate),
-            pct: Math.min(1, s.total / next.at),
+            symbol: i.symbol,
+            color: i.color,
+            title: `Island: ${i.name}`,
+            chip: i.need ? `${Math.round(nextIsl.f * 100)}%` : fmtEta((i.at - s.total) / rate),
+            pct: nextIsl.f,
             prio: 3,
-            left: `${F(s.total)} / ${F(next.at)}`,
-            right: `island bonus x${F(d.islandMult)} → x${next.mult}`,
+            left: `${F(have)} / ${F(need)}`,
+            right: i.need ? i.need.label : `island bonus x${F(d.islandMult)} → x${i.mult}`,
         });
     } else {
         goals.push({

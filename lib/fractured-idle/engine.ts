@@ -1,6 +1,8 @@
 import { DEFAULT_BTN, btnBonus, cleanBtn } from "./button";
 import { COMBO_BASE_MAX, COMBO_CPS_SHARE, SURGE_BASE_CHANCE } from "./combo";
 import { buffFx, newEventStats, tickBuffs } from "./events";
+import { activeIsland, islandFx, openIslands, tierMult, visitBonus, type IslandFx } from "./island-logic";
+import type { SkillKey } from "./islands";
 import {
     ASC_BASE,
     ASC_UPS,
@@ -71,6 +73,8 @@ export function newState(): State {
         playTime: 0,
         savedAt: Date.now(),
         island: "hub",
+        visited: ["hub"],
+        isec: {},
         sci: false,
         fx: true,
         buy: 1,
@@ -163,6 +167,9 @@ export interface Derived {
     qteSize: number; // QTE sweet spot multiplier
     qteTime: number; // extra QTE seconds
     qteRewardLvl: number; // Showman levels
+    xpSkill: Record<SkillKey, number>; // island skill xp multipliers
+    petXp: number; // island pet xp multiplier
+    isl: IslandFx; // perks of the island you are on
 }
 
 export type PetBonus = Record<PetStat, number>;
@@ -294,43 +301,43 @@ export function derive(s: State): Derived {
     const bonus = trophyBonus(s);
     const bb = btnBonus(s);
     const bf = buffFx(s); // popup boons and curses, plus Fracture Fragments
-    clickMult *= (1 + bonus.click) * (1 + ce.click) * (1 + pb.click) * (1 + bb.click) * (1 + 0.05 * (s.rups.might || 0)) * bf.click;
-    minionMult *= (1 + bonus.minion) * (1 + pb.minion) * (1 + 0.05 * (s.rups.engine || 0)) * (1 + 0.25 * (s.aups.union || 0)) * bf.minion;
-    critChance += bonus.critChance + ce.crit + pb.critChance + bb.crit + bf.crit + 0.01 * (s.rups.luck || 0);
-    critDmg += bonus.critDmg + ce.critDmg + pb.critDmg + bb.critDmg + bf.critDmg;
+    const isl = islandFx(s); // perks of the island you are on (islands.ts)
+    clickMult *= (1 + bonus.click) * (1 + ce.click) * (1 + pb.click) * (1 + bb.click) * (1 + 0.05 * (s.rups.might || 0)) * bf.click * isl.click * isl.affinity;
+    minionMult *= (1 + bonus.minion) * (1 + pb.minion) * (1 + 0.05 * (s.rups.engine || 0)) * (1 + 0.25 * (s.aups.union || 0)) * bf.minion * isl.minionAll;
+    critChance += bonus.critChance + ce.crit + pb.critChance + bb.crit + bf.crit + isl.crit + 0.01 * (s.rups.luck || 0);
+    critDmg += bonus.critDmg + ce.critDmg + pb.critDmg + bb.critDmg + bf.critDmg + isl.critDmg;
     const mining = skillLevel(s.mining);
     const farming = skillLevel(s.farming);
     const combat = skillLevel(s.combat);
     const fishing = skillLevel(s.fishing);
     critChance = Math.min(0.75, critChance);
-    critDmg += 0.02 * combat;
+    critDmg += 0.02 * combat * isl.eff.combat;
     // Combo: max and build speed come from upgrades, rebirth / ascension upgrades, skills and button looks.
-    comboMax += 0.5 * (s.rups.mom || 0) + (s.aups.over || 0) + 0.02 * combat + bb.combo;
+    comboMax += 0.5 * (s.rups.mom || 0) + (s.aups.over || 0) + 0.02 * combat + bb.combo + isl.comboMax;
     comboGain += 0.1 * (s.aups.over || 0) + 0.005 * mining + bb.flow;
-    comboGain *= bf.combo;
+    comboGain *= bf.combo * isl.comboGain;
     surge += 0.0005 * fishing;
 
     const core = s.rups.core || 0;
     const rMult = Math.pow(1.3 + 0.03 * core, s.rebirths);
-    let islandMult = 1;
-    for (const i of ISLANDS) if (s.total >= i.at) islandMult = Math.max(islandMult, i.mult);
+    const islandMult = tierMult(s);
     const achMult = 1 + bonus.all;
     const am = ascMult(s);
-    const all = rMult * islandMult * achMult * allUp * bf.all * (1 + ce.all + pb.all) * (1 + 0.01 * fishing) * am;
+    const all = rMult * islandMult * achMult * allUp * bf.all * (1 + ce.all + pb.all) * (1 + 0.01 * fishing * isl.eff.fishing) * am * isl.all * (1 + visitBonus(s));
 
-    const shared = minionMult * (1 + 0.03 * farming) * all;
+    const shared = minionMult * (1 + 0.03 * farming * isl.eff.farming) * all;
     let cps = 0;
     const mult = MINIONS.map(
-        (_, i) => shared * upOwn[i] * (1 + ce.own[i]) * (1 + ce.per10[i] * Math.floor(s.minions[i] / 10)) * (1 + ce.next[i]),
+        (m, i) => shared * upOwn[i] * (1 + ce.own[i]) * (1 + ce.per10[i] * Math.floor(s.minions[i] / 10)) * (1 + ce.next[i]) * (isl.minion[m.id] ?? 1),
     );
-    const colSpeed = MINIONS.map((_, i) => 1 + ce.col[i] + colUp[i] + pb.col + 0.3 * (s.aups.depth || 0));
+    const colSpeed = MINIONS.map((m, i) => (1 + ce.col[i] + colUp[i] + pb.col + 0.3 * (s.aups.depth || 0)) * (isl.col[m.id] ?? 1));
     const minionCps = MINIONS.map((m, i) => {
         const c = s.minions[i] * m.cps * milestoneMult(s.minions[i]) * mult[i];
         cps += c;
         return c;
     });
 
-    const click = clickMult * (1 + 0.03 * mining) * all + cps * synergy;
+    const click = clickMult * (1 + 0.03 * mining * isl.eff.mining) * all + cps * synergy;
     return {
         cps,
         click,
@@ -342,7 +349,7 @@ export function derive(s: State): Derived {
         islandMult,
         achMult,
         xpMult: 1 + bonus.skillXp + pb.skillXp + bb.xp,
-        bobberMult: 1 + bonus.bobber + pb.bobber + bb.bobber + ev.loot,
+        bobberMult: (1 + bonus.bobber + pb.bobber + bb.bobber + ev.loot) * isl.loot,
         bonus,
         all,
         mining,
@@ -363,16 +370,19 @@ export function derive(s: State): Derived {
         comboGain,
         surgeChance: surge,
         // Popup events (events.ts)
-        evFreq: (1 + ev.rate + 0.1 * (s.rups.omen || 0)) * bf.freq / Math.max(0.4, 1 - 0.01 * fishing),
-        evBobber: 1 + ev.bobber,
-        evGolden: 1 + ev.golden,
-        evLife: 1 + ev.life + 0.1 * (s.aups.horizon || 0),
-        evPower: 1 + ev.power + 0.12 * (s.aups.horizon || 0),
-        curseResist: Math.min(0.7, ev.curse),
-        evCurseChance: 1 - Math.min(0.7, ev.curse),
+        evFreq: ((1 + ev.rate + 0.1 * (s.rups.omen || 0)) * bf.freq * isl.ev.freq) / Math.max(0.4, 1 - 0.01 * fishing),
+        evBobber: (1 + ev.bobber) * isl.ev.bobber,
+        evGolden: (1 + ev.golden) * isl.ev.golden,
+        evLife: (1 + ev.life + 0.1 * (s.aups.horizon || 0)) * isl.ev.life,
+        evPower: (1 + ev.power + 0.12 * (s.aups.horizon || 0)) * isl.ev.power,
+        curseResist: Math.min(0.7, ev.curse + isl.ev.resist),
+        evCurseChance: 1 - Math.min(0.7, ev.curse + isl.ev.resist),
         qteSize: 1 + ev.qteSize,
-        qteTime: ev.qteTime,
+        qteTime: ev.qteTime + isl.ev.qte,
         qteRewardLvl: ev.qteRew,
+        xpSkill: isl.xp,
+        petXp: isl.petXp,
+        isl,
     };
 }
 
@@ -380,7 +390,7 @@ export function derive(s: State): Derived {
 
 export const minionDiscount = (s: State) => 1 - 0.05 * (s.rups.disc || 0);
 export const offlineEff = (s: State) =>
-    Math.min(1, 0.5 + 0.1 * (s.rups.off || 0) + trophyBonus(s).offline + collectionEffects(s).offline + petBonus(s).offline);
+    Math.min(1, 0.5 + 0.1 * (s.rups.off || 0) + trophyBonus(s).offline + collectionEffects(s).offline + petBonus(s).offline + islandFx(s).offline);
 
 /** Price of the first minion of type `i` after every discount (rebirth, collection, upgrades). */
 export function minionBase(s: State, i: number): number {
@@ -756,19 +766,23 @@ export function advance(s: State, d: Derived, dt: number) {
     s.shards += gain;
     s.total += gain;
     s.clicks += d.auto * dt;
-    s.mining += d.auto * dt * d.xpMult;
+    s.mining += d.auto * dt * d.xpMult * d.xpSkill.mining;
     const autoCrits = d.auto * d.critChance * dt;
     s.crits += autoCrits;
-    s.combat += autoCrits * 3 * d.xpMult;
-    s.fishing += 0.2 * dt * d.xpMult;
-    s.farming += (d.cps > 0 ? 1 + 2 * Math.log10(d.cps + 1) : 0) * dt * d.xpMult;
+    s.combat += autoCrits * 3 * d.xpMult * d.xpSkill.combat;
+    s.fishing += 0.2 * dt * d.xpMult * d.xpSkill.fishing;
+    s.farming += (d.cps > 0 ? 1 + 2 * Math.log10(d.cps + 1) : 0) * dt * d.xpMult * d.xpSkill.farming;
     for (let i = 0; i < MINIONS.length; i++) if (s.minions[i] > 0) s.mcol[i] += s.minions[i] * dt * d.colSpeed[i];
     s.playTime += dt;
+    const here = activeIsland(s).id;
+    s.isec[here] = (s.isec[here] || 0) + dt; // island mastery
     tickBuffs(s, dt);
-    if (s.equip.length) addPetXp(s, dt);
+    if (s.equip.length) addPetXp(s, dt * d.petXp);
     const inc = d.cps + d.auto * d.avgClick;
     if (inc > s.peakInc) s.peakInc = inc;
 }
+
+const ISLAND_IDS = new Set(ISLANDS.map((i) => i.id));
 
 // ---- Save / load ----
 
@@ -806,6 +820,11 @@ export function parseSave(raw: string): State | null {
         s.bestCombo = Math.max(1, Number(o.bestCombo) || 1);
         s.frag = Math.max(0, Math.floor(Number(o.frag) || 0));
         s.popups = o.popups !== false;
+        s.isec = {};
+        for (const [k, v] of Object.entries(o.isec && typeof o.isec === "object" ? o.isec : {})) if (ISLAND_IDS.has(k) && Number(v) > 0) s.isec[k] = Number(v);
+        s.visited = Array.isArray(o.visited) ? (o.visited as unknown[]).filter((x): x is string => typeof x === "string" && ISLAND_IDS.has(x)) : openIslands(s).map((i) => i.id);
+        if (!s.visited.includes("hub")) s.visited.push("hub");
+        if (!openIslands(s).some((i) => i.id === s.island)) s.island = "hub";
         s.evs = { ...newEventStats(), ...(o.evs && typeof o.evs === "object" ? o.evs : {}) };
         s.buffs = (Array.isArray(o.buffs) ? o.buffs : [])
             .filter((b: { id?: unknown; left?: unknown; power?: unknown }) => typeof b?.id === "string" && Number(b.left) > 0)
@@ -841,7 +860,7 @@ export function loadGame(): { state: State; offline: number } {
                 s.shards += offline;
                 s.total += offline;
                 s.playTime += secs * offlineEff(s);
-                addPetXp(s, secs * offlineEff(s));
+                addPetXp(s, secs * offlineEff(s) * d.petXp);
                 for (let i = 0; i < MINIONS.length; i++) s.mcol[i] += s.minions[i] * secs * offlineEff(s) * d.colSpeed[i];
             }
             return { state: s, offline };

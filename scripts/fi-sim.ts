@@ -10,6 +10,7 @@ const X = E as any;
 const minionBase = (s: State, i: number): number => (X.minionBase ? X.minionBase(s, i) : MINIONS[i].cost * E.minionDiscount(s));
 const upAvailable = (s: State, u: (typeof UPGRADES)[number]): boolean => (X.upAvailable ? X.upAvailable(s, u) : true);
 import type { State } from "../lib/fractured-idle/data";
+import { islandOpen } from "../lib/fractured-idle/island-logic";
 void 0;
 
 const CPS_IN = Number(process.argv[2] ?? 4);
@@ -89,6 +90,17 @@ while (t < HOURS * 3600) {
         console.log(`SNAP t=${t}s rebirths=${s.rebirths} income=${inc(dd, CPS_IN).toExponential(2)} cps=${dd.cps.toExponential(2)} click=${dd.click.toExponential(2)} all=${dd.all.toExponential(2)} rMult=${dd.rMult.toExponential(2)} island=${dd.islandMult} ach=${dd.achMult.toFixed(2)} allUp=${dd.allUp.toExponential(2)} minionUp=${dd.minionUp.toExponential(2)} clickUp=${dd.clickUp.toExponential(2)} auto=${dd.auto} syn=${dd.synergy} minions=${s.minions.join(',')}`);
     }
     ISLANDS.forEach((i) => s.total >= i.at && mark("isl" + i.id, `island: ${i.name}`));
+    // Stand on whichever island pays the most right now (set NO_ISLAND=1 to stay on the Hub).
+    if (t % 20 === 0 && !process.env.NO_ISLAND) {
+        let best = s.island;
+        let bv = -1;
+        for (const i of ISLANDS) {
+            if (!islandOpen(s, i)) continue;
+            const v = inc(derive({ ...s, island: i.id }), CPS_IN);
+            if (v > bv) { bv = v; best = i.id; }
+        }
+        s.island = best;
+    }
     const ap = ascPlan(s);
     if (ap.can && s.rebirths >= ap.req + Number(process.env.ASC_EXTRA ?? 2)) {
         const at = s.rebirths;
