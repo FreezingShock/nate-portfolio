@@ -253,7 +253,7 @@ export function Goals({ s, d, F, open }: Pick<Ctx, "s" | "d" | "F"> & { open: (t
                     >
                         <div className="flex items-center gap-1.5">
                             <span className="text-xs" style={{ color: g.color }}><McSymbol name={g.symbol} /></span>
-                            <span className="min-w-0 flex-1 truncate font-minecraft text-[11px] leading-none" style={{ color: g.color }}>{g.title}</span>
+                            <span className="min-w-0 flex-1 truncate font-minecraft font-bold text-[11px] leading-none" style={{ color: g.color }}>{g.title}</span>
                         </div>
                         <div className="mt-1.5 h-1 overflow-hidden rounded-full bg-white/10">
                             <div className="h-full rounded-full transition-[width] duration-200" style={{ width: `${g.pct * 100}%`, minWidth: g.pct > 0 ? 2 : 0, backgroundColor: g.color, boxShadow: `0 0 6px ${g.color}` }} />

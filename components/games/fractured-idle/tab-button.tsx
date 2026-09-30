@@ -215,7 +215,7 @@ export function ButtonTab({ s, render, F }: Ctx) {
                     <div className="flex min-w-0 flex-1 flex-col justify-between gap-1 font-rubik text-xs">
                         <div className="min-w-0 space-y-0.5">
                             <div className="flex items-center gap-1.5">
-                                <span className="truncate font-minecraft text-sm" style={{ color: infoLocked ? Y : C }}>{info.name}</span>
+                                <span className="truncate font-minecraft font-bold text-sm" style={{ color: infoLocked ? Y : C }}>{info.name}</span>
                                 <span
                                     className="shrink-0 rounded-full border px-1.5 py-px text-[9px]"
                                     style={{ borderColor: tint(infoLocked ? Y : infoOn ? C : "var(--muted-foreground)", 55), color: infoLocked ? Y : infoOn ? C : "var(--muted-foreground)" }}
@@ -274,7 +274,7 @@ export function ButtonTab({ s, render, F }: Ctx) {
                                     setPage(c.id);
                                     setFocus(null);
                                 }}
-                                className="relative shrink-0 rounded-lg px-2.5 py-1 font-minecraft text-[11px] transition-colors hover:text-foreground"
+                                className="relative shrink-0 rounded-lg px-2.5 py-1 font-minecraft font-bold text-[11px] transition-colors hover:text-foreground"
                                 style={on ? { backgroundColor: tint(C, 18), color: C, boxShadow: `inset 0 0 0 1px ${tint(C, 45)}` } : { color: "var(--muted-foreground)" }}
                             >
                                 {c.label} <span className="font-rubik text-[9px] opacity-70">{n.got}/{c.list.length}</span>
@@ -294,7 +294,7 @@ export function ButtonTab({ s, render, F }: Ctx) {
                             setPage("setup");
                             setFocus(null);
                         }}
-                        className="shrink-0 rounded-lg px-2.5 py-1 font-minecraft text-[11px] transition-colors hover:text-foreground"
+                        className="shrink-0 rounded-lg px-2.5 py-1 font-minecraft font-bold text-[11px] transition-colors hover:text-foreground"
                         style={page === "setup" ? { backgroundColor: tint(Y, 18), color: Y, boxShadow: `inset 0 0 0 1px ${tint(Y, 45)}` } : { color: "var(--muted-foreground)" }}
                     >
                         Setup

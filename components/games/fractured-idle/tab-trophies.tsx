@@ -46,7 +46,7 @@ export function TrophiesTab({ s, d, F, tip }: Ctx) {
     return (
         <>
             <div className="rounded-xl border border-white/10 p-3">
-                <div className="mb-2 flex items-baseline justify-between font-minecraft text-sm" style={{ color: "var(--mc-yellow)" }}>
+                <div className="mb-2 flex items-baseline justify-between font-minecraft font-bold text-sm" style={{ color: "var(--mc-yellow)" }}>
                     <span><McSymbol name="pristine" /> {counts.got}/{counts.all} tiers</span>
                     <span className="font-rubik text-[11px] text-muted-foreground">Hover a trophy for its tiers</span>
                 </div>

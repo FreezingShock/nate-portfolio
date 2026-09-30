@@ -75,7 +75,7 @@ function BuyBar({ s, render }: Pick<Ctx, "s" | "render">) {
             >
                 <div className="w-16 leading-none">
                     <div className="font-minecraft text-[10px] uppercase tracking-widest text-muted-foreground">Buying</div>
-                    <div className="font-minecraft text-3xl" style={{ color: aqua, textShadow: `0 0 12px ${tint(aqua, 60)}` }}>
+                    <div className="font-minecraft font-bold text-3xl" style={{ color: aqua, textShadow: `0 0 12px ${tint(aqua, 60)}` }}>
                         {s.buy === -1 ? "MAX" : `x${s.buy}`}
                     </div>
                 </div>
@@ -91,7 +91,7 @@ function BuyBar({ s, render }: Pick<Ctx, "s" | "render">) {
                                     s.buy = o.v;
                                     render();
                                 }}
-                                className="flex-1 rounded-lg border py-1.5 font-minecraft text-xs transition-colors hover:bg-white/10"
+                                className="flex-1 rounded-lg border py-1.5 font-minecraft font-bold text-xs transition-colors hover:bg-white/10"
                                 style={on ? { borderColor: aqua, backgroundColor: tint(aqua, 22), color: aqua } : { borderColor: "rgba(255,255,255,0.12)", color: "var(--muted-foreground)" }}
                             >
                                 {o.label}
@@ -149,13 +149,13 @@ export function MinionsTab({ s, d, F, act, render }: Ctx) {
                                     <span className="fi-shine pointer-events-none absolute inset-0" aria-hidden="true" />
                                     <span className="relative flex items-center gap-1.5">
                                         <span className="grid size-5 shrink-0 place-items-center rounded-full font-minecraft text-[10px] text-black" style={{ backgroundColor: c }}>{r + 1}</span>
-                                        <span className="truncate font-minecraft text-xs" style={{ color: lift(m.color) }}>{m.name.replace(" Minion", "")}</span>
+                                        <span className="truncate font-minecraft font-bold text-xs" style={{ color: lift(m.color) }}>{m.name.replace(" Minion", "")}</span>
                                     </span>
                                     <span className="relative mt-0.5 block truncate font-rubik text-[10px] text-muted-foreground">
                                         {t.info.n > 1 ? `x${t.info.n} · ` : ""}back in {fmtEta(t.info.payback)}
                                     </span>
                                     <span
-                                        className="relative mt-1 flex items-center justify-between rounded-md border px-1.5 py-0.5 font-minecraft text-[11px]"
+                                        className="relative mt-1 flex items-center justify-between rounded-md border px-1.5 py-0.5 font-minecraft font-bold text-[11px]"
                                         style={{ borderColor: tint(m.color, t.info.can ? 70 : 30), backgroundColor: tint(m.color, t.info.can ? 22 : 6), color: m.color }}
                                     >
                                         <span className="uppercase tracking-wider">Buy</span>
@@ -216,13 +216,13 @@ export function MinionsTab({ s, d, F, act, render }: Ctx) {
                                     style={{ color: m.color, backgroundColor: tint(m.color, 14), boxShadow: `inset 0 0 0 1px ${tint(m.color, 40)}${mm > 1 ? `, 0 0 14px -4px ${m.color}` : ""}` }}
                                 >
                                     <span className="absolute left-1 top-0.5 text-sm opacity-60"><McSymbol name={m.symbol} /></span>
-                                    <span className="mt-2 font-minecraft text-xl leading-none text-white" style={{ textShadow: `0 2px 0 #000, 0 0 10px ${m.color}` }}>{owned.toLocaleString()}</span>
+                                    <span className="mt-2 font-minecraft font-bold text-xl leading-none text-white" style={{ textShadow: `0 2px 0 #000, 0 0 10px ${m.color}` }}>{owned.toLocaleString()}</span>
                                     <span className="absolute inset-x-0 bottom-0.5 text-center font-minecraft text-[8px] uppercase tracking-widest opacity-70">owned</span>
                                 </span>
 
                                 <span className="min-w-0 flex-1">
                                     <span className="flex items-center gap-2">
-                                        <span className="truncate font-minecraft text-sm" style={{ color: lift(m.color) }}>
+                                        <span className="truncate font-minecraft font-bold text-sm" style={{ color: lift(m.color) }}>
                                             {m.name.replace(" Minion", "")}<span className="hidden sm:inline"> Minion</span>
                                         </span>
                                         {mm > 1 && (
@@ -265,8 +265,8 @@ export function MinionsTab({ s, d, F, act, render }: Ctx) {
                                     backgroundColor: info.can ? tint(m.color, 20) : "rgba(255,255,255,0.03)",
                                 }}
                             >
-                                <span className="font-minecraft text-[11px] uppercase tracking-wider">Buy x{info.n}</span>
-                                <span className="font-minecraft text-sm" style={{ color: info.can ? "var(--mc-yellow)" : undefined }}>{F(info.cost)}</span>
+                                <span className="font-minecraft font-bold text-[11px] uppercase tracking-wider">Buy x{info.n}</span>
+                                <span className="font-minecraft font-bold text-sm" style={{ color: info.can ? "var(--mc-yellow)" : undefined }}>{F(info.cost)}</span>
                                 <span className="font-rubik text-[10px] text-muted-foreground">+{F(info.gain)}/s</span>
                             </button>
                         </div>
@@ -277,7 +277,7 @@ export function MinionsTab({ s, d, F, act, render }: Ctx) {
                                 {isOpen && <div className="space-y-3 border-t border-white/10 p-3">
                                     <div>
                                         <div className="mb-1 flex items-baseline justify-between gap-2">
-                                            <span className="font-minecraft text-xs uppercase tracking-widest" style={{ color: m.color }}>Statistics</span>
+                                            <span className="font-minecraft font-bold text-xs uppercase tracking-widest" style={{ color: m.color }}>Statistics</span>
                                             <span className="font-rubik text-[10px] text-muted-foreground">
                                                 {pctOf(d.minionCps[i], d.cps)} of minion income
                                             </span>
@@ -299,7 +299,7 @@ export function MinionsTab({ s, d, F, act, render }: Ctx) {
                                             ].map(([k, v]) => (
                                                 <div key={k} className="rounded-md border border-white/10 bg-white/[0.03] px-2 py-1">
                                                     <div className="font-rubik text-[9px] uppercase tracking-wider text-muted-foreground">{k}</div>
-                                                    <div className="truncate font-minecraft text-xs" style={{ color: m.color }}>{v}</div>
+                                                    <div className="truncate font-minecraft font-bold text-xs" style={{ color: m.color }}>{v}</div>
                                                 </div>
                                             ))}
                                         </div>
@@ -307,7 +307,7 @@ export function MinionsTab({ s, d, F, act, render }: Ctx) {
 
                                     <div>
                                         <div className="mb-1 flex items-baseline justify-between gap-2">
-                                            <span className="font-minecraft text-xs uppercase tracking-widest" style={{ color: m.color }}>{COL_ITEM[i]} Collection</span>
+                                            <span className="font-minecraft font-bold text-xs uppercase tracking-widest" style={{ color: m.color }}>{COL_ITEM[i]} Collection</span>
                                             <span className="font-rubik text-[10px] text-muted-foreground">
                                                 Tier {tier}/{COL_AT.length}  ·  {F(items)} collected
                                             </span>
@@ -338,14 +338,14 @@ export function MinionsTab({ s, d, F, act, render }: Ctx) {
                                                     }}
                                                 >
                                                     <span
-                                                        className="grid size-6 shrink-0 place-items-center rounded-md font-minecraft text-[11px]"
+                                                        className="grid size-6 shrink-0 place-items-center rounded-md font-minecraft font-bold text-[11px]"
                                                         style={{ color: got ? "#000" : m.color, backgroundColor: got ? m.color : tint(m.color, 14), boxShadow: got ? `0 0 10px ${tint(m.color, 60)}` : undefined }}
                                                     >
                                                         {got ? <Check className="size-3.5" /> : k + 1}
                                                     </span>
                                                     <span className="min-w-0 flex-1">
                                                         <span className="flex items-baseline gap-2">
-                                                            <span className="truncate font-minecraft text-xs" style={{ color: got ? m.color : undefined }}>{r.name}</span>
+                                                            <span className="truncate font-minecraft font-bold text-xs" style={{ color: got ? m.color : undefined }}>{r.name}</span>
                                                             <span className="shrink-0 font-rubik text-[10px] text-muted-foreground">{F(COL_AT[k])} {COL_ITEM[i]}</span>
                                                         </span>
                                                         <span className="block font-rubik text-[11px] text-muted-foreground">{colRewardText(r, m.name, next)}</span>
@@ -356,7 +356,7 @@ export function MinionsTab({ s, d, F, act, render }: Ctx) {
                                     </div>
 
                                     <div>
-                                        <div className="mb-1 font-minecraft text-xs uppercase tracking-widest text-muted-foreground">Minion upgrades</div>
+                                        <div className="mb-1 font-minecraft font-bold text-xs uppercase tracking-widest text-muted-foreground">Minion upgrades</div>
                                         <div className="grid grid-cols-1 gap-1.5 sm:grid-cols-3">
                                             {MINION_UPS_BY[i].map((u) => {
                                                 const have = !!s.ups[u.id];
@@ -377,11 +377,11 @@ export function MinionsTab({ s, d, F, act, render }: Ctx) {
                                                             opacity: have || can ? 1 : 0.55,
                                                         }}
                                                     >
-                                                        <span className="flex items-center gap-1 font-minecraft text-xs" style={{ color: m.color }}>
+                                                        <span className="flex items-center gap-1 font-minecraft font-bold text-xs" style={{ color: m.color }}>
                                                             <McSymbol name={u.symbol} /> <span className="truncate">{u.name}</span>
                                                         </span>
                                                         <span className="mt-0.5 block font-rubik text-[10px] leading-snug text-muted-foreground">{u.desc}</span>
-                                                        <span className="mt-1 flex items-center gap-1 font-minecraft text-[11px]" style={{ color: have ? "var(--mc-green)" : avail ? "var(--mc-yellow)" : "var(--muted-foreground)" }}>
+                                                        <span className="mt-1 flex items-center gap-1 font-minecraft font-bold text-[11px]" style={{ color: have ? "var(--mc-green)" : avail ? "var(--mc-yellow)" : "var(--muted-foreground)" }}>
                                                             {have ? (
                                                                 <><Check className="size-3" /> Owned</>
                                                             ) : avail ? (

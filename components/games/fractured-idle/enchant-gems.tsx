@@ -35,7 +35,7 @@ export function EnchantGems({ s, onOpen }: { s: State; onOpen: () => void }) {
             className={`flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 font-rubik text-[10px] transition-colors hover:bg-white/10 ${ready || pending ? "fi-afford" : ""}`}
             style={{ borderColor: tint("var(--mc-light-purple)", 55), color: "#e2b8ff", ["--c" as string]: "var(--mc-light-purple)" }}
         >
-            <span className="font-minecraft text-[11px]">✧ {fmt(s.enc.dust, s.sci)}</span>
+            <span className="font-minecraft font-bold text-[11px]">✧ {fmt(s.enc.dust, s.sci)}</span>
             <span className="flex gap-1">
                 {SLOTS.map((sl) => {
                     const e = s.enc.eq[sl.id];

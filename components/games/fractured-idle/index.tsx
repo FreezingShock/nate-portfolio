@@ -44,7 +44,7 @@ import { LevelTab } from "./tab-level";
 import { kick, shake, spawnBurst, spawnCrit, spawnNumber } from "./button-fx";
 import { ButtonTab } from "./tab-button";
 import { Orbit } from "./orbit";
-import { BUY_OPTIONS, CSS, IconBtn, Kbd, Stat, tint, type Ctx, type TipApi } from "./ui";
+import { BUY_OPTIONS, CSS, FONT_CSS, IconBtn, Kbd, Stat, tint, type Ctx, type TipApi } from "./ui";
 import { MinionsTab } from "./tab-minions";
 import { PetsTab } from "./tab-pets";
 import { AscensionTab } from "./tab-ascension";
@@ -534,7 +534,7 @@ export function FracturedIdle() {
     const s = ref.current;
     if (!ready || !s) {
         return (
-            <div className="grid min-h-[480px] place-items-center rounded-3xl border border-white/10 font-minecraft text-sm text-muted-foreground">
+            <div className="grid min-h-[480px] place-items-center rounded-3xl border border-white/10 font-minecraft font-bold text-sm text-muted-foreground">
                 Loading your islands...
             </div>
         );
@@ -571,7 +571,7 @@ export function FracturedIdle() {
                 backgroundColor: "color-mix(in oklch, var(--background) 92%, black)",
             }}
         >
-            <style>{CSS}{BTN_CSS}{COMBO_CSS}{POPUP_CSS}{ISLAND_CSS}{MENU_CSS}{LEVEL_CSS}{ENCH_CSS}{GLINT_CSS}{SKILL_TOAST_CSS}{TABBAR_CSS}{STATS_CSS}{MINE_CSS}{TIP_CSS}</style>
+            <style>{CSS}{BTN_CSS}{COMBO_CSS}{POPUP_CSS}{ISLAND_CSS}{MENU_CSS}{LEVEL_CSS}{ENCH_CSS}{GLINT_CSS}{SKILL_TOAST_CSS}{TABBAR_CSS}{STATS_CSS}{MINE_CSS}{TIP_CSS}{FONT_CSS}</style>
             <TipProvider hostRef={tipHost}>
 
             {/* HUD */}
@@ -588,7 +588,7 @@ export function FracturedIdle() {
                 >
                     <div className="min-w-0">
                         <div className="font-minecraft text-[10px] uppercase tracking-widest text-muted-foreground">Shards</div>
-                        <div className="rainbow-text truncate font-minecraft text-3xl leading-none sm:text-4xl">
+                        <div className="rainbow-text truncate font-minecraft font-bold text-3xl leading-none sm:text-4xl">
                             <McSymbol name="speed" /> {F(s.shards)}
                         </div>
                     </div>
@@ -699,7 +699,7 @@ export function FracturedIdle() {
                     className="text-left"
                 >
                     <div className="font-minecraft text-[10px] uppercase tracking-widest text-muted-foreground">Rebirth</div>
-                    <div className="flex items-center gap-1.5 font-minecraft text-lg leading-none" style={{ color: "var(--mc-light-purple)" }}>
+                    <div className="flex items-center gap-1.5 font-minecraft font-bold text-lg leading-none" style={{ color: "var(--mc-light-purple)" }}>
                         {s.rebirths}
                         {plan.count > 0 && (
                             <span className="fi-afford rounded-full px-1.5 py-0.5 text-[10px] text-black" style={{ backgroundColor: "var(--mc-light-purple)", ["--c" as string]: "var(--mc-light-purple)" }}>
@@ -729,7 +729,7 @@ export function FracturedIdle() {
                         className="text-left"
                     >
                         <div className="font-minecraft text-[10px] uppercase tracking-widest text-muted-foreground">Ascension</div>
-                        <div className="flex items-center gap-1.5 font-minecraft text-lg leading-none" style={{ color: "var(--mc-aqua)" }}>
+                        <div className="flex items-center gap-1.5 font-minecraft font-bold text-lg leading-none" style={{ color: "var(--mc-aqua)" }}>
                             {s.asc}
                             {asc.can && (
                                 <span className="fi-afford rounded-full px-1.5 py-0.5 text-[10px] text-black" style={{ backgroundColor: "var(--mc-aqua)", ["--c" as string]: "var(--mc-aqua)" }}>
@@ -784,7 +784,7 @@ export function FracturedIdle() {
                             tip.hide();
                             setMenu("");
                         }}
-                        className="group flex flex-wrap items-center justify-center gap-2 rounded-full border border-white/10 bg-black/25 px-3 py-1 font-minecraft text-sm backdrop-blur-sm transition-colors hover:bg-black/45"
+                        className="group flex flex-wrap items-center justify-center gap-2 rounded-full border border-white/10 bg-black/25 px-3 py-1 font-minecraft font-bold text-sm backdrop-blur-sm transition-colors hover:bg-black/45"
                         style={{ color: island.color }}
                     >
                         <McSymbol name={island.symbol} color={island.color} /> {island.name}

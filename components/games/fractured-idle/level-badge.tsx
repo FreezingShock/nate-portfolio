@@ -12,7 +12,7 @@ export function LevelBadge({ level, sym, prefix, size = "md" }: { level: number;
     const px = size === "lg" ? "text-4xl" : size === "md" ? "text-xl" : "text-base";
     const rainbow = prefix?.color === "rainbow";
     return (
-        <span className={`inline-flex items-baseline gap-2 font-minecraft leading-none ${px}`}>
+        <span className={`inline-flex items-baseline gap-2 font-minecraft font-bold leading-none ${px}`}>
             <span key={level} className={`fi-lvl ${gold ? "fi-lvl-gold" : ""}`} style={{ color }}>
                 [{level}
                 {sym && sym.symbol && <span className="ml-0.5 align-baseline"><McSymbol name={sym.symbol} /></span>}]

@@ -64,7 +64,7 @@ export function PetsTab({ s, d, F, render, say }: Ctx) {
         <>
             {/* Active bonuses */}
             <div className="rounded-xl border p-3" style={{ borderColor: tint("var(--mc-dark-aqua)", 50), backgroundColor: tint("var(--mc-dark-aqua)", 8) }}>
-                <div className="mb-1.5 flex flex-wrap items-center gap-2 font-minecraft text-sm" style={{ color: lift("var(--mc-dark-aqua)") }}>
+                <div className="mb-1.5 flex flex-wrap items-center gap-2 font-minecraft font-bold text-sm" style={{ color: lift("var(--mc-dark-aqua)") }}>
                     <McSymbol name="petLuck" /> Pets
                     <span className="rounded-full border px-2 py-0.5 font-rubik text-[10px]" style={{ borderColor: tint("var(--mc-dark-aqua)", 55) }}>
                         {owned.length}/{PETS.length} found
@@ -129,7 +129,7 @@ export function PetsTab({ s, d, F, render, say }: Ctx) {
                                     <McSymbol name={p.symbol} />
                                 </span>
                                 <span className="min-w-0 flex-1">
-                                    <span className="block truncate font-minecraft text-xs" style={{ color: lift(rar.color) }}>{p.name}</span>
+                                    <span className="block truncate font-minecraft font-bold text-xs" style={{ color: lift(rar.color) }}>{p.name}</span>
                                     <span className="block font-rubik text-[10px] text-muted-foreground">Lv {lv}{lv >= PET_MAX ? " · MAX" : ""}</span>
                                 </span>
                             </div>
@@ -149,7 +149,7 @@ export function PetsTab({ s, d, F, render, say }: Ctx) {
                     style={{ ["--c" as string]: "var(--mc-gold)", borderColor: "var(--mc-gold)", backgroundColor: tint("var(--mc-gold)", 12) }}
                 >
                     <Sparkles className="size-4" style={{ color: "var(--mc-gold)" }} />
-                    <span className="font-minecraft text-xs" style={{ color: "var(--mc-gold)" }}>Free Wooden Egg x{s.freeEggs}</span>
+                    <span className="font-minecraft font-bold text-xs" style={{ color: "var(--mc-gold)" }}>Free Wooden Egg x{s.freeEggs}</span>
                     <span className="ml-auto font-rubik text-[11px] text-muted-foreground">Found by a treasure bobber. Click to hatch.</span>
                 </button>
             )}
@@ -165,7 +165,7 @@ export function PetsTab({ s, d, F, render, say }: Ctx) {
                                     <McSymbol name={e.symbol} />
                                 </span>
                                 <span className="min-w-0 flex-1">
-                                    <span className="block truncate font-minecraft text-xs" style={{ color: lift(e.color) }}>{e.name}</span>
+                                    <span className="block truncate font-minecraft font-bold text-xs" style={{ color: lift(e.color) }}>{e.name}</span>
                                     <span className="block truncate font-rubik text-[10px] text-muted-foreground">{e.blurb}</span>
                                 </span>
                             </div>
@@ -183,7 +183,7 @@ export function PetsTab({ s, d, F, render, say }: Ctx) {
                                 type="button"
                                 disabled={!can}
                                 onClick={() => doHatch(e.id)}
-                                className={`mt-2 flex items-center justify-between rounded-lg border px-2.5 py-1.5 font-minecraft text-[11px] transition-colors enabled:hover:brightness-125 disabled:cursor-not-allowed disabled:opacity-50 ${can ? "fi-afford" : ""}`}
+                                className={`mt-2 flex items-center justify-between rounded-lg border px-2.5 py-1.5 font-minecraft font-bold text-[11px] transition-colors enabled:hover:brightness-125 disabled:cursor-not-allowed disabled:opacity-50 ${can ? "fi-afford" : ""}`}
                                 style={{ ["--c" as string]: e.color, borderColor: tint(e.color, can ? 75 : 30), backgroundColor: tint(e.color, can ? 22 : 6), color: lift(e.color) }}
                             >
                                 <span className="uppercase tracking-wider">Hatch</span>
@@ -261,7 +261,7 @@ function PetDetail({ p, xp, copies, equipped, s, F, render, say }: { p: PetDef; 
                 </span>
                 <div className="min-w-0 flex-1">
                     <div className="flex flex-wrap items-center gap-2">
-                        <span className="font-minecraft text-sm" style={{ color: lift(rar.color) }}>{p.name}</span>
+                        <span className="font-minecraft font-bold text-sm" style={{ color: lift(rar.color) }}>{p.name}</span>
                         <span className="rounded-full border px-1.5 font-rubik text-[10px]" style={{ borderColor: tint(rar.color, 60), color: lift(rar.color) }}>{rar.name}</span>
                         {copies > 1 && <span className="font-rubik text-[10px] text-muted-foreground">x{copies} found</span>}
                     </div>
@@ -278,7 +278,7 @@ function PetDetail({ p, xp, copies, equipped, s, F, render, say }: { p: PetDef; 
                         }
                         render();
                     }}
-                    className="shrink-0 rounded-lg border px-3 py-1.5 font-minecraft text-xs transition-colors hover:brightness-125"
+                    className="shrink-0 rounded-lg border px-3 py-1.5 font-minecraft font-bold text-xs transition-colors hover:brightness-125"
                     style={equipped ? { borderColor: "rgba(255,255,255,0.2)", color: "var(--muted-foreground)" } : { borderColor: "var(--mc-green)", backgroundColor: tint("var(--mc-green)", 20), color: "var(--mc-green)" }}
                 >
                     {equipped ? "Unequip" : "Equip"}
@@ -296,7 +296,7 @@ function PetDetail({ p, xp, copies, equipped, s, F, render, say }: { p: PetDef; 
             <div className="mt-3 grid gap-1.5">
                 <div className="flex items-baseline justify-between rounded-lg border border-white/10 bg-white/[0.03] px-2.5 py-1.5">
                     <span className="font-rubik text-xs text-muted-foreground">{PET_LABEL[p.stat]}</span>
-                    <span className="font-minecraft text-xs">
+                    <span className="font-minecraft font-bold text-xs">
                         <span style={{ color: "var(--mc-green)" }}>{pct(now)}</span>
                         {!maxed && <span className="text-muted-foreground"> → {pct(next)}</span>}
                     </span>
@@ -309,7 +309,7 @@ function PetDetail({ p, xp, copies, equipped, s, F, render, say }: { p: PetDef; 
                                 {got ? <Check className="size-3" /> : <Lock className="size-3" />}
                             </span>
                             <span className="min-w-0 flex-1">
-                                <span className="font-minecraft text-xs" style={{ color: got ? lift(p.color) : undefined }}>{pk.name}</span>
+                                <span className="font-minecraft font-bold text-xs" style={{ color: got ? lift(p.color) : undefined }}>{pk.name}</span>
                                 <span className="block font-rubik text-[11px] text-muted-foreground">{statText(pk.stat, pk.value)}</span>
                             </span>
                             <span className="shrink-0 font-rubik text-[10px] text-muted-foreground">Lv {PET_PERK_AT[i]}</span>

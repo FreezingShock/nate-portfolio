@@ -52,7 +52,7 @@ export function SkillsTab({ s, d, open }: Props) {
                 <div className="font-rubik text-[11px] text-muted-foreground">
                     Skill xp x{d.xpMult.toFixed(2)} from trophies, pets and enchants. Skills are permanent: rebirth and ascension never touch them.
                 </div>
-                <div className="flex gap-3 font-minecraft text-xs">
+                <div className="flex gap-3 font-minecraft font-bold text-xs">
                     <span style={{ color: "var(--mc-green)" }}>Levels {total}<span className="text-muted-foreground">/{totalMax}</span></span>
                     <span style={{ color: "var(--mc-yellow)" }}>Milestones {claimed}<span className="text-muted-foreground">/{claimMax}</span></span>
                 </div>
@@ -92,10 +92,10 @@ export function SkillsTab({ s, d, open }: Props) {
                                     <Badge color={sk.color} size="sm"><McSymbol name={sk.symbol} /></Badge>
                                 </span>
                                 <div className="min-w-0 flex-1">
-                                    <div className="truncate font-minecraft text-[13px] leading-tight" style={{ color: sk.color }}>{sk.name}</div>
+                                    <div className="truncate font-minecraft font-bold text-[13px] leading-tight" style={{ color: sk.color }}>{sk.name}</div>
                                     <div className="font-rubik text-[10px] text-muted-foreground">{next ? `Next reward at ${next.at}` : "All rewards earned"}</div>
                                 </div>
-                                <div className="font-minecraft text-lg leading-none" style={{ color: sk.color }}>{l}</div>
+                                <div className="font-minecraft font-bold text-lg leading-none" style={{ color: sk.color }}>{l}</div>
                             </div>
                             <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-white/10">
                                 <div className="fi-sk-fill h-full rounded-full" style={{ width: `${(l >= SKILL_CAP ? 1 : (s[sk.id] - a) / (b - a)) * 100}%`, backgroundColor: sk.color, boxShadow: `0 0 8px ${sk.color}` }} />
@@ -119,13 +119,13 @@ export function SkillsTab({ s, d, open }: Props) {
                 <div className="mb-2 flex items-center gap-3">
                     <Badge color={k.color}><McSymbol name={k.symbol} /></Badge>
                     <div className="min-w-0 flex-1">
-                        <div className="font-minecraft text-sm" style={{ color: k.color }}>
+                        <div className="font-minecraft font-bold text-sm" style={{ color: k.color }}>
                             {k.name} {lvl}<span className="text-muted-foreground">/{SKILL_CAP}</span>
                         </div>
                         <div className="font-rubik text-[11px] text-muted-foreground">{k.perk}</div>
                         <div className="font-rubik text-[10px] text-muted-foreground">XP from: {k.earn}</div>
                     </div>
-                    <div className="text-right font-minecraft text-sm">
+                    <div className="text-right font-minecraft font-bold text-sm">
                         <div style={{ color: k.color }}>{k.bonus(lvl)}</div>
                         {!maxed && (
                             <div className="text-[11px]" style={{ color: "var(--mc-green)" }}>
@@ -141,7 +141,7 @@ export function SkillsTab({ s, d, open }: Props) {
                     right={maxed ? "MAX" : `${fmt(xp - lo)} / ${fmt(hi - lo)}${passive[sel] > 0 ? ` · ${fmtEta((hi - xp) / passive[sel])} passive` : ""}`}
                 />
                 {sel === "enchanting" && open && (
-                    <button type="button" onClick={() => open("enchant")} className="mt-2 rounded-lg border px-3 py-1 font-minecraft text-[11px] transition-colors hover:bg-white/10" style={{ borderColor: tint(k.color, 55), color: k.color }}>
+                    <button type="button" onClick={() => open("enchant")} className="mt-2 rounded-lg border px-3 py-1 font-minecraft font-bold text-[11px] transition-colors hover:bg-white/10" style={{ borderColor: tint(k.color, 55), color: k.color }}>
                         Open the Enchant table
                     </button>
                 )}
@@ -173,14 +173,14 @@ export function SkillsTab({ s, d, open }: Props) {
                                 }}
                             >
                                 <span
-                                    className="grid size-8 shrink-0 place-items-center rounded-full font-minecraft text-xs"
+                                    className="grid size-8 shrink-0 place-items-center rounded-full font-minecraft font-bold text-xs"
                                     style={done ? { backgroundColor: k.color, color: "#000", boxShadow: `0 0 10px ${k.color}` } : { border: "1px dashed rgba(255,255,255,0.3)", color: "var(--muted-foreground)" }}
                                 >
                                     {done ? "✓" : m.at}
                                 </span>
                                 <div className="min-w-0 flex-1">
                                     <div className="flex items-baseline justify-between gap-2">
-                                        <span className="truncate font-minecraft text-[12px]" style={{ color: done ? k.color : undefined }}>{m.name}</span>
+                                        <span className="truncate font-minecraft font-bold text-[12px]" style={{ color: done ? k.color : undefined }}>{m.name}</span>
                                         <span className="shrink-0 font-rubik text-[9px] text-muted-foreground">Lv {m.at}</span>
                                     </div>
                                     <div className="flex flex-wrap gap-x-2 font-rubik text-[10px]">

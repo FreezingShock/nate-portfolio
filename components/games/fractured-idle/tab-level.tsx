@@ -80,7 +80,7 @@ export function LevelTab({ s, F, render }: Ctx) {
                     <div className="grid grid-cols-1 gap-1 sm:grid-cols-2">
                         {upcoming.map((u) => (
                             <div key={u.level} className="flex items-center gap-2 rounded-lg border border-white/10 px-2.5 py-1.5 font-rubik text-[11px]">
-                                <span className="font-minecraft text-xs" style={{ color: C }}>Lv {u.level}</span>
+                                <span className="font-minecraft font-bold text-xs" style={{ color: C }}>Lv {u.level}</span>
                                 <span className="min-w-0 flex-1 truncate">{u.text}</span>
                             </div>
                         ))}
@@ -105,7 +105,7 @@ export function LevelTab({ s, F, render }: Ctx) {
                             <button type="button" onClick={() => setOpenCat(open ? null : c.id)} className="flex w-full items-center gap-2.5 px-3 py-2 text-left transition-colors hover:bg-white/5">
                                 <span className="text-lg" style={{ color: c.color }}><McSymbol name={c.symbol} /></span>
                                 <span className="min-w-0 flex-1">
-                                    <span className="flex items-baseline justify-between gap-2 font-minecraft text-xs" style={{ color: c.color }}>
+                                    <span className="flex items-baseline justify-between gap-2 font-minecraft font-bold text-xs" style={{ color: c.color }}>
                                         {c.name}
                                         <span className="font-rubik text-[10px] text-muted-foreground">{F(got)}{max > 0 ? ` / ${F(max)}` : ""} XP</span>
                                     </span>
@@ -151,7 +151,7 @@ export function LevelTab({ s, F, render }: Ctx) {
                                 s.bsym = b.id;
                                 render();
                             }}
-                            className="flex items-center gap-1 rounded-lg border px-2 py-1 font-minecraft text-xs transition-colors enabled:hover:bg-white/10 disabled:opacity-50"
+                            className="flex items-center gap-1 rounded-lg border px-2 py-1 font-minecraft font-bold text-xs transition-colors enabled:hover:bg-white/10 disabled:opacity-50"
                             style={on ? { borderColor: C, color: C, backgroundColor: tint(C, 14) } : { borderColor: "rgba(255,255,255,.15)" }}
                         >
                             {ok ? b.symbol ? <McSymbol name={b.symbol} /> : "–" : <Lock className="size-3" />}

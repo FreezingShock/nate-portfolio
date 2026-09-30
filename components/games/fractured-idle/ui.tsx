@@ -65,7 +65,7 @@ export function Stat({ label, value, color }: { label: string; value: string; co
     return (
         <div>
             <div className="font-minecraft text-[10px] uppercase tracking-widest text-muted-foreground">{label}</div>
-            <div className="font-minecraft text-lg leading-none" style={{ color }}>{value}</div>
+            <div className="font-minecraft font-bold text-lg leading-none" style={{ color }}>{value}</div>
         </div>
     );
 }
@@ -123,7 +123,7 @@ export function Teaser({ text }: { text: string }) {
 
 export function SectionTitle({ children, color = "var(--mc-aqua)" }: { children: ReactNode; color?: string }) {
     return (
-        <div className="mb-1.5 mt-3 flex items-center gap-2 font-minecraft text-[11px] uppercase tracking-widest first:mt-0" style={{ color }}>
+        <div className="mb-1.5 mt-3 flex items-center gap-2 font-minecraft font-bold text-[11px] uppercase tracking-widest first:mt-0" style={{ color }}>
             {children}
             <span className="h-px flex-1" style={{ backgroundColor: tint(color, 30) }} />
         </div>
@@ -169,13 +169,13 @@ export function ShopRow({
             <Badge color={color}><McSymbol name={symbol} /></Badge>
             <div className="min-w-0 flex-1">
                 <div className="flex items-center gap-2">
-                    <span className="truncate font-minecraft text-sm" style={{ color }}>{title}</span>
+                    <span className="min-w-0 break-words font-minecraft font-bold text-sm leading-tight sm:truncate" style={{ color }}>{title}</span>
                     {badge && <span className="rounded-full border border-white/15 px-1.5 font-rubik text-[10px] text-muted-foreground">{badge}</span>}
                 </div>
                 <div className="truncate font-rubik text-[11px] text-muted-foreground">{sub}</div>
             </div>
             <div className="shrink-0 text-right">
-                <div className="font-minecraft text-sm" style={{ color: can ? "var(--mc-yellow)" : undefined }}>{price}</div>
+                <div className="font-minecraft font-bold text-sm" style={{ color: can ? "var(--mc-yellow)" : undefined }}>{price}</div>
                 <div className="font-rubik text-[10px] text-muted-foreground">{buyLabel}</div>
             </div>
         </button>
@@ -185,3 +185,15 @@ export function ShopRow({
 export function LockedBadge() {
     return <Lock className="size-4" />;
 }
+
+export const FONT_CSS = `
+/* Minecraft Bold: headers, titles, values and primary buttons use the real 700 face of the Minecraft font
+   (see app/fonts.css); micro labels and body text stay regular. Icons always stay regular so they keep their shape. */
+[data-fi-root] .mc-symbol{font-weight:400}
+.fi-num,.fi-combo-name,.fi-combo-surge,.fi-combo-mult,.fi-xg b,.fi-qte-head,.fi-qte-btn,.fi-qte-result,.fi-mash-core,
+.fi-sk-title,.fi-sk-mname,.fi-tab-l,
+.fi-en-stat b,.fi-en-rarity,.fi-en-name,.fi-en-reel,.fi-en-btn,.fi-en-roll-t,.fi-en-cut-title,.fi-en-cut-sub,.fi-en-seg button[data-on="true"],
+.fi-mn-stat b,.fi-mn-name,.fi-mn-pop,.fi-mn-geode-n,.fi-mn-crack,.fi-mn-pick-t,.fi-mn-buy,.fi-mn-up-h b,.fi-mn-maxed,.fi-mn-drill-t,.fi-mn-col-h b,.fi-mn-chip b,.fi-mn-seg button[data-on="true"],
+.fi-st-cat-h b,.fi-st-v,.fi-st-chip[data-on="true"],
+.fi-tp-h .tl,.fi-tp-r dd{font-weight:700}
+`;

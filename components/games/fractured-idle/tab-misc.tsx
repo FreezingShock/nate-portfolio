@@ -17,7 +17,7 @@ export function SoonTab(_: Ctx) {
         <div key={c.name} className="flex items-center gap-3 rounded-xl border border-dashed p-3" style={{ borderColor: tint(c.color, 40) }}>
             <Badge color={c.color}><McSymbol name={c.symbol} /></Badge>
             <div className="min-w-0 flex-1">
-                <div className="font-minecraft text-sm" style={{ color: c.color }}>{c.name}</div>
+                <div className="font-minecraft font-bold text-sm" style={{ color: c.color }}>{c.name}</div>
                 <div className="font-rubik text-[11px] text-muted-foreground">{c.desc}</div>
             </div>
             <span className="shrink-0 rounded-full border px-2 py-0.5 font-rubik text-[10px]" style={{ borderColor: tint(c.color, 45), color: c.color }}>{tag}</span>

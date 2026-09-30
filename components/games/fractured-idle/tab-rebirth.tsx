@@ -77,7 +77,7 @@ export function RebirthTab({ s, d, F, act, say }: Ctx) {
         <>
             {/* Take rebirth */}
             <div className="rounded-xl border p-4" style={{ borderColor: tint("var(--mc-light-purple)", 45), backgroundColor: tint("var(--mc-light-purple)", 8) }}>
-                <div className="mb-1 flex flex-wrap items-center gap-x-3 gap-y-1 font-minecraft text-sm" style={{ color: "var(--mc-light-purple)" }}>
+                <div className="mb-1 flex flex-wrap items-center gap-x-3 gap-y-1 font-minecraft font-bold text-sm" style={{ color: "var(--mc-light-purple)" }}>
                     <span><McSymbol name="portal" /> {plan.count > 0 ? `Rebirth x${takeN} of ${plan.count} ready` : `Rebirth ${s.rebirths + 1}`}</span>
                     <span className="rounded-full border px-2 py-0.5 font-rubik text-[10px]" style={{ borderColor: tint("var(--mc-light-purple)", 50) }}>
                         Stack {cap}/15
@@ -108,7 +108,7 @@ export function RebirthTab({ s, d, F, act, say }: Ctx) {
                                     setSel(1);
                                     say(`Reborn x${takeN}! +${chosen.tokens} tokens. Spend them below.`);
                                 }}
-                                className="rounded-lg px-4 py-2 font-minecraft text-xs text-black"
+                                className="rounded-lg px-4 py-2 font-minecraft font-bold text-xs text-black"
                                 style={{ backgroundColor: "var(--mc-light-purple)" }}
                             >
                                 Confirm: x{takeN} for +{chosen.tokens} tokens
@@ -121,7 +121,7 @@ export function RebirthTab({ s, d, F, act, say }: Ctx) {
                                 type="button"
                                 disabled={plan.count < 1}
                                 onClick={() => setConfirm(true)}
-                                className={`rounded-lg px-4 py-2 font-minecraft text-xs text-black transition-opacity disabled:opacity-40 ${plan.count > 0 ? "fi-afford" : ""}`}
+                                className={`rounded-lg px-4 py-2 font-minecraft font-bold text-xs text-black transition-opacity disabled:opacity-40 ${plan.count > 0 ? "fi-afford" : ""}`}
                                 style={{ backgroundColor: "var(--mc-light-purple)", ["--c" as string]: "var(--mc-light-purple)" }}
                             >
                                 {plan.count > 0 ? `Rebirth x${takeN} for +${chosen.tokens} tokens` : `Need ${F(nodes[0].cost)} shards`}
@@ -161,11 +161,11 @@ export function RebirthTab({ s, d, F, act, say }: Ctx) {
                     <div className="flex min-w-max items-center px-2 pt-6">
                         {/* You are here */}
                         <div className="flex w-20 flex-col items-center gap-1">
-                            <div className="grid size-12 place-items-center rounded-full border-2 font-minecraft text-sm" style={{ borderColor: "var(--mc-yellow)", color: "var(--mc-yellow)", backgroundColor: tint("var(--mc-yellow)", 14), boxShadow: `0 0 18px -2px ${tint("var(--mc-yellow)", 60)}` }}>
+                            <div className="grid size-12 place-items-center rounded-full border-2 font-minecraft font-bold text-sm" style={{ borderColor: "var(--mc-yellow)", color: "var(--mc-yellow)", backgroundColor: tint("var(--mc-yellow)", 14), boxShadow: `0 0 18px -2px ${tint("var(--mc-yellow)", 60)}` }}>
                                 {s.rebirths}
                             </div>
                             <div className="font-rubik text-[10px] text-muted-foreground">You are here</div>
-                            <div className="font-minecraft text-[11px]" style={{ color: "var(--mc-yellow)" }}>{s.tokens} tokens</div>
+                            <div className="font-minecraft font-bold text-[11px]" style={{ color: "var(--mc-yellow)" }}>{s.tokens} tokens</div>
                         </div>
                         {nodes.map((n) => {
                             const size = Math.min(56, 32 + n.k * 2);
@@ -202,7 +202,7 @@ export function RebirthTab({ s, d, F, act, say }: Ctx) {
                                             {n.ready ? <McSymbol name="check" /> : n.level}
                                         </span>
                                         <span className="font-rubik text-[10px] text-muted-foreground">#{n.level}</span>
-                                        <span className="font-minecraft text-[11px]" style={{ color: n.color }}>{F(n.cost)}</span>
+                                        <span className="font-minecraft font-bold text-[11px]" style={{ color: n.color }}>{F(n.cost)}</span>
                                         {n.bonus > 0 && (
                                             <span className="rounded-full border px-1.5 font-minecraft text-[9px]" style={{ color: "var(--mc-yellow)", borderColor: tint("var(--mc-yellow)", 55) }}>
                                                 <McSymbol name="pristine" /> +{n.bonus}
@@ -242,7 +242,7 @@ export function RebirthTab({ s, d, F, act, say }: Ctx) {
 
             {/* Hover / selected detail */}
             <div className="rounded-xl border p-3" style={{ borderColor: tint(cur.color, 50), backgroundColor: tint(cur.color, 7) }}>
-                <div className="flex flex-wrap items-center gap-2 font-minecraft text-sm" style={{ color: cur.color }}>
+                <div className="flex flex-wrap items-center gap-2 font-minecraft font-bold text-sm" style={{ color: cur.color }}>
                     Rebirth #{cur.level}
                     <span className="rounded-full border px-2 py-0.5 font-rubik text-[10px]" style={{ borderColor: tint(cur.color, 50) }}>
                         {cur.ready ? "Ready now" : `In ${fmtEta(cur.eta)}`}
@@ -295,7 +295,7 @@ function Fact({ label, value }: { label: string; value: string }) {
     return (
         <div>
             <div className="text-[10px] text-muted-foreground">{label}</div>
-            <div className="font-minecraft text-[13px]">{value}</div>
+            <div className="font-minecraft font-bold text-[13px]">{value}</div>
         </div>
     );
 }

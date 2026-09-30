@@ -200,7 +200,7 @@ export function IslandsMenu({ s, d, F, startId, onClose, onTravel }: Props) {
                                 key={x.id}
                                 type="button"
                                 onClick={() => jumpDim(di - DIMENSIONS.findIndex((y) => y.id === focus.dim))}
-                                className="whitespace-nowrap rounded-xl px-2.5 py-1.5 font-minecraft text-[10px] transition-colors sm:px-4 sm:text-xs"
+                                className="whitespace-nowrap rounded-xl px-2.5 py-1.5 font-minecraft font-bold text-[10px] transition-colors sm:px-4 sm:text-xs"
                                 style={on ? { backgroundColor: tint(x.color, 24), color: x.color, boxShadow: `inset 0 0 0 1px ${tint(x.color, 60)}, 0 0 18px -4px ${x.color}` } : { color: "rgba(255,255,255,.6)" }}
                             >
                                 {x.name} <span className="font-rubik text-[9px] opacity-70">{got}/{all.length}</span>
@@ -240,7 +240,7 @@ export function IslandsMenu({ s, d, F, startId, onClose, onTravel }: Props) {
                     {isHere && <span className="rounded-full bg-white px-2 py-0.5 font-semibold text-black">You are here</span>}
                     {open && gains.best === focus.id && !isHere && <span className="rounded-full px-2 py-0.5 font-semibold text-black" style={{ backgroundColor: "var(--mc-green)" }}>★ Best for you now</span>}
                 </div>
-                <h2 className="font-minecraft text-[2.1rem] leading-none sm:text-6xl" style={{ color: focus.color, textShadow: `0 0 28px ${focus.color}, 0 4px 0 rgba(0,0,0,.6)` }}>
+                <h2 className="font-minecraft font-bold text-[2.1rem] leading-none sm:text-6xl" style={{ color: focus.color, textShadow: `0 0 28px ${focus.color}, 0 4px 0 rgba(0,0,0,.6)` }}>
                     <McSymbol name={focus.symbol} /> {focus.name}
                 </h2>
                 <p className="mt-2 font-rubik text-sm text-white/90 sm:text-base">{focus.blurb}</p>
@@ -253,7 +253,7 @@ export function IslandsMenu({ s, d, F, startId, onClose, onTravel }: Props) {
                 className="fi-panel-in absolute inset-x-3 bottom-[8.4rem] z-10 max-h-[38dvh] overflow-y-auto rounded-2xl border bg-black/55 p-3 backdrop-blur-xl [scrollbar-width:thin] sm:inset-x-auto sm:bottom-40 sm:right-6 sm:top-20 sm:max-h-none sm:w-[21.5rem] sm:p-4"
                 style={{ borderColor: tint(focus.color, 45), boxShadow: `0 0 40px -12px ${focus.color}` }}
             >
-                <div className="mb-1.5 flex items-center justify-between font-minecraft text-[11px] uppercase tracking-widest" style={{ color: focus.color }}>
+                <div className="mb-1.5 flex items-center justify-between font-minecraft font-bold text-[11px] uppercase tracking-widest" style={{ color: focus.color }}>
                     {open ? "While you are here" : "Perks"}
                     {open && gain !== undefined && (
                         <span className="rounded-full px-2 py-0.5 font-rubik text-[10px] normal-case tracking-normal" style={{ backgroundColor: tint(gain >= 0 ? "var(--mc-green)" : "var(--mc-red)", 20), color: gain >= 0 ? "var(--mc-green)" : "var(--mc-red)" }}>
@@ -299,7 +299,7 @@ export function IslandsMenu({ s, d, F, startId, onClose, onTravel }: Props) {
                     </div>
                 ) : (
                     <div className="mt-3 rounded-xl border border-white/15 bg-black/30 p-2.5">
-                        <div className="flex items-center gap-1.5 font-minecraft text-[11px]" style={{ color: "var(--mc-yellow)" }}>
+                        <div className="flex items-center gap-1.5 font-minecraft font-bold text-[11px]" style={{ color: "var(--mc-yellow)" }}>
                             <Lock className="size-3.5" /> Locked
                         </div>
                         <div className="mt-1 font-rubik text-xs">{need ? need.label : `Reach ${F(focus.at)} lifetime shards`}</div>
@@ -317,7 +317,7 @@ export function IslandsMenu({ s, d, F, startId, onClose, onTravel }: Props) {
                     type="button"
                     onClick={travel}
                     disabled={!open || isHere}
-                    className="mt-3 w-full rounded-xl border py-2.5 font-minecraft text-sm tracking-wide transition enabled:hover:scale-[1.02] enabled:active:scale-[0.98] disabled:cursor-default"
+                    className="mt-3 w-full rounded-xl border py-2.5 font-minecraft font-bold text-sm tracking-wide transition enabled:hover:scale-[1.02] enabled:active:scale-[0.98] disabled:cursor-default"
                     style={
                         open && !isHere
                             ? { borderColor: focus.color, color: "#000", backgroundImage: `linear-gradient(180deg, color-mix(in oklch, ${focus.color} 70%, white), ${focus.color})`, boxShadow: `0 0 26px -4px ${focus.color}` }

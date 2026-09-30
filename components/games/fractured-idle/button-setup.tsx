@@ -71,7 +71,7 @@ export function SetupPage({ s, island, next, render, apply, randomize }: Props) 
         <div className="space-y-3 pt-2">
             <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
                 <div className="rounded-xl border p-3" style={{ borderColor: tint(Y, 40), backgroundImage: `linear-gradient(130deg, ${tint(Y, 8)}, transparent 70%)` }}>
-                    <div className="flex items-center justify-between font-minecraft text-xs" style={{ color: Y }}>
+                    <div className="flex items-center justify-between font-minecraft font-bold text-xs" style={{ color: Y }}>
                         <span><Sparkles className="mr-1 inline size-3.5" />Collection</span>
                         <span>{have} / {total}</span>
                     </div>
@@ -85,7 +85,7 @@ export function SetupPage({ s, island, next, render, apply, randomize }: Props) 
                 </div>
 
                 <div className="rounded-xl border border-white/10 p-3">
-                    <div className="mb-1.5 font-minecraft text-xs" style={{ color: C }}>Where your bonus comes from</div>
+                    <div className="mb-1.5 font-minecraft font-bold text-xs" style={{ color: C }}>Where your bonus comes from</div>
                     <div className="space-y-0.5 font-rubik text-[11px]">
                         {slots.map(([name, l]) => (
                             <div key={name} className="flex justify-between gap-2">

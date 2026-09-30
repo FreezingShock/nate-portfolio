@@ -40,7 +40,7 @@ export function Preview({ cat, l, shape, skin, glyph, island, accent }: { cat: C
         }
         case "nums":
             return (
-                <span className={`fi-ns-${l.id} font-minecraft text-sm`} style={{ ["--ac" as string]: accent, color: "#fff", textShadow: "0 2px 0 #000" }}>
+                <span className={`fi-ns-${l.id} font-minecraft font-bold text-sm`} style={{ ["--ac" as string]: accent, color: "#fff", textShadow: "0 2px 0 #000" }}>
                     123
                 </span>
             );

@@ -26,7 +26,7 @@ export function AscensionTab({ s, d, F, act, say }: Ctx) {
     return (
         <>
             <div className="relative overflow-hidden rounded-xl border p-4" style={{ borderColor: tint(C, 55), backgroundImage: `linear-gradient(130deg, ${tint(C, 14)}, ${tint(G, 8)} 70%)` }}>
-                <div className="flex flex-wrap items-center gap-x-3 gap-y-1 font-minecraft text-sm" style={{ color: lift(C) }}>
+                <div className="flex flex-wrap items-center gap-x-3 gap-y-1 font-minecraft font-bold text-sm" style={{ color: lift(C) }}>
                     <span><McSymbol name="comet" /> Ascension {s.asc}</span>
                     <span className="rounded-full border px-2 py-0.5 font-rubik text-[10px]" style={{ borderColor: tint(C, 55) }}>x{F(multNow)} all shards</span>
                     <span className="font-rubik text-xs text-muted-foreground">
@@ -72,7 +72,7 @@ export function AscensionTab({ s, d, F, act, say }: Ctx) {
                                     setConfirm(false);
                                     say(`Ascended! +${plan.ap} points. Spend them below.`);
                                 }}
-                                className="rounded-lg px-4 py-2 font-minecraft text-xs text-black"
+                                className="rounded-lg px-4 py-2 font-minecraft font-bold text-xs text-black"
                                 style={{ backgroundColor: C }}
                             >
                                 Confirm: ascend for +{plan.ap} points
@@ -84,7 +84,7 @@ export function AscensionTab({ s, d, F, act, say }: Ctx) {
                             type="button"
                             disabled={!plan.can}
                             onClick={() => setConfirm(true)}
-                            className={`rounded-lg px-4 py-2 font-minecraft text-xs text-black transition-opacity disabled:opacity-40 ${plan.can ? "fi-afford" : ""}`}
+                            className={`rounded-lg px-4 py-2 font-minecraft font-bold text-xs text-black transition-opacity disabled:opacity-40 ${plan.can ? "fi-afford" : ""}`}
                             style={{ backgroundColor: C, ["--c" as string]: C }}
                         >
                             {plan.can ? `Ascend for +${plan.ap} points` : `Reach rebirth ${plan.req}`}
@@ -132,7 +132,7 @@ function Fact({ label, value }: { label: string; value: string }) {
     return (
         <div>
             <div className="text-[10px] text-muted-foreground">{label}</div>
-            <div className="font-minecraft text-[13px]">{value}</div>
+            <div className="font-minecraft font-bold text-[13px]">{value}</div>
         </div>
     );
 }
@@ -140,7 +140,7 @@ function Fact({ label, value }: { label: string; value: string }) {
 function Box({ title, color, items }: { title: string; color: string; items: string[] }) {
     return (
         <div className="rounded-lg border px-2.5 py-2" style={{ borderColor: tint(color, 35), backgroundColor: tint(color, 6) }}>
-            <div className="mb-0.5 font-minecraft text-[11px] uppercase tracking-widest" style={{ color }}>{title}</div>
+            <div className="mb-0.5 font-minecraft font-bold text-[11px] uppercase tracking-widest" style={{ color }}>{title}</div>
             <ul className="space-y-0.5 font-rubik text-[11px] text-muted-foreground">
                 {items.map((i) => <li key={i}>· {i}</li>)}
             </ul>

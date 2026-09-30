@@ -494,7 +494,7 @@ export function EnchantTab({ s, d, F, render, say }: Ctx) {
                                 >
                                     <span className="fi-en-slot-ic">{isOpen ? <McSymbol name={e ? ENCH_BY_ID[e.id].symbol : sl.symbol} /> : <Lock className="size-4" />}</span>
                                     <span className="min-w-0 flex-1 text-left">
-                                        <span className="block truncate font-minecraft text-[12px]" style={{ color: isOpen ? sl.color : undefined }}>{sl.name}</span>
+                                        <span className="block truncate font-minecraft font-bold text-[12px]" style={{ color: isOpen ? sl.color : undefined }}>{sl.name}</span>
                                         <span className={`block truncate font-rubik text-[10px] ${e && isCosmic(e.r) ? "fi-rainbow" : ""}`} style={{ color: e ? col : "var(--muted-foreground)" }}>
                                             {!isOpen ? `Enchanting ${sl.need}` : e ? `${rar(e.r).name} ${ENCH_BY_ID[e.id].name}` : "Empty"}
                                         </span>
@@ -660,7 +660,7 @@ export function EnchantTab({ s, d, F, render, say }: Ctx) {
                         {RARITIES.map((r, i) => (
                             <Tip key={r.id} tip={<TipCard title={r.name} color={rcolor(i)} tag={`x${r.m} power`} rows={[["Odds now", `1 in ${fmtOdds(oddsOf(i, luck))}`], ["Base odds", `1 in ${fmtOdds(oddsOf(i, 1))}`], ["Affixes", String(r.affixes)], ["Rolled", String(s.enc.byR[i])]]} foot="Higher luck improves these odds." />}>
                             <div className="rounded-lg border px-2 py-1" style={{ borderColor: tint(rcolor(i), 40) }}>
-                                <div className={`font-minecraft text-[11px] ${isCosmic(i) ? "fi-rainbow" : ""}`} style={{ color: rcolor(i) }}>{r.name}</div>
+                                <div className={`font-minecraft font-bold text-[11px] ${isCosmic(i) ? "fi-rainbow" : ""}`} style={{ color: rcolor(i) }}>{r.name}</div>
                                 <div className="font-rubik text-[10px] text-muted-foreground">
                                     1 in {fmtOdds(oddsOf(i, luck))} · x{r.m} · {s.enc.byR[i]} rolled
                                 </div>
@@ -716,10 +716,10 @@ function EnchCard({ e, tag, vs, glow }: { e: Ench | undefined; tag: string; vs?:
                 <span className="fi-en-card-ic" style={{ color: def.color }}><McSymbol name={def.symbol} /></span>
                 <div className="min-w-0 flex-1">
                     <div className="font-rubik text-[9px] uppercase tracking-widest text-muted-foreground">{tag}</div>
-                    <div className="truncate font-minecraft text-[13px]" style={{ color: def.color }}>{def.name}</div>
+                    <div className="truncate font-minecraft font-bold text-[13px]" style={{ color: def.color }}>{def.name}</div>
                 </div>
                 <div className="text-right">
-                    <div className={`font-minecraft text-[11px] ${isCosmic(e.r) ? "fi-rainbow" : ""}`} style={{ color: col }}>{rar(e.r).name}</div>
+                    <div className={`font-minecraft font-bold text-[11px] ${isCosmic(e.r) ? "fi-rainbow" : ""}`} style={{ color: col }}>{rar(e.r).name}</div>
                     <div className="font-rubik text-[9px] text-muted-foreground">x{rar(e.r).m}</div>
                 </div>
             </div>
@@ -783,7 +783,7 @@ function Codex({ s }: { s: Ctx["s"] }) {
         <>
             <div className="rounded-xl border p-3" style={{ borderColor: tint(C, 45) }}>
                 <div className="flex flex-wrap items-baseline justify-between gap-2">
-                    <span className="font-minecraft text-sm" style={{ color: C }}>Enchant Codex</span>
+                    <span className="font-minecraft font-bold text-sm" style={{ color: C }}>Enchant Codex</span>
                     <span className="font-rubik text-[11px] text-muted-foreground">
                         {n}/{CODEX_TOTAL} found · +{(CODEX_ALL * n * 100).toFixed(1)}% all shards
                     </span>
@@ -796,7 +796,7 @@ function Codex({ s }: { s: Ctx["s"] }) {
                         const done = n >= m.n;
                         return (
                             <div key={m.n} className="rounded-lg border px-2 py-1 font-rubik text-[10px]" style={{ borderColor: done ? tint("var(--mc-green)", 50) : "rgba(255,255,255,0.1)", opacity: done ? 1 : 0.65 }}>
-                                <div className="font-minecraft text-[11px]" style={{ color: done ? "var(--mc-green)" : undefined }}>{done ? "✓ " : ""}{m.n} entries</div>
+                                <div className="font-minecraft font-bold text-[11px]" style={{ color: done ? "var(--mc-green)" : undefined }}>{done ? "✓ " : ""}{m.n} entries</div>
                                 <div className="text-muted-foreground">+{Math.round(m.luck * 100)}% luck, {m.dust} dust</div>
                             </div>
                         );
@@ -817,7 +817,7 @@ function Codex({ s }: { s: Ctx["s"] }) {
                                         <McSymbol name={e.symbol} />
                                     </span>
                                     <div className="min-w-0 flex-1">
-                                        <div className="truncate font-minecraft text-[12px]" style={{ color: have ? e.color : "var(--muted-foreground)" }}>{have ? e.name : "???"}</div>
+                                        <div className="truncate font-minecraft font-bold text-[12px]" style={{ color: have ? e.color : "var(--muted-foreground)" }}>{have ? e.name : "???"}</div>
                                         <div className="truncate font-rubik text-[10px] text-muted-foreground">{have ? `${e.blurb} ${e.lines.map(([k, v]) => fmtStat(k, v)).join(", ")} at Common` : "Not discovered yet"}</div>
                                     </div>
                                     <div className="flex shrink-0 gap-[3px]">
@@ -870,7 +870,7 @@ function Style({ s, render }: { s: Ctx["s"]; render: () => void }) {
                         data-on={on}
                     >
                         {extra?.(c)}
-                        <span className="block truncate font-minecraft text-[11px]">{c.name}</span>
+                        <span className="block truncate font-minecraft font-bold text-[11px]">{c.name}</span>
                         <span className="block truncate font-rubik text-[9px] text-muted-foreground">{ok ? c.blurb || " " : <><Lock className="mr-0.5 inline size-2.5" />Enchanting {c.need}</>}</span>
                     </button>
                     </Tip>
@@ -905,7 +905,7 @@ function Style({ s, render }: { s: Ctx["s"]; render: () => void }) {
             <div className="grid grid-cols-1 gap-1.5 sm:grid-cols-3">
                 {ANIMS.map((a) => (
                     <button key={a.id} type="button" onClick={() => pick("anim", a.id as typeof o.anim)} aria-pressed={o.anim === a.id} className="fi-en-opt" data-on={o.anim === a.id}>
-                        <span className="block font-minecraft text-[11px]">{a.name}</span>
+                        <span className="block font-minecraft font-bold text-[11px]">{a.name}</span>
                         <span className="block font-rubik text-[9px] text-muted-foreground">{a.blurb}</span>
                     </button>
                 ))}
@@ -914,7 +914,7 @@ function Style({ s, render }: { s: Ctx["s"]; render: () => void }) {
             <SectionTitle color={C}>Rolling</SectionTitle>
             <button type="button" role="switch" aria-checked={o.smart} onClick={() => pick("smart", !o.smart)} className="flex w-full items-center justify-between gap-3 rounded-xl border border-white/10 px-3 py-2 text-left font-rubik text-xs">
                 <span>
-                    <b className="block font-minecraft text-[12px] font-normal">Smart equip</b>
+                    <b className="block font-minecraft text-[12px] font-bold">Smart equip</b>
                     <span className="text-muted-foreground">Wear a roll if it is stronger, salvage it if not. Rare pulls you would lose are kept for you to decide, and Review undoes any choice.</span>
                 </span>
                 <span className="shrink-0 rounded-full px-2 py-0.5 text-[10px] font-semibold" style={{ backgroundColor: tint(o.smart ? "var(--mc-green)" : "var(--muted-foreground)", 20), color: o.smart ? "var(--mc-green)" : undefined }}>{o.smart ? "ON" : "OFF"}</span>
@@ -927,7 +927,7 @@ function Style({ s, render }: { s: Ctx["s"]; render: () => void }) {
                 <div className="flex flex-wrap gap-1">
                     {RARITIES.map((r, i) =>
                         i < 2 ? null : (
-                            <button key={r.id} type="button" onClick={() => pick("stop", i)} aria-pressed={o.stop === i} className="rounded-full border px-2 py-0.5 font-minecraft text-[11px] transition-colors" style={{ borderColor: o.stop === i ? rcolor(i) : "rgba(255,255,255,0.15)", color: rcolor(i), backgroundColor: o.stop === i ? tint(rcolor(i), 18) : undefined }}>
+                            <button key={r.id} type="button" onClick={() => pick("stop", i)} aria-pressed={o.stop === i} className="rounded-full border px-2 py-0.5 font-minecraft font-bold text-[11px] transition-colors" style={{ borderColor: o.stop === i ? rcolor(i) : "rgba(255,255,255,0.15)", color: rcolor(i), backgroundColor: o.stop === i ? tint(rcolor(i), 18) : undefined }}>
                                 {r.name}
                             </button>
                         ),

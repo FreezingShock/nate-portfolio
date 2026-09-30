@@ -161,7 +161,7 @@ function ComboCard({ info }: { info: ComboInfo }) {
     ];
     return (
         <div className="fi-combo-card" role="tooltip">
-            <div className="font-minecraft text-xs" style={{ color: "var(--mc-yellow)" }}>Combo</div>
+            <div className="font-minecraft font-bold text-xs" style={{ color: "var(--mc-yellow)" }}>Combo</div>
             <p className="mt-0.5 text-[10px] leading-snug text-muted-foreground">
                 Hold the button or Space. The multiplier doubles every few seconds up to your max. It multiplies click value, speeds up held clicks, gives minions a small boost and brings treasure bobbers sooner.
             </p>

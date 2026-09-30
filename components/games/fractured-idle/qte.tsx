@@ -192,7 +192,7 @@ function MashQte(props: QteProps) {
                     </svg>
                     <span key={count} className="fi-mash-core">{count >= MASH_NEED ? "!" : "MASH"}</span>
                 </button>
-                <div className="font-minecraft text-xs leading-tight">
+                <div className="font-minecraft font-bold text-xs leading-tight">
                     <div className="text-lg" style={{ color: "var(--qc)" }}>{count}/{MASH_NEED}</div>
                     <div className="font-rubik text-[10px] text-muted-foreground">{go ? `${win.toFixed(1)}s from your first tap` : "tap to start"}</div>
                 </div>
