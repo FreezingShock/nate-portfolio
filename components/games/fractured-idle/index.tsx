@@ -3,7 +3,8 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useReducer, useRef, useState } from "react";
 import { Expand, Minimize } from "lucide-react";
 import { McSymbol } from "@/components/mc-symbol";
-import { HEAT_SECONDS, HOLD_BASE, critColor, holdMax, lookName, unlockedKeys } from "@/lib/fractured-idle/button";
+import { HOLD_BASE, critColor, holdMax, lookName, unlockedKeys } from "@/lib/fractured-idle/button";
+import { COMBO_BOBBER_SHARE, COMBO_TIERS, comboFill, holdRate, newCombo, stepCombo, type ComboCfg } from "@/lib/fractured-idle/combo";
 import { EGGS, ISLANDS, MINIONS, MINION_GROWTH, PETS, RARITIES, UPGRADES, petLevel } from "@/lib/fractured-idle/data";
 import {
     addPetXp,
@@ -27,6 +28,7 @@ import {
 import type { State } from "@/lib/fractured-idle/data";
 import { Goals } from "./goals";
 import { Aura, BTN_CSS, ButtonFace, skinAccent } from "./button-face";
+import { COMBO_CSS, ComboMeter, type ComboApi } from "./combo-meter";
 import { kick, shake, spawnBurst, spawnCrit, spawnNumber } from "./button-fx";
 import { ButtonTab } from "./tab-button";
 import { Orbit } from "./orbit";
@@ -80,11 +82,13 @@ export function FracturedIdle() {
     const floatRef = useRef<HTMLDivElement>(null);
     const btnRef = useRef<HTMLButtonElement>(null);
     const wrapRef = useRef<HTMLDivElement>(null);
-    const meterRef = useRef<HTMLDivElement>(null);
+    const meterApi = useRef<ComboApi>(null);
+    const combo = useRef(newCombo());
+    const cfgRef = useRef<{ cfg: ComboCfg; at: number }>({ cfg: { max: 2, gain: 1, surge: 0.012, cap: 7 }, at: -1e9 });
     // Everything currently holding the button: pointer ids and "space", with
     // their last position (px, relative to the float layer).
     const held = useRef(new Map<string, { x: number; y: number }>());
-    const hold = useRef({ raf: 0, last: 0, acc: 0, heat: 0, flip: false, hit: false });
+    const hold = useRef({ raf: 0, last: 0, acc: 0, heat: 0, shown: 0, tier: -1, flip: false, hit: false });
     const clickFn = useRef<(x?: number, y?: number) => void>(() => {});
     const toastTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
     const bob = useRef({ left: 0, next: 25 });
@@ -186,7 +190,7 @@ export function FracturedIdle() {
                     b.next = nextBobber(s);
                 }
             } else {
-                b.next -= dt;
+                b.next -= dt * (1 + COMBO_BOBBER_SHARE * (combo.current.mult - 1)); // a hot combo brings bobbers sooner
                 if (b.next <= 0) {
                     b.left = BOBBER_LIFETIME;
                     setBobber({ x: 8 + Math.random() * 84, y: 14 + Math.random() * 62 });
@@ -201,6 +205,7 @@ export function FracturedIdle() {
                 const up = tiers.findIndex((t, i) => t > (lastTiers.current[i] ?? 0));
                 if (up >= 0) say(`${MINIONS[up].name.replace(" Minion", "")} collection tier ${tiers[up]} reached!`);
                 lastTiers.current = tiers;
+                if (s.rebirths > s.btn.rb) s.btn.rb = s.rebirths;
                 const keys = unlockedKeys(s);
                 if (keys.length > lastLooks.current.length) {
                     const fresh = keys.filter((k) => !lastLooks.current.includes(k));
@@ -264,7 +269,7 @@ export function FracturedIdle() {
         if (!s) return;
         const d = derive(s);
         const crit = Math.random() < d.critChance;
-        const v = d.click * (crit ? 1 + d.critDmg : 1);
+        const v = d.click * s.combo * (crit ? 1 + d.critDmg : 1);
         s.shards += v;
         s.total += v;
         s.clicks += 1;
@@ -310,8 +315,8 @@ export function FracturedIdle() {
         return r ? localPos(r.left + r.width / 2, r.top + r.height * 0.42) : { x: 0, y: 0 };
     };
 
-    // Holding: clicks repeat at HOLD_BASE/s and heat up to the max over
-    // HEAT_SECONDS. The loop runs while anything is held, then cools off.
+    // Holding: the combo (combo.ts) climbs while anything is held and held
+    // clicks speed up with it. The loop keeps running while the combo drains.
     const startHold = () => {
         const h = hold.current;
         if (h.raf) return;
@@ -320,28 +325,60 @@ export function FracturedIdle() {
             const st = ref.current;
             const dt = Math.min(0.1, (now - h.last) / 1000);
             h.last = now;
-            const holding = !!st && st.btn.hold && held.current.size > 0;
-            if (holding && st) {
-                h.heat = Math.min(1, h.heat + dt / HEAT_SECONDS);
-                h.acc += (HOLD_BASE + h.heat * (holdMax(st) - HOLD_BASE)) * dt;
+            if (!st) {
+                h.raf = 0;
+                return;
+            }
+            const holding = st.btn.hold && held.current.size > 0;
+            const cf = cfgRef.current;
+            if (now - cf.at > 250) {
+                const d = derive(st);
+                cf.cfg = { max: d.comboMax, gain: d.comboGain, surge: d.surgeChance, cap: holdMax(st) };
+                cf.at = now;
+            }
+            const cfg = cf.cfg;
+            const c = combo.current;
+            const events = stepCombo(c, cfg, holding, dt);
+            st.combo = c.mult;
+            if (c.mult > st.bestCombo) st.bestCombo = c.mult;
+            const rate = holdRate(c.mult, HOLD_BASE, cfg.cap);
+            if (holding) {
+                h.acc += rate * dt;
                 let n = 0;
                 while (h.acc >= 1 && n < 3) {
                     h.acc -= 1;
                     n++;
                     const pts = [...held.current.entries()];
                     const [id, p] = pts[Math.floor(Math.random() * pts.length)];
-                    const c = id === "space" ? buttonCenter() : p;
-                    clickFn.current(c.x + (id === "space" ? (Math.random() - 0.5) * 50 : 0), c.y + (id === "space" ? (Math.random() - 0.5) * 30 : 0));
+                    const cc = id === "space" ? buttonCenter() : p;
+                    clickFn.current(cc.x + (id === "space" ? (Math.random() - 0.5) * 50 : 0), cc.y + (id === "space" ? (Math.random() - 0.5) * 30 : 0));
                 }
                 if (h.acc >= 1) h.acc = 0;
-            } else {
-                h.heat = Math.max(0, h.heat - dt / 0.7);
-                h.acc = 0;
+            } else h.acc = 0;
+
+            const fill = comboFill(c.mult, cfg.max);
+            h.heat = fill;
+            // The glow is a blurred drop-shadow: only repaint it when the combo visibly changes.
+            const q = Math.round(fill * 20) / 20;
+            const w = wrapRef.current;
+            if (w && (q !== h.shown || c.tier !== h.tier)) {
+                h.shown = q;
+                h.tier = c.tier;
+                w.style.setProperty("--heat", q.toFixed(2));
+                w.style.setProperty("--tier", COMBO_TIERS[c.tier].color);
             }
-            wrapRef.current?.style.setProperty("--heat", h.heat.toFixed(2));
-            if (meterRef.current) meterRef.current.style.width = `${h.heat * 100}%`;
-            if (holding || h.heat > 0) h.raf = requestAnimationFrame(tick);
-            else h.raf = 0;
+            const active = holding || c.t > 0.02;
+            meterApi.current?.frame({ mult: c.mult, fill, rate: holding ? rate : 0, active, holding, surge: c.surge, tier: c.tier, atMax: c.atMax });
+            for (const e of events) {
+                if (e.type === "milestone") meterApi.current?.milestone(e.value);
+                else if (e.type === "max") meterApi.current?.max();
+                else if (e.type === "surge") meterApi.current?.surge();
+            }
+            if (active || c.surge > 0) h.raf = requestAnimationFrame(tick);
+            else {
+                st.combo = 1;
+                h.raf = 0;
+            }
         };
         h.raf = requestAnimationFrame(tick);
     };
@@ -374,14 +411,15 @@ export function FracturedIdle() {
 
     // Never leave a hold stuck if the window loses focus mid-press.
     useEffect(() => {
+        const h = hold.current;
         const clear = () => held.current.clear();
         window.addEventListener("blur", clear);
         document.addEventListener("visibilitychange", clear);
         return () => {
             window.removeEventListener("blur", clear);
             document.removeEventListener("visibilitychange", clear);
-            cancelAnimationFrame(hold.current.raf);
-            hold.current.raf = 0;
+            cancelAnimationFrame(h.raf);
+            h.raf = 0;
         };
     }, []);
 
@@ -488,7 +526,7 @@ export function FracturedIdle() {
                 backgroundColor: "color-mix(in oklch, var(--background) 92%, black)",
             }}
         >
-            <style>{CSS}{BTN_CSS}</style>
+            <style>{CSS}{BTN_CSS}{COMBO_CSS}</style>
 
             {/* HUD */}
             <div className="flex flex-wrap items-center gap-x-6 gap-y-2 border-b border-white/10 px-4 py-3">
@@ -620,8 +658,43 @@ export function FracturedIdle() {
                     <div ref={floatRef} className="pointer-events-none absolute inset-0 z-[4]" aria-hidden="true" />
 
                     <div className="text-center font-rubik text-xs text-muted-foreground">
-                        Press <Kbd>Space</Kbd> or click{s.btn.hold ? ", or hold either to keep clicking" : ""}. Crit {Math.round(d.critChance * 100)}% for +{Math.round(d.critDmg * 100)}%.
-                        {s.btn.hold && <div className="mx-auto mt-1.5 h-1 w-40 overflow-hidden rounded-full bg-white/10"><div ref={meterRef} className="h-full w-0 rounded-full" style={{ backgroundColor: "var(--mc-aqua)", boxShadow: "0 0 8px var(--mc-aqua)" }} /></div>}
+                        Press <Kbd>Space</Kbd> or click. Crit {Math.round(d.critChance * 100)}% for +{Math.round(d.critDmg * 100)}%.
+                    </div>
+                    <ComboMeter
+                        ref={meterApi}
+                        enabled={s.btn.hold}
+                        info={{ max: d.comboMax, gain: d.comboGain, surge: d.surgeChance, cap: holdMax(s), best: s.bestCombo, base: HOLD_BASE }}
+                    />
+
+                    <div className="-mt-1 flex items-center justify-center gap-1.5 font-rubik text-[10px]">
+                        <button
+                            type="button"
+                            onClick={() => {
+                                tip.hide();
+                                setTab("button");
+                            }}
+                            className="rounded-full border border-white/15 px-2 py-0.5 text-muted-foreground transition-colors hover:bg-white/10 hover:text-foreground"
+                        >
+                            Customize button
+                        </button>
+                        {s.btn.saved.map(
+                            (L, i) =>
+                                L && (
+                                    <button
+                                        key={i}
+                                        type="button"
+                                        title={`Equip saved loadout ${i + 1}`}
+                                        onClick={() => {
+                                            Object.assign(s.btn, L);
+                                            render();
+                                        }}
+                                        className="grid size-5 place-items-center rounded-full border text-[10px] transition-colors hover:bg-white/10"
+                                        style={{ borderColor: tint("var(--mc-aqua)", 50), color: "var(--mc-aqua)" }}
+                                    >
+                                        {i + 1}
+                                    </button>
+                                ),
+                        )}
                     </div>
 
                     <Goals

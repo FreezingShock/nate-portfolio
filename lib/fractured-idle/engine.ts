@@ -1,4 +1,5 @@
 import { DEFAULT_BTN, btnBonus, cleanBtn } from "./button";
+import { COMBO_BASE_MAX, COMBO_CPS_SHARE, SURGE_BASE_CHANCE } from "./combo";
 import {
     ASC_BASE,
     ASC_UPS,
@@ -82,7 +83,9 @@ export function newState(): State {
         hatched: 0,
         freeEggs: 0,
         peakInc: 0,
-        btn: { ...DEFAULT_BTN },
+        btn: { ...DEFAULT_BTN, seen: [], saved: [null, null, null] },
+        combo: 1,
+        bestCombo: 1,
     };
 }
 
@@ -142,6 +145,9 @@ export interface Derived {
     colSpeed: number[]; // per-minion collection speed
     pet: PetBonus; // equipped pets + pet collection
     ascMult: number;
+    comboMax: number; // max combo multiplier while holding
+    comboGain: number; // combo build speed, 1 = base
+    surgeChance: number; // per second of holding once warm
 }
 
 export type PetBonus = Record<PetStat, number>;
@@ -232,6 +238,9 @@ export function derive(s: State): Derived {
     let critChance = 0.05;
     let critDmg = 0.5;
     let synergy = 0;
+    let comboMax = COMBO_BASE_MAX;
+    let comboGain = 1;
+    let surge = SURGE_BASE_CHANCE;
     const upOwn = MINIONS.map(() => 1);
     const colUp = MINIONS.map(() => 0);
     for (const u of UPGRADES) {
@@ -245,6 +254,9 @@ export function derive(s: State): Derived {
             case "critChance": critChance += u.value * l; break;
             case "critDmg": critDmg += u.value * l; break;
             case "synergy": synergy += u.value * l; break;
+            case "comboMax": comboMax += u.value * l; break;
+            case "comboGain": comboGain += u.value * l; break;
+            case "comboLuck": surge += u.value * l; break;
             case "mown":
                 upOwn[u.minion!] *= Math.pow(u.value, l);
                 if (u.extra?.col) colUp[u.minion!] += u.extra.col * l;
@@ -265,6 +277,10 @@ export function derive(s: State): Derived {
     const fishing = skillLevel(s.fishing);
     critChance = Math.min(0.75, critChance);
     critDmg += 0.02 * combat;
+    // Combo: max and build speed come from upgrades, rebirth / ascension upgrades, skills and button looks.
+    comboMax += 0.5 * (s.rups.mom || 0) + (s.aups.over || 0) + 0.02 * combat + bb.combo;
+    comboGain += 0.1 * (s.aups.over || 0) + 0.005 * mining + bb.flow;
+    surge += 0.0005 * fishing;
 
     const core = s.rups.core || 0;
     const rMult = Math.pow(1.3 + 0.03 * core, s.rebirths);
@@ -315,6 +331,9 @@ export function derive(s: State): Derived {
         colSpeed,
         pet: pb,
         ascMult: am,
+        comboMax,
+        comboGain,
+        surgeChance: surge,
     };
 }
 
@@ -499,6 +518,12 @@ export function upgradeInfo(d: Derived, u: UpgradeDef, sci = false): UpInfo {
             return { label: "Crit damage", cur: pct(d.critDmg), next: pct(d.critDmg + u.value) };
         case "synergy":
             return { label: "Click bonus from shards/sec", cur: pct(d.synergy), next: pct(d.synergy + u.value) };
+        case "comboMax":
+            return { label: "Max combo", cur: x(d.comboMax), next: x(d.comboMax + u.value) };
+        case "comboGain":
+            return { label: "Combo build speed", cur: x(d.comboGain), next: x(d.comboGain + u.value) };
+        case "comboLuck":
+            return { label: "Surge chance per second", cur: pct(d.surgeChance), next: pct(d.surgeChance + u.value) };
         case "mown": {
             const cur = d.upOwn[u.minion!];
             return { label: `${MINIONS[u.minion!].name.replace(" Minion", "")} output`, cur: x(cur), next: x(cur * u.value) };
@@ -667,7 +692,8 @@ export const trophyCounts = (s: State) => ({
 
 /** Advance the simulation. Production is linear between purchases, so a large dt is exact. */
 export function advance(s: State, d: Derived, dt: number) {
-    const gain = (d.cps + d.auto * d.avgClick) * dt;
+    // While holding, the combo also gives minions a small active boost.
+    const gain = (d.cps * (1 + COMBO_CPS_SHARE * Math.max(0, s.combo - 1)) + d.auto * d.avgClick) * dt;
     s.shards += gain;
     s.total += gain;
     s.clicks += d.auto * dt;
@@ -687,7 +713,7 @@ export function advance(s: State, d: Derived, dt: number) {
 // ---- Save / load ----
 
 export function serialize(s: State): string {
-    return JSON.stringify({ ...s, savedAt: Date.now() });
+    return JSON.stringify({ ...s, combo: 1, savedAt: Date.now() });
 }
 
 export function exportSave(s: State): string {
@@ -716,6 +742,8 @@ export function parseSave(raw: string): State | null {
         s.equip = (Array.isArray(o.equip) ? (o.equip as string[]) : []).filter((id, i, a) => s.pets[id] && a.indexOf(id) === i).slice(0, 3);
         s.peakInc = Math.max(0, Number(o.peakInc) || 0);
         s.btn = cleanBtn(o.btn, s);
+        s.combo = 1;
+        s.bestCombo = Math.max(1, Number(o.bestCombo) || 1);
         if (!isFinite(s.shards) || !isFinite(s.total)) return null;
         return s;
     } catch {

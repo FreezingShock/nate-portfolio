@@ -57,6 +57,8 @@ export interface State {
     freeEggs: number; // wooden eggs from treasure bobbers
     peakInc: number; // best shards/sec ever, prices eggs
     btn: BtnPrefs; // click button look (unlocks live in button.ts)
+    combo: number; // live combo multiplier from holding; transient, never saved (see combo.ts)
+    bestCombo: number; // highest combo multiplier reached
 }
 
 export interface MinionDef {
@@ -172,7 +174,7 @@ export function colRewardText(r: ColReward, minion: string, next?: string): stri
     }
 }
 
-export type UpKind = "click" | "minion" | "all" | "auto" | "critChance" | "critDmg" | "synergy" | "mown";
+export type UpKind = "click" | "minion" | "all" | "auto" | "critChance" | "critDmg" | "synergy" | "mown" | "comboMax" | "comboGain" | "comboLuck";
 
 export interface UpgradeDef {
     id: string;
@@ -223,6 +225,9 @@ const BASE_UPGRADES: UpgradeDef[] = [
     { id: "critc", name: "Critical Eye", desc: "+2% crit chance", kind: "critChance", value: 0.02, cost: 1e3, growth: 1.8, max: 25, symbol: "critChance", color: "var(--mc-blue)" },
     { id: "critd", name: "Crushing Blows", desc: "+25% crit damage", kind: "critDmg", value: 0.25, cost: 2e3, growth: 1.7, max: 30, symbol: "critDamage", color: "var(--mc-blue)" },
     { id: "syn", name: "Pocket Minion", desc: "Each click also gives +1% of your shards/sec", kind: "synergy", value: 0.01, cost: 5e3, growth: 2.2, max: 20, symbol: "intelligence", color: "var(--mc-aqua)" },
+    { id: "combo", name: "Momentum", desc: "+0.25 max combo multiplier (hold the button)", kind: "comboMax", value: 0.25, cost: 2e3, growth: 1.85, max: 20, symbol: "speed", color: "var(--mc-yellow)" },
+    { id: "flow", name: "Flow State", desc: "+8% combo build speed", kind: "comboGain", value: 0.08, cost: 8e3, growth: 1.9, max: 15, symbol: "attackSpeed", color: "var(--mc-gold)" },
+    { id: "rod", name: "Lightning Rod", desc: "+0.4% surge chance per second of holding", kind: "comboLuck", value: 0.004, cost: 5e4, growth: 2.1, max: 10, symbol: "magicFind", color: "var(--mc-aqua)" },
     { id: "gold", name: "Golden Touch", desc: "+5% to all shards", kind: "all", value: 1.05, cost: 1e6, growth: 3.5, max: 20, symbol: "magicFind", color: "var(--mc-gold)" },
     { id: "overclock", name: "Minion Overclock", desc: "+10% minion output", kind: "minion", value: 1.1, cost: 1e5, growth: 3, max: 20, symbol: "speed", color: "var(--mc-yellow)" },
     // Pickaxes (click)
@@ -324,6 +329,7 @@ export const REBIRTH_UPS: RebirthUpDef[] = [
     { id: "head", name: "Head Start", desc: "Begin each rebirth with more shards", cost: 1, growth: 2.5, max: 5, symbol: "speed", color: "var(--mc-yellow)" },
     { id: "kit", name: "Starter Kit", desc: "Begin each rebirth with free Cobblestone and Wheat Minions", cost: 3, growth: 1.8, max: 10, symbol: "fortune", color: "var(--mc-green)" },
     { id: "keep", name: "Muscle Memory", desc: "Keep 20% of your training upgrade levels through rebirth", cost: 5, growth: 2, max: 5, symbol: "attackSpeed", color: "var(--mc-red)" },
+    { id: "mom", name: "Momentum Core", desc: "+0.5 max combo multiplier, permanently", cost: 2, growth: 1.6, max: 10, symbol: "speed", color: "var(--mc-yellow)" },
     { id: "disc", name: "Bulk Discount", desc: "-5% minion cost", cost: 2, growth: 2, max: 10, symbol: "petLuck", color: "var(--mc-green)" },
     { id: "off", name: "Night Owl", desc: "+10% offline efficiency", cost: 1, growth: 2, max: 5, symbol: "night", color: "var(--mc-blue)" },
 ];
@@ -573,6 +579,7 @@ export const ASC_UPS: AscUpDef[] = [
     { id: "perch2", name: "Second Perch", desc: "Unlock a second pet slot", cost: 4, growth: 1, max: 1, symbol: "petLuck", color: "var(--mc-dark-aqua)" },
     { id: "perch3", name: "Third Perch", desc: "Unlock a third pet slot", cost: 25, growth: 1, max: 1, symbol: "petLuck", color: "var(--mc-dark-aqua)", needs: "perch2" },
     { id: "nest", name: "Egg Fluency", desc: "-8% egg prices", cost: 2, growth: 1.5, max: 8, symbol: "flower", color: "var(--mc-gold)" },
+    { id: "over", name: "Overdrive Core", desc: "+1 max combo multiplier and +10% combo build speed", cost: 2, growth: 1.5, max: 10, symbol: "attackSpeed", color: "var(--mc-red)" },
     { id: "mentor", name: "Pet Mentor", desc: "+30% pet experience", cost: 1, growth: 1.4, max: 10, symbol: "wisdom", color: "var(--mc-light-purple)" },
 ];
 

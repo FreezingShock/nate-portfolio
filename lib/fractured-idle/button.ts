@@ -20,6 +20,8 @@ export interface BtnBonus {
     hold?: number; // +clicks/s at full heat while holding
     xp?: number; // +x skill xp
     bobber?: number; // +x treasure bobber rewards
+    combo?: number; // + max combo multiplier
+    flow?: number; // +x combo build speed
 }
 
 export interface LookDef {
@@ -51,6 +53,7 @@ export function statValue(s: State, stat: BtnStat): number {
     switch (stat) {
         case "pets": return Object.keys(s.pets).length;
         case "minions": return s.peak.minions;
+        case "rebirths": return Math.max(s.rebirths, s.btn.rb);
         case "trophies": return Object.values(s.tro).reduce((a, b) => a + b, 0);
         case "hours": return s.playTime / 3600;
         case "islands": return ISLANDS.filter((i) => s.total >= i.at).length;
@@ -68,16 +71,16 @@ export const SHAPES: LookDef[] = [
     L("orb", "Orb", "Perfectly round.", "clicks", 500, { click: 0.03 }),
     L("hex", "Hexite", "Six honest sides.", "clicks", 2500, { crit: 0.01 }),
     L("diamond", "Shard", "Sharp and hungry.", "crits", 150, { critDmg: 0.1 }),
-    L("octagon", "Stopper", "Built to be hammered.", "clicks", 15000, { hold: 1 }),
+    L("octagon", "Stopper", "Built to be hammered.", "clicks", 15000, { hold: 1, combo: 0.25 }),
     L("cross", "Medic", "A little first aid for pets.", "pets", 3, { xp: 0.05 }),
     L("bastion", "Bastion", "A shield that hits back.", "rebirths", 1, { click: 0.05 }),
     L("gem", "Gem", "Cut by a patient jeweler.", "hatched", 10, { bobber: 0.1 }),
     L("heart", "Heart", "Beats with every click.", "bobbers", 10, { xp: 0.08 }),
     L("bloom", "Bloom", "Five petals of luck.", "hours", 5, { crit: 0.015 }),
-    L("gear", "Cog", "Runs on minion power.", "minions", 500, { click: 0.05 }),
+    L("gear", "Cog", "Runs on minion power.", "minions", 500, { click: 0.05, flow: 0.05 }),
     L("nova", "Nova", "A star in your hand.", "crits", 5000, { crit: 0.02, critDmg: 0.1 }),
-    L("sunburst", "Sunburst", "Too bright to look at.", "rebirths", 15, { click: 0.06, crit: 0.01 }),
-    L("crown", "Crown", "For the ruler of the islands.", "asc", 2, { click: 0.1 }),
+    L("sunburst", "Sunburst", "Too bright to look at.", "rebirths", 15, { click: 0.06, crit: 0.01, flow: 0.05 }),
+    L("crown", "Crown", "For the ruler of the islands.", "asc", 2, { click: 0.1, combo: 0.5 }),
 ];
 
 export const SKINS: LookDef[] = [
@@ -90,19 +93,19 @@ export const SKINS: LookDef[] = [
     L("toxic", "Toxic", "Bubbling green ooze.", "bobbers", 5, { bobber: 0.08 }),
     L("ocean", "Ocean", "Waves in a bottle.", "hatched", 3, { xp: 0.05 }),
     L("obsidian", "Obsidian", "Dark, glossy, sharp.", "rebirths", 2, { click: 0.04 }),
-    L("circuit", "Circuit", "Live wires.", "clicks", 25000, { hold: 1 }),
+    L("circuit", "Circuit", "Live wires.", "clicks", 25000, { hold: 1, combo: 0.25 }),
     L("neon", "Neon", "Lit from within.", "trophies", 12, { critDmg: 0.1 }),
     L("sunset", "Sunset", "The last light of day.", "hours", 10, { click: 0.04 }),
     L("void", "Void", "Stars in the dark.", "total", 1e7, { critDmg: 0.15 }),
     L("magma", "Magma", "Cracked rock, lava beneath.", "total", 1e12, { click: 0.06 }),
-    L("chrome", "Chrome", "Mirror polish.", "minions", 1500, { click: 0.06 }),
+    L("chrome", "Chrome", "Mirror polish.", "minions", 1500, { click: 0.06, flow: 0.05 }),
     L("gold", "Gold", "Polished and gleaming.", "total", 1e10, { click: 0.08 }),
-    L("plasma", "Plasma", "A caged storm.", "rebirths", 8, { crit: 0.02, critDmg: 0.1 }),
+    L("plasma", "Plasma", "A caged storm.", "rebirths", 8, { crit: 0.02, critDmg: 0.1, combo: 0.25 }),
     L("prism", "Prism", "Every color at once.", "asc", 1, { click: 0.05, crit: 0.02 }),
     L("aurora", "Aurora", "Northern lights, captured.", "asc", 2, { click: 0.06, xp: 0.1 }),
     L("chroma", "Chroma", "Colors that never settle.", "asc", 3, { click: 0.08, critDmg: 0.15 }),
-    L("galaxy", "Galaxy", "A spiral of stars.", "asc", 4, { click: 0.1, hold: 1 }),
-    L("holo", "Holo", "Pearl and rainbow foil.", "asc", 6, { click: 0.12, crit: 0.03 }),
+    L("galaxy", "Galaxy", "A spiral of stars.", "asc", 4, { click: 0.1, hold: 1, combo: 0.5 }),
+    L("holo", "Holo", "Pearl and rainbow foil.", "asc", 6, { click: 0.12, crit: 0.03, flow: 0.1 }),
 ];
 
 export const BURSTS: LookDef[] = [
@@ -116,12 +119,12 @@ export const BURSTS: LookDef[] = [
     L("leaves", "Leaves", "An autumn breeze.", "hours", 3, { xp: 0.05 }),
     L("coins", "Coins", "Cha-ching.", "total", 1e6, { click: 0.04 }),
     L("frost", "Flurry", "Snowflakes burst out.", "crits", 250, { crit: 0.015 }),
-    L("confetti", "Confetti", "Every click a party.", "crits", 500, { crit: 0.015, hold: 1 }),
+    L("confetti", "Confetti", "Every click a party.", "crits", 500, { crit: 0.015, hold: 1, flow: 0.05 }),
     L("shock", "Shockwave", "Thunder on every hit.", "rebirths", 5, { click: 0.05, critDmg: 0.1 }),
     L("runes", "Runes", "Old magic rises.", "clicks", 100000, { click: 0.05, xp: 0.05 }),
-    L("lightning", "Lightning", "Bolts crack around you.", "rebirths", 10, { click: 0.06, crit: 0.01 }),
+    L("lightning", "Lightning", "Bolts crack around you.", "rebirths", 10, { click: 0.06, crit: 0.01, flow: 0.05 }),
     L("fireworks", "Fireworks", "Launch and bloom.", "asc", 1, { click: 0.07, critDmg: 0.1 }),
-    L("spiral", "Spiral", "A galaxy in every click.", "asc", 3, { click: 0.1, hold: 1 }),
+    L("spiral", "Spiral", "A galaxy in every click.", "asc", 3, { click: 0.1, hold: 1, combo: 0.25 }),
 ];
 
 export const CRITS: LookDef[] = [
@@ -130,9 +133,9 @@ export const CRITS: LookDef[] = [
     L("cross", "Flare", "A cross of light.", "crits", 1500, { critDmg: 0.1 }),
     L("shatter", "Shatter", "Glass shards explode.", "crits", 4000, { critDmg: 0.1 }),
     L("meteor", "Meteor", "Something big is falling.", "rebirths", 4, { click: 0.04, crit: 0.01 }),
-    L("implode", "Implosion", "It all pulls in, then blows out.", "crits", 15000, { critDmg: 0.15 }),
+    L("implode", "Implosion", "It all pulls in, then blows out.", "crits", 15000, { critDmg: 0.15, combo: 0.25 }),
     L("nova", "Supernova", "A star dies on your button.", "asc", 1, { critDmg: 0.2, crit: 0.01 }),
-    L("fireworks", "Finale", "A full fireworks show.", "asc", 4, { critDmg: 0.25, crit: 0.02 }),
+    L("fireworks", "Finale", "A full fireworks show.", "asc", 4, { critDmg: 0.25, crit: 0.02, combo: 0.5 }),
 ];
 
 export const COLORS: LookDef[] = [
@@ -166,8 +169,8 @@ export const AURAS: LookDef[] = [
     L("stars", "Twinkle", "Little stars blinking around.", "hatched", 15, { xp: 0.06 }),
     L("snow", "Snowfall", "Soft flakes drifting down.", "crits", 600, { crit: 0.01, critDmg: 0.05 }),
     L("embers", "Embers", "Sparks climbing the air.", "rebirths", 6, { click: 0.05 }),
-    L("orbit", "Orbit", "Bright dots circling.", "minions", 2500, { click: 0.05, hold: 1 }),
-    L("vortex", "Vortex", "A spinning ring of color.", "asc", 2, { click: 0.08, critDmg: 0.1 }),
+    L("orbit", "Orbit", "Bright dots circling.", "minions", 2500, { click: 0.05, hold: 1, combo: 0.25 }),
+    L("vortex", "Vortex", "A spinning ring of color.", "asc", 2, { click: 0.08, critDmg: 0.1, flow: 0.1 }),
 ];
 
 export const GLYPHS: LookDef[] = [
@@ -189,8 +192,6 @@ export const GLYPHS: LookDef[] = [
     L("fishing", "Hook", "Something's biting.", "bobbers", 25, undefined, { symbol: "fishing" }),
 ];
 
-export type Cat = "shape" | "skin" | "burst" | "crit" | "color" | "nums" | "aura" | "glyph";
-
 export const CATS: { id: Cat; label: string; list: LookDef[]; blurb: string }[] = [
     { id: "shape", label: "Shape", list: SHAPES, blurb: "The outline of your button." },
     { id: "skin", label: "Skin", list: SKINS, blurb: "What the button is made of." },
@@ -201,8 +202,6 @@ export const CATS: { id: Cat; label: string; list: LookDef[]; blurb: string }[] 
     { id: "aura", label: "Aura", list: AURAS, blurb: "A constant glow around the button." },
     { id: "glyph", label: "Symbol", list: GLYPHS, blurb: "The icon on the button." },
 ];
-
-export const PREF_KEY: Record<Cat, keyof Looks> = { shape: "shape", skin: "skin", burst: "burst", crit: "crit", color: "color", nums: "nums", aura: "aura", glyph: "glyph" };
 
 export interface Looks {
     shape: string;
@@ -215,16 +214,20 @@ export interface Looks {
     glyph: string;
 }
 
+/** A look category is a key of Looks, so `prefs[cat]` is the equipped id. */
+export type Cat = keyof Looks;
+
 export interface BtnPrefs extends Looks {
     hold: boolean; // hold to auto-click
     shake: boolean; // shake the button area on crits
     seen: string[]; // "cat:id" looks the player has already looked at (drives NEW badges)
     saved: (Looks | null)[]; // 3 loadout slots
+    rb: number; // most rebirths ever reached: rebirths reset on ascension, looks must not relock
 }
 
 export const DEFAULT_LOOKS: Looks = { shape: "block", skin: "island", burst: "ripple", crit: "pulse", color: "sapphire", nums: "classic", aura: "none", glyph: "speed" };
 export const LOADOUTS = 3;
-export const DEFAULT_BTN: BtnPrefs = { ...DEFAULT_LOOKS, hold: true, shake: true, seen: [], saved: [null, null, null] };
+export const DEFAULT_BTN: BtnPrefs = { ...DEFAULT_LOOKS, hold: true, shake: true, seen: [], saved: [null, null, null], rb: 0 };
 
 export const listOf = (c: Cat) => CATS.find((x) => x.id === c)!.list;
 export const isUnlocked = (s: State, l: LookDef) => !l.need || statValue(s, l.need.stat) >= l.need.n;
@@ -234,9 +237,8 @@ const find = (list: LookDef[], id: string) => list.find((l) => l.id === id) ?? l
 function cleanLooks(raw: Partial<Looks> | null | undefined, s: State): Looks {
     const out = { ...DEFAULT_LOOKS };
     for (const c of CATS) {
-        const k = PREF_KEY[c.id];
-        const l = c.list.find((x) => x.id === raw?.[k]);
-        if (l && isUnlocked(s, l)) out[k] = l.id;
+        const l = c.list.find((x) => x.id === raw?.[c.id]);
+        if (l && isUnlocked(s, l)) out[c.id] = l.id;
     }
     return out;
 }
@@ -248,6 +250,7 @@ export function cleanBtn(raw: unknown, s: State): BtnPrefs {
         ...cleanLooks(r, s),
         hold: r.hold !== false,
         shake: r.shake !== false,
+        rb: Math.max(Number(r.rb) || 0, s.rebirths),
         seen: Array.isArray(r.seen) ? r.seen.filter((x): x is string => typeof x === "string").slice(0, 400) : unlockedKeys(s),
         saved: Array.from({ length: LOADOUTS }, (_, i) => (r.saved?.[i] ? cleanLooks(r.saved[i], s) : null)),
     };
@@ -261,15 +264,22 @@ export function unlockedKeys(s: State): string[] {
     for (const c of CATS) for (const l of c.list) if (isUnlocked(s, l)) out.push(lookKey(c.id, l.id));
     return out;
 }
-/** Count of unlocked looks; computes each stat once, since derive() calls this every tick. */
+// derive() runs every tick and every click, so the collection count is
+// recomputed at most once a second per state object.
+const countCache = new WeakMap<State, { t: number; n: number }>();
+
+/** Count of unlocked looks (each stat is computed once per pass). */
 export function countUnlocked(s: State): number {
-    const cache: Partial<Record<BtnStat, number>> = {};
+    const now = Date.now();
+    const hit = countCache.get(s);
+    if (hit && now - hit.t < 1000) return hit.n;
+    const stats: Partial<Record<BtnStat, number>> = {};
     let n = 0;
     for (const c of CATS)
         for (const l of c.list) {
-            if (!l.need) n++;
-            else if ((cache[l.need.stat] ??= statValue(s, l.need.stat)) >= l.need.n) n++;
+            if (!l.need || (stats[l.need.stat] ??= statValue(s, l.need.stat)) >= l.need.n) n++;
         }
+    countCache.set(s, { t: now, n });
     return n;
 }
 export const totalLooks = () => CATS.reduce((a, c) => a + c.list.length, 0);
@@ -278,7 +288,7 @@ export const COLLECTION_PER_LOOK = 0.0025;
 
 /** Bonus of the equipped functional looks, a complete-set bonus, and the collection bonus. */
 export function btnBonus(s: State): Required<BtnBonus> {
-    const out = { click: 0, crit: 0, critDmg: 0, hold: 0, xp: 0, bobber: 0 };
+    const out = { click: 0, crit: 0, critDmg: 0, hold: 0, xp: 0, bobber: 0, combo: 0, flow: 0 };
     const b = s.btn;
     const eq = [find(SHAPES, b.shape), find(SKINS, b.skin), find(BURSTS, b.burst), find(CRITS, b.crit), find(AURAS, b.aura)];
     for (const l of eq) {
@@ -294,12 +304,11 @@ export function btnBonus(s: State): Required<BtnBonus> {
 export const SET_BONUS = 0.05;
 
 // ---- Holding ----
-// Holding the button (or Space) clicks automatically. The rate starts at
-// HOLD_BASE and heats up to HOLD_MAX over HEAT_SECONDS of unbroken holding.
+// Holding the button (or Space) clicks automatically at HOLD_BASE times the
+// combo multiplier per second, up to HOLD_MAX (plus bonuses). See combo.ts.
 
 export const HOLD_BASE = 3;
 export const HOLD_MAX = 7;
-export const HEAT_SECONDS = 2.2;
 
 export const holdMax = (s: State) => HOLD_MAX + btnBonus(s).hold;
 
@@ -311,6 +320,8 @@ export function bonusText(b: BtnBonus): string {
     if (b.hold) p.push(`+${b.hold} hold/s`);
     if (b.xp) p.push(`+${Math.round(b.xp * 100)}% skill xp`);
     if (b.bobber) p.push(`+${Math.round(b.bobber * 100)}% bobber loot`);
+    if (b.combo) p.push(`+${b.combo} max combo`);
+    if (b.flow) p.push(`+${Math.round(b.flow * 100)}% combo speed`);
     return p.join(", ");
 }
 

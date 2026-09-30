@@ -12,7 +12,7 @@ import { ActionBtn, SectionTitle, tint, type Ctx } from "./ui";
 // bought out moves into the Owned section at the bottom.
 
 const GROUPS: { title: string; color: string; kinds: UpgradeDef["kind"][] }[] = [
-    { title: "Training", color: "var(--mc-red)", kinds: ["auto", "critChance", "critDmg", "synergy"] },
+    { title: "Training", color: "var(--mc-red)", kinds: ["auto", "critChance", "critDmg", "synergy", "comboMax", "comboGain", "comboLuck"] },
     { title: "Pickaxes and Drills", color: "var(--mc-gold)", kinds: ["click"] },
     { title: "Minion Upgrades", color: "var(--mc-blue)", kinds: ["minion", "mown"] },
     { title: "Talismans", color: "var(--mc-green)", kinds: ["all"] },

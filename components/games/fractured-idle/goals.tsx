@@ -16,10 +16,11 @@ import {
 } from "@/lib/fractured-idle/engine";
 import { tint, type Ctx, type SymbolName } from "./ui";
 
-// The cards under the big button: what you are working toward right now.
-// Every card is a shortcut to the tab where you act on it. Bars for rebirth
-// and islands are log-scaled (those costs span many orders of magnitude) but
-// the number shown is the real percentage.
+// The four cards under the big button: what you are working toward right now.
+// Every card is a shortcut to the tab where you act on it. Bars are linear and
+// exact (fill = have / need, the same number the card prints), so the big
+// rebirth and island targets honestly show as small fractions. Ready goals
+// come first, then the rest in a fixed order so cards do not jump around.
 
 interface Goal {
     key: string;
@@ -33,10 +34,10 @@ interface Goal {
     left: string;
     right: string;
     ready?: boolean;
+    prio: number; // lower shows first; only the best four are drawn
+    pctText?: string; // what the card prints next to the bar
 }
 
-const logPct = (have: number, need: number) =>
-    Math.max(0, Math.min(1, Math.log10(Math.max(1, have)) / Math.log10(Math.max(10, need))));
 const realPct = (have: number, need: number) => {
     const p = Math.min(100, (have / need) * 100);
     return p >= 10 ? `${p.toFixed(0)}%` : p >= 0.1 ? `${p.toFixed(1)}%` : "<0.1%";
@@ -61,7 +62,8 @@ export function Goals({ s, d, F, open }: Pick<Ctx, "s" | "d" | "F"> & { open: (t
             chipHot: true,
             pct: 1,
             ready: true,
-            left: `x${F(d.rMult)} → x${F(rebirthMultAt(s, s.rebirths + plan.count))} multiplier`,
+            prio: 0,
+            left: `x${F(d.rMult)} → x${F(rebirthMultAt(s, s.rebirths + plan.count))} mult`,
             right: "Click to rebirth",
         });
     } else {
@@ -73,8 +75,9 @@ export function Goals({ s, d, F, open }: Pick<Ctx, "s" | "d" | "F"> & { open: (t
             color: "var(--mc-light-purple)",
             title: `Rebirth #${level}`,
             chip: fmtEta((cost - s.shards) / rate),
-            pct: logPct(s.shards, cost),
-            left: `${F(s.shards)} / ${F(cost)} (${realPct(s.shards, cost)})`,
+            pct: Math.min(1, s.shards / cost),
+            prio: 1,
+            left: `${F(s.shards)} / ${F(cost)}`,
             right: `x${F(d.rMult)} → x${F(rebirthMultAt(s, level))} · +${tokens}+ tokens`,
         });
     }
@@ -92,6 +95,7 @@ export function Goals({ s, d, F, open }: Pick<Ctx, "s" | "d" | "F"> & { open: (t
             chipHot: ap.can,
             pct: Math.min(1, s.rebirths / ap.req),
             ready: ap.can,
+            prio: ap.can ? 0 : 2,
             left: `Rebirth ${s.rebirths} / ${ap.req}`,
             right: ap.can ? "Click to ascend" : "multiplies everything by x" + ASC_BASE,
         });
@@ -110,6 +114,7 @@ export function Goals({ s, d, F, open }: Pick<Ctx, "s" | "d" | "F"> & { open: (t
             chipHot: true,
             pct: 1,
             ready: true,
+            prio: 0,
             left: `${Object.keys(s.pets).length}/${PETS.length} pets found`,
             right: "Click to open Pets",
         });
@@ -125,8 +130,9 @@ export function Goals({ s, d, F, open }: Pick<Ctx, "s" | "d" | "F"> & { open: (t
             color: next.color,
             title: `Island: ${next.name}`,
             chip: fmtEta((next.at - s.total) / rate),
-            pct: logPct(s.total, next.at),
-            left: `${F(s.total)} / ${F(next.at)} lifetime (${realPct(s.total, next.at)})`,
+            pct: Math.min(1, s.total / next.at),
+            prio: 3,
+            left: `${F(s.total)} / ${F(next.at)}`,
             right: `island bonus x${F(d.islandMult)} → x${next.mult}`,
         });
     } else {
@@ -138,6 +144,7 @@ export function Goals({ s, d, F, open }: Pick<Ctx, "s" | "d" | "F"> & { open: (t
             title: "Every island unlocked",
             chip: "Done",
             pct: 1,
+            prio: 9,
             left: `${ISLANDS.length}/${ISLANDS.length} islands`,
             right: `bonus x${F(d.islandMult)}`,
         });
@@ -174,6 +181,7 @@ export function Goals({ s, d, F, open }: Pick<Ctx, "s" | "d" | "F"> & { open: (t
             title: `Trophy: ${best.name}`,
             chip: `${Math.round(best.frac * 100)}%`,
             pct: best.frac,
+            prio: 4,
             left: `${F(best.have)} / ${F(best.at)} ${best.stat}`,
             right: best.text,
         });
@@ -201,45 +209,55 @@ export function Goals({ s, d, F, open }: Pick<Ctx, "s" | "d" | "F"> & { open: (t
             title: `${skill.name} ${skill.lvl} → ${skill.lvl + 1}`,
             chip: `${Math.round(skill.frac * 100)}%`,
             pct: skill.frac,
+            prio: 5,
             left: `${F(skill.xp)} / ${F(skill.need)} xp`,
             right: `${skill.bonus} bonus`,
         });
     }
 
+    // Ready goals first (in the order pushed), then by priority; draw four.
+    const shown = goals
+        .map((g, i) => ({ g, i }))
+        .sort((a, b) => a.g.prio - b.g.prio || a.i - b.i)
+        .slice(0, 4)
+        .map((x) => x.g);
+
     return (
-        <div className="w-full max-w-md space-y-1.5">
-            <div className="font-minecraft text-[10px] uppercase tracking-widest text-muted-foreground">Goals</div>
-            {goals.map((g) => (
-                <button
-                    key={g.key}
-                    type="button"
-                    onClick={() => open(g.tab)}
-                    className={`group block w-full rounded-xl border p-2 text-left transition-transform hover:-translate-y-px ${g.ready ? "fi-afford" : ""}`}
-                    style={{
-                        ["--c" as string]: g.color,
-                        borderColor: g.ready ? g.color : tint(g.color, 30),
-                        backgroundColor: tint(g.color, g.ready ? 14 : 6),
-                    }}
-                >
-                    <div className="mb-1 flex items-center gap-2">
-                        <span className="text-sm" style={{ color: g.color }}><McSymbol name={g.symbol} /></span>
-                        <span className="min-w-0 flex-1 truncate font-minecraft text-[12px]" style={{ color: g.color }}>{g.title}</span>
-                        <span
-                            className="shrink-0 rounded-full border px-1.5 py-px font-minecraft text-[10px]"
-                            style={{ borderColor: tint(g.color, 55), color: g.chipHot ? "#000" : g.color, backgroundColor: g.chipHot ? g.color : undefined }}
-                        >
-                            {g.chip}
-                        </span>
-                    </div>
-                    <div className="h-1.5 overflow-hidden rounded-full bg-white/10">
-                        <div className="h-full rounded-full transition-[width] duration-200" style={{ width: `${g.pct * 100}%`, backgroundColor: g.color, boxShadow: `0 0 8px ${g.color}` }} />
-                    </div>
-                    <div className="mt-1 flex justify-between gap-2 font-rubik text-[10px] text-muted-foreground">
-                        <span className="truncate">{g.left}</span>
-                        <span className="shrink-0 truncate text-right">{g.right}</span>
-                    </div>
-                </button>
-            ))}
+        <div className="w-full max-w-lg">
+            <div className="mb-1 font-minecraft text-[10px] uppercase tracking-widest text-muted-foreground">Goals</div>
+            <div className="grid grid-cols-2 gap-1.5">
+                {shown.map((g) => (
+                    <button
+                        key={g.key}
+                        type="button"
+                        onClick={() => open(g.tab)}
+                        title={`${g.title} (${g.chip})\n${g.left}\n${g.right}`}
+                        className={`block min-w-0 rounded-lg border px-2 py-1.5 text-left transition-transform hover:-translate-y-px ${g.ready ? "fi-afford" : ""}`}
+                        style={{
+                            ["--c" as string]: g.color,
+                            borderColor: g.ready ? g.color : tint(g.color, 30),
+                            backgroundColor: tint(g.color, g.ready ? 14 : 6),
+                        }}
+                    >
+                        <div className="flex items-center gap-1.5">
+                            <span className="text-xs" style={{ color: g.color }}><McSymbol name={g.symbol} /></span>
+                            <span className="min-w-0 flex-1 truncate font-minecraft text-[11px] leading-none" style={{ color: g.color }}>{g.title}</span>
+                        </div>
+                        <div className="mt-1.5 h-1 overflow-hidden rounded-full bg-white/10">
+                            <div className="h-full rounded-full transition-[width] duration-200" style={{ width: `${g.pct * 100}%`, minWidth: g.pct > 0 ? 2 : 0, backgroundColor: g.color, boxShadow: `0 0 6px ${g.color}` }} />
+                        </div>
+                        <div className="mt-1 flex items-center justify-between gap-1.5 font-rubik text-[10px] leading-none text-muted-foreground">
+                            <span className="min-w-0 truncate">{g.left}</span>
+                            <span
+                                className="shrink-0 rounded px-1 py-0.5 font-minecraft text-[9px]"
+                                style={{ color: g.chipHot ? "#000" : g.color, backgroundColor: g.chipHot ? g.color : tint(g.color, 14) }}
+                            >
+                                {g.ready ? g.chip : g.pctText ?? realPct(g.pct, 1)}
+                            </span>
+                        </div>
+                    </button>
+                ))}
+            </div>
         </div>
     );
 }

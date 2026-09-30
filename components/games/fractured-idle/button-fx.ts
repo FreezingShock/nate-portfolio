@@ -9,11 +9,29 @@ const rand = (a: number, b: number) => a + Math.random() * (b - a);
 const pick = <T,>(a: T[]) => a[Math.floor(Math.random() * a.length)];
 const reduced = () => typeof matchMedia === "function" && matchMedia("(prefers-reduced-motion: reduce)").matches;
 
+// Live particles per host. The cap evicts the oldest *particle*, never some
+// other child of the host (the stage preview keeps its button in the same box).
+const live = new WeakMap<HTMLElement, Set<HTMLElement>>();
+
 function add(host: HTMLElement, el: HTMLElement, frames: Keyframe[], dur: number, easing = "linear") {
-    while (host.childElementCount > MAX_PARTS) host.firstElementChild?.remove();
+    let set = live.get(host);
+    if (!set) live.set(host, (set = new Set()));
+    if (set.size >= MAX_PARTS) {
+        const old = set.values().next().value;
+        if (old) {
+            old.remove();
+            set.delete(old);
+        }
+    }
+    set.add(el);
     host.appendChild(el);
+    const done = () => {
+        el.remove();
+        set.delete(el);
+    };
     const a = el.animate(frames, { duration: dur, easing, fill: "forwards" });
-    a.onfinish = () => el.remove();
+    a.onfinish = done;
+    a.oncancel = done;
 }
 
 const later = (host: HTMLElement, ms: number, fn: () => void) => setTimeout(() => host.isConnected && fn(), ms);
@@ -400,8 +418,11 @@ export function kick(el: HTMLElement | null, crit: boolean, heat: number) {
 }
 
 /** A quick decaying shake of the whole button area on crits. */
+let lastShake = 0;
 export function shake(el: HTMLElement | null, power = 1) {
-    if (!el || reduced()) return;
+    const now = performance.now();
+    if (!el || reduced() || now - lastShake < 280) return; // holding crits would otherwise shake nonstop
+    lastShake = now;
     const a = 5 * power;
     el.animate(
         [
@@ -414,4 +435,59 @@ export function shake(el: HTMLElement | null, power = 1) {
         ],
         { duration: 260, easing: "ease-out" },
     );
+}
+
+// ---- Combo meter effects (hosted on the meter's own layer) ----
+
+/** A spark thrown off the bar's glowing head; bigger and faster the higher the combo. */
+export function comboSpark(host: HTMLElement, x: number, y: number, color: string, power: number) {
+    if (reduced()) return;
+    const s = rand(2, 3 + power * 3);
+    const el = part("fi-part", { width: `${s}px`, height: `${s}px`, borderRadius: "50%", background: Math.random() < 0.3 ? "#fff" : color, boxShadow: `0 0 ${6 + power * 6}px ${color}` });
+    const dur = rand(380, 620);
+    add(host, el, arc(x, y, rand(-50, 50) * (0.6 + power), rand(50, 90 + power * 90), 420, dur, (f) => `translate(-50%,-50%) scale(${(1 - f * 0.6).toFixed(2)})`, 8, 0.4), dur, "ease-out");
+}
+
+/** Milestone announcement: a word that pops up off the bar plus a ring at the head. */
+export function comboPop(host: HTMLElement, text: string, x: number, y: number, color: string) {
+    const el = part("fi-part", { fontFamily: "var(--font-minecraft, inherit)", fontSize: "1.4rem", color, textShadow: `0 0 10px ${color}, 0 0 22px ${color}, 0 2px 0 rgba(0,0,0,.6)`, whiteSpace: "nowrap" });
+    el.textContent = text;
+    if (reduced()) return add(host, el, [{ transform: at(x, y - 26), opacity: 1 }, { transform: at(x, y - 30), opacity: 0 }], 500);
+    add(
+        host,
+        el,
+        [
+            { transform: at(x, y - 6, "scale(.4)"), opacity: 0 },
+            { transform: at(x, y - 26, "scale(1.35)"), opacity: 1, offset: 0.2 },
+            { transform: at(x, y - 42, "scale(1)"), opacity: 1, offset: 0.65 },
+            { transform: at(x, y - 62, "scale(.95)"), opacity: 0 },
+        ],
+        900,
+        "ease-out",
+    );
+    ring(host, x, y, color, 22, 3.4, 520, 2, true);
+    sparks(host, x, y, color, 8, 22, 54, 460, 9);
+}
+
+/** Big celebration along the whole bar (hitting max, tier ups). */
+export function comboBurst(host: HTMLElement, width: number, y: number, color: string, n = 16) {
+    if (reduced()) return;
+    for (let i = 0; i < n; i++) {
+        const x = (width * (i + Math.random())) / n;
+        const s = rand(3, 6);
+        const el = part("fi-part", { width: `${s}px`, height: `${s}px`, borderRadius: "50%", background: i % 3 === 0 ? "#fff" : color, boxShadow: `0 0 10px ${color}` });
+        const dur = rand(550, 900);
+        add(host, el, arc(x, y, rand(-40, 40), rand(90, 190), 420, dur, (f) => `translate(-50%,-50%) scale(${(1 - f * 0.5).toFixed(2)})`, 10, 0.5), dur, "ease-out");
+    }
+    flash(host, width / 2, y, color, Math.min(width * 1.1, 320), 520);
+}
+
+/** A rare surge: golden lightning snaps across the bar. */
+export function comboSurge(host: HTMLElement, width: number, y: number) {
+    if (reduced()) return;
+    const c = "#ffd23a";
+    for (let i = 0; i < 3; i++) {
+        later(host, i * 90, () => bolt(host, rand(0, width * 0.3), y + rand(-4, 4), rand(width * 0.7, width), y + rand(-4, 4), c, 2.5, 10));
+    }
+    comboBurst(host, width, y, c, 22);
 }

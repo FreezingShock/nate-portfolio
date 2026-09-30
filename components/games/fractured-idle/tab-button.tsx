@@ -1,28 +1,16 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
-import { Dices, Lock, RotateCcw, Save, Sparkles } from "lucide-react";
-import { McSymbol } from "@/components/mc-symbol";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
     CATS,
-    COLLECTION_PER_LOOK,
-    DEFAULT_LOOKS,
-    HEAT_SECONDS,
-    HOLD_BASE,
-    LOADOUTS,
-    PREF_KEY,
-    SET_BONUS,
     STAT_LABEL,
     bonusText,
     btnBonus,
     critColorOf,
-    holdMax,
     isUnlocked,
     lookKey,
     lookProgress,
     statValue,
-    totalLooks,
-    countUnlocked,
     type Cat,
     type Looks,
     type LookDef,
@@ -30,69 +18,69 @@ import {
 import { ISLANDS } from "@/lib/fractured-idle/data";
 import { kick, spawnBurst, spawnCrit, spawnNumber } from "./button-fx";
 import { Aura, ButtonFace, skinAccent } from "./button-face";
-import { Toggle, tint, type Ctx } from "./ui";
+import { SetupPage, randomLooks } from "./button-setup";
+import { LookGrid } from "./look-grid";
+import { tint, type Ctx } from "./ui";
 
 // Button tab: the wardrobe for the click button. A sticky stage on top shows
-// your button live; hovering (or tapping) any look previews it there, and
-// clicking equips it. Looks unlock from progress; the functional ones pay a
-// bonus while equipped, and every look you own adds to a collection bonus.
+// your button live; hovering / focusing / tapping a look previews it there (and
+// plays its effect), clicking equips it. Looks unlock from progress, the
+// functional ones pay a bonus while equipped, and every look you own adds to a
+// collection bonus. The picker itself lives in look-grid.tsx, loadouts and
+// bonus breakdown in button-setup.tsx.
 
 const C = "var(--mc-aqua)";
+const Y = "var(--mc-yellow)";
 type Page = Cat | "setup";
+type Focus = { cat: Cat; id: string } | null;
 
-const FX_ICON: Record<string, string> = {
-    ripple: "◎", sparks: "✷", pixels: "▦", bubbles: "○", stars: "✦", hearts: "♥", embers: "♨", leaves: "❦", coins: "●", frost: "❄", confetti: "✺", shock: "☄", runes: "ᚠ", lightning: "ϟ", fireworks: "✹", spiral: "꩜",
-    pulse: "◉", bolt: "ϟ", cross: "✚", shatter: "✧", meteor: "☄", implode: "◍", nova: "✸",
-};
-
-function Bar({ f, color = C }: { f: number; color?: string }) {
-    return (
-        <div className="h-1.5 overflow-hidden rounded-full bg-white/10">
-            <div className="h-full rounded-full transition-[width] duration-300" style={{ width: `${Math.max(0, Math.min(1, f)) * 100}%`, backgroundColor: color, boxShadow: `0 0 8px ${color}` }} />
-        </div>
-    );
-}
-
-function Chip({ children, color = "var(--mc-green)" }: { children: ReactNode; color?: string }) {
-    return (
-        <span className="rounded-full border px-2 py-0.5 font-rubik text-[10px]" style={{ borderColor: tint(color, 55), color }}>
-            {children}
-        </span>
-    );
-}
+const catOf = (c: Cat) => CATS.find((x) => x.id === c)!;
 
 export function ButtonTab({ s, render, F }: Ctx) {
     const b = s.btn;
     const [page, setPage] = useState<Page>("shape");
-    const [ov, setOv] = useState<Partial<Looks>>({});
-    const [hint, setHint] = useState<string | null>(null);
-    const host = useRef<HTMLDivElement>(null);
-    const face = useRef<HTMLButtonElement>(null);
-    const wrap = useRef<HTMLDivElement>(null);
+    const [focus, setFocus] = useState<Focus>(null);
+    const [tick, setTick] = useState(0);
+    const fxRef = useRef<HTMLDivElement>(null);
+    const faceRef = useRef<HTMLButtonElement>(null);
+    const wrapRef = useRef<HTMLDivElement>(null);
     const flip = useRef(false);
+
     const island = ISLANDS.find((i) => i.id === s.island && s.total >= i.at) ?? ISLANDS[0];
-    const looks: Looks = { ...b, ...ov };
+    const looks: Looks = {
+        shape: b.shape, skin: b.skin, burst: b.burst, crit: b.crit, color: b.color, nums: b.nums, aura: b.aura, glyph: b.glyph,
+        ...(focus ? { [focus.cat]: focus.id } : {}),
+    };
     const accent = skinAccent(looks.skin, island.color);
-    const bonus = btnBonus(s);
-    const looksRef = useRef(looks);
-    looksRef.current = looks;
+    const critCol = critColorOf(looks.color, accent, 0);
+
+    // The game re-renders ten times a second; anything heavy here runs off this slower clock instead.
+    useEffect(() => {
+        const id = setInterval(() => setTick((t) => t + 1), 1000);
+        return () => clearInterval(id);
+    }, []);
 
     // ---- Stage ----
+    const looksRef = useRef(looks);
+    useEffect(() => {
+        looksRef.current = looks;
+    });
+
     const fire = useCallback(
         (crit: boolean, at?: { x: number; y: number }) => {
-            const h = host.current;
-            if (!h) return;
-            const r = h.getBoundingClientRect();
+            const layer = fxRef.current;
+            if (!layer) return;
+            const r = layer.getBoundingClientRect();
             const x = at?.x ?? r.width / 2;
-            const y = at?.y ?? r.height / 2;
+            const y = at?.y ?? r.height * 0.46;
             const L = looksRef.current;
             const ac = skinAccent(L.skin, island.color);
             const col = critColorOf(L.color, ac, Math.floor(Math.random() * 7));
-            spawnNumber(h, x, y - 14, crit ? "✦ 1.2K" : "+240", { crit, color: col, accent: ac, style: L.nums });
-            spawnBurst(h, L.burst, x, y, ac);
-            if (crit) spawnCrit(h, L.crit, x, y, col);
-            kick(face.current, crit, 0);
-            const w = wrap.current;
+            spawnNumber(layer, x, y - 14, crit ? "✦ 1.2K" : "+240", { crit, color: col, accent: ac, style: L.nums });
+            spawnBurst(layer, L.burst, x, y, ac);
+            if (crit) spawnCrit(layer, L.crit, x, y, col);
+            kick(faceRef.current, crit, 0);
+            const w = wrapRef.current;
             if (w) {
                 flip.current = !flip.current;
                 w.style.setProperty("--crit", col);
@@ -103,101 +91,97 @@ export function ButtonTab({ s, render, F }: Ctx) {
         [island.color],
     );
 
-    // While a look is being previewed, keep playing its effect so you can judge it.
-    const previewing = Object.keys(ov).length > 0;
+    // While a look is previewed, keep playing its effect so it can be judged.
+    const focusKey = focus ? `${focus.cat}:${focus.id}` : "";
     useEffect(() => {
-        if (!previewing) return;
-        const k = Object.keys(ov)[0] as keyof Looks;
-        const critish = k === "crit" || k === "color";
-        const t0 = setTimeout(() => fire(critish), 80);
-        const id = setInterval(() => fire(critish || (k === "nums" && Math.random() < 0.4)), 950);
+        if (!focus) return;
+        const critish = focus.cat === "crit" || focus.cat === "color";
+        const t0 = setTimeout(() => fire(critish), 90);
+        const id = setInterval(() => fire(critish || (focus.cat === "nums" && Math.random() < 0.4)), 950);
         return () => {
             clearTimeout(t0);
             clearInterval(id);
         };
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [previewing, Object.values(ov).join("|"), fire]);
+    }, [focusKey, fire]);
 
     const stageClick = (e: React.PointerEvent, crit?: boolean) => {
-        const h = host.current;
-        if (!h) return;
-        const r = h.getBoundingClientRect();
-        fire(crit ?? Math.random() < 0.25, { x: e.clientX - r.left, y: e.clientY - r.top });
+        const r = fxRef.current?.getBoundingClientRect();
+        if (!r) return;
+        fire(crit ?? Math.random() < 0.3, { x: e.clientX - r.left, y: e.clientY - r.top });
     };
 
-    // ---- Actions ----
-    const markSeen = (key: string) => {
-        if (!b.seen.includes(key)) {
-            b.seen.push(key);
-            render();
-        }
-    };
-    const equip = (cat: Cat, l: LookDef) => {
+    // ---- Picker actions (stable, so the memoized grid does not re-render) ----
+    const live = useRef({ s, render, fire });
+    useEffect(() => {
+        live.current = { s, render, fire };
+    });
+    const onFocusLook = useCallback((cat: Cat, id: string) => setFocus((f) => (f && f.cat === cat && f.id === id ? f : { cat, id })), []);
+    const onLeave = useCallback(() => setFocus(null), []);
+    const onPick = useCallback((cat: Cat, l: LookDef) => {
+        const { s, render, fire } = live.current;
         const key = lookKey(cat, l.id);
-        markSeen(key);
-        if (!isUnlocked(s, l)) {
-            setOv({ [PREF_KEY[cat]]: l.id });
-            setHint(l.need ? `Locked: reach ${F(l.need.n)} ${STAT_LABEL[l.need.stat]} (you have ${F(statValue(s, l.need.stat))}).` : null);
-            return;
-        }
-        b[PREF_KEY[cat]] = l.id;
-        setOv({});
-        setHint(null);
+        if (!s.btn.seen.includes(key)) s.btn.seen.push(key);
+        setFocus({ cat, id: l.id });
+        if (!isUnlocked(s, l)) return render();
+        s.btn[cat] = l.id;
         render();
         setTimeout(() => fire(cat === "crit" || cat === "color"), 40);
-    };
-    const preview = (cat: Cat, l: LookDef, e?: React.PointerEvent) => {
-        if (e && e.pointerType !== "mouse") return;
-        markSeen(lookKey(cat, l.id));
-        setOv({ [PREF_KEY[cat]]: l.id });
-    };
-    const unpreview = (e?: React.PointerEvent) => {
-        if (e && e.pointerType !== "mouse") return;
-        setOv({});
-    };
-    const randomize = () => {
+    }, []);
+    const apply = useCallback((L: Looks) => {
+        Object.assign(live.current.s.btn, L);
+        setFocus(null);
+        live.current.render();
+        setTimeout(() => live.current.fire(true), 40);
+    }, []);
+    const randomize = useCallback(() => apply(randomLooks(live.current.s)), [apply]);
+
+    // ---- Counts for the pills and the closest unlock (once a second is plenty) ----
+    const { counts, next } = useMemo(() => {
+        const counts = {} as Record<Cat, { got: number; fresh: number }>;
+        let next: { cat: Cat; l: LookDef; f: number } | null = null;
         for (const c of CATS) {
-            const ok = c.list.filter((l) => isUnlocked(s, l));
-            b[PREF_KEY[c.id]] = ok[Math.floor(Math.random() * ok.length)].id;
+            let got = 0;
+            let fresh = 0;
+            for (const l of c.list) {
+                if (isUnlocked(s, l)) {
+                    got++;
+                    if (l.need && !s.btn.seen.includes(lookKey(c.id, l.id))) fresh++;
+                } else {
+                    const f = lookProgress(s, l);
+                    if (!next || f > next.f) next = { cat: c.id, l, f };
+                }
+            }
+            counts[c.id] = { got, fresh };
         }
-        setOv({});
-        render();
-        setTimeout(() => fire(true), 40);
-    };
-    const pickLooks = (L: Looks) => {
-        Object.assign(b, L);
-        setOv({});
-        render();
-        setTimeout(() => fire(false), 40);
-    };
+        return { counts, next };
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [tick, b.seen.length, s]);
 
-    // ---- Derived for display ----
-    const total = totalLooks();
-    const have = countUnlocked(s);
-    const newIn = (c: Cat) => CATS.find((x) => x.id === c)!.list.filter((l) => l.need && isUnlocked(s, l) && !b.seen.includes(lookKey(c, l.id))).length;
-    const cat = CATS.find((c) => c.id === page);
-
-    // Closest look still locked, across everything.
-    let next: { cat: Cat; l: LookDef; f: number } | null = null;
-    for (const c of CATS) for (const l of c.list) if (!isUnlocked(s, l)) {
-        const f = lookProgress(s, l);
-        if (!next || f > next.f) next = { cat: c.id, l, f };
-    }
-
-    // What the stage is currently showing.
-    const shown = previewing ? CATS.find((c) => PREF_KEY[c.id] === Object.keys(ov)[0])! : null;
-    const shownLook = shown ? shown.list.find((l) => l.id === Object.values(ov)[0]) : null;
-    const locked = shownLook ? !isUnlocked(s, shownLook) : false;
-
-    const equippedOf = (c: { id: Cat; list: LookDef[] }) => b[PREF_KEY[c.id]];
+    // ---- Info panel: the focused look, else what is equipped in this category ----
+    const infoCat: Cat = focus?.cat ?? (page === "setup" ? "shape" : page);
+    const infoList = catOf(infoCat).list;
+    const info = infoList.find((l) => l.id === (focus?.id ?? b[infoCat])) ?? infoList[0];
+    const infoLocked = !isUnlocked(s, info);
+    const infoOn = b[infoCat] === info.id;
+    const total = btnBonus(s);
 
     return (
         <>
-            {/* Sticky stage + category pills */}
-            <div className="sticky -top-3 z-20 -mx-3 -mt-3 border-b border-white/10 px-3 pb-2 pt-3 backdrop-blur-md" style={{ backgroundColor: "color-mix(in oklch, var(--background) 88%, black)" }}>
-                <div className="flex gap-3">
-                    <div ref={host} className="relative h-32 w-full shrink-0 overflow-hidden rounded-xl border border-white/10 bg-black/30 sm:h-40 sm:w-64" style={{ backgroundImage: `radial-gradient(circle at 50% 55%, ${tint(accent, 18)}, transparent 65%)` }}>
-                        <div className="absolute left-1/2 top-1/2 size-20 -translate-x-1/2 -translate-y-1/2 sm:size-28">
+            <div className="sticky -top-3 z-20 -mx-3 -mt-3 border-b border-white/10 px-3 pb-2 pt-3" style={{ backgroundColor: "color-mix(in oklch, var(--background) 94%, black)" }}>
+                <div className="flex items-stretch gap-3">
+                    {/* Stage */}
+                    <div
+                        className="relative h-[7.5rem] w-[7.5rem] shrink-0 overflow-hidden rounded-2xl transition-[background,box-shadow] duration-300 sm:h-36 sm:w-52"
+                        style={{
+                            backgroundImage: `radial-gradient(ellipse 70% 55% at 50% 62%, ${tint(accent, 30)}, transparent 72%), linear-gradient(180deg, color-mix(in oklch, var(--background) 82%, black), color-mix(in oklch, var(--background) 96%, black))`,
+                            boxShadow: `inset 0 0 0 1px ${tint(accent, 28)}, inset 0 -22px 34px -26px ${tint(accent, 55)}`,
+                        }}
+                    >
+                        <div className="pointer-events-none absolute inset-0 opacity-50 [mask-image:radial-gradient(ellipse_at_50%_58%,#000,transparent_75%)]" style={{ backgroundImage: "radial-gradient(rgba(255,255,255,.22) 1px, transparent 1.2px)", backgroundSize: "14px 14px" }} />
+                        <div className="pointer-events-none absolute bottom-[14%] left-1/2 h-3 w-[58%] -translate-x-1/2 rounded-[50%] blur-[5px]" style={{ backgroundColor: "rgba(0,0,0,.55)" }} />
+                        <div className="pointer-events-none absolute bottom-[15%] left-1/2 h-2 w-[46%] -translate-x-1/2 rounded-[50%]" style={{ boxShadow: `0 0 18px ${tint(accent, 45)}`, border: `1px solid ${tint(accent, 35)}` }} />
+                        <div className="absolute left-1/2 top-[44%] size-[4.6rem] -translate-x-1/2 -translate-y-1/2 sm:size-24">
                             <Aura id={looks.aura} accent={accent} />
                             <ButtonFace
                                 as="button"
@@ -207,238 +191,138 @@ export function ButtonTab({ s, render, F }: Ctx) {
                                 color={island.color}
                                 depth={5}
                                 className="relative z-[1] size-full"
-                                btnRef={face}
-                                wrapRef={wrap}
+                                btnRef={faceRef}
+                                wrapRef={wrapRef}
                                 btnProps={{ onPointerDown: (e) => stageClick(e), onContextMenu: (e) => e.preventDefault(), "aria-label": "Test your button look" }}
                             />
                         </div>
-                        <span className="pointer-events-none absolute bottom-1 left-2 font-rubik text-[9px] text-muted-foreground">tap to test</span>
+                        {/* Particles live on their own layer so the preview button can never be evicted by the particle cap. */}
+                        <div ref={fxRef} className="pointer-events-none absolute inset-0 z-[4]" aria-hidden="true" />
                         <button
                             type="button"
                             onPointerDown={(e) => {
                                 e.stopPropagation();
                                 stageClick(e, true);
                             }}
-                            className="absolute bottom-1 right-1 z-[5] rounded-md border px-2 py-0.5 font-minecraft text-[10px] transition-colors hover:bg-white/10"
-                            style={{ borderColor: tint(critColorOf(looks.color, accent, 0), 70), color: critColorOf(looks.color, accent, 0) }}
+                            className="absolute right-1.5 top-1.5 z-[5] rounded-full border px-2 py-0.5 font-minecraft text-[10px] backdrop-blur-sm transition-colors hover:bg-white/10"
+                            style={{ borderColor: tint(critCol, 60), color: critCol, backgroundColor: "rgba(0,0,0,.25)" }}
                         >
                             Crit!
                         </button>
                     </div>
-                    <div className="hidden min-w-0 flex-1 flex-col justify-center gap-1.5 font-rubik text-xs sm:flex">
-                        <div className="truncate font-minecraft text-sm" style={{ color: locked ? "var(--mc-yellow)" : C }}>
-                            {shownLook ? `${locked ? "Preview: " : "Trying: "}${shownLook.name}` : "Your button"}
+
+                    {/* Info */}
+                    <div className="flex min-w-0 flex-1 flex-col justify-between gap-1 font-rubik text-xs">
+                        <div className="min-w-0 space-y-0.5">
+                            <div className="flex items-center gap-1.5">
+                                <span className="truncate font-minecraft text-sm" style={{ color: infoLocked ? Y : C }}>{info.name}</span>
+                                <span
+                                    className="shrink-0 rounded-full border px-1.5 py-px text-[9px]"
+                                    style={{ borderColor: tint(infoLocked ? Y : infoOn ? C : "var(--muted-foreground)", 55), color: infoLocked ? Y : infoOn ? C : "var(--muted-foreground)" }}
+                                >
+                                    {infoLocked ? "Locked" : infoOn ? "Equipped" : "Click to equip"}
+                                </span>
+                            </div>
+                            <div className="truncate text-[10px] text-muted-foreground"><span className="uppercase tracking-widest">{catOf(infoCat).label}</span> · {catOf(infoCat).blurb}</div>
+                            <p className="line-clamp-2 text-[11px] leading-snug text-muted-foreground">{info.desc}</p>
+                            {info.bonus && <div className="truncate text-[11px]" style={{ color: infoLocked ? "var(--muted-foreground)" : "var(--mc-green)" }}>{bonusText(info.bonus)}</div>}
+                            {infoLocked && info.need && (
+                                <div className="pt-0.5">
+                                    <div className="mb-0.5 flex justify-between text-[10px] text-muted-foreground">
+                                        <span className="truncate">{STAT_LABEL[info.need.stat]}</span>
+                                        <span>{F(statValue(s, info.need.stat))} / {F(info.need.n)}</span>
+                                    </div>
+                                    <div className="h-1.5 overflow-hidden rounded-full bg-white/10">
+                                        <div className="h-full rounded-full" style={{ width: `${lookProgress(s, info) * 100}%`, backgroundColor: Y, boxShadow: `0 0 8px ${Y}` }} />
+                                    </div>
+                                </div>
+                            )}
                         </div>
-                        <p className="line-clamp-2 text-muted-foreground">
-                            {hint ?? (shownLook ? `${shown!.label}. ${shownLook.desc}` : "Hover a look to preview it here, click to equip. Tap the button to test.")}
-                        </p>
-                        <div className="flex flex-wrap gap-1">
-                            {bonus.click > 0 && <Chip>+{+(bonus.click * 100).toFixed(1)}% click</Chip>}
-                            {bonus.crit > 0 && <Chip>+{+(bonus.crit * 100).toFixed(1)}% crit</Chip>}
-                            {bonus.critDmg > 0 && <Chip>+{Math.round(bonus.critDmg * 100)}% crit dmg</Chip>}
-                            {bonus.hold > 0 && <Chip>+{bonus.hold} hold/s</Chip>}
-                            {bonus.xp > 0 && <Chip>+{Math.round(bonus.xp * 100)}% xp</Chip>}
-                            {bonus.bobber > 0 && <Chip>+{Math.round(bonus.bobber * 100)}% bobber</Chip>}
+                        <div className="min-w-0 space-y-0.5 text-[10px] text-muted-foreground">
+                            {next && (
+                                <button
+                                    type="button"
+                                    onClick={() => {
+                                        setPage(next.cat);
+                                        setFocus({ cat: next.cat, id: next.l.id });
+                                    }}
+                                    className="block max-w-full truncate text-left transition-colors hover:text-foreground"
+                                    title="Jump to the closest look you can unlock"
+                                >
+                                    Next: <span style={{ color: Y }}>{next.l.name}</span> ({catOf(next.cat).label}) {Math.floor(next.f * 100)}%
+                                </button>
+                            )}
+                            <div className="truncate" title="Everything your equipped looks and collection give">
+                                Total: <span style={{ color: "var(--mc-green)" }}>{bonusText(total) || "none yet"}</span>
+                            </div>
                         </div>
                     </div>
                 </div>
 
-                <div className="mt-2 flex gap-1 overflow-x-auto pb-0.5 [scrollbar-width:none]">
+                {/* Category pills */}
+                <div className="mt-2 flex gap-1 overflow-x-auto pb-0.5 pt-1 [scrollbar-width:none]" role="tablist">
                     {CATS.map((c) => {
                         const on = page === c.id;
-                        const n = newIn(c.id);
-                        const got = c.list.filter((l) => isUnlocked(s, l)).length;
+                        const n = counts[c.id];
                         return (
                             <button
                                 key={c.id}
                                 type="button"
+                                role="tab"
+                                aria-selected={on}
                                 onClick={() => {
                                     setPage(c.id);
-                                    setOv({});
-                                    setHint(null);
+                                    setFocus(null);
                                 }}
-                                className="relative shrink-0 rounded-lg px-2.5 py-1 font-minecraft text-[11px] transition-colors"
+                                className="relative shrink-0 rounded-lg px-2.5 py-1 font-minecraft text-[11px] transition-colors hover:text-foreground"
                                 style={on ? { backgroundColor: tint(C, 18), color: C, boxShadow: `inset 0 0 0 1px ${tint(C, 45)}` } : { color: "var(--muted-foreground)" }}
                             >
-                                {c.label} <span className="font-rubik text-[9px] opacity-70">{got}/{c.list.length}</span>
-                                {n > 0 && <span className="absolute -right-1 -top-1 grid size-4 place-items-center rounded-full font-rubik text-[9px] font-bold text-black" style={{ backgroundColor: "var(--mc-green)" }}>{n}</span>}
+                                {c.label} <span className="font-rubik text-[9px] opacity-70">{n.got}/{c.list.length}</span>
+                                {n.fresh > 0 && (
+                                    <span className="absolute -right-0.5 -top-1 grid size-3.5 place-items-center rounded-full font-rubik text-[8px] font-bold text-black" style={{ backgroundColor: "var(--mc-green)" }}>
+                                        {n.fresh}
+                                    </span>
+                                )}
                             </button>
                         );
                     })}
                     <button
                         type="button"
+                        role="tab"
+                        aria-selected={page === "setup"}
                         onClick={() => {
                             setPage("setup");
-                            setOv({});
-                            setHint(null);
+                            setFocus(null);
                         }}
-                        className="shrink-0 rounded-lg px-2.5 py-1 font-minecraft text-[11px] transition-colors"
-                        style={page === "setup" ? { backgroundColor: tint("var(--mc-yellow)", 18), color: "var(--mc-yellow)", boxShadow: `inset 0 0 0 1px ${tint("var(--mc-yellow)", 45)}` } : { color: "var(--muted-foreground)" }}
+                        className="shrink-0 rounded-lg px-2.5 py-1 font-minecraft text-[11px] transition-colors hover:text-foreground"
+                        style={page === "setup" ? { backgroundColor: tint(Y, 18), color: Y, boxShadow: `inset 0 0 0 1px ${tint(Y, 45)}` } : { color: "var(--muted-foreground)" }}
                     >
                         Setup
                     </button>
                 </div>
             </div>
 
-            {cat && (
-                <>
-                    <div className="flex items-center justify-between gap-2 px-0.5 pt-2 font-rubik text-[11px] text-muted-foreground">
-                        <span>{cat.blurb}</span>
-                        {next && next.cat === cat.id && (
-                            <span className="shrink-0" style={{ color: "var(--mc-yellow)" }}>
-                                Next: {next.l.name} {Math.floor(next.f * 100)}%
-                            </span>
-                        )}
-                    </div>
-                    <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-                        {cat.list.map((l) => {
-                            const key = lookKey(cat.id, l.id);
-                            const on = equippedOf(cat) === l.id;
-                            const lock = !isUnlocked(s, l);
-                            const isNew = !lock && !!l.need && !b.seen.includes(key);
-                            const f = lookProgress(s, l);
-                            return (
-                                <button
-                                    key={l.id}
-                                    type="button"
-                                    onClick={() => equip(cat.id, l)}
-                                    onPointerEnter={(e) => preview(cat.id, l, e)}
-                                    onPointerLeave={(e) => unpreview(e)}
-                                    onFocus={() => preview(cat.id, l)}
-                                    onBlur={() => unpreview()}
-                                    className="flex items-center gap-2.5 rounded-xl border p-2 text-left transition-all hover:-translate-y-px hover:bg-white/5"
-                                    style={{
-                                        borderColor: on ? C : isNew ? "var(--mc-green)" : lock ? "rgba(255,255,255,0.1)" : tint(C, 35),
-                                        backgroundColor: on ? tint(C, 12) : undefined,
-                                        boxShadow: on ? `0 0 16px -6px ${C}` : isNew ? "0 0 14px -5px var(--mc-green)" : undefined,
-                                    }}
-                                >
-                                    <span className={`grid size-12 shrink-0 place-items-center ${lock ? "opacity-40 grayscale" : ""}`}>
-                                        <Preview cat={cat.id} l={l} looks={b} island={island.color} accent={accent} />
-                                    </span>
-                                    <span className="min-w-0 flex-1">
-                                        <span className="flex items-center gap-1.5 font-minecraft text-xs" style={{ color: lock ? undefined : on ? C : "var(--foreground)" }}>
-                                            <span className="truncate">{l.name}</span>
-                                            {lock && <Lock className="size-3 shrink-0 text-muted-foreground" />}
-                                            {on && <span className="rounded-full px-1.5 font-rubik text-[9px] text-black" style={{ backgroundColor: C }}>On</span>}
-                                            {isNew && <span className="fi-afford rounded-full px-1.5 font-rubik text-[9px] text-black" style={{ backgroundColor: "var(--mc-green)", ["--c" as string]: "var(--mc-green)" }}>NEW</span>}
-                                        </span>
-                                        {lock && l.need ? (
-                                            <>
-                                                <span className="block truncate font-rubik text-[10px] text-muted-foreground">
-                                                    {F(statValue(s, l.need.stat))} / {F(l.need.n)} {STAT_LABEL[l.need.stat]}
-                                                </span>
-                                                <span className="mt-1 block"><Bar f={f} color="var(--mc-yellow)" /></span>
-                                            </>
-                                        ) : (
-                                            <span className="block truncate font-rubik text-[10px] text-muted-foreground">{l.desc}</span>
-                                        )}
-                                        {l.bonus && <span className="block truncate font-rubik text-[10px]" style={{ color: lock ? "var(--muted-foreground)" : "var(--mc-green)" }}>{bonusText(l.bonus)}</span>}
-                                    </span>
-                                </button>
-                            );
-                        })}
-                    </div>
-                </>
-            )}
-
-            {page === "setup" && (
-                <div className="space-y-2 pt-2">
-                    <div className="rounded-xl border p-3" style={{ borderColor: tint("var(--mc-yellow)", 45), backgroundImage: `linear-gradient(130deg, ${tint("var(--mc-yellow)", 8)}, transparent 70%)` }}>
-                        <div className="flex items-center justify-between font-minecraft text-sm" style={{ color: "var(--mc-yellow)" }}>
-                            <span><Sparkles className="mr-1 inline size-4" />Collection</span>
-                            <span>{have} / {total}</span>
-                        </div>
-                        <div className="mt-2"><Bar f={have / total} color="var(--mc-yellow)" /></div>
-                        <p className="mt-2 font-rubik text-[11px] text-muted-foreground">
-                            Every look you own gives +{+(COLLECTION_PER_LOOK * 100).toFixed(2)}% click value forever: currently <b style={{ color: "var(--mc-green)" }}>+{+(COLLECTION_PER_LOOK * have * 100).toFixed(2)}%</b>.
-                            {next && <> Closest unlock: <b style={{ color: "var(--mc-yellow)" }}>{next.l.name}</b> ({CATS.find((c) => c.id === next!.cat)!.label}), {Math.floor(next.f * 100)}% there.</>}
-                        </p>
-                        <p className="mt-1 font-rubik text-[11px] text-muted-foreground">
-                            Set bonus: equip a non-default shape, skin, click fx, crit fx and aura together for <b style={{ color: "var(--mc-green)" }}>+{SET_BONUS * 100}% click</b>.
-                        </p>
-                    </div>
-
-                    <div className="flex flex-wrap gap-1.5">
-                        <button type="button" onClick={randomize} className="flex items-center gap-1.5 rounded-lg border border-white/15 px-3 py-1.5 font-rubik text-xs font-semibold transition-colors hover:bg-white/10">
-                            <Dices className="size-4" /> Randomize
-                        </button>
-                        <button type="button" onClick={() => pickLooks(DEFAULT_LOOKS)} className="flex items-center gap-1.5 rounded-lg border border-white/15 px-3 py-1.5 font-rubik text-xs font-semibold transition-colors hover:bg-white/10">
-                            <RotateCcw className="size-4" /> Reset looks
-                        </button>
-                    </div>
-
-                    <div className="font-minecraft text-[11px] uppercase tracking-widest" style={{ color: "var(--mc-light-purple)" }}>Loadouts</div>
-                    <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
-                        {Array.from({ length: LOADOUTS }, (_, i) => {
-                            const L = b.saved[i];
-                            return (
-                                <div key={i} className="flex flex-col items-center gap-2 rounded-xl border border-white/10 p-2.5">
-                                    <div className="grid size-14 place-items-center">
-                                        {L ? <ButtonFace shape={L.shape} skin={L.skin} glyph={L.glyph} color={island.color} depth={4} className="size-12" /> : <span className="font-rubik text-[10px] text-muted-foreground">Empty</span>}
-                                    </div>
-                                    <div className="flex gap-1.5">
-                                        <button
-                                            type="button"
-                                            onClick={() => {
-                                                b.saved[i] = { shape: b.shape, skin: b.skin, burst: b.burst, crit: b.crit, color: b.color, nums: b.nums, aura: b.aura, glyph: b.glyph };
-                                                render();
-                                            }}
-                                            className="flex items-center gap-1 rounded-md border border-white/15 px-2 py-1 font-rubik text-[10px] font-semibold hover:bg-white/10"
-                                        >
-                                            <Save className="size-3" /> Save
-                                        </button>
-                                        <button type="button" disabled={!L} onClick={() => L && pickLooks(L)} className="rounded-md border px-2 py-1 font-rubik text-[10px] font-semibold enabled:hover:bg-white/10 disabled:opacity-40" style={{ borderColor: tint(C, 45), color: C }}>
-                                            Equip
-                                        </button>
-                                    </div>
-                                </div>
-                            );
-                        })}
-                    </div>
-
-                    <div className="font-minecraft text-[11px] uppercase tracking-widest" style={{ color: "var(--mc-yellow)" }}>Clicking</div>
-                    <Toggle label="Hold the button or Space to keep clicking" on={b.hold} onChange={(v) => { b.hold = v; render(); }} />
-                    <Toggle label="Shake the button on crits" on={b.shake} onChange={(v) => { b.shake = v; render(); }} />
-                    <p className="font-rubik text-[11px] text-muted-foreground">
-                        Holding clicks {HOLD_BASE} times a second and heats up over {HEAT_SECONDS} seconds to {holdMax(s)} a second. Held clicks are full clicks, crits included.
-                    </p>
+            {page === "setup" ? (
+                <SetupPage s={s} island={island.color} next={next ? { name: next.l.name, cat: catOf(next.cat).label, f: next.f } : null} render={render} apply={apply} randomize={randomize} />
+            ) : (
+                <div className="pt-2">
+                    <LookGrid
+                        s={s}
+                        cat={page}
+                        rev={tick * 1000 + b.seen.length}
+                        equipped={b[page]}
+                        focusId={focus && focus.cat === page ? focus.id : null}
+                        shape={b.shape}
+                        skin={b.skin}
+                        glyph={b.glyph}
+                        island={island.color}
+                        accent={skinAccent(b.skin, island.color)}
+                        onFocus={onFocusLook}
+                        onLeave={onLeave}
+                        onPick={onPick}
+                    />
                 </div>
             )}
         </>
     );
-}
-
-function Preview({ cat, l, looks, island, accent }: { cat: Cat; l: LookDef; looks: Looks; island: string; accent: string }) {
-    switch (cat) {
-        case "shape":
-            return <ButtonFace shape={l.id} skin={looks.skin} glyph={looks.glyph} color={island} depth={3} className="size-10" />;
-        case "skin":
-            return <ButtonFace shape={looks.shape} skin={l.id} glyph={looks.glyph} color={island} depth={3} className="size-10" />;
-        case "aura":
-            return (
-                <span className="relative block size-9">
-                    <Aura id={l.id} accent={accent} />
-                    <ButtonFace shape="orb" skin={looks.skin} glyph={looks.glyph} color={island} depth={2} className="relative z-[1] size-full" />
-                </span>
-            );
-        case "color": {
-            const c = l.color === "rainbow" ? "conic-gradient(#ff5f5f,#ffd95f,#6fff5f,#5fe6ff,#b05fff,#ff5f5f)" : l.color || accent;
-            return <span className="block size-8 rounded-full" style={{ background: c, boxShadow: `0 0 14px ${l.color === "rainbow" ? "#b05fff" : l.color || accent}` }} />;
-        }
-        case "nums":
-            return (
-                <span className={`fi-ns-${l.id} font-minecraft text-sm`} style={{ ["--ac" as string]: accent, color: "#fff", textShadow: "0 2px 0 #000" }}>
-                    123
-                </span>
-            );
-        case "glyph":
-            return <span className="grid size-10 place-items-center rounded-xl text-xl" style={{ color: C, backgroundColor: tint(C, 14) }}><McSymbol name={l.symbol!} /></span>;
-        default:
-            return (
-                <span className="grid size-10 place-items-center rounded-full text-xl" style={{ color: cat === "crit" ? "var(--mc-aqua)" : "var(--mc-light-purple)", backgroundColor: tint(cat === "crit" ? "var(--mc-aqua)" : "var(--mc-light-purple)", 16) }}>
-                    {FX_ICON[l.id] ?? "✦"}
-                </span>
-            );
-    }
 }

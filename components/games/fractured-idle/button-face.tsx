@@ -138,7 +138,7 @@ export function Aura({ id, accent }: { id: string; accent: string }) {
 }
 
 export const BTN_CSS = `
-.fi-wrap{position:relative;display:block;container-type:size;--heat:0;filter:drop-shadow(0 var(--depth) 0 var(--shade)) drop-shadow(0 0 calc(12px + var(--heat)*34px) var(--glow)) brightness(calc(1 + var(--heat)*.12))}
+.fi-wrap{position:relative;display:block;container-type:size;--heat:0;filter:drop-shadow(0 var(--depth) 0 var(--shade)) drop-shadow(0 0 calc(12px + var(--heat)*34px) var(--glow)) drop-shadow(0 0 calc(var(--heat)*22px) var(--tier,transparent)) brightness(calc(1 + var(--heat)*.12))}
 .fi-rim{position:absolute;inset:0;width:100%;height:100%;display:block;border:0;padding:0;cursor:pointer;background:linear-gradient(180deg,rgba(255,255,255,.4),transparent 40%),var(--a);touch-action:none;user-select:none;-webkit-user-select:none;-webkit-touch-callout:none;-webkit-tap-highlight-color:transparent;outline:none}
 .fi-rim-prism,.fi-rim-holo{background:conic-gradient(from 0deg,#ff4d4d,#ffd24d,#7dff4d,#4dffe0,#4d7dff,#d24dff,#ff4d4d);animation:fi-hue 6s linear infinite}
 .fi-rim-chroma{background:linear-gradient(120deg,#ff0080,#ff8c00,#ffe600,#00ff9d,#00b7ff,#7a00ff,#ff0080);background-size:300% 100%;animation:fi-slide 4s linear infinite}
@@ -184,10 +184,10 @@ export const BTN_CSS = `
 .fi-hit-b{animation-name:fi-hit2}
 .fi-crit-a,.fi-crit-b{animation:fi-crit .55s ease-out}
 .fi-crit-b{animation-name:fi-crit2}
-@keyframes fi-hit{from{filter:drop-shadow(0 var(--depth) 0 var(--shade)) drop-shadow(0 0 30px #fff) brightness(1.25)}}
-@keyframes fi-hit2{from{filter:drop-shadow(0 var(--depth) 0 var(--shade)) drop-shadow(0 0 30px #fff) brightness(1.25)}}
-@keyframes fi-crit{0%{filter:drop-shadow(0 var(--depth) 0 var(--shade)) drop-shadow(0 0 70px var(--crit,#2f8fff)) brightness(1.55)}40%{filter:drop-shadow(0 var(--depth) 0 var(--shade)) drop-shadow(0 0 40px var(--crit,#5cc8ff)) brightness(1.3)}}
-@keyframes fi-crit2{0%{filter:drop-shadow(0 var(--depth) 0 var(--shade)) drop-shadow(0 0 70px var(--crit,#2f8fff)) brightness(1.55)}40%{filter:drop-shadow(0 var(--depth) 0 var(--shade)) drop-shadow(0 0 40px var(--crit,#5cc8ff)) brightness(1.3)}}
+@keyframes fi-hit{from{filter:drop-shadow(0 var(--depth) 0 var(--shade)) drop-shadow(0 0 30px #fff) drop-shadow(0 0 0 transparent) brightness(1.25)}}
+@keyframes fi-hit2{from{filter:drop-shadow(0 var(--depth) 0 var(--shade)) drop-shadow(0 0 30px #fff) drop-shadow(0 0 0 transparent) brightness(1.25)}}
+@keyframes fi-crit{0%{filter:drop-shadow(0 var(--depth) 0 var(--shade)) drop-shadow(0 0 70px var(--crit,#2f8fff)) drop-shadow(0 0 0 transparent) brightness(1.55)}40%{filter:drop-shadow(0 var(--depth) 0 var(--shade)) drop-shadow(0 0 40px var(--crit,#5cc8ff)) drop-shadow(0 0 0 transparent) brightness(1.3)}}
+@keyframes fi-crit2{0%{filter:drop-shadow(0 var(--depth) 0 var(--shade)) drop-shadow(0 0 70px var(--crit,#2f8fff)) drop-shadow(0 0 0 transparent) brightness(1.55)}40%{filter:drop-shadow(0 var(--depth) 0 var(--shade)) drop-shadow(0 0 40px var(--crit,#5cc8ff)) drop-shadow(0 0 0 transparent) brightness(1.3)}}
 .fi-num{position:absolute;left:0;top:0;font-family:var(--font-minecraft,inherit);font-size:1.05rem;color:#fff;text-shadow:0 2px 0 #000,0 0 8px rgba(255,255,255,.35);pointer-events:none;will-change:transform,opacity;white-space:nowrap}
 .fi-num-crit{font-size:1.7rem;color:var(--cc,#8fd6ff);text-shadow:0 0 4px var(--cc,#5cc8ff),0 0 12px var(--cc,#2f8fff),0 0 26px var(--cc,#1d6bff),0 2px 0 rgba(0,0,0,.55)}
 .fi-ns-bold{font-size:1.5rem;text-shadow:0 3px 0 #000,0 0 10px rgba(255,255,255,.4)}
@@ -216,5 +216,7 @@ export const BTN_CSS = `
 .fi-aura-orbit span{left:50%;top:50%;width:10px;height:10px;margin:-5px;border-radius:50%;background:var(--a);box-shadow:0 0 12px var(--a);animation:fi-orb calc(5s + var(--i)*1.3s) linear infinite;animation-delay:calc(var(--i)*-1.1s)}
 @keyframes fi-orb{from{transform:rotate(0) translateX(44cqw)}to{transform:rotate(360deg) translateX(44cqw)}}
 .fi-aura-vortex::before{content:"";position:absolute;inset:4%;border-radius:50%;background:conic-gradient(from 0deg,transparent,var(--a),transparent 38%,var(--a) 55%,transparent 80%);-webkit-mask:radial-gradient(circle,transparent 64%,#000 66%,#000 72%,transparent 74%);mask:radial-gradient(circle,transparent 64%,#000 66%,#000 72%,transparent 74%);animation:fi-spin 4s linear infinite}
+/* Picker cells only animate while hovered / focused: 22 live skins at once is a lot of repaint. */
+.fi-still:not(:hover):not(:focus-visible),.fi-still:not(:hover):not(:focus-visible) *,.fi-still:not(:hover):not(:focus-visible) *::before,.fi-still:not(:hover):not(:focus-visible) *::after{animation-play-state:paused!important}
 @media (prefers-reduced-motion:reduce){.fi-skin-ember,.fi-skin-circuit,.fi-skin-void,.fi-skin-candy,.fi-skin-toxic,.fi-skin-ocean,.fi-skin-neon,.fi-skin-magma,.fi-skin-plasma,.fi-skin-aurora,.fi-skin-chroma,.fi-skin-holo,.fi-skin-galaxy::before,.fi-rim-prism,.fi-rim-holo,.fi-rim-chroma,.fi-skin-gold::before,.fi-skin-chrome::before,.fi-skin-holo::before,.fi-ns-rainbow,.fi-aura *,.fi-aura::before,.fi-aura::after{animation:none!important}.fi-hit-a,.fi-hit-b,.fi-crit-a,.fi-crit-b{animation:none}}
 `;
