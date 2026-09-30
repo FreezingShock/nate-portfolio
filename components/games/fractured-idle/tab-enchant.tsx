@@ -50,6 +50,7 @@ import {
     slotOpen,
     topWorn,
     type CosDef,
+    type Cand,
     type Ench,
     type EStat,
     type RollOut,
@@ -83,6 +84,15 @@ interface Shown {
     out: RollOut;
     phase: "charge" | "reveal";
 }
+/** What smart-equip just did with a roll, so it can be shown in the stage and taken back with Review. */
+interface Verdict {
+    slot: SlotId;
+    kind: "first" | "up" | "down" | "held";
+    back: number; // dust paid back by the salvage
+    cand: Cand;
+    prev: Ench | undefined;
+    key: number;
+}
 interface Cut {
     r: number;
     id: string;
@@ -98,6 +108,8 @@ export function EnchantTab({ s, d, F, render, say }: Ctx) {
     const [busy, setBusy] = useState(false);
     const [auto, setAuto] = useState(false);
     const [cut, setCut] = useState<Cut | null>(null);
+    const [verdict, setVerdict] = useState<Verdict | null>(null);
+    const [chargeMs, setChargeMs] = useState(0);
     const [rootEl, setRootEl] = useState<HTMLElement | null>(null);
     const stage = useRef<HTMLDivElement>(null);
     const reel = useRef<HTMLDivElement>(null);
@@ -184,6 +196,7 @@ export function EnchantTab({ s, d, F, render, say }: Ctx) {
         const host = stage.current;
         setBusy(true);
         setCut(null);
+        setChargeMs(charge);
         setShown({ out, phase: "charge" });
         const w = host?.clientWidth ?? 300;
         const h = host?.clientHeight ?? 240;
@@ -246,11 +259,44 @@ export function EnchantTab({ s, d, F, render, say }: Ctx) {
         if (busy) return false;
         const st = live.current.s;
         const sl = live.current.slot;
+        setVerdict(null);
         const out = kind === "roll" ? rollSlot(st, sl, live.current.d.xpMult) : kind === "polish" ? polishSlot(st, sl, live.current.d.xpMult) : reforgeSlot(st, sl, live.current.d.xpMult);
         if (!out) return false;
         render();
-        play(out, fast, done);
+        play(out, fast, done ?? settle);
         return true;
+    };
+
+    // Smart equip: once a manual roll has landed, wear it if it beats what you have, otherwise salvage it.
+    // A Legendary-or-better pull that is not an upgrade is left as a candidate instead.
+    function settle() {
+        const L = live.current;
+        const st = L.s;
+        const sl = L.slot;
+        const c = st.enc.pend[sl];
+        if (!c || !st.enc.opts.smart || L.auto) return;
+        const cur = st.enc.eq[sl];
+        const better = !cur || enchScore(c) > enchScore(cur);
+        if (!better && c.r >= 4) {
+            setVerdict({ slot: sl, kind: "held", back: 0, cand: c, prev: cur, key: Date.now() });
+            return;
+        }
+        const back = better ? equipCand(st, sl) : discardCand(st, sl);
+        setVerdict({ slot: sl, kind: better ? (cur ? "up" : "first") : "down", back, cand: c, prev: cur, key: Date.now() });
+        L.render();
+    }
+
+    // Review: undo the automatic choice and bring the roll back as a candidate to compare by hand.
+    const review = () => {
+        const v = verdict;
+        if (!v || v.kind === "held") return;
+        if (v.prev) s.enc.eq[v.slot] = v.prev;
+        else delete s.enc.eq[v.slot];
+        s.enc.dust = Math.max(0, s.enc.dust - v.back);
+        s.enc.earned = Math.max(0, s.enc.earned - v.back);
+        s.enc.pend[v.slot] = v.cand;
+        setVerdict(null);
+        render();
     };
 
     // ---- Auto-roll ----
@@ -316,7 +362,20 @@ export function EnchantTab({ s, d, F, render, say }: Ctx) {
         const onKey = (e: KeyboardEvent) => {
             const t = e.target as HTMLElement | null;
             if ((e.key === "r" || e.key === "R") && !e.ctrlKey && !e.metaKey && !e.altKey && !(t && (t.tagName === "INPUT" || t.tagName === "TEXTAREA" || t.tagName === "SELECT"))) {
-                if (view === "table" && !e.repeat && canRoll(live.current.s, live.current.slot).ok) start("roll");
+                if (view === "table" && !e.repeat) {
+                    if (ritual.current.skip) ritual.current.skip();
+                    else if (canRoll(live.current.s, live.current.slot).ok) start("roll");
+                }
+            } else if ((e.key === "e" || e.key === "E" || e.key === "x" || e.key === "X") && !e.ctrlKey && !e.metaKey && !e.altKey && !(t && (t.tagName === "INPUT" || t.tagName === "TEXTAREA" || t.tagName === "SELECT"))) {
+                const L = live.current;
+                if (view === "table" && !e.repeat && L.s.enc.pend[L.slot] && !ritual.current.skip) {
+                    const keep = e.key === "e" || e.key === "E";
+                    const back = keep ? equipCand(L.s, L.slot) : discardCand(L.s, L.slot);
+                    if (back > 0) L.say(`Salvaged for ${back} Arcane Dust`);
+                    setShown(null);
+                    setVerdict(null);
+                    L.render();
+                }
             }
         };
         window.addEventListener("keydown", onKey);
@@ -347,8 +406,10 @@ export function EnchantTab({ s, d, F, render, say }: Ctx) {
         const back = keep ? equipCand(s, slot) : discardCand(s, slot);
         if (back > 0) say(`Salvaged for ${back} Arcane Dust`);
         setShown(null);
+        setVerdict(null);
         render();
     };
+    const vd = verdict && verdict.slot === slot ? verdict : null;
 
     return (
         <div className="fi-en" data-table={o.table}>
@@ -419,7 +480,10 @@ export function EnchantTab({ s, d, F, render, say }: Ctx) {
                                 <button
                                     type="button"
                                     onClick={() => {
-                                        if (!busy) setSlot(sl.id);
+                                        if (!busy) {
+                                            setSlot(sl.id);
+                                            setVerdict(null);
+                                        }
                                     }}
                                     aria-pressed={on}
                                     className="fi-en-slot"
@@ -490,35 +554,30 @@ export function EnchantTab({ s, d, F, render, say }: Ctx) {
                                 </div>
                             </div>
                         )}
-                    </div>
-
-                    {/* Compare */}
-                    {showCompare && cand && (
-                        <div className="fi-en-compare">
-                            <div className="grid gap-2 sm:grid-cols-2">
-                                <EnchCard e={worn} tag="Worn" />
-                                <EnchCard e={cand} tag={cand.kind === "roll" ? "New enchant" : cand.kind === "polish" ? "Polished" : "Reforged"} vs={worn} glow />
-                            </div>
-                            <div className="mt-2 flex flex-wrap items-center gap-2">
-                                <button type="button" className="fi-en-btn fi-en-go" onClick={() => resolve(true)}>
-                                    Equip
-                                </button>
-                                <button type="button" className="fi-en-btn" onClick={() => resolve(false)}>
-                                    Keep current
-                                </button>
-                                <span className="font-rubik text-[10px] text-muted-foreground">
-                                    {worn && cand.kind === "roll" ? "The loser is salvaged for dust." : worn ? "Same enchant, new numbers." : "Nothing to lose."}
+                        {vd && !busy && (
+                            <div className="fi-en-verdict" key={vd.key} data-k={vd.kind} onClick={(e) => e.stopPropagation()}>
+                                <span className="fi-en-verdict-t">
+                                    {vd.kind === "first" && "Equipped!"}
+                                    {vd.kind === "up" && `▲ Upgrade! Equipped${vd.back > 0 ? ` · +${vd.back} dust` : ""}`}
+                                    {vd.kind === "down" && `Not stronger · salvaged${vd.back > 0 ? ` +${vd.back} dust` : ""}`}
+                                    {vd.kind === "held" && "Rare pull kept as a candidate"}
                                 </span>
+                                {vd.kind !== "held" && (
+                                    <button type="button" onClick={review}>
+                                        Review
+                                    </button>
+                                )}
                             </div>
-                        </div>
-                    )}
+                        )}
+                    </div>
 
                     {/* Actions */}
                     {open && (
                         <div className="fi-en-actions">
-                            <Tip box className="flex-[1_1_9rem]" tip={<TipCard title="Roll" color="var(--mc-light-purple)" tag="key R" lines={["Spend dust for a brand new enchant: a random enchant, rarity, quality and affixes."]} rows={[["Cost", `${cost} dust`], ["Focus", s.enc.focus[slot] ? `x${FOCUS_COST} cost` : "off"]]} foot={!roll.ok ? roll.why : "Results wait as a candidate until you equip or discard them."} />}>
-                                <button type="button" disabled={!roll.ok || busy} onClick={() => start("roll")} className="fi-en-roll w-full" data-ready={roll.ok && !busy} data-busy={busy}>
-                                    <span className="fi-en-roll-t">{busy ? "Rolling..." : "Roll"}</span>
+                            <Tip box className="flex-[1_1_9rem]" tip={<TipCard title={busy ? "Skip" : "Roll"} color="var(--mc-light-purple)" tag="key R" lines={busy ? ["Jump straight to the result."] : ["Spend dust for a brand new enchant: a random enchant, rarity, quality and affixes."]} rows={[["Cost", `${cost} dust`], ["Focus", s.enc.focus[slot] ? `x${FOCUS_COST} cost` : "off"], ["Smart equip", o.smart ? "on" : "off", o.smart ? "var(--mc-green)" : undefined]]} foot={!roll.ok && !busy ? roll.why : o.smart ? "Better results are worn for you, worse ones are salvaged. Review undoes it." : "Results wait as a candidate until you equip or discard them."} />}>
+                                <button type="button" disabled={!busy && !roll.ok} onClick={() => (busy ? ritual.current.skip?.() : start("roll"))} className="fi-en-roll w-full" data-ready={roll.ok && !busy} data-busy={busy} style={{ ["--rr" as string]: shown && !busy ? showColor : "var(--mc-light-purple)", ["--dur" as string]: `${chargeMs}ms` } as CSSProperties}>
+                                    {busy && <i className="fi-en-roll-fill" key={shown?.out.cand.id + String(chargeMs)} />}
+                                    <span className="fi-en-roll-t">{busy ? "Skip" : shown || cand ? "Roll again" : "Roll"}</span>
                                     <span className="fi-en-roll-c">✧ {cost}</span>
                                 </button>
                             </Tip>
@@ -551,6 +610,27 @@ export function EnchantTab({ s, d, F, render, say }: Ctx) {
                             </span>
                         </div>
                     )}
+                    {/* Compare */}
+                    {showCompare && cand && (
+                        <div className="fi-en-compare">
+                            <div className="grid gap-2 sm:grid-cols-2">
+                                <EnchCard e={worn} tag="Worn" />
+                                <EnchCard e={cand} tag={cand.kind === "roll" ? "New enchant" : cand.kind === "polish" ? "Polished" : "Reforged"} vs={worn} glow />
+                            </div>
+                            <div className="mt-2 flex flex-wrap items-center gap-2">
+                                <button type="button" className="fi-en-btn fi-en-go" onClick={() => resolve(true)}>
+                                    Equip <small>E</small>
+                                </button>
+                                <button type="button" className="fi-en-btn" onClick={() => resolve(false)}>
+                                    Keep current <small>X</small>
+                                </button>
+                                <span className="font-rubik text-[10px] text-muted-foreground">
+                                    {worn && cand.kind === "roll" ? "The loser is salvaged for dust." : worn ? "Same enchant, new numbers." : "Nothing to lose."}
+                                </span>
+                            </div>
+                        </div>
+                    )}
+
                     {open && lvl >= NEED.focus && (
                         <label className="flex flex-wrap items-center gap-2 font-rubik text-[11px] text-muted-foreground">
                             Attune:
@@ -831,6 +911,14 @@ function Style({ s, render }: { s: Ctx["s"]; render: () => void }) {
                 ))}
             </div>
 
+            <SectionTitle color={C}>Rolling</SectionTitle>
+            <button type="button" role="switch" aria-checked={o.smart} onClick={() => pick("smart", !o.smart)} className="flex w-full items-center justify-between gap-3 rounded-xl border border-white/10 px-3 py-2 text-left font-rubik text-xs">
+                <span>
+                    <b className="block font-minecraft text-[12px] font-normal">Smart equip</b>
+                    <span className="text-muted-foreground">Wear a roll if it is stronger, salvage it if not. Rare pulls you would lose are kept for you to decide, and Review undoes any choice.</span>
+                </span>
+                <span className="shrink-0 rounded-full px-2 py-0.5 text-[10px] font-semibold" style={{ backgroundColor: tint(o.smart ? "var(--mc-green)" : "var(--muted-foreground)", 20), color: o.smart ? "var(--mc-green)" : undefined }}>{o.smart ? "ON" : "OFF"}</span>
+            </button>
             <SectionTitle color={C}>Auto-roll</SectionTitle>
             <div className="space-y-2 rounded-xl border border-white/10 p-3">
                 <div className="font-rubik text-[11px] text-muted-foreground">
@@ -935,14 +1023,25 @@ export const ENCH_CSS = `
 .fi-en-btn:disabled{opacity:.4;cursor:not-allowed}
 .fi-en-btn[data-on="true"]{border-color:var(--mc-green);color:var(--mc-green);background:color-mix(in oklch,var(--mc-green) 14%,transparent)}
 .fi-en-go{border-color:var(--mc-green);color:var(--mc-green);background:color-mix(in oklch,var(--mc-green) 14%,transparent)}
-.fi-en-roll{flex:1 1 9rem;display:flex;align-items:center;justify-content:center;gap:.6rem;padding:.6rem 1rem;border-radius:.85rem;border:1px solid color-mix(in oklch,var(--mc-light-purple) 60%,transparent);background:linear-gradient(180deg,color-mix(in oklch,var(--mc-light-purple) 38%,#120822),color-mix(in oklch,var(--mc-light-purple) 18%,#120822));color:#fff;font-family:var(--font-minecraft,inherit);box-shadow:0 4px 0 color-mix(in oklch,var(--mc-light-purple) 35%,#000);transition:transform .08s,box-shadow .08s,filter .15s;touch-action:manipulation}
+.fi-en-roll{--rr:var(--mc-light-purple);position:relative;overflow:hidden;min-height:3.1rem;flex:1 1 9rem;display:flex;align-items:center;justify-content:center;gap:.6rem;padding:.6rem 1rem;border-radius:.85rem;border:1px solid color-mix(in oklch,var(--rr) 60%,transparent);background:linear-gradient(180deg,color-mix(in oklch,var(--rr) 38%,#120822),color-mix(in oklch,var(--rr) 18%,#120822));color:#fff;font-family:var(--font-minecraft,inherit);box-shadow:0 4px 0 color-mix(in oklch,var(--rr) 35%,#000);transition:transform .08s,box-shadow .08s,filter .15s;touch-action:manipulation}
 .fi-en-roll-t{font-size:1.05rem;letter-spacing:.12em;text-transform:uppercase;text-shadow:0 2px 0 rgba(0,0,0,.5)}
 .fi-en-roll-c{font-size:.8rem;color:#e7c7ff;padding:.1rem .45rem;border-radius:999px;background:rgba(0,0,0,.35)}
 .fi-en-roll[data-ready="true"]{animation:fi-en-ready 1.8s ease-in-out infinite}
 .fi-en-roll:hover:not(:disabled){filter:brightness(1.15)}
-.fi-en-roll:active:not(:disabled){transform:translateY(3px);box-shadow:0 1px 0 color-mix(in oklch,var(--mc-light-purple) 35%,#000)}
+.fi-en-roll:active:not(:disabled){transform:translateY(3px);box-shadow:0 1px 0 color-mix(in oklch,var(--rr) 35%,#000)}
+.fi-en-roll>span{position:relative;z-index:1}
+.fi-en-roll-fill{position:absolute;inset:0;z-index:0;transform-origin:left;background:linear-gradient(90deg,color-mix(in oklch,var(--rr) 10%,transparent),color-mix(in oklch,var(--rr) 55%,transparent));animation:fi-en-fill var(--dur,600ms) linear both}
+@keyframes fi-en-fill{from{transform:scaleX(0)}to{transform:scaleX(1)}}
+.fi-en-roll[data-busy="true"]{animation:none;filter:brightness(1.1)}
+.fi-en-verdict{position:absolute;left:50%;top:.6rem;transform:translateX(-50%);display:flex;align-items:center;gap:.5rem;max-width:calc(100% - 1rem);padding:.25rem .3rem .25rem .7rem;border-radius:999px;background:rgba(6,4,14,.78);border:1px solid color-mix(in oklch,var(--mc-green) 70%,transparent);box-shadow:0 0 16px -4px var(--mc-green);font-family:var(--font-rubik,inherit);font-size:.68rem;font-weight:600;color:var(--mc-green);animation:fi-en-verdict .45s cubic-bezier(.2,1.5,.4,1) both;white-space:nowrap}
+@keyframes fi-en-verdict{from{opacity:0;transform:translateX(-50%) translateY(-8px) scale(.85)}}
+.fi-en-verdict[data-k="down"]{color:#b9b3cc;border-color:rgba(255,255,255,.25);box-shadow:none}
+.fi-en-verdict[data-k="held"]{color:var(--mc-yellow);border-color:var(--mc-yellow);box-shadow:0 0 16px -4px var(--mc-yellow)}
+.fi-en-verdict-t{overflow:hidden;text-overflow:ellipsis}
+.fi-en-verdict button{padding:.12rem .55rem;border-radius:999px;background:rgba(255,255,255,.12);color:#fff;font-size:.62rem;transition:background .15s}
+.fi-en-verdict button:hover{background:rgba(255,255,255,.25)}
 .fi-en-roll:disabled{opacity:.5;cursor:not-allowed;animation:none}
-@keyframes fi-en-ready{0%,100%{box-shadow:0 4px 0 color-mix(in oklch,var(--mc-light-purple) 35%,#000),0 0 8px -2px var(--mc-light-purple)}50%{box-shadow:0 4px 0 color-mix(in oklch,var(--mc-light-purple) 35%,#000),0 0 24px 2px var(--mc-light-purple)}}
+@keyframes fi-en-ready{0%,100%{box-shadow:0 4px 0 color-mix(in oklch,var(--rr) 35%,#000),0 0 8px -2px var(--rr)}50%{box-shadow:0 4px 0 color-mix(in oklch,var(--rr) 35%,#000),0 0 24px 2px var(--rr)}}
 .fi-en-opt{display:block;text-align:left;padding:.4rem .5rem;border-radius:.65rem;border:1px solid rgba(255,255,255,.12);background:rgba(255,255,255,.02);min-width:0;transition:border-color .15s,background .15s,transform .1s}
 .fi-en-opt:hover:not(:disabled){background:rgba(255,255,255,.07);transform:translateY(-1px)}
 .fi-en-opt:disabled{opacity:.5;cursor:not-allowed}

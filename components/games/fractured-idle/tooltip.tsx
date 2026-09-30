@@ -190,7 +190,14 @@ export function Tip({ tip, children, box, className = "", delay = 140 }: TipProp
 
 export type TipRow = [label: string, value: ReactNode, color?: string];
 
-export function TipCard({ title, color = "var(--mc-aqua)", tag, lines, rows, foot }: { title: string; color?: string; tag?: string; lines?: ReactNode[]; rows?: TipRow[]; foot?: ReactNode }) {
+/** A coloured notice line inside a tooltip. `act` marks ones that need a click (drawn with a pulsing marker). */
+export interface TipNote {
+    text: ReactNode;
+    color: string;
+    act?: boolean;
+}
+
+export function TipCard({ title, color = "var(--mc-aqua)", tag, lines, rows, notes, foot, cta, ctaDim }: { title: string; color?: string; tag?: string; lines?: ReactNode[]; rows?: TipRow[]; notes?: TipNote[]; foot?: ReactNode; cta?: ReactNode; ctaDim?: boolean }) {
     return (
         <div className="fi-tp">
             <div className="fi-tp-h">
@@ -210,7 +217,18 @@ export function TipCard({ title, color = "var(--mc-aqua)", tag, lines, rows, foo
                     ))}
                 </dl>
             )}
+            {notes && notes.length > 0 && (
+                <ul className="fi-tp-n">
+                    {notes.map((n, i) => (
+                        <li key={i} data-act={n.act ? "" : undefined} style={{ ["--n" as string]: n.color } as React.CSSProperties}>
+                            <i />
+                            <span>{n.text}</span>
+                        </li>
+                    ))}
+                </ul>
+            )}
             {foot && <div className="fi-tp-f">{foot}</div>}
+            {cta && <div className="fi-tp-c" data-here={ctaDim ? "" : undefined}>{cta}</div>}
         </div>
     );
 }
@@ -230,4 +248,10 @@ export const TIP_CSS = `
 .fi-tp-r dt{color:#a59fb8}
 .fi-tp-r dd{margin:0;font-family:var(--font-minecraft,inherit);font-size:12px;color:#fff;text-align:right}
 .fi-tp-f{font-size:10px;color:#8f89a3;border-top:1px dashed rgba(255,255,255,.12);padding-top:.25rem}
+.fi-tp-n{list-style:none;margin:0;padding:.3rem 0 0;display:flex;flex-direction:column;gap:.2rem;border-top:1px solid rgba(255,255,255,.12)}
+.fi-tp-n li{display:flex;align-items:flex-start;gap:.4rem;font-size:11px;line-height:1.3;color:var(--n);font-weight:600}
+.fi-tp-n li i{flex:none;width:.4rem;height:.4rem;margin-top:.3rem;border-radius:50%;background:var(--n);box-shadow:0 0 6px var(--n)}
+.fi-tp-n li[data-act] i{animation:fi-pulse 1.3s ease-in-out infinite}
+.fi-tp-c{font-weight:700;font-size:11px;letter-spacing:.02em;color:var(--mc-yellow);text-shadow:0 0 8px color-mix(in oklch,var(--mc-yellow) 45%,transparent);border-top:1px solid rgba(255,255,255,.12);padding-top:.3rem}
+.fi-tp-c[data-here]{color:#8f89a3;text-shadow:none;font-weight:600}
 `;

@@ -58,6 +58,7 @@ import { PROC_LABEL, dustPop, procBolt, procEcho, procMidas } from "./enchant-fx
 import { EnchantGems } from "./enchant-gems";
 import { TIP_CSS, Tip, TipCard, TipProvider, type TipHost } from "./tooltip";
 import { TABBAR_CSS, TabBar, type TabGroup, type TabItem } from "./tab-bar";
+import { buildTabNotes, newNoteCache } from "./tab-notes";
 import { SKILL_TOAST_CSS, SkillToasts, type SkillToastApi } from "./skill-toasts";
 import { StatsTab } from "./tab-stats";
 import { RebirthTab } from "./tab-rebirth";
@@ -79,20 +80,20 @@ const GROUPS: TabGroup[] = [
 ];
 
 const TABS: TabItem<TabId>[] = [
-    { id: "minions", label: "Minions", symbol: "forge", group: "play", blurb: "Hire and upgrade minions that earn shards for you." },
-    { id: "upgrades", label: "Upgrades", symbol: "strength", group: "play", blurb: "Spend shards on click, minion, combo and popup upgrades." },
-    { id: "button", label: "Button", symbol: "speed", group: "play", blurb: "Customize your button: shapes, skins, effects and loadouts." },
-    { id: "pets", label: "Pets", symbol: "petLuck", group: "play", blurb: "Hatch eggs, equip pets and level them." },
-    { id: "islands", label: "Islands", symbol: "location", group: "world", blurb: "Travel between islands and master their perks." },
-    { id: "skills", label: "Skills", symbol: "wisdom", group: "world", blurb: "Six skills with milestone rewards." },
-    { id: "enchant", label: "Enchant", symbol: "intelligence", group: "world", blurb: "Roll enchants for your button, minions, popups and more." },
-    { id: "rebirth", label: "Rebirth", symbol: "portal", group: "prog", blurb: "Reset for tokens and a permanent multiplier." },
-    { id: "ascension", label: "Ascension", symbol: "comet", group: "prog", blurb: "The prestige above rebirth." },
-    { id: "trophies", label: "Trophies", symbol: "pristine", group: "prog", blurb: "Permanent bonuses for milestones you hit." },
-    { id: "level", label: "Level", symbol: "flag", group: "prog", blurb: "Your Fractured Level, rewards, badges and prefixes." },
-    { id: "stats", label: "Stats", symbol: "check", group: "prog", blurb: "Every number behind your income." },
-    { id: "soon", label: "Soon", symbol: "night", group: "sys", blurb: "What is planned next." },
-    { id: "settings", label: "Settings", symbol: "defense", group: "sys", blurb: "Display, saving, import/export and keys." },
+    { id: "minions", label: "Minions", symbol: "forge", group: "play", color: "#ffa940", blurb: "Hire and upgrade minions that earn shards for you." },
+    { id: "upgrades", label: "Upgrades", symbol: "strength", group: "play", color: "var(--mc-green)", blurb: "Spend shards on click, minion, combo and popup upgrades." },
+    { id: "button", label: "Button", symbol: "speed", group: "play", color: "var(--mc-aqua)", blurb: "Customize your button: shapes, skins, effects and loadouts." },
+    { id: "pets", label: "Pets", symbol: "petLuck", group: "play", color: "#ff8fc7", blurb: "Hatch eggs, equip pets and level them." },
+    { id: "islands", label: "Islands", symbol: "location", group: "world", color: "#6fb4ff", blurb: "Travel between islands and master their perks." },
+    { id: "skills", label: "Skills", symbol: "wisdom", group: "world", color: "var(--mc-yellow)", blurb: "Six skills with milestone rewards." },
+    { id: "enchant", label: "Enchant", symbol: "intelligence", group: "world", color: "#c58bff", blurb: "Roll enchants for your button, minions, popups and more." },
+    { id: "rebirth", label: "Rebirth", symbol: "portal", group: "prog", color: "var(--mc-red)", blurb: "Reset for tokens and a permanent multiplier." },
+    { id: "ascension", label: "Ascension", symbol: "comet", group: "prog", color: "var(--mc-light-purple)", blurb: "The prestige above rebirth." },
+    { id: "trophies", label: "Trophies", symbol: "pristine", group: "prog", color: "#ffd24a", blurb: "Permanent bonuses for milestones you hit." },
+    { id: "level", label: "Level", symbol: "flag", group: "prog", color: "#7dffb8", blurb: "Your Fractured Level, rewards, badges and prefixes." },
+    { id: "stats", label: "Stats", symbol: "check", group: "prog", color: "#a9b8ff", blurb: "Every number behind your income." },
+    { id: "soon", label: "Soon", symbol: "night", group: "sys", color: "#9a94b0", blurb: "What is planned next." },
+    { id: "settings", label: "Settings", symbol: "defense", group: "sys", color: "#c9c9d6", blurb: "Display, saving, import/export and keys." },
 ];
 
 
@@ -112,6 +113,7 @@ export function FracturedIdle() {
     const btnRef = useRef<HTMLButtonElement>(null);
     const wrapRef = useRef<HTMLDivElement>(null);
     const meterApi = useRef<ComboApi>(null);
+    const noteCache = useRef(newNoteCache());
     const combo = useRef(newCombo());
     const cfgRef = useRef<{ cfg: ComboCfg; at: number }>({ cfg: { max: 2, gain: 1, surge: 0.012, cap: 7 }, at: -1e9 });
     // Everything currently holding the button: pointer ids and "space", with
@@ -536,15 +538,8 @@ export function FracturedIdle() {
     const ctx: Ctx = { s, d, F, act, render, say, tip };
     const glintOn = s.enc.eq.button && s.enc.opts.glint !== "none" ? { id: s.enc.opts.glint, color: glintColor(s), power: s.enc.eq.button.r } : null;
 
-    // Dots on tabs that have something to spend on.
-    const dots: Partial<Record<TabId, boolean>> = {
-        minions: MINIONS.some((m, i) => bulk(minionBase(s, i), MINION_GROWTH, s.minions[i], s.shards, 1).cost <= s.shards && (i === 0 || s.minions[i] > 0 || s.total >= m.cost * 0.25)),
-        upgrades: UPGRADES.some((u) => (s.ups[u.id] || 0) < u.max && upAvailable(s, u) && s.shards >= upCost(s, u.id, s.ups[u.id] || 0)),
-        rebirth: plan.count > 0,
-        ascension: asc.can,
-        enchant: SLOT_IDS.some((id) => slotOpen(s, id) && (canRoll(s, id).ok || !!s.enc.pend[id])),
-        pets: s.freeEggs > 0 || (Object.keys(s.pets).length < PETS.length && s.shards >= eggPrice(s, EGGS[0])),
-    };
+    // Per-tab notices: drive the badges and the tooltip bodies (see tab-notes.ts).
+    const notes = buildTabNotes(s, tab, noteCache.current);
 
     return (
         <div
@@ -908,7 +903,7 @@ export function FracturedIdle() {
                         tabs={TABS}
                         groups={GROUPS}
                         current={tab}
-                        dots={dots}
+                        notes={notes}
                         onSelect={(id) => {
                             tip.hide();
                             setTab(id);

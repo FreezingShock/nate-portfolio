@@ -200,14 +200,15 @@ const buffOutcome = (s: State, id: string, power: number, tone: Outcome["tone"])
     return { title: def.name, sub: `${def.desc} for ${secs >= 90 ? `${Math.round(secs / 60)} min` : `${Math.round(secs)}s`}`, color: def.color, tone, shards: 0, buff: id };
 };
 
-type GoldenRow = { w: number; run: (s: State, d: Derived) => Outcome };
+type GoldenRow = { id: string; w: number; run: (s: State, d: Derived) => Outcome };
 
 const GOLDEN: GoldenRow[] = [
-    { w: 26, run: (s, d) => buffOutcome(s, "frenzy", d.evPower, "good") },
-    { w: 20, run: (s, d) => buffOutcome(s, "storm", d.evPower, "good") },
-    { w: 18, run: (s, d) => buffOutcome(s, "rush", d.evPower, "good") },
-    { w: 14, run: (s, d) => buffOutcome(s, "lucky", d.evPower, "good") },
+    { id: "frenzy", w: 26, run: (s, d) => buffOutcome(s, "frenzy", d.evPower, "good") },
+    { id: "storm", w: 20, run: (s, d) => buffOutcome(s, "storm", d.evPower, "good") },
+    { id: "rush", w: 18, run: (s, d) => buffOutcome(s, "rush", d.evPower, "good") },
+    { id: "lucky", w: 14, run: (s, d) => buffOutcome(s, "lucky", d.evPower, "good") },
     {
+        id: "jackpot",
         w: 16,
         run: (s, d) => {
             const n = popupBase(d) * 10 * (1 + (d.evPower - 1) * 0.5);
@@ -215,12 +216,13 @@ const GOLDEN: GoldenRow[] = [
             return { title: "Jackpot!", sub: "about 10 minutes of shards", color: "var(--mc-yellow)", tone: "loot", shards: n };
         },
     },
-    { w: 8, run: (s, d) => buffOutcome(s, "wealth", d.evPower, "long") },
-    { w: 6, run: (s, d) => buffOutcome(s, "clockwork", d.evPower, "long") },
-    { w: 6, run: (s, d) => buffOutcome(s, "beacon", d.evPower, "long") },
-    { w: 5, run: (s, d) => buffOutcome(s, "fortune", d.evPower, "long") },
-    { w: 7, run: (s, d) => buffOutcome(s, "dustfall", d.evPower, "good") },
+    { id: "wealth", w: 8, run: (s, d) => buffOutcome(s, "wealth", d.evPower, "long") },
+    { id: "clockwork", w: 6, run: (s, d) => buffOutcome(s, "clockwork", d.evPower, "long") },
+    { id: "beacon", w: 6, run: (s, d) => buffOutcome(s, "beacon", d.evPower, "long") },
+    { id: "fortune", w: 5, run: (s, d) => buffOutcome(s, "fortune", d.evPower, "long") },
+    { id: "dustfall", w: 7, run: (s, d) => buffOutcome(s, "dustfall", d.evPower, "good") },
     {
+        id: "fragment",
         w: 3,
         run: (s) => {
             s.frag += 1;
@@ -228,6 +230,7 @@ const GOLDEN: GoldenRow[] = [
         },
     },
     {
+        id: "egg",
         w: 3,
         run: (s) => {
             s.freeEggs += 1;
@@ -235,6 +238,12 @@ const GOLDEN: GoldenRow[] = [
         },
     },
 ];
+
+/** Chance (percent) of each Golden Shard outcome, for tooltips. */
+export const goldenOdds = () => {
+    const tot = GOLDEN.reduce((a, r) => a + r.w, 0);
+    return GOLDEN.map((r) => ({ id: r.id, pct: (r.w / tot) * 100 }));
+};
 
 export function resolveGolden(s: State, d: Derived, rng: () => number = Math.random): Outcome {
     s.evs.golden += 1;
@@ -249,9 +258,16 @@ const CURSES = [
     { w: 2, id: "thief" },
 ];
 
+export const CRACKED_WIN = 0.46;
+/** Chance (percent) of each curse when a Cracked Shard goes wrong, for tooltips. */
+export const curseOdds = () => {
+    const tot = CURSES.reduce((a, r) => a + r.w, 0);
+    return CURSES.map((r) => ({ id: r.id, pct: (r.w / tot) * 100 }));
+};
+
 /** Cracked Shard: a gamble. Roughly half the time it pays a big windfall, otherwise a curse. */
 export function resolveCracked(s: State, d: Derived, rng: () => number = Math.random): Outcome {
-    if (rng() < 0.46) {
+    if (rng() < CRACKED_WIN) {
         const n = popupBase(d) * 25 * (1 + (d.evPower - 1) * 0.5);
         give(s, n);
         let sub = "the gamble paid off";

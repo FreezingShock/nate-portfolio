@@ -284,7 +284,8 @@ export interface EnchOpts {
     gcol: string;
     table: string;
     stop: number; // auto-roll stops at this rarity index or better
-    better: boolean; // auto-equip results that beat what you wear
+    better: boolean; // auto-equip results that beat what you wear (auto-roll)
+    smart: boolean; // manual rolls settle themselves: a better result is worn, a worse one salvaged (with a Review button)
     sound: boolean; // reserved, currently unused
 }
 
@@ -304,7 +305,7 @@ export interface EnchState {
     opts: EnchOpts;
 }
 
-export const DEFAULT_OPTS: EnchOpts = { anim: "full", glint: "shimmer", gcol: "auto", table: "arcane", stop: 4, better: true, sound: false };
+export const DEFAULT_OPTS: EnchOpts = { anim: "full", glint: "shimmer", gcol: "auto", table: "arcane", stop: 4, better: true, smart: true, sound: false };
 export const newEnc = (): EnchState => ({
     dust: 12,
     earned: 12,
@@ -374,6 +375,7 @@ export function cleanEnc(raw: unknown): EnchState {
         table: TABLES.some((g) => g.id === po.table) ? (po.table as string) : DEFAULT_OPTS.table,
         stop: Math.max(0, Math.min(RARITY_N - 1, Math.floor(num(po.stop, DEFAULT_OPTS.stop)))),
         better: po.better !== false,
+        smart: po.smart !== false,
         sound: false,
     };
     return out;
@@ -500,7 +502,7 @@ export interface Blocker {
 export function mustDecide(s: State, slot: SlotId): boolean {
     const p = s.enc.pend[slot];
     const cur = s.enc.eq[slot];
-    return !!p && p.r >= 3 && (!cur || enchScore(p) > enchScore(cur));
+    return !!p && (p.r >= 4 || (p.r >= 3 && (!cur || enchScore(p) > enchScore(cur))));
 }
 
 export function canRoll(s: State, slot: SlotId): Blocker {

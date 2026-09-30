@@ -1,16 +1,16 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState, type MutableRefObject } from "react";
+import { useCallback, useEffect, useRef, useState, type MutableRefObject, type ReactNode } from "react";
 import { McSymbol } from "@/components/mc-symbol";
-import { BUFF_BY_ID, isQte, nextPopupIn, noteCaught, popupLife, resolveBobber, resolveCracked, resolveGolden, resolveQte, rollKind, type Grade, type Outcome, type PopupKind, type PopupSpec } from "@/lib/fractured-idle/events";
+import { BUFF_BY_ID, CRACKED_WIN, curseOdds, goldenOdds, isQte, nextPopupIn, noteCaught, popupBase, popupLife, resolveBobber, resolveCracked, resolveGolden, resolveQte, rollKind, type Grade, type Outcome, type PopupKind, type PopupSpec } from "@/lib/fractured-idle/events";
 import { COMBO_BOBBER_SHARE } from "@/lib/fractured-idle/combo";
 import type { State } from "@/lib/fractured-idle/data";
-import { skillLevel, type Derived } from "@/lib/fractured-idle/engine";
+import { fmt, skillLevel, type Derived } from "@/lib/fractured-idle/engine";
 import { addDust } from "@/lib/fractured-idle/enchant";
 import { eventBurst, eventLabel } from "./button-fx";
 import { dustPop } from "./enchant-fx";
 import { QteCard } from "./qte";
-import { Tip, TipCard } from "./tooltip";
+import { Tip, TipCard, type TipNote, type TipRow } from "./tooltip";
 
 // Popup events around the button. This component owns the scheduler (a slow
 // interval, so it never competes with the click loop), the floating orbs
@@ -161,12 +161,78 @@ export function Popups({ stateRef, dRef, getCombo, say, enabled }: Props) {
         }
     };
 
+    // Orb tooltips: what it is, what it can pay right now (from your live numbers), the odds, and the time left.
+    const orbTip = (spec: PopupSpec, left: number): ReactNode => {
+        const s = stateRef.current;
+        const d = dRef.current;
+        const o = ORB[spec.kind];
+        const time: TipRow = ["Time left", `${Math.max(0, Math.ceil(left))}s`, left < 4 ? "var(--mc-red)" : undefined];
+        const cta = "Click to catch!";
+        if (!s || !d) return <TipCard title={o.name} color={o.color} lines={[o.hint]} cta={cta} />;
+        const F = (n: number) => fmt(n, s.sci);
+        const power = 1 + (d.evPower - 1) * 0.5;
+        const notes: TipNote[] = [{ text: "Also pays Arcane Dust and Foraging XP", color: "#d9a8ff" }];
+        if (spec.kind === "bobber") {
+            const reward = Math.max(d.click * 40, d.cps * (30 + skillLevel(s.fishing))) * d.bobberMult * d.evPay;
+            return (
+                <TipCard
+                    title={o.name}
+                    color={o.color}
+                    tag="Always pays"
+                    lines={["A treasure bobber from the fishing spots. A sure haul of shards and Fishing XP."]}
+                    rows={[["Shards", `~${F(reward)}`, "var(--mc-yellow)"], ["Wooden Egg", "10% chance", "var(--mc-gold)"], time]}
+                    notes={notes}
+                    cta={cta}
+                />
+            );
+        }
+        if (spec.kind === "golden") {
+            const odds = goldenOdds().sort((a, b) => b.pct - a.pct);
+            const label = (id: string): [string, string] =>
+                id === "jackpot" ? ["Jackpot", "var(--mc-yellow)"] : id === "fragment" ? ["Fracture Fragment", "var(--mc-light-purple)"] : id === "egg" ? ["Golden Egg", "var(--mc-gold)"] : [BUFF_BY_ID[id]?.name ?? id, BUFF_BY_ID[id]?.color ?? "#fff"];
+            const shown = odds.slice(0, 5);
+            const jackpot = popupBase(d) * 10 * power;
+            return (
+                <TipCard
+                    title={o.name}
+                    color={o.color}
+                    tag="Always good"
+                    lines={["Something good every time: a timed boon, a jackpot or a permanent find."]}
+                    rows={[...shown.map((x): TipRow => { const [n, c] = label(x.id); return [n, `${x.pct.toFixed(0)}%`, c]; }), ["and more", `${odds.length - shown.length} rarer`], time]}
+                    notes={[{ text: `Jackpot is worth ~${F(jackpot)} shards`, color: "var(--mc-yellow)" }, ...(d.evPower > 1.05 ? [{ text: `Boons are x${d.evPower.toFixed(2)} stronger`, color: "var(--mc-green)" }] : []), ...notes]}
+                    cta={cta}
+                />
+            );
+        }
+        const win = popupBase(d) * 25 * power;
+        const resist = Math.max(0.3, 1 - d.curseResist * 0.8);
+        return (
+            <TipCard
+                title={o.name}
+                color={o.color}
+                tag="Gamble"
+                lines={["Crack it open: a big windfall, or a curse. Roughly even odds."]}
+                rows={[["Windfall", `${Math.round(CRACKED_WIN * 100)}% · ~${F(win)}`, "var(--mc-yellow)"], ["Curse", `${Math.round((1 - CRACKED_WIN) * 100)}%`, "var(--mc-red)"], time]}
+                notes={[
+                    ...curseOdds().map((c): TipNote => {
+                        const b = BUFF_BY_ID[c.id];
+                        return { text: b ? `${b.name}: ${b.desc}` : "Pickpocket: a few shards go missing", color: "var(--mc-red)" };
+                    }),
+                    { text: "A windfall has a 20% chance to leave a Fragment", color: "var(--mc-light-purple)" },
+                    ...(d.curseResist > 0 ? [{ text: `Curse resist: curses last ${Math.round(resist * 100)}% as long`, color: "var(--mc-green)" }] : []),
+                    ...notes,
+                ]}
+                cta={cta}
+            />
+        );
+    };
+
     if (!enabled) return null;
     const qte = items.find((i) => isQte(i.kind));
     return (
         <div ref={layer} className="pointer-events-none absolute inset-0 z-10">
             {items.filter((i) => !isQte(i.kind)).map((i) => (
-                <Orb key={i.id} spec={i} onCatch={catchOrb} onExpire={drop} />
+                <Orb key={i.id} spec={i} onCatch={catchOrb} onExpire={drop} tipOf={orbTip} />
             ))}
             {qte && (
                 <div className="fi-qte-slot">
@@ -178,14 +244,18 @@ export function Popups({ stateRef, dRef, getCombo, say, enabled }: Props) {
     );
 }
 
-function Orb({ spec, onCatch, onExpire }: { spec: PopupSpec; onCatch: (s: PopupSpec, e: React.PointerEvent<HTMLButtonElement>) => void; onExpire: (id: number) => void }) {
+function Orb({ spec, onCatch, onExpire, tipOf }: { spec: PopupSpec; onCatch: (s: PopupSpec, e: React.PointerEvent<HTMLButtonElement>) => void; onExpire: (id: number) => void; tipOf: (s: PopupSpec, left: number) => ReactNode }) {
+    const born = useRef(0);
+    useEffect(() => {
+        born.current = performance.now();
+    }, []);
     useEffect(() => {
         const t = setTimeout(() => onExpire(spec.id), spec.life * 1000);
         return () => clearTimeout(t);
     }, [spec.id, spec.life, onExpire]);
     const o = ORB[spec.kind];
     return (
-        <Tip tip={<TipCard title={o.name} color={o.color} lines={[o.hint]} foot="Click it before the ring runs out." />} delay={0}>
+        <Tip tip={() => tipOf(spec, spec.life - (performance.now() - born.current) / 1000)} delay={0}>
         <button
             type="button"
             className="fi-orb"
@@ -223,7 +293,16 @@ export function BuffBar({ s }: { s: State }) {
                 return (
                     <Tip
                         key={b.id}
-                        tip={() => <TipCard title={def.name} color={def.color} tag={def.term === "curse" ? "Curse" : def.term === "long" ? "Long boon" : "Short boon"} lines={[def.desc]} rows={[["Time left", fmtLeft(b.left)], ...(b.power > 1.05 && def.term !== "curse" ? [["Strength", `x${b.power.toFixed(2)}`, "var(--mc-green)"] as [string, string, string]] : [])]} />}
+                        tip={() => (
+                            <TipCard
+                                title={def.name}
+                                color={def.color}
+                                tag={def.term === "curse" ? "Curse" : def.term === "long" ? "Long boon" : "Short boon"}
+                                lines={[<b key="d" style={{ color: def.term === "curse" ? "var(--mc-red)" : "var(--mc-green)", fontWeight: 600 }}>{def.desc}</b>]}
+                                rows={[["Time left", fmtLeft(b.left), b.left < 6 ? (def.term === "curse" ? "var(--mc-green)" : "var(--mc-red)") : undefined], ["Lasts", fmtLeft(b.dur)], ...(b.power > 1.05 && def.term !== "curse" ? [["Strength", `x${b.power.toFixed(2)}`, "var(--mc-green)"] as TipRow] : [])]}
+                                notes={[def.term === "curse" ? { text: "From a Cracked Shard. It wears off on its own.", color: "var(--mc-red)" } : { text: def.term === "long" ? "A long boon: it lasts for minutes." : "A short boon: make the most of it.", color: "var(--mc-green)" }]}
+                            />
+                        )}
                     >
                     <div
                         className="fi-buff"
