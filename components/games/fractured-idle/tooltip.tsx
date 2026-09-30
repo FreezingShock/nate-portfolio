@@ -197,12 +197,12 @@ export interface TipNote {
     act?: boolean;
 }
 
-export function TipCard({ title, color = "var(--mc-aqua)", tag, lines, rows, notes, foot, cta, ctaDim }: { title: string; color?: string; tag?: string; lines?: ReactNode[]; rows?: TipRow[]; notes?: TipNote[]; foot?: ReactNode; cta?: ReactNode; ctaDim?: boolean }) {
+export function TipCard({ title, color = "var(--mc-aqua)", tag, lines, rows, notes, foot, cta, ctaDim, rawTag }: { title: string; color?: string; tag?: string; rawTag?: boolean; lines?: ReactNode[]; rows?: TipRow[]; notes?: TipNote[]; foot?: ReactNode; cta?: ReactNode; ctaDim?: boolean }) {
     return (
         <div className="fi-tp">
             <div className="fi-tp-h">
                 <span className="tl" style={{ color }}>{title}</span>
-                {tag && <em style={{ color, borderColor: `color-mix(in oklch, ${color} 55%, transparent)` }}>{tag}</em>}
+                {tag && <em data-raw={rawTag ? "" : undefined} style={{ color, borderColor: `color-mix(in oklch, ${color} 55%, transparent)` }}>{tag}</em>}
             </div>
             {lines?.map((l, i) => (
                 <p key={i} className="fi-tp-p">{l}</p>
@@ -241,6 +241,7 @@ export const TIP_CSS = `
 .fi-tp{display:flex;flex-direction:column;gap:.3rem;font-family:var(--font-rubik,inherit)}
 .fi-tp-h{display:flex;align-items:center;justify-content:space-between;gap:.6rem}
 .fi-tp-h .tl{font-family:var(--font-minecraft,inherit);font-size:13px}
+.fi-tp-h em[data-raw]{text-transform:none;letter-spacing:0;font-size:11px;font-family:var(--font-minecraft,inherit)}
 .fi-tp-h em{font-style:normal;font-size:9px;letter-spacing:.08em;text-transform:uppercase;padding:0 .4rem;border:1px solid;border-radius:999px;white-space:nowrap}
 .fi-tp-p{margin:0;font-size:11px;line-height:1.4;color:#d8d3e6}
 .fi-tp-r{margin:0;display:flex;flex-direction:column;gap:1px;border-top:1px solid rgba(255,255,255,.12);padding-top:.3rem}

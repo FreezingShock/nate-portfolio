@@ -60,7 +60,7 @@ import { TIP_CSS, Tip, TipCard, TipProvider, type TipHost } from "./tooltip";
 import { TABBAR_CSS, TabBar, type TabGroup, type TabItem } from "./tab-bar";
 import { buildTabNotes, newNoteCache } from "./tab-notes";
 import { SKILL_TOAST_CSS, SkillToasts, type SkillToastApi } from "./skill-toasts";
-import { StatsTab } from "./tab-stats";
+import { STATS_CSS, StatsTab } from "./tab-stats";
 import { RebirthTab } from "./tab-rebirth";
 import { SettingsTab, SoonTab } from "./tab-misc";
 
@@ -569,7 +569,7 @@ export function FracturedIdle() {
                 backgroundColor: "color-mix(in oklch, var(--background) 92%, black)",
             }}
         >
-            <style>{CSS}{BTN_CSS}{COMBO_CSS}{POPUP_CSS}{ISLAND_CSS}{MENU_CSS}{LEVEL_CSS}{ENCH_CSS}{GLINT_CSS}{SKILL_TOAST_CSS}{TABBAR_CSS}{TIP_CSS}</style>
+            <style>{CSS}{BTN_CSS}{COMBO_CSS}{POPUP_CSS}{ISLAND_CSS}{MENU_CSS}{LEVEL_CSS}{ENCH_CSS}{GLINT_CSS}{SKILL_TOAST_CSS}{TABBAR_CSS}{STATS_CSS}{TIP_CSS}</style>
             <TipProvider hostRef={tipHost}>
 
             {/* HUD */}
