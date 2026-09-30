@@ -2,6 +2,7 @@ import type { McSymbolName } from "@/components/mc-symbol";
 import { buffFx } from "./events";
 import { skillLevel, type State } from "./data";
 import { skillPerks } from "./skills";
+import { mineFx } from "./mine";
 
 // Enchanting: roll random enchants onto four things (the button, your minions,
 // popup events and a universal tome), Terraria-reforge and Sol's-RNG style.
@@ -444,6 +445,8 @@ export function allFx(s: State): EnchFx {
     fx.luck += codexLuck(n);
     const pk = skillPerks(s);
     for (const k of STAT_IDS) fx[k] += pk[k] ?? 0;
+    const mf = mineFx(s); // Mining: pickaxe tiers, ore collections and Deep Core / Ancient Power
+    for (const k of STAT_IDS) fx[k] += mf[k] ?? 0;
     return fx;
 }
 

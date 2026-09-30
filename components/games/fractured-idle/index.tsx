@@ -53,6 +53,7 @@ import { TrophiesTab, TrophyTip } from "./tab-trophies";
 import { IslandsTab } from "./tab-islands";
 import { SkillsTab } from "./tab-skills";
 import { ENCH_CSS, EnchantTab } from "./tab-enchant";
+import { MINE_CSS, MineTab } from "./tab-mine";
 import { GLINT_CSS, Glint } from "./enchant-glint";
 import { PROC_LABEL, dustPop, procBolt, procEcho, procMidas } from "./enchant-fx";
 import { EnchantGems } from "./enchant-gems";
@@ -70,7 +71,7 @@ import { SettingsTab, SoonTab } from "./tab-misc";
 // 100ms re-render keeps the UI live, so clicking never waits on React.
 // To add a tab: write a component that takes Ctx and register it in TABS.
 
-type TabId = "minions" | "upgrades" | "button" | "pets" | "islands" | "skills" | "enchant" | "stats" | "rebirth" | "ascension" | "trophies" | "level" | "soon" | "settings";
+type TabId = "minions" | "upgrades" | "button" | "pets" | "islands" | "skills" | "mine" | "enchant" | "stats" | "rebirth" | "ascension" | "trophies" | "level" | "soon" | "settings";
 
 const GROUPS: TabGroup[] = [
     { id: "play", label: "Play", color: "var(--mc-aqua)" },
@@ -86,6 +87,7 @@ const TABS: TabItem<TabId>[] = [
     { id: "pets", label: "Pets", symbol: "petLuck", group: "play", color: "#ff8fc7", blurb: "Hatch eggs, equip pets and level them." },
     { id: "islands", label: "Islands", symbol: "location", group: "world", color: "#6fb4ff", blurb: "Travel between islands and master their perks." },
     { id: "skills", label: "Skills", symbol: "wisdom", group: "world", color: "var(--mc-yellow)", blurb: "Six skills with milestone rewards." },
+    { id: "mine", label: "Mine", symbol: "pick", group: "world", color: "#e0b070", blurb: "Break ore, forge pickaxes, build drills and crack geodes. The Mining skill lives here." },
     { id: "enchant", label: "Enchant", symbol: "intelligence", group: "world", color: "#c58bff", blurb: "Roll enchants for your button, minions, popups and more." },
     { id: "rebirth", label: "Rebirth", symbol: "portal", group: "prog", color: "var(--mc-red)", blurb: "Reset for tokens and a permanent multiplier." },
     { id: "ascension", label: "Ascension", symbol: "comet", group: "prog", color: "var(--mc-light-purple)", blurb: "The prestige above rebirth." },
@@ -569,7 +571,7 @@ export function FracturedIdle() {
                 backgroundColor: "color-mix(in oklch, var(--background) 92%, black)",
             }}
         >
-            <style>{CSS}{BTN_CSS}{COMBO_CSS}{POPUP_CSS}{ISLAND_CSS}{MENU_CSS}{LEVEL_CSS}{ENCH_CSS}{GLINT_CSS}{SKILL_TOAST_CSS}{TABBAR_CSS}{STATS_CSS}{TIP_CSS}</style>
+            <style>{CSS}{BTN_CSS}{COMBO_CSS}{POPUP_CSS}{ISLAND_CSS}{MENU_CSS}{LEVEL_CSS}{ENCH_CSS}{GLINT_CSS}{SKILL_TOAST_CSS}{TABBAR_CSS}{STATS_CSS}{MINE_CSS}{TIP_CSS}</style>
             <TipProvider hostRef={tipHost}>
 
             {/* HUD */}
@@ -937,6 +939,7 @@ export function FracturedIdle() {
                         {tab === "pets" && <PetsTab {...ctx} />}
                         {tab === "islands" && <IslandsTab {...ctx} openMenu={(id) => setMenu(id)} />}
                         {tab === "skills" && <SkillsTab {...ctx} open={(id) => setTab(id as TabId)} />}
+                        {tab === "mine" && <MineTab {...ctx} />}
                         {tab === "enchant" && <EnchantTab {...ctx} />}
                         {tab === "stats" && <StatsTab {...ctx} />}
                         {tab === "rebirth" && <RebirthTab {...ctx} />}

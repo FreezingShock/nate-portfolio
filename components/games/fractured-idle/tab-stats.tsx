@@ -6,6 +6,7 @@ import { openIslands } from "@/lib/fractured-idle/island-logic";
 import { COL_AT, ISLANDS, MINIONS, PETS, PET_LABEL, REWARD_LABEL, SKILLS, type PetStat, type RewardStat } from "@/lib/fractured-idle/data";
 import { colTiers, fmtTime, income, offlineEff, petSlots, rebirthCap, tokenMult, trophyCounts } from "@/lib/fractured-idle/engine";
 import { CODEX_TOTAL, RARITIES, SLOTS, codexCount, enchLevel } from "@/lib/fractured-idle/enchant";
+import { pickOf, pickPower, totalDrillRate } from "@/lib/fractured-idle/mine";
 import { makeSources, type SourceFn } from "./stats-sources";
 import { Tip, TipCard } from "./tooltip";
 import type { Ctx } from "./ui";
@@ -113,7 +114,7 @@ export function StatsTab({ s, d, F }: Ctx) {
             blurb: "Six skills, each with a perk",
             color: GREEN,
             icon: "wisdom",
-            stats: [...skillRows, { id: "bob", label: "Bobbers caught", value: F(s.bobbers), icon: "fishing", color: AQUA }, { id: "xp", label: "Skill XP gain", value: `x${d.xpMult.toFixed(2)}`, icon: "wisdom", color: GREEN, hint: "all skills", src: "xp" }],
+            stats: [...skillRows, { id: "pick", label: "Pick power", value: `x${pickPower(s).toFixed(2)}`, icon: "pick", color: "#e0b070", hint: pickOf(s).name }, { id: "ore", label: "Ore mined", value: F(Math.floor(Object.values(s.mine.mined).reduce((a, n) => a + n, 0))), icon: "gem", color: "#e0b070", hint: `${F(s.mine.nodes)} nodes, ${F(s.mine.cracked)} geodes` }, { id: "drill", label: "Drills", value: `${totalDrillRate(s).toFixed(2)}/s`, icon: "forge", color: AQUA, hint: "ore per second" }, { id: "bob", label: "Bobbers caught", value: F(s.bobbers), icon: "fishing", color: AQUA }, { id: "xp", label: "Skill XP gain", value: `x${d.xpMult.toFixed(2)}`, icon: "wisdom", color: GREEN, hint: "all skills", src: "xp" }],
         },
         {
             id: "enchant",

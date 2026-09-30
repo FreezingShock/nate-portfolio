@@ -2,6 +2,7 @@ import { DEFAULT_BTN, btnBonus, cleanBtn } from "./button";
 import { COMBO_BASE_MAX, COMBO_CPS_SHARE, SURGE_BASE_CHANCE } from "./combo";
 import { buffFx, newEventStats, tickBuffs } from "./events";
 import { DUST_BASE, addDust, allFx, cleanEnc, newEnc } from "./enchant";
+import { cleanMine, newMine, tickMine } from "./mine";
 import { activeIsland, islandFx, openIslands, tierMult, visitBonus, type IslandFx } from "./island-logic";
 import type { SkillKey } from "./islands";
 import {
@@ -106,6 +107,7 @@ export function newState(): State {
         bsym: "none",
         frag: 0,
         evs: newEventStats(),
+        mine: newMine(),
     };
 }
 
@@ -347,7 +349,7 @@ export function derive(s: State): Derived {
     surge += 0.0005 * fishing;
 
     const core = s.rups.core || 0;
-    const rMult = Math.pow(1.3 + 0.03 * core, s.rebirths);
+    const rMult = Math.pow(1.42 + 0.03 * core, s.rebirths);
     const islandMult = tierMult(s);
     const achMult = 1 + bonus.all;
     const am = ascMult(s);
@@ -525,12 +527,12 @@ export function buyRebirthUp(s: State, id: string): boolean {
     return true;
 }
 
-export const rebirthBase = (s: State) => 1.3 + 0.03 * (s.rups.core || 0);
+export const rebirthBase = (s: State) => 1.42 + 0.03 * (s.rups.core || 0);
 export const rebirthMultAt = (s: State, r: number) => Math.pow(rebirthBase(s), r);
 
 /** Base tokens for clearing rebirth cost index `r` while holding `shards`. */
 export const tokensFor = (shards: number, r: number, asc = 0) =>
-    Math.max(1, Math.floor(1 + Math.log10(shards / rebirthCost(r, asc)) * 2));
+    Math.max(2, Math.floor(2 + Math.log10(shards / rebirthCost(r, asc)) * 2.5));
 
 export const rebirthCap = (s: State) => 1 + (s.rups.stack || 0);
 export const tokenMult = (s: State) => 1 + trophyBonus(s).tokens + collectionEffects(s).tokens + petBonus(s).tokens + 0.25 * (s.aups.well || 0) + 0.25 * (s.rups.magnet || 0) + allFx(s).tokens;
@@ -812,6 +814,7 @@ export function advance(s: State, d: Derived, dt: number) {
     s.farming += (d.cps > 0 ? 1 + 2 * Math.log10(d.cps + 1) : 0) * dt * d.xpMult * d.xpSkill.farming;
     s.foraging += 0.15 * dt * d.xpMult;
     addDust(s, DUST_BASE * dt * d.dustMult);
+    tickMine(s, dt, d.xpMult * d.xpSkill.mining);
     for (let i = 0; i < MINIONS.length; i++) if (s.minions[i] > 0) s.mcol[i] += s.minions[i] * dt * d.colSpeed[i];
     s.playTime += dt;
     const here = activeIsland(s).id;
@@ -871,6 +874,7 @@ export function parseSave(raw: string): State | null {
         s.skm = {};
         for (const [k, v] of Object.entries(o.skm && typeof o.skm === "object" ? o.skm : {})) if (Number(v) > 0) s.skm[k] = Math.floor(Number(v));
         s.enc = cleanEnc(o.enc);
+        s.mine = cleanMine(o.mine);
         if (!o.enc) {
             // A save from before Enchanting: welcome gift scaled to how far you are.
             const gift = Math.min(400, 40 + 15 * Math.min(25, s.rebirths));
@@ -919,6 +923,7 @@ export function loadGame(): { state: State; offline: number } {
                 s.playTime += secs * offlineEff(s);
                 addPetXp(s, secs * offlineEff(s) * d.petXp);
                 addDust(s, DUST_BASE * secs * offlineEff(s) * d.dustMult);
+                tickMine(s, secs * offlineEff(s), d.xpMult * d.xpSkill.mining); // drills keep digging
                 for (let i = 0; i < MINIONS.length; i++) s.mcol[i] += s.minions[i] * secs * offlineEff(s) * d.colSpeed[i];
             }
             return { state: s, offline };

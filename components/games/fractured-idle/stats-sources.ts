@@ -57,7 +57,7 @@ export function makeSources(s: State, d: Derived, F: (n: number) => string) {
                     mul("Popup boons", bf.click),
                     mul("Island perks", isl.click),
                     mul("Island button affinity", isl.affinity),
-                    mul("Enchants", 1 + X.click),
+                    mul("Enchants & Mine perks", 1 + X.click),
                     mul(`Mining Lv ${d.mining}`, 1 + 0.03 * d.mining * isl.eff.mining),
                     mul("Everything multiplier", d.all),
                 ]),
@@ -77,7 +77,7 @@ export function makeSources(s: State, d: Derived, F: (n: number) => string) {
                     add("Popup boons", bf.crit),
                     add("Island perks", isl.crit),
                     add("Rebirth: Lucky", 0.01 * r("luck")),
-                    add("Enchants", X.crit),
+                    add("Enchants & Mine perks", X.crit),
                 ]),
                 ...(d.critChance >= 0.75 ? [{ label: "Capped", value: "75%", color: Y, w: -1 }] : []),
             ];
@@ -94,12 +94,12 @@ export function makeSources(s: State, d: Derived, F: (n: number) => string) {
                     add("Button looks", bb.critDmg),
                     add("Popup boons", bf.critDmg),
                     add("Island perks", isl.critDmg),
-                    add("Enchants", X.critDmg),
+                    add("Enchants & Mine perks", X.critDmg),
                     add(`Combat Lv ${d.combat}`, 0.02 * d.combat * isl.eff.combat),
                 ]),
             ];
         },
-        auto: () => list([flat("Upgrades", upS("auto"), "/s"), flat("Enchants", b().X.auto, "/s")]),
+        auto: () => list([flat("Upgrades", upS("auto"), "/s"), flat("Enchants & Mine perks", b().X.auto, "/s")]),
         minion: () => {
             const { pb, tb, bf, isl, X } = b();
             return [
@@ -111,7 +111,7 @@ export function makeSources(s: State, d: Derived, F: (n: number) => string) {
                     mul("Ascension: Union", 1 + 0.25 * a("union")),
                     mul("Popup boons", bf.minion),
                     mul("Island perks", isl.minionAll),
-                    mul("Enchants", 1 + X.minion),
+                    mul("Enchants & Mine perks", 1 + X.minion),
                     mul(`Farming Lv ${d.farming}`, 1 + 0.03 * d.farming * isl.eff.farming),
                     mul("Everything multiplier", d.all),
                 ]),
@@ -132,14 +132,14 @@ export function makeSources(s: State, d: Derived, F: (n: number) => string) {
                 mul("Island perks", isl.all),
                 mul("Islands visited", 1 + visitBonus(s)),
                 mul(`Fractured Level ${s.lvl}`, 1 + LEVEL_BONUS * s.lvl),
-                mul("Enchants", 1 + X.all),
+                mul("Enchants & Mine perks", 1 + X.all),
             ]);
         },
         luck: () => list([mul("Enchants & Codex", 1 + b().X.luck), mul(`Enchanting Lv ${d.enchanting}`, 1 + 0.02 * d.enchanting), mul("Popup boons", b().bf.luck)]),
-        dust: () => list([mul("Enchants", 1 + b().X.dust), mul(`Enchanting Lv ${d.enchanting}`, 1 + 0.03 * d.enchanting), mul("Popup boons", b().bf.dust)]),
+        dust: () => list([mul("Enchants & Mine perks", 1 + b().X.dust), mul(`Enchanting Lv ${d.enchanting}`, 1 + 0.03 * d.enchanting), mul("Popup boons", b().bf.dust)]),
         xp: () => {
             const { pb, tb, bb, X } = b();
-            return [base("Base", "x1"), ...list([add("Trophies", tb.skillXp), add("Pets", pb.skillXp), add("Button looks", bb.xp), add("Enchants", X.xp)])];
+            return [base("Base", "x1"), ...list([add("Trophies", tb.skillXp), add("Pets", pb.skillXp), add("Button looks", bb.xp), add("Enchants & Mine perks", X.xp)])];
         },
         popups: () => {
             const { bf, isl, X } = b();
@@ -147,14 +147,14 @@ export function makeSources(s: State, d: Derived, F: (n: number) => string) {
                 mul("Upgrades & Rebirth: Omen", 1 + upS("evRate") + 0.1 * r("omen")),
                 mul("Popup boons", bf.freq),
                 mul("Island perks", isl.ev.freq),
-                mul("Enchants", 1 + X.evFreq),
+                mul("Enchants & Mine perks", 1 + X.evFreq),
                 mul(`Foraging Lv ${d.foraging}`, 1 + 0.005 * d.foraging),
                 mul(`Fishing Lv ${d.fishing}`, 1 / Math.max(0.4, 1 - 0.01 * d.fishing)),
             ]);
         },
         offline: () => {
             const { ce, pb, tb, isl, X } = b();
-            return [base("Base", "50%"), ...list([add("Rebirth: Offline", 0.1 * r("off")), add("Trophies", tb.offline), add("Collections", ce.offline), add("Pets", pb.offline), add("Island perks", isl.offline), add("Enchants", X.offline)]), { label: "Capped", value: "100%", color: GRAY, w: -1 }];
+            return [base("Base", "50%"), ...list([add("Rebirth: Offline", 0.1 * r("off")), add("Trophies", tb.offline), add("Collections", ce.offline), add("Pets", pb.offline), add("Island perks", isl.offline), add("Enchants & Mine perks", X.offline)]), { label: "Capped", value: "100%", color: GRAY, w: -1 }];
         },
         combo: () => {
             const { bb, isl, X } = b();
@@ -167,7 +167,7 @@ export function makeSources(s: State, d: Derived, F: (n: number) => string) {
                     flat(`Combat Lv ${d.combat}`, 0.02 * d.combat),
                     flat("Button looks", bb.combo),
                     flat("Island perks", isl.comboMax),
-                    flat("Enchants", X.comboMax),
+                    flat("Enchants & Mine perks", X.comboMax),
                 ]),
             ];
         },

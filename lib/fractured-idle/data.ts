@@ -1,4 +1,5 @@
 import type { McSymbolName } from "@/components/mc-symbol";
+import type { MineState } from "./mine";
 import type { BtnPrefs } from "./button";
 import { ISLANDS } from "./islands";
 import type { ActiveBuff, EventStats } from "./events";
@@ -78,6 +79,7 @@ export interface State {
     bsym: string; // equipped level badge symbol
     frag: number; // Fracture Fragments: permanent +0.2% all shards each
     evs: EventStats; // popup event counters
+    mine: MineState; // Mining: ore, pickaxe, upgrades, drills, collections (see mine.ts)
 }
 
 export interface MinionDef {
@@ -380,13 +382,15 @@ export const REBIRTH_UPS: RebirthUpDef[] = [
 
 /** Bonus tokens for reaching a rebirth level (level -> tokens). */
 export const REBIRTH_MILESTONES: Record<number, number> = {
-    5: 5, 10: 10, 15: 15, 20: 20, 25: 30, 30: 35, 40: 50, 50: 75, 75: 100, 100: 150,
+    1: 3, 2: 3, 3: 4, 5: 6, 7: 6, 10: 12, 15: 18, 20: 24, 25: 32, 30: 40, 40: 55, 50: 80, 75: 110, 100: 160,
 };
 
 // Each ascension makes every rebirth ASC_COST times pricier, so the extra power
 // it grants has to be earned back rather than skipping the climb.
-export const ASC_COST = 12;
-export const rebirthCost = (r: number, asc = 0) => 1e6 * Math.pow(16, r) * Math.pow(ASC_COST, asc);
+export const ASC_COST = 4;
+export const REBIRTH_BASE = 1e5;
+export const REBIRTH_GROWTH = 6;
+export const rebirthCost = (r: number, asc = 0) => REBIRTH_BASE * Math.pow(REBIRTH_GROWTH, r) * Math.pow(ASC_COST, asc);
 
 export { ISLANDS } from "./islands";
 export type { IslandDef } from "./islands";
@@ -458,6 +462,8 @@ export const TROPHIES: TrophyDef[] = [
     { id: "roster", name: "Full Roster", category: "minions", symbol: "petLuck", stat: "all", unit: "minion types owned (best)", metric: (s) => Math.max(s.peak.types, s.minions.filter((n) => n > 0).length), tiers: tiers([3, 6, 9, 12, 16], [0.01, 0.01, 0.02, 0.02, 0.03]) },
     { id: "reborn", name: "Ever Reborn", category: "rebirth", symbol: "portal", stat: "tokens", unit: "rebirths", metric: (s) => s.rebirths, tiers: tiers([1, 3, 5, 10, 15, 25, 50], [0.05, 0.05, 0.1, 0.1, 0.15, 0.2, 0.25]) },
     { id: "s-mining", name: "Master Miner", category: "skills", symbol: "strength", stat: "click", unit: "Mining level", metric: (s) => skillLevel(s.mining), tiers: tiers([5, 10, 20, 30, 40, 50, 60], [0.01, 0.01, 0.02, 0.02, 0.03, 0.03, 0.05]) },
+    { id: "veins", name: "Vein Breaker", category: "skills", symbol: "pick", stat: "click", unit: "mine nodes broken", metric: (s) => s.mine.nodes, tiers: tiers([50, 500, 2500, 10000, 50000], [0.01, 0.02, 0.03, 0.05, 0.08]) },
+    { id: "geodes", name: "Geode Hunter", category: "explore", symbol: "gem", stat: "tokens", unit: "geodes cracked", metric: (s) => s.mine.cracked, tiers: tiers([1, 10, 50, 200], [0.05, 0.05, 0.1, 0.15]) },
     { id: "s-farming", name: "Green Thumb", category: "skills", symbol: "fortune", stat: "minion", unit: "Farming level", metric: (s) => skillLevel(s.farming), tiers: tiers([5, 10, 20, 30, 40, 50, 60], [0.01, 0.01, 0.02, 0.02, 0.03, 0.03, 0.05]) },
     { id: "s-combat", name: "Slayer", category: "skills", symbol: "critDamage", stat: "critDmg", unit: "Combat level", metric: (s) => skillLevel(s.combat), tiers: tiers([5, 10, 20, 30, 40, 50, 60], [0.02, 0.02, 0.03, 0.04, 0.05, 0.06, 0.1]) },
     { id: "s-fishing", name: "Deep Angler", category: "skills", symbol: "fishing", stat: "bobber", unit: "Fishing level", metric: (s) => skillLevel(s.fishing), tiers: tiers([5, 10, 20, 30, 40, 50, 60], [0.05, 0.05, 0.1, 0.1, 0.15, 0.15, 0.25]) },
@@ -585,8 +591,8 @@ export const EGGS: EggDef[] = [
 // forever. Pets, skills, trophies and islands are never touched.
 
 export const ASC_BASE = 3; // every ascension multiplies all shards by this
-export const ascReq = (asc: number) => 16 + 2 * asc; // rebirths needed
-export const ascGain = (rebirths: number, asc: number) => Math.max(0, Math.floor((rebirths - 10) / 2) + asc);
+export const ascReq = (asc: number) => 10 + asc; // rebirths needed
+export const ascGain = (rebirths: number, asc: number) => Math.max(0, Math.floor((rebirths - 6) / 2) + asc);
 
 export interface AscUpDef {
     id: string;
@@ -630,7 +636,7 @@ export interface SkillDef {
 }
 
 export const SKILLS: SkillDef[] = [
-    { id: "mining", name: "Mining", symbol: "strength", color: "var(--mc-gold)", earn: "Every click", perk: "+3% click power per level", bonus: (l) => `+${l * 3}%` },
+    { id: "mining", name: "Mining", symbol: "strength", color: "var(--mc-gold)", earn: "Breaking ore in The Mine, plus every click", perk: "+3% click power per level", bonus: (l) => `+${l * 3}%` },
     { id: "farming", name: "Farming", symbol: "fortune", color: "var(--mc-green)", earn: "Minions working", perk: "+3% minion output per level", bonus: (l) => `+${l * 3}%` },
     { id: "combat", name: "Combat", symbol: "critDamage", color: "var(--mc-red)", earn: "Critical hits", perk: "+2% crit damage per level", bonus: (l) => `+${l * 2}%` },
     { id: "fishing", name: "Fishing", symbol: "fishing", color: "var(--mc-aqua)", earn: "Treasure bobbers", perk: "+1% all shards per level, bobbers appear sooner", bonus: (l) => `+${l}%` },

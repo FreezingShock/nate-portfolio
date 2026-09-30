@@ -4,6 +4,7 @@ import { MILESTONES_BY_SKILL } from "@/lib/fractured-idle/skills";
 import { SLOT_IDS, canRoll, slotOpen } from "@/lib/fractured-idle/enchant";
 import { ascPlan, bulk, eggPrice, minionBase, rebirthPlan, skillLevel, trophyCounts, upAvailable, upCost } from "@/lib/fractured-idle/engine";
 import { openIslands } from "@/lib/fractured-idle/island-logic";
+import { MINE_UPS, canBuyPick, canBuyUp } from "@/lib/fractured-idle/mine";
 import type { TabNote } from "./tab-bar";
 
 // What each tab's tooltip (and its badge) says. `act` notes need a click and
@@ -46,6 +47,11 @@ function scan(s: State, since: (tab: string, cur: number) => number): Record<str
     const eggs = s.freeEggs;
     if (eggs > 0) add("pets", { text: `${plural(eggs, "free egg")} to hatch`, color: P, act: true });
     if (Object.keys(s.pets).length < PETS.length && s.shards >= eggPrice(s, EGGS[0])) add("pets", { text: "You can afford an egg", color: O, act: true });
+
+    if (s.mine.geodes > 0) add("mine", { text: `${plural(s.mine.geodes, "geode")} to crack`, color: "var(--mc-light-purple)", act: true });
+    if (canBuyPick(s).ok) add("mine", { text: "A new pickaxe is ready to forge", color: "#e0b070", act: true });
+    const mineUps = MINE_UPS.filter((u) => canBuyUp(s, u).ok).length;
+    if (mineUps) add("mine", { text: `${plural(mineUps, "mine upgrade")} you can afford`, color: G, act: true });
 
     const isl = openIslands(s).filter((i) => !s.visited.includes(i.id)).length;
     if (isl) add("islands", { text: `${plural(isl, "new island")} to visit`, color: "#6fb4ff", act: true });

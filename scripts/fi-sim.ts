@@ -138,7 +138,7 @@ while (t < HOURS * 3600) {
     }
     const plan = rebirthPlan(s);
     // rebirth once the stack is full, or once we've waited long enough since the last one
-    if (plan.count > 0 && (plan.count >= 1 + (s.rups.stack || 0) || t - lastRebirthAt > 1800)) {
+    if (plan.count > 0 && (plan.count >= 1 + (s.rups.stack || 0) || t - lastRebirthAt > Number(process.env.REB_WAIT ?? 1800))) {
         const before = s.rebirths;
         rebirth(s);
         lastRebirthAt = t;

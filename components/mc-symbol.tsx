@@ -33,6 +33,8 @@ export const MC_SYMBOLS = {
     fishing: "☂",
     flag: "⚑",
     day: "☀",
+    pick: "⛏",
+    gem: "◆",
 } as const;
 
 export type McSymbolName = keyof typeof MC_SYMBOLS;
