@@ -216,6 +216,7 @@ export interface FxpGain {
     label: string;
     xp: number;
     at: number;
+    cat: FxpCat;
 }
 
 // Recent gains for the little "+N Fracture EXP" pops (not saved).
@@ -235,7 +236,7 @@ export function updateFxp(s: State, silent = false): number[] {
         if (cur > prev) {
             s.fxp[src.id] = cur;
             if (!silent) {
-                recent.push({ label: src.label, xp: cur - prev, at: now });
+                recent.push({ label: src.label, xp: cur - prev, at: now, cat: src.cat });
                 if (recent.length > 12) recent.shift();
             }
         }

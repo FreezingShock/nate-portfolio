@@ -173,3 +173,5 @@ export default function StudiesPage() {
         </div>
     );
 }
+
+export const metadata = { title: "Studies" };

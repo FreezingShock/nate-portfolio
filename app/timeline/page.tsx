@@ -167,3 +167,5 @@ export default function TimelinePage() {
         </div>
     );
 }
+
+export const metadata = { title: "Timeline" };

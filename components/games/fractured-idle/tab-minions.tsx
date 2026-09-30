@@ -357,7 +357,7 @@ export function MinionsTab({ s, d, F, act, render }: Ctx) {
 
                                     <div>
                                         <div className="mb-1 font-minecraft text-xs uppercase tracking-widest text-muted-foreground">Minion upgrades</div>
-                                        <div className="grid gap-1.5 sm:grid-cols-3">
+                                        <div className="grid grid-cols-1 gap-1.5 sm:grid-cols-3">
                                             {MINION_UPS_BY[i].map((u) => {
                                                 const have = !!s.ups[u.id];
                                                 const avail = upAvailable(s, u);

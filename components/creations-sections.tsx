@@ -104,7 +104,7 @@ export function CreationsShell({
                     <div className="mx-auto mb-6 max-w-6xl">
                         <Link
                             href={back.href}
-                            className="inline-flex items-center gap-1.5 text-sm text-muted-foreground transition-colors hover:text-foreground"
+                            className="-my-2 inline-flex items-center gap-1.5 py-2 text-sm text-muted-foreground transition-colors hover:text-foreground"
                         >
                             <ArrowLeft className="size-3.5" /> {back.label}
                         </Link>
@@ -400,7 +400,7 @@ export function ArtCollectionSection({
                                 style={{ color: c }}
                             />
                         </div>
-                        <div className="flex items-center justify-between gap-2 p-3">
+                        <div className="flex flex-wrap items-center justify-between gap-x-2 gap-y-1 p-3">
                             <span className="text-sm font-medium">{slot}</span>
                             <Pill color={c}>Placeholder</Pill>
                         </div>

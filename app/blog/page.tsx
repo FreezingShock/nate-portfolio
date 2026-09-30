@@ -40,3 +40,5 @@ export default function BlogPage() {
         </div>
     );
 }
+
+export const metadata = { title: "Blog" };

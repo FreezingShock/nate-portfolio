@@ -24,3 +24,5 @@ export default function ArtworkPage() {
         </CreationsShell>
     );
 }
+
+export const metadata = { title: "Artwork" };

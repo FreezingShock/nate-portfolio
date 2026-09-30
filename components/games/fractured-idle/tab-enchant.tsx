@@ -601,7 +601,7 @@ export function EnchantTab({ s, d, F, render, say }: Ctx) {
                     {/* Compare */}
                     {showCompare && cand && (
                         <div className="fi-en-compare">
-                            <div className="grid gap-2 sm:grid-cols-2">
+                            <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
                                 <EnchCard e={worn} tag="Worn" />
                                 <EnchCard e={cand} tag={cand.kind === "roll" ? "New enchant" : cand.kind === "polish" ? "Polished" : "Reforged"} vs={worn} glow />
                             </div>
@@ -902,7 +902,7 @@ function Style({ s, render }: { s: Ctx["s"]; render: () => void }) {
             {grid(TABLES, o.table, "table", (c) => <i className="fi-en-swatch" data-table={c.id} />)}
 
             <SectionTitle color={C}>Reveal animation</SectionTitle>
-            <div className="grid gap-1.5 sm:grid-cols-3">
+            <div className="grid grid-cols-1 gap-1.5 sm:grid-cols-3">
                 {ANIMS.map((a) => (
                     <button key={a.id} type="button" onClick={() => pick("anim", a.id as typeof o.anim)} aria-pressed={o.anim === a.id} className="fi-en-opt" data-on={o.anim === a.id}>
                         <span className="block font-minecraft text-[11px]">{a.name}</span>

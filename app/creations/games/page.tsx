@@ -21,3 +21,5 @@ export default function GamesPage() {
         </CreationsShell>
     );
 }
+
+export const metadata = { title: "Games" };

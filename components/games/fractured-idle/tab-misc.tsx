@@ -99,7 +99,7 @@ export function SettingsTab({ s, render, say, replaceState }: Ctx & { replaceSta
                 className="h-24 w-full resize-none rounded-lg border border-white/15 bg-black/30 p-2 font-mono text-[11px]"
             />
             <SectionTitle color="var(--mc-aqua)">Keyboard</SectionTitle>
-            <div className="grid gap-1 sm:grid-cols-2">
+            <div className="grid grid-cols-1 gap-1 sm:grid-cols-2">
                 {[
                     ["Space", "click, hold to build the combo"],
                     ["1-9, 0", "jump to a tab"],

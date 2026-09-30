@@ -118,3 +118,5 @@ export default async function HistoryPage() {
         </div>
     );
 }
+
+export const metadata = { title: "Site History" };

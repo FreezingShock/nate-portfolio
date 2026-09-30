@@ -69,7 +69,7 @@ export function SetupPage({ s, island, next, render, apply, randomize }: Props) 
 
     return (
         <div className="space-y-3 pt-2">
-            <div className="grid gap-2 sm:grid-cols-2">
+            <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
                 <div className="rounded-xl border p-3" style={{ borderColor: tint(Y, 40), backgroundImage: `linear-gradient(130deg, ${tint(Y, 8)}, transparent 70%)` }}>
                     <div className="flex items-center justify-between font-minecraft text-xs" style={{ color: Y }}>
                         <span><Sparkles className="mr-1 inline size-3.5" />Collection</span>
@@ -149,7 +149,7 @@ export function SetupPage({ s, island, next, render, apply, randomize }: Props) 
 
             <div>
                 <div className="mb-1.5 font-minecraft text-[10px] uppercase tracking-widest" style={{ color: Y }}>Clicking</div>
-                <div className="grid gap-1.5 sm:grid-cols-2">
+                <div className="grid grid-cols-1 gap-1.5 sm:grid-cols-2">
                     <Switch label="Hold to click" hint={`${HOLD_BASE}/s x combo, up to ${holdMax(s)}/s`} on={b.hold} onChange={(v) => { b.hold = v; render(); }} />
                     <Switch label="Crit shake" hint="Nudge the button area on crits" on={b.shake} onChange={(v) => { b.shake = v; render(); }} />
                 </div>

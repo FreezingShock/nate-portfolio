@@ -48,7 +48,7 @@ const sourceSerif = Source_Serif_4({
 
 export const metadata: Metadata = {
     metadataBase: new URL("https://nateanderson.dev"),
-    title: "Nate's Portfolio",
+    title: { default: "Nate's Portfolio", template: "%s · Nate's Portfolio" },
     description:
         "Games, renders, and systems — built while studying toward environmental engineering.",
     authors: [{ name: "Nate" }],

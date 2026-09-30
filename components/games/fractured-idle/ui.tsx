@@ -56,6 +56,8 @@ export const CSS = `
 .fi-tip[data-open="false"]{opacity:0;transform:scale(.94) translateY(4px)}
 .fi-tip[data-open="true"]{opacity:1;transform:none}
 .fi-tip .tl{text-shadow:2px 2px 0 color-mix(in srgb,currentColor 25%,black);white-space:normal}
+/* Touch: every control gets a comfortable minimum height on phones. */
+@media (max-width:639px){[data-fi-root] button:not(.fi-orb):not(.fi-tab),[data-fi-root] select,[data-fi-root] [role="tab"]{min-height:32px}[data-fi-root] button.fi-stretch{min-height:0}}
 @media (prefers-reduced-motion:reduce){.fi-pulse,.fi-afford,.fi-bob,.fi-pop,.fi-shine{animation:none}.fi-tip{transition:none}}
 `;
 

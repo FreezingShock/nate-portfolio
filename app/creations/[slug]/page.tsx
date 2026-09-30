@@ -43,7 +43,7 @@ export default async function ProjectPage({
                 <div className="mx-auto max-w-3xl">
                     <Link
                         href="/creations"
-                        className="inline-flex items-center gap-1.5 text-sm text-muted-foreground transition-colors hover:text-foreground"
+                        className="-my-2 inline-flex items-center gap-1.5 py-2 text-sm text-muted-foreground transition-colors hover:text-foreground"
                     >
                         <ArrowLeft className="size-3.5" /> Back to Creations
                     </Link>

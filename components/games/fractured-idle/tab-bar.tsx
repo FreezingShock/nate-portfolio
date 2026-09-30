@@ -129,6 +129,6 @@ export const TABBAR_CSS = `
 @keyframes fi-tab-pop{0%{transform:scale(.9)}60%{transform:scale(1.07)}100%{transform:scale(1)}}
 @keyframes fi-tab-ping{0%{transform:scale(0)}100%{transform:scale(1)}}
 @keyframes fi-tab-ring{0%{transform:scale(1);opacity:.8}100%{transform:scale(1.9);opacity:0}}
-@media (max-width:480px){.fi-tabs{gap:.3rem;padding:.4rem}.fi-tg-l{display:none}.fi-tab{height:2rem;min-width:2rem;padding:0 .45rem}}
+@media (max-width:480px){.fi-tabs{gap:.3rem;padding:.4rem}.fi-tg-l{display:none}.fi-tab{height:2.3rem;min-width:2.3rem;padding:0 .5rem}}
 @media (prefers-reduced-motion:reduce){.fi-tab,.fi-tab-i,.fi-tab-l{transition:none;animation:none!important}.fi-tab-n,.fi-tab-n::before{animation:none}}
 `;

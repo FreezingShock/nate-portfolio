@@ -158,7 +158,7 @@ export function SkillsTab({ s, d, open }: Props) {
                         </div>
                     </div>
                 )}
-                <div className="grid gap-1.5 sm:grid-cols-2">
+                <div className="grid grid-cols-1 gap-1.5 sm:grid-cols-2">
                     {MILESTONES_BY_SKILL[sel].map((m) => {
                         const done = m.at <= lvl;
                         const isNext = nm?.at === m.at;

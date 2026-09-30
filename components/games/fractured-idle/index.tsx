@@ -38,8 +38,8 @@ import { ISLAND_CSS, IslandScene } from "./island-art";
 import { IslandsMenu, MENU_CSS } from "./islands-menu";
 import { ISLAND_BY_ID, perkText } from "@/lib/fractured-idle/islands";
 import { masteryInfo, openIslands } from "@/lib/fractured-idle/island-logic";
-import { FXP_PER_LEVEL, levelUpText, prefixOf, recentGains, symbolOf, updateFxp } from "@/lib/fractured-idle/fxp";
-import { LEVEL_CSS, LevelBadge } from "./level-badge";
+import { FXP_PER_LEVEL, fxpTotal, hasReward, levelColor, levelUpText, prefixOf, recentGains, rewardFor, rewardText, symbolOf, updateFxp } from "@/lib/fractured-idle/fxp";
+import { LEVEL_CSS, LevelBadge, XpGain } from "./level-badge";
 import { LevelTab } from "./tab-level";
 import { kick, shake, spawnBurst, spawnCrit, spawnNumber } from "./button-fx";
 import { ButtonTab } from "./tab-button";
@@ -153,6 +153,20 @@ export function FracturedIdle() {
         setToast(msg);
         clearTimeout(toastTimer.current);
         toastTimer.current = setTimeout(() => setToast(null), 3500);
+    }, []);
+
+    // Dev only: window.__fiToast("level" | "milestone", skillIndex) shows a skill notification without touching your save.
+    useEffect(() => {
+        if (process.env.NODE_ENV === "production") return;
+        const w = window as unknown as { __fiToast?: (kind: "level" | "milestone", i?: number) => void };
+        w.__fiToast = (kind, i = 0) => {
+            const k = SKILLS[i % SKILLS.length];
+            const from = 11 + i;
+            skillApi.current?.push({ kind, skill: k, from, to: from + 1, perk: [k.bonus(from), k.bonus(from + 1)], title: kind === "milestone" ? "Test Milestone" : undefined, rewards: kind === "milestone" ? ["+2 rebirth tokens", "+1 Wooden Egg", "+5% luck"] : [] });
+        };
+        return () => {
+            delete w.__fiToast;
+        };
     }, []);
 
     // ---- Load + game loop ----
@@ -578,15 +592,27 @@ export function FracturedIdle() {
                     </div>
                 </Tip>
                 <Tip
-                    tip={() => (
-                        <TipCard
-                            title={`Fractured Level ${s.lvl}`}
-                            color="var(--mc-yellow)"
-                            lines={["Earn Fracture EXP by unlocking things across every system. Each level adds to all shards."]}
-                            rows={[["Bonus", `+${(LEVEL_BONUS * s.lvl * 100).toFixed(2)}% all shards`], ["EXP", `${Object.values(s.fxp).reduce((x, y) => x + y, 0) - s.lvl * FXP_PER_LEVEL} / ${FXP_PER_LEVEL}`]]}
-                            foot="Click to open the Level tab."
-                        />
-                    )}
+                    tip={() => {
+                        const into = fxpTotal(s) - s.lvl * FXP_PER_LEVEL;
+                        let nx = s.lvl + 1;
+                        while (nx < s.lvl + 50 && !hasReward(rewardFor(nx))) nx++;
+                        const reward = rewardFor(nx);
+                        const gains = recentGains(Date.now(), 12000).slice(-3).reverse();
+                        return (
+                            <TipCard
+                                title={`Fractured Level ${s.lvl}`}
+                                color={levelColor(s.lvl)}
+                                tag={`${Math.floor(into)} / ${FXP_PER_LEVEL} EXP`}
+                                lines={["Earn Fracture EXP by unlocking things across every system. Each level adds to all shards."]}
+                                rows={[["Bonus", `+${(LEVEL_BONUS * s.lvl * 100).toFixed(2)}% all shards`, "var(--mc-green)"], ["To next level", `${Math.max(0, Math.ceil(FXP_PER_LEVEL - into))} EXP`, "var(--mc-yellow)"]]}
+                                notes={[
+                                    ...(hasReward(reward) ? [{ text: `Lv ${nx} pays ${rewardText(reward)}`, color: "var(--mc-aqua)" }] : []),
+                                    ...gains.map((g) => ({ text: `+${g.xp} EXP · ${g.label}`, color: "var(--mc-yellow)" })),
+                                ]}
+                                cta="Click to open the Level tab!"
+                            />
+                        );
+                    }}
                 >
                 <button
                     type="button"
@@ -599,15 +625,9 @@ export function FracturedIdle() {
                     <div className="font-minecraft text-[10px] uppercase tracking-widest text-muted-foreground">Fractured Level</div>
                     <LevelBadge level={s.lvl} sym={symbolOf(s)} prefix={prefixOf(s)} size="sm" />
                     <div className="mt-1 h-1 w-28 overflow-hidden rounded-full bg-white/10">
-                        <div className="h-full rounded-full transition-[width] duration-500" style={{ width: `${((Object.values(s.fxp).reduce((x, y) => x + y, 0) - s.lvl * FXP_PER_LEVEL) / FXP_PER_LEVEL) * 100}%`, backgroundColor: "var(--mc-yellow)", boxShadow: "0 0 6px var(--mc-yellow)" }} />
+                        <div className="h-full rounded-full transition-[width] duration-500" style={{ width: `${((fxpTotal(s) - s.lvl * FXP_PER_LEVEL) / FXP_PER_LEVEL) * 100}%`, backgroundColor: "var(--mc-yellow)", boxShadow: "0 0 6px var(--mc-yellow)" }} />
                     </div>
-                    <div className="pointer-events-none absolute left-0 top-full z-30 mt-1 space-y-0.5">
-                        {recentGains(Date.now()).slice(-3).map((g) => (
-                            <div key={`${g.at}${g.label}`} className="fi-fxp-pop rounded-md border px-1.5 py-0.5 font-rubik text-[10px]" style={{ borderColor: "var(--mc-yellow)", color: "var(--mc-yellow)", backgroundColor: "rgba(0,0,0,.75)" }}>
-                                +{g.xp} Fracture EXP · {g.label}
-                            </div>
-                        ))}
-                    </div>
+                    <XpGain now={Date.now()} />
                 </button>
                 </Tip>
                 <Tip

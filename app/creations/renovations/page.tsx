@@ -41,3 +41,5 @@ export default async function RenovationsPage() {
         </CreationsShell>
     );
 }
+
+export const metadata = { title: "Renovations" };

@@ -57,7 +57,7 @@ export function LevelTab({ s, F, render }: Ctx) {
             <div className="relative overflow-hidden rounded-2xl border p-4" style={{ borderColor: tint(C, 50), backgroundImage: `linear-gradient(130deg, ${tint(C, 12)}, transparent 70%)` }}>
                 <div className="flex flex-wrap items-center justify-between gap-2">
                     <LevelBadge level={s.lvl} sym={sym} prefix={pfx} size="lg" />
-                    <div className="text-right font-rubik text-[11px] text-muted-foreground">
+                    <div className="text-left font-rubik text-[11px] text-muted-foreground sm:text-right">
                         <div><b style={{ color: C }}>{F(total)}</b> Fracture EXP</div>
                         <div>Every level: <b style={{ color: "var(--mc-green)" }}>+{+(LEVEL_BONUS * 100).toFixed(2)}%</b> all shards (now +{+(LEVEL_BONUS * s.lvl * 100).toFixed(1)}%)</div>
                     </div>
@@ -77,7 +77,7 @@ export function LevelTab({ s, F, render }: Ctx) {
             {upcoming.length > 0 && (
                 <>
                     <SectionTitle color="var(--mc-green)">Next rewards</SectionTitle>
-                    <div className="grid gap-1 sm:grid-cols-2">
+                    <div className="grid grid-cols-1 gap-1 sm:grid-cols-2">
                         {upcoming.map((u) => (
                             <div key={u.level} className="flex items-center gap-2 rounded-lg border border-white/10 px-2.5 py-1.5 font-rubik text-[11px]">
                                 <span className="font-minecraft text-xs" style={{ color: C }}>Lv {u.level}</span>
