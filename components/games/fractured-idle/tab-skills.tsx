@@ -41,10 +41,12 @@ export function SkillsTab({ s, d, open }: Props) {
     const hi = skillXpFor(lvl + 1, sel);
     const maxed = lvl >= SKILL_CAP;
     const nm = nextMilestone(sel, lvl);
+    const prevAt = MILESTONES_BY_SKILL[sel].filter((m) => m.at <= lvl).pop()?.at ?? 0;
     const fx = (kk: Parameters<typeof fmtStat>[0], v: number) => fmtStat(kk, v);
 
     return (
         <>
+            <style>{SKILL_CSS}</style>
             <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-white/10 px-3 py-2">
                 <div className="font-rubik text-[11px] text-muted-foreground">
                     Skill xp x{d.xpMult.toFixed(2)} from trophies, pets and enchants. Skills are permanent: rebirth and ascension never touch them.
@@ -73,7 +75,9 @@ export function SkillsTab({ s, d, open }: Props) {
                             style={{ borderColor: on ? sk.color : "rgba(255,255,255,0.12)", backgroundImage: on ? `linear-gradient(140deg, ${tint(sk.color, 16)}, transparent 70%)` : undefined, boxShadow: on ? `0 0 18px -6px ${sk.color}` : undefined }}
                         >
                             <div className="flex items-center gap-2">
-                                <Badge color={sk.color} size="sm"><McSymbol name={sk.symbol} /></Badge>
+                                <span className="fi-sk-ringbox" style={{ ["--p" as string]: `${(l >= SKILL_CAP ? 1 : (s[sk.id] - a) / (b - a)) * 360}deg`, ["--c" as string]: sk.color } as React.CSSProperties}>
+                                    <Badge color={sk.color} size="sm"><McSymbol name={sk.symbol} /></Badge>
+                                </span>
                                 <div className="min-w-0 flex-1">
                                     <div className="truncate font-minecraft text-[13px] leading-tight" style={{ color: sk.color }}>{sk.name}</div>
                                     <div className="font-rubik text-[10px] text-muted-foreground">{next ? `Next reward at ${next.at}` : "All rewards earned"}</div>
@@ -81,7 +85,7 @@ export function SkillsTab({ s, d, open }: Props) {
                                 <div className="font-minecraft text-lg leading-none" style={{ color: sk.color }}>{l}</div>
                             </div>
                             <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-white/10">
-                                <div className="h-full rounded-full" style={{ width: `${(l >= SKILL_CAP ? 1 : (s[sk.id] - a) / (b - a)) * 100}%`, backgroundColor: sk.color, boxShadow: `0 0 8px ${sk.color}` }} />
+                                <div className="fi-sk-fill h-full rounded-full" style={{ width: `${(l >= SKILL_CAP ? 1 : (s[sk.id] - a) / (b - a)) * 100}%`, backgroundColor: sk.color, boxShadow: `0 0 8px ${sk.color}` }} />
                             </div>
                             <div className="mt-1.5 flex gap-[3px]" aria-hidden="true">
                                 {ms.map((m) => (
@@ -130,8 +134,14 @@ export function SkillsTab({ s, d, open }: Props) {
 
                 <SectionTitle color={k.color}>Milestone path</SectionTitle>
                 {nm && (
-                    <div className="mb-2 font-rubik text-[11px] text-muted-foreground">
-                        Next: <span style={{ color: k.color }}>{nm.name}</span> at level {nm.at} ({nm.at - lvl} level{nm.at - lvl === 1 ? "" : "s"} away)
+                    <div className="mb-2">
+                        <div className="mb-1 flex justify-between font-rubik text-[11px] text-muted-foreground">
+                            <span>Next: <span style={{ color: k.color }}>{nm.name}</span> at level {nm.at}</span>
+                            <span>{nm.at - lvl} level{nm.at - lvl === 1 ? "" : "s"} away</span>
+                        </div>
+                        <div className="h-1.5 overflow-hidden rounded-full bg-white/10">
+                            <div className="fi-sk-fill h-full rounded-full" style={{ width: `${Math.min(1, (lvl + (hi > lo ? (xp - lo) / (hi - lo) : 0) - prevAt) / (nm.at - prevAt)) * 100}%`, backgroundColor: k.color }} />
+                        </div>
                     </div>
                 )}
                 <div className="grid gap-1.5 sm:grid-cols-2">
@@ -175,3 +185,13 @@ export function SkillsTab({ s, d, open }: Props) {
         </>
     );
 }
+
+const SKILL_CSS = `
+.fi-sk-ringbox{position:relative;display:grid;place-items:center;padding:3px;flex:none}
+.fi-sk-ringbox::before{content:"";position:absolute;inset:0;border-radius:.85rem;background:conic-gradient(var(--c) var(--p),rgba(255,255,255,.14) 0)}
+.fi-sk-ringbox::after{content:"";position:absolute;inset:3px;border-radius:.7rem;background:#0c0a12}
+.fi-sk-ringbox>span{position:relative;z-index:1}
+.fi-sk-fill{position:relative;overflow:hidden;transition:width .4s ease}
+.fi-sk-fill::after{content:"";position:absolute;inset:0;background:linear-gradient(105deg,transparent 30%,rgba(255,255,255,.45) 50%,transparent 70%);background-size:220% 100%;animation:fi-shine 2.8s ease-in-out infinite}
+@media (prefers-reduced-motion:reduce){.fi-sk-fill::after{animation:none}}
+`;

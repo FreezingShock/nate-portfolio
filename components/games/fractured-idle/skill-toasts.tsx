@@ -124,6 +124,8 @@ export const SKILL_TOAST_CSS = `
 .fi-sk-stack{position:absolute;right:.75rem;top:4.6rem;z-index:45;display:flex;flex-direction:column;gap:.5rem;align-items:flex-end;pointer-events:none;max-width:calc(100% - 1.5rem)}
 .fi-sk{pointer-events:auto;position:relative;display:flex;align-items:center;gap:.7rem;width:min(19rem,100%);padding:.6rem .8rem .75rem .6rem;border-radius:1rem;text-align:left;cursor:pointer;color:#fff;overflow:visible;background:linear-gradient(120deg,color-mix(in oklch,var(--sc) 26%,#0a0812),#0a0812 72%);border:1px solid color-mix(in oklch,var(--sc) 70%,transparent);box-shadow:0 0 26px -6px var(--sc),0 12px 30px rgba(0,0,0,.6);animation:fi-sk-in .5s cubic-bezier(.2,1.5,.35,1) both}
 .fi-sk[data-kind="milestone"]{border-color:#ffd23a;background:linear-gradient(120deg,color-mix(in oklch,var(--sc) 30%,#1a1204),#0c0a06 70%);box-shadow:0 0 38px -4px #ffd23a,0 0 18px -6px var(--sc),0 14px 34px rgba(0,0,0,.65);animation:fi-sk-in .6s cubic-bezier(.2,1.5,.35,1) both,fi-sk-pulse 1.6s ease-in-out .6s 3}
+.fi-sk[data-kind="level"]{padding:.4rem .7rem .6rem .5rem}
+.fi-sk[data-kind="level"] .fi-sk-ring{width:2.4rem;height:2.4rem;font-size:1.15rem}
 .fi-sk-glow{position:absolute;inset:0;border-radius:inherit;background:linear-gradient(105deg,transparent 30%,rgba(255,255,255,.22) 50%,transparent 70%);background-size:250% 100%;animation:fi-sk-shine 1.1s ease-out .15s both;pointer-events:none}
 .fi-sk-fx{position:absolute;inset:0;pointer-events:none;overflow:visible}
 .fi-sk-spark{position:absolute;width:.32rem;height:.32rem;border-radius:50%;background:var(--sc);box-shadow:0 0 8px var(--sc);pointer-events:none}

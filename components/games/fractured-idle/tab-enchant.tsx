@@ -100,6 +100,10 @@ export function EnchantTab({ s, d, F, render, say }: Ctx) {
     const stage = useRef<HTMLDivElement>(null);
     const reel = useRef<HTMLDivElement>(null);
     const timers = useRef<ReturnType<typeof setTimeout>[]>([]);
+    const rings = useRef<(SVGGElement | null)[]>([null, null, null]);
+    const glyph = useRef<HTMLDivElement>(null);
+    // Ritual state shared with the rotation loop: charge progress 0..1 (or -1 when idle) and a kick on landing.
+    const ritual = useRef({ t0: 0, dur: 0, on: false, kick: 0, skip: null as null | (() => void) });
     const live = useRef({ s, d, slot, auto, say, render });
     useEffect(() => {
         live.current = { s, d, slot, auto, say, render };
@@ -109,15 +113,62 @@ export function EnchantTab({ s, d, F, render, say }: Ctx) {
         setRootEl((stage.current?.closest("[data-fi-root]") as HTMLElement | null) ?? null);
     }, [view]);
     useEffect(() => {
-        const t = timers.current;
         return () => {
-            t.forEach(clearTimeout);
-            t.length = 0;
+            // eslint-disable-next-line react-hooks/exhaustive-deps
+            timers.current.forEach(clearTimeout);
+            timers.current = [];
         };
     }, []);
 
+    // The rune rings are spun by a small physics loop instead of CSS: they spin up smoothly while a roll charges,
+    // snap back when the pull lands, then settle to a slow drift that is faster the rarer your worn enchant is.
+    useEffect(() => {
+        if (typeof matchMedia === "function" && matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+        const a = [0, 0, 0];
+        const v = [4, -9, 16];
+        const base = [4, -9, 16];
+        let last = performance.now();
+        let raf = 0;
+        const tick = (now: number) => {
+            const dt = Math.min(0.05, (now - last) / 1000);
+            last = now;
+            const R = ritual.current;
+            const worn = live.current.s.enc.eq[live.current.slot];
+            const idle = 1 + 0.18 * Math.max(0, worn?.r ?? 0);
+            let k = idle;
+            let p = 0;
+            if (R.on) {
+                p = R.dur > 0 ? Math.min(1, (now - R.t0) / R.dur) : 1;
+                k = idle + 26 * p * p;
+            }
+            if (R.kick) {
+                for (let i = 0; i < 3; i++) v[i] = -v[i] * 0.55 * R.kick;
+                R.kick = 0;
+            }
+            const follow = 1 - Math.exp(-dt * (R.on ? 4 : 2.2));
+            for (let i = 0; i < 3; i++) {
+                v[i] += (base[i] * k - v[i]) * follow;
+                a[i] += v[i] * dt;
+                const g = rings.current[i];
+                if (g) g.style.transform = `rotate(${a[i].toFixed(2)}deg)`;
+            }
+            const gl = glyph.current;
+            if (gl) {
+                const s = R.on ? p * p * 5 : 0;
+                gl.style.translate = s ? `${((Math.random() - 0.5) * s).toFixed(1)}px ${((Math.random() - 0.5) * s).toFixed(1)}px` : "0 0";
+                gl.style.scale = R.on ? String(1 + p * 0.12) : "1";
+            }
+            raf = requestAnimationFrame(tick);
+        };
+        raf = requestAnimationFrame(tick);
+        return () => cancelAnimationFrame(raf);
+    }, [view]);
+
     const later = (ms: number, fn: () => void) => {
-        const t = setTimeout(fn, ms);
+        const t = setTimeout(() => {
+            timers.current = timers.current.filter((x) => x !== t);
+            fn();
+        }, ms);
         timers.current.push(t);
     };
 
@@ -134,6 +185,10 @@ export function EnchantTab({ s, d, F, render, say }: Ctx) {
         setShown({ out, phase: "charge" });
         const w = host?.clientWidth ?? 300;
         const h = host?.clientHeight ?? 240;
+        let revealed = false;
+        ritual.current.on = charge > 0;
+        ritual.current.t0 = performance.now();
+        ritual.current.dur = charge;
         if (host && charge > 0) {
             chargeFx(host, w / 2, h / 2, r, charge);
             // Sol's-RNG style flicker: the rarity colors cycle, slowing down until they land.
@@ -145,6 +200,7 @@ export function EnchantTab({ s, d, F, render, say }: Ctx) {
                 const rr = Math.min(RARITY_N - 1, (i * 3 + (i >> 1)) % (r + 2));
                 const pick = def[(i * 7 + 3) % def.length];
                 later(t, () => {
+                    if (revealed) return;
                     host.style.setProperty("--rc", rcolor(rr));
                     if (reel.current) {
                         reel.current.textContent = pick.name;
@@ -156,7 +212,13 @@ export function EnchantTab({ s, d, F, render, say }: Ctx) {
                 i++;
             }
         }
-        later(charge, () => {
+        const land = () => {
+            if (revealed) return;
+            revealed = true;
+            ritual.current.on = false;
+            ritual.current.skip = null;
+            ritual.current.kick = 1;
+            if (typeof navigator !== "undefined" && "vibrate" in navigator && r >= 3) navigator.vibrate(r >= 6 ? [50, 40, 90] : r >= 5 ? [40, 30, 60] : 30);
             if (host) {
                 host.style.setProperty("--rc", rcolor(r));
                 if (reel.current) reel.current.textContent = "";
@@ -173,7 +235,9 @@ export function EnchantTab({ s, d, F, render, say }: Ctx) {
             if (out.firstRarity && r >= 2) live.current.say(`First ${rar(r).name} enchant discovered: ${ENCH_BY_ID[out.cand.id].name}!`);
             live.current.render();
             done?.();
-        });
+        };
+        ritual.current.skip = land;
+        later(charge, land);
     }, []);
 
     const start = (kind: "roll" | "polish" | "reforge", fast = false, done?: () => void) => {
@@ -356,31 +420,31 @@ export function EnchantTab({ s, d, F, render, say }: Ctx) {
                     </div>
 
                     {/* Stage */}
-                    <div ref={stage} className="fi-en-stage" data-phase={phase} data-r={shown?.out.cand.r ?? worn?.r ?? -1} data-table={o.table} style={{ ["--rc" as string]: showColor } as CSSProperties}>
+                    <div ref={stage} onClick={() => ritual.current.skip?.()} className="fi-en-stage" data-phase={phase} data-r={shown?.out.cand.r ?? worn?.r ?? -1} data-table={o.table} style={{ ["--rc" as string]: showColor } as CSSProperties}>
                         <div className="fi-en-bg" />
                         <svg className="fi-en-rune" viewBox="0 0 200 200" aria-hidden="true">
                             <defs>
                                 <path id="fi-en-path" d="M100,100 m-86,0 a86,86 0 1,1 172,0 a86,86 0 1,1 -172,0" />
                             </defs>
-                            <g className="fi-en-r1">
+                            <g className="fi-en-r1" ref={(n) => { rings.current[0] = n; }}>
                                 <circle cx="100" cy="100" r="95" />
                                 <circle cx="100" cy="100" r="77" />
                                 <text>
                                     <textPath href="#fi-en-path" startOffset="0">{RUNES}</textPath>
                                 </text>
                             </g>
-                            <g className="fi-en-r2">
+                            <g className="fi-en-r2" ref={(n) => { rings.current[1] = n; }}>
                                 <polygon points="100,38 153.6,69 153.6,131 100,162 46.4,131 46.4,69" />
                                 <polygon points="100,162 46.4,131 46.4,69 100,38 153.6,69 153.6,131" transform="rotate(30 100 100)" />
                             </g>
-                            <g className="fi-en-r3">
+                            <g className="fi-en-r3" ref={(n) => { rings.current[2] = n; }}>
                                 <circle cx="100" cy="100" r="42" />
                                 {Array.from({ length: 12 }, (_, i) => (
                                     <line key={i} x1="100" y1="54" x2="100" y2="62" transform={`rotate(${i * 30} 100 100)`} />
                                 ))}
                             </g>
                         </svg>
-                        <div className="fi-en-glyph" key={`${glyphName}${phase === "reveal" ? shown?.out.cand.r : ""}`}>
+                        <div ref={glyph} className="fi-en-glyph" key={`${glyphName}${phase === "reveal" ? shown?.out.cand.r : ""}`}>
                             {open ? <McSymbol name={glyphName} /> : <Lock className="size-10" />}
                         </div>
                         <div ref={reel} className="fi-en-reel" aria-hidden="true" />
@@ -554,13 +618,13 @@ function EnchCard({ e, tag, vs, glow }: { e: Ench | undefined; tag: string; vs?:
             <div className="mt-1.5 flex items-center gap-2 font-rubik text-[10px] text-muted-foreground">
                 <span>Quality</span>
                 <span className="h-1.5 flex-1 overflow-hidden rounded-full bg-white/10">
-                    <i className="block h-full rounded-full" style={{ width: `${e.q * 100}%`, backgroundColor: col, boxShadow: `0 0 8px ${col}` }} />
+                    <i className="fi-en-bar block h-full rounded-full" style={{ width: `${e.q * 100}%`, backgroundColor: col, boxShadow: `0 0 8px ${col}` }} />
                 </span>
                 <span style={{ color: e.q >= 0.97 ? "var(--mc-yellow)" : undefined }}>{Math.round(e.q * 100)}%{e.q >= 0.97 ? " ✦" : ""}</span>
             </div>
             <ul className="mt-1.5 space-y-0.5 font-rubik text-[11px]">
                 {lines.map((l, i) => (
-                    <li key={i} className="flex items-baseline gap-1.5">
+                    <li key={i} className="fi-en-li flex items-baseline gap-1.5" style={{ ["--n" as string]: i } as CSSProperties}>
                         <span style={{ color: l.affix ? "var(--mc-aqua)" : "var(--mc-green)" }}>{fmtStat(l.stat, l.value)}</span>
                         {l.affix && <em className="text-[9px] not-italic text-muted-foreground">{l.affix}</em>}
                     </li>
@@ -794,19 +858,19 @@ export const ENCH_CSS = `
 .fi-en-rune{position:absolute;left:50%;top:50%;width:min(15.5rem,100%);height:auto;aspect-ratio:1;transform:translate(-50%,-50%);fill:none;stroke:var(--rune);stroke-width:.8;opacity:.75;overflow:visible;filter:drop-shadow(0 0 4px var(--rc))}
 .fi-en-rune text{fill:var(--rune);stroke:none;font-size:8.6px;letter-spacing:1.6px;opacity:.9}
 .fi-en-rune g{transform-origin:100px 100px;transform-box:view-box}
-.fi-en-r1{animation:fi-spin 40s linear infinite}
-.fi-en-r2{animation:fi-spin 26s linear infinite reverse;stroke:var(--rc)}
-.fi-en-r3{animation:fi-spin 16s linear infinite;stroke:var(--rc)}
-.fi-en-stage[data-phase="charge"] .fi-en-r1{animation-duration:2.2s}
-.fi-en-stage[data-phase="charge"] .fi-en-r2{animation-duration:1.5s}
-.fi-en-stage[data-phase="charge"] .fi-en-r3{animation-duration:.9s}
-.fi-en-stage[data-phase="charge"] .fi-en-rune{opacity:1;stroke-width:1.3;animation:fi-en-throb .35s ease-in-out infinite alternate}
+.fi-en-r2,.fi-en-r3{stroke:var(--rc)}
+.fi-en-stage[data-phase="charge"]{cursor:pointer}
+.fi-en-stage[data-phase="charge"] .fi-en-rune{opacity:1;stroke-width:1.3;animation:fi-en-throb .3s ease-in-out infinite alternate}
+.fi-en-stage[data-phase="charge"]::after{content:"tap to skip";position:absolute;right:.6rem;top:.5rem;font-family:var(--font-rubik,inherit);font-size:.58rem;letter-spacing:.12em;text-transform:uppercase;color:rgba(255,255,255,.4);animation:fi-en-hint 1.4s ease-in-out infinite}
+@keyframes fi-en-hint{50%{opacity:.35}}
 .fi-en-stage[data-phase="reveal"] .fi-en-rune{animation:fi-en-land .7s ease-out}
 .fi-en-stage[data-table="prism"] .fi-en-rune{animation:fi-hue 6s linear infinite}
 @keyframes fi-en-throb{from{transform:translate(-50%,-50%) scale(.97)}to{transform:translate(-50%,-50%) scale(1.04)}}
 @keyframes fi-en-land{0%{transform:translate(-50%,-50%) scale(1.25);filter:drop-shadow(0 0 22px var(--rc)) brightness(2)}100%{transform:translate(-50%,-50%) scale(1)}}
 .fi-en-glyph{position:absolute;left:50%;top:44%;transform:translate(-50%,-50%);font-size:3.6rem;line-height:1;color:var(--rc);text-shadow:0 0 22px var(--rc),0 4px 0 rgba(0,0,0,.5);animation:fi-en-float 3s ease-in-out infinite,fi-en-gin .5s cubic-bezier(.2,1.7,.4,1)}
-.fi-en-stage[data-phase="charge"] .fi-en-glyph{animation:fi-en-shiver .08s linear infinite}
+.fi-en-stage[data-phase="charge"] .fi-en-glyph{animation:none}
+.fi-en-stage[data-phase="reveal"] .fi-en-glyph{top:36%}
+.fi-en-glyph{transition:top .45s cubic-bezier(.2,1.4,.4,1)}
 .fi-en-stage[data-r="7"] .fi-en-glyph{animation:fi-en-float 3s ease-in-out infinite,fi-hue 3s linear infinite}
 @keyframes fi-en-float{0%,100%{margin-top:0}50%{margin-top:-6px}}
 @keyframes fi-en-gin{from{transform:translate(-50%,-50%) scale(.2) rotate(-90deg);opacity:0}}
@@ -830,6 +894,10 @@ export const ENCH_CSS = `
 .fi-en-card[data-r="7"]{border-image:linear-gradient(120deg,#ff5f5f,#ffd95f,#6fff5f,#5fe6ff,#b05fff,#ff5fd2) 1}
 .fi-en-card-ic{display:grid;place-items:center;width:2rem;height:2rem;border-radius:.6rem;font-size:1.25rem;background:rgba(255,255,255,.06)}
 @keyframes fi-en-cardin{from{transform:translateY(8px) scale(.94);opacity:0}}
+.fi-en-li{animation:fi-en-li .4s cubic-bezier(.2,1.3,.4,1) backwards;animation-delay:calc(var(--n)*90ms + 120ms)}
+@keyframes fi-en-li{from{opacity:0;transform:translateX(-10px)}}
+.fi-en-bar{animation:fi-en-bar .7s cubic-bezier(.2,.9,.3,1) .1s backwards}
+@keyframes fi-en-bar{from{width:0!important}}
 .fi-en-compare{border-radius:1rem;border:1px solid color-mix(in oklch,var(--mc-light-purple) 40%,transparent);padding:.6rem;background:rgba(255,255,255,.02)}
 .fi-en-actions{display:flex;flex-wrap:wrap;gap:.4rem;align-items:stretch}
 .fi-en-btn{padding:.45rem .8rem;border-radius:.65rem;border:1px solid rgba(255,255,255,.18);font-family:var(--font-minecraft,inherit);font-size:.75rem;color:#fff;transition:background .15s,transform .1s,opacity .15s;touch-action:manipulation}
@@ -871,5 +939,5 @@ export const ENCH_CSS = `
 @keyframes fi-en-cut{from{opacity:0}}
 @keyframes fi-en-veil{0%{opacity:0}15%{opacity:1}80%{opacity:1}100%{opacity:0}}
 @keyframes fi-en-cutbody{from{transform:scale(.3);opacity:0;filter:blur(10px)}}
-@media (prefers-reduced-motion:reduce){.fi-en-r1,.fi-en-r2,.fi-en-r3,.fi-en-glyph,.fi-en-slot,.fi-en-roll,.fi-en-banner,.fi-en-card,.fi-en-cut,.fi-en-cut-body,.fi-en-pip-rainbow,.fi-en-rune{animation:none!important}}
+@media (prefers-reduced-motion:reduce){.fi-en-r1,.fi-en-r2,.fi-en-r3,.fi-en-glyph,.fi-en-slot,.fi-en-roll,.fi-en-banner,.fi-en-card,.fi-en-li,.fi-en-bar,.fi-en-cut,.fi-en-cut-body,.fi-en-pip-rainbow,.fi-en-rune{animation:none!important}}
 `;
