@@ -8,20 +8,22 @@ import {
     advance,
     bulk,
     checkTrophies,
+    colTiers,
     derive,
     fmt,
     income,
     loadGame,
-    minionDiscount,
+    minionBase,
     rebirthPlan,
     skillLevel,
+    upAvailable,
     upCost,
     writeSave,
 } from "@/lib/fractured-idle/engine";
 import type { State } from "@/lib/fractured-idle/data";
 import { Goals } from "./goals";
 import { Orbit } from "./orbit";
-import { CSS, IconBtn, Kbd, Stat, tint, type Ctx, type TipApi, type TipSource } from "./ui";
+import { BUY_OPTIONS, CSS, IconBtn, Kbd, Stat, tint, type Ctx, type TipApi, type TipSource } from "./ui";
 import { MinionsTab } from "./tab-minions";
 import { UpgradeTip, UpgradesTab } from "./tab-upgrades";
 import { TrophiesTab, TrophyTip } from "./tab-trophies";
@@ -51,13 +53,6 @@ const TABS: { id: TabId; label: string; symbol: React.ComponentProps<typeof McSy
     { id: "settings", label: "Settings", symbol: "defense" },
 ];
 
-const BUY_OPTIONS = [
-    { v: 1, label: "x1" },
-    { v: 10, label: "x10" },
-    { v: 100, label: "x100" },
-    { v: -1, label: "Max" },
-];
-
 const BOBBER_LIFETIME = 10; // seconds a bobber stays clickable
 
 export function FracturedIdle() {
@@ -73,6 +68,7 @@ export function FracturedIdle() {
     const floatRef = useRef<HTMLDivElement>(null);
     const toastTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
     const bob = useRef({ left: 0, next: 25 });
+    const lastTiers = useRef<number[]>([]);
     const tipRef = useRef<HTMLDivElement>(null);
     const anchor = useRef({ x: 0, y: 0 });
     const [tipState, setTipState] = useState<{ id: string; open: boolean }>({ id: "", open: false });
@@ -139,6 +135,7 @@ export function FracturedIdle() {
         const { state, offline } = loadGame();
         ref.current = state;
         bob.current.next = nextBobber(state);
+        lastTiers.current = colTiers(state);
         setReady(true);
         if (offline > 0) say(`Welcome back! Your minions earned ${fmt(offline, state.sci)} shards while you were away.`);
 
@@ -177,6 +174,10 @@ export function FracturedIdle() {
                 sinceAch = 0;
                 const fresh = checkTrophies(s);
                 if (fresh.length) say(`Trophy unlocked: ${fresh.join(", ")}`);
+                const tiers = colTiers(s);
+                const up = tiers.findIndex((t, i) => t > (lastTiers.current[i] ?? 0));
+                if (up >= 0) say(`${MINIONS[up].name.replace(" Minion", "")} collection tier ${tiers[up]} reached!`);
+                lastTiers.current = tiers;
             }
             if (sinceSave >= 10) {
                 sinceSave = 0;
@@ -336,10 +337,9 @@ export function FracturedIdle() {
     const ctx: Ctx = { s, d, F, act, render, say, tip };
 
     // Dots on tabs that have something to spend on.
-    const disc = minionDiscount(s);
     const dots: Partial<Record<TabId, boolean>> = {
-        minions: MINIONS.some((m, i) => bulk(m.cost * disc, MINION_GROWTH, s.minions[i], s.shards, 1).cost <= s.shards && (i === 0 || s.minions[i] > 0 || s.total >= m.cost * 0.25)),
-        upgrades: UPGRADES.some((u) => (s.ups[u.id] || 0) < u.max && s.shards >= upCost(u.id, s.ups[u.id] || 0)),
+        minions: MINIONS.some((m, i) => bulk(minionBase(s, i), MINION_GROWTH, s.minions[i], s.shards, 1).cost <= s.shards && (i === 0 || s.minions[i] > 0 || s.total >= m.cost * 0.25)),
+        upgrades: UPGRADES.some((u) => (s.ups[u.id] || 0) < u.max && upAvailable(s, u) && s.shards >= upCost(u.id, s.ups[u.id] || 0)),
         rebirth: plan.count > 0,
     };
 

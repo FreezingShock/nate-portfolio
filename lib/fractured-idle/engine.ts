@@ -2,7 +2,10 @@ import {
     ISLANDS,
     MILESTONES,
     MINIONS,
+    MINION_COL,
     MINION_GROWTH,
+    MINION_UPS_BY,
+    colTier,
     REBIRTH_MILESTONES,
     REBIRTH_UPS,
     SKILL_CAP,
@@ -34,6 +37,7 @@ export function newState(): State {
         rebirths: 0,
         tokens: 0,
         minions: MINIONS.map(() => 0),
+        mcol: MINIONS.map(() => 0),
         ups: {},
         rups: {},
         mining: 0,
@@ -104,7 +108,52 @@ export interface Derived {
     allUp: number;
     synergy: number;
     minionCps: number[]; // per-minion shards/sec, for the shop
+    mult: number[]; // per-minion multiplier (everything except count, base rate and milestones)
+    upOwn: number[]; // per-minion multiplier from that minion's own upgrades
+    colSpeed: number[]; // per-minion collection speed
 }
+
+export interface ColFx {
+    own: number[];
+    next: number[];
+    per10: number[];
+    cost: number[];
+    col: number[];
+    all: number;
+    click: number;
+    crit: number;
+    critDmg: number;
+    offline: number;
+    tokens: number;
+}
+
+/** Sum of every unlocked collection tier reward. */
+export function collectionEffects(s: State): ColFx {
+    const z = () => MINIONS.map(() => 0);
+    const fx: ColFx = { own: z(), next: z(), per10: z(), cost: z(), col: z(), all: 0, click: 0, crit: 0, critDmg: 0, offline: 0, tokens: 0 };
+    for (let i = 0; i < MINIONS.length; i++) {
+        const t = colTier(s.mcol[i] || 0);
+        for (let k = 0; k < t; k++) {
+            const r = MINION_COL[i][k];
+            switch (r.kind) {
+                case "own": fx.own[i] += r.value; break;
+                case "next": if (i + 1 < MINIONS.length) fx.next[i + 1] += r.value; break;
+                case "per10": fx.per10[i] += r.value; break;
+                case "cost": fx.cost[i] += r.value; break;
+                case "col": fx.col[i] += r.value; break;
+                case "all": fx.all += r.value; break;
+                case "click": fx.click += r.value; break;
+                case "crit": fx.crit += r.value; break;
+                case "critDmg": fx.critDmg += r.value; break;
+                case "offline": fx.offline += r.value; break;
+                case "tokens": fx.tokens += r.value; break;
+            }
+        }
+    }
+    return fx;
+}
+
+export const colTiers = (s: State) => MINIONS.map((_, i) => colTier(s.mcol[i] || 0));
 
 /** Sum of every unlocked trophy tier's reward, per stat. */
 export function trophyBonus(s: State): Record<RewardStat, number> {
@@ -130,6 +179,8 @@ export function derive(s: State): Derived {
     let critChance = 0.05;
     let critDmg = 0.5;
     let synergy = 0;
+    const upOwn = MINIONS.map(() => 1);
+    const colUp = MINIONS.map(() => 0);
     for (const u of UPGRADES) {
         const l = s.ups[u.id] || 0;
         if (!l) continue;
@@ -141,13 +192,18 @@ export function derive(s: State): Derived {
             case "critChance": critChance += u.value * l; break;
             case "critDmg": critDmg += u.value * l; break;
             case "synergy": synergy += u.value * l; break;
+            case "mown":
+                upOwn[u.minion!] *= Math.pow(u.value, l);
+                if (u.extra?.col) colUp[u.minion!] += u.extra.col * l;
+                break;
         }
     }
+    const ce = collectionEffects(s);
     const bonus = trophyBonus(s);
-    clickMult *= (1 + bonus.click) * (1 + 0.05 * (s.rups.might || 0));
+    clickMult *= (1 + bonus.click) * (1 + ce.click) * (1 + 0.05 * (s.rups.might || 0));
     minionMult *= (1 + bonus.minion) * (1 + 0.05 * (s.rups.engine || 0));
-    critChance += bonus.critChance + 0.01 * (s.rups.luck || 0);
-    critDmg += bonus.critDmg;
+    critChance += bonus.critChance + ce.crit + 0.01 * (s.rups.luck || 0);
+    critDmg += bonus.critDmg + ce.critDmg;
     const mining = skillLevel(s.mining);
     const farming = skillLevel(s.farming);
     const combat = skillLevel(s.combat);
@@ -160,12 +216,16 @@ export function derive(s: State): Derived {
     let islandMult = 1;
     for (const i of ISLANDS) if (s.total >= i.at) islandMult = Math.max(islandMult, i.mult);
     const achMult = 1 + bonus.all;
-    const all = rMult * islandMult * achMult * allUp * (1 + 0.01 * fishing);
+    const all = rMult * islandMult * achMult * allUp * (1 + ce.all) * (1 + 0.01 * fishing);
 
     const shared = minionMult * (1 + 0.03 * farming) * all;
     let cps = 0;
+    const mult = MINIONS.map(
+        (_, i) => shared * upOwn[i] * (1 + ce.own[i]) * (1 + ce.per10[i] * Math.floor(s.minions[i] / 10)) * (1 + ce.next[i]),
+    );
+    const colSpeed = MINIONS.map((_, i) => 1 + ce.col[i] + colUp[i]);
     const minionCps = MINIONS.map((m, i) => {
-        const c = s.minions[i] * m.cps * milestoneMult(s.minions[i]) * shared;
+        const c = s.minions[i] * m.cps * milestoneMult(s.minions[i]) * mult[i];
         cps += c;
         return c;
     });
@@ -194,6 +254,9 @@ export function derive(s: State): Derived {
         allUp,
         synergy,
         minionCps,
+        mult,
+        upOwn,
+        colSpeed,
     };
 }
 
@@ -201,7 +264,46 @@ export function derive(s: State): Derived {
 
 export const minionDiscount = (s: State) => 1 - 0.05 * (s.rups.disc || 0);
 export const offlineEff = (s: State) =>
-    Math.min(1, 0.5 + 0.1 * (s.rups.off || 0) + trophyBonus(s).offline);
+    Math.min(1, 0.5 + 0.1 * (s.rups.off || 0) + trophyBonus(s).offline + collectionEffects(s).offline);
+
+/** Price of the first minion of type `i` after every discount (rebirth, collection, upgrades). */
+export function minionBase(s: State, i: number): number {
+    let disc = minionDiscount(s);
+    let col = 0;
+    const t = colTier(s.mcol[i] || 0);
+    for (let k = 0; k < t; k++) if (MINION_COL[i][k].kind === "cost") col += MINION_COL[i][k].value;
+    disc *= 1 - Math.min(0.75, col);
+    for (const u of MINION_UPS_BY[i]) if (s.ups[u.id] && u.extra?.disc) disc *= 1 - u.extra.disc;
+    return MINIONS[i].cost * disc;
+}
+
+export interface BuyInfo {
+    n: number;
+    cost: number;
+    can: boolean;
+    gain: number; // shards/sec added by this purchase
+    payback: number; // seconds to earn the cost back
+}
+
+/** What buying at the current stack size does for minion `i`. */
+export function buyInfo(s: State, d: Derived, i: number): BuyInfo {
+    const owned = s.minions[i];
+    const base = minionBase(s, i);
+    let { n, cost } = bulk(base, MINION_GROWTH, owned, s.shards, s.buy);
+    const can = n >= 1 && cost <= s.shards;
+    if (n < 1) ({ n, cost } = bulk(base, MINION_GROWTH, owned, s.shards, 1));
+    const per = MINIONS[i].cps * d.mult[i];
+    const gain = per * ((owned + n) * milestoneMult(owned + n) - owned * milestoneMult(owned));
+    return { n, cost, can, gain, payback: gain > 0 ? cost / gain : Infinity };
+}
+
+/** The (up to) three visible minions that pay themselves back fastest at the current stack size. */
+export function bestBuys(s: State, d: Derived, visible: (i: number) => boolean): { i: number; info: BuyInfo }[] {
+    return MINIONS.map((_, i) => ({ i, info: buyInfo(s, d, i) }))
+        .filter((x) => visible(x.i) && isFinite(x.info.payback))
+        .sort((a, b) => a.info.payback - b.info.payback)
+        .slice(0, 3);
+}
 
 /** Cost of buying `want` items (or as many as affordable when want = -1). */
 export function bulk(base: number, g: number, owned: number, money: number, want: number) {
@@ -224,17 +326,20 @@ export const upCost = (id: string, lvl: number) => {
 
 export function buyMinion(s: State, i: number): boolean {
     const m = MINIONS[i];
-    const { n, cost } = bulk(m.cost * minionDiscount(s), MINION_GROWTH, s.minions[i], s.shards, s.buy);
+    const { n, cost } = bulk(minionBase(s, i), MINION_GROWTH, s.minions[i], s.shards, s.buy);
     if (n < 1 || cost > s.shards) return false;
     s.shards -= cost;
     s.minions[i] += n;
     return true;
 }
 
+/** Minion-specific upgrades need a number of that minion owned. */
+export const upAvailable = (s: State, u: UpgradeDef) => u.minion === undefined || s.minions[u.minion] >= (u.req ?? 0);
+
 export function buyUpgrade(s: State, id: string): boolean {
     const u = UPGRADES.find((x) => x.id === id)!;
     const lvl = s.ups[id] || 0;
-    if (lvl >= u.max) return false;
+    if (lvl >= u.max || !upAvailable(s, u)) return false;
     const cost = u.cost * Math.pow(u.growth, lvl);
     if (s.shards < cost) return false;
     s.shards -= cost;
@@ -261,7 +366,7 @@ export const tokensFor = (shards: number, r: number) =>
     Math.max(1, Math.floor(1 + Math.log10(shards / rebirthCost(r)) * 2));
 
 export const rebirthCap = (s: State) => 1 + (s.rups.stack || 0);
-export const tokenMult = (s: State) => 1 + trophyBonus(s).tokens + 0.25 * (s.rups.magnet || 0);
+export const tokenMult = (s: State) => 1 + trophyBonus(s).tokens + collectionEffects(s).tokens + 0.25 * (s.rups.magnet || 0);
 export const milestoneTokens = (level: number) => REBIRTH_MILESTONES[level] || 0;
 
 /** Tokens for taking rebirth number `level` (1-based) while holding `shards`. */
@@ -296,6 +401,7 @@ export function rebirth(s: State, take?: number): boolean {
     s.rebirths += plan.count;
     s.shards = startShards(s);
     s.minions = MINIONS.map(() => 0);
+    s.mcol = MINIONS.map(() => 0);
     s.minions[0] = 5 * (s.rups.kit || 0);
     s.minions[1] = 2 * (s.rups.kit || 0);
     s.ups = {};
@@ -330,6 +436,10 @@ export function upgradeInfo(d: Derived, u: UpgradeDef, sci = false): UpInfo {
             return { label: "Crit damage", cur: pct(d.critDmg), next: pct(d.critDmg + u.value) };
         case "synergy":
             return { label: "Click bonus from shards/sec", cur: pct(d.synergy), next: pct(d.synergy + u.value) };
+        case "mown": {
+            const cur = d.upOwn[u.minion!];
+            return { label: `${MINIONS[u.minion!].name.replace(" Minion", "")} output`, cur: x(cur), next: x(cur * u.value) };
+        }
     }
 }
 
@@ -372,6 +482,7 @@ export function advance(s: State, d: Derived, dt: number) {
     s.combat += autoCrits * 3 * d.xpMult;
     s.fishing += 0.2 * dt * d.xpMult;
     s.farming += (d.cps > 0 ? 1 + 2 * Math.log10(d.cps + 1) : 0) * dt * d.xpMult;
+    for (let i = 0; i < MINIONS.length; i++) if (s.minions[i] > 0) s.mcol[i] += s.minions[i] * dt * d.colSpeed[i];
     s.playTime += dt;
 }
 
@@ -393,6 +504,7 @@ export function parseSave(raw: string): State | null {
         const s: State = { ...base, ...o };
         // Tolerate saves from older versions with fewer minions.
         s.minions = MINIONS.map((_, i) => Number(o.minions?.[i]) || 0);
+        s.mcol = MINIONS.map((_, i) => Number(o.mcol?.[i]) || 0);
         s.ups = { ...(o.ups ?? {}) };
         s.rups = { ...(o.rups ?? {}) };
         s.tro = { ...(o.tro ?? {}) };
@@ -426,6 +538,7 @@ export function loadGame(): { state: State; offline: number } {
                 s.shards += offline;
                 s.total += offline;
                 s.playTime += secs * offlineEff(s);
+                for (let i = 0; i < MINIONS.length; i++) s.mcol[i] += s.minions[i] * secs * offlineEff(s) * d.colSpeed[i];
             }
             return { state: s, offline };
         }

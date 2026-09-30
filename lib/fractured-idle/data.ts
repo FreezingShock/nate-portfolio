@@ -24,6 +24,7 @@ export interface State {
     rebirths: number;
     tokens: number; // rebirth tokens, spent on permanent upgrades
     minions: number[];
+    mcol: number[]; // per-minion collection (minion-seconds worked), reset on rebirth
     ups: Record<string, number>;
     rups: Record<string, number>;
     mining: number; // skill xp
@@ -81,19 +82,90 @@ export const MINIONS: MinionDef[] = [
     { id: "prismarine", name: "Prismarine Minion", color: "var(--mc-dark-aqua)", symbol: "fishing", cost: 5e18, cps: 1.4e13 },
 ];
 
-export type UpKind = "click" | "minion" | "all" | "auto" | "critChance" | "critDmg" | "synergy";
+// ---- Minion collections ----
+// Every minion works a collection: it fills by (minions owned x seconds), is
+// wiped on rebirth, and each tier pays a reward specific to that minion.
+
+export const COL_AT = [200, 1500, 9000, 45000, 200000, 800000];
+
+export const COL_ITEM = [
+    "Cobblestone", "Wheat", "Oak Logs", "Coal", "Iron Ingots", "Gold Ingots", "Diamonds", "Lapis Lazuli",
+    "Emeralds", "Obsidian", "Glowstone Dust", "Fractured Shards", "Redstone", "Nether Quartz", "Ice", "Prismarine",
+];
+
+export type ColKind = "own" | "cost" | "all" | "click" | "crit" | "critDmg" | "offline" | "next" | "per10" | "col" | "tokens";
+
+export interface ColReward {
+    name: string;
+    kind: ColKind;
+    value: number;
+}
+
+const R = (name: string, kind: ColKind, value: number): ColReward => ({ name, kind, value });
+
+export const MINION_COL: ColReward[][] = [
+    [R("Loose Gravel", "own", 0.1), R("Stonecutter", "cost", 0.05), R("Cobble Generator", "per10", 0.02), R("Bedrock Foundation", "all", 0.01), R("Rockslide", "click", 0.05), R("Mountain Mover", "own", 0.5)],
+    [R("Seed Satchel", "own", 0.1), R("Scarecrow", "col", 0.25), R("Hay Bale Stack", "next", 0.15), R("Golden Harvest", "all", 0.01), R("Bread Winner", "offline", 0.05), R("Sea of Grain", "own", 0.5)],
+    [R("Sturdy Saplings", "own", 0.1), R("Lumber Axe", "cost", 0.05), R("Treehouse", "per10", 0.02), R("Forest Blessing", "click", 0.05), R("Old Growth", "next", 0.2), R("World Tree", "all", 0.02)],
+    [R("Coal Dust", "own", 0.1), R("Kindling", "col", 0.25), R("Blast Furnace", "next", 0.2), R("Deep Seam", "critDmg", 0.05), R("Diamond Pressure", "own", 0.25), R("Eternal Ember", "all", 0.02)],
+    [R("Ore Cart", "own", 0.1), R("Smelter", "cost", 0.05), R("Iron Golem", "crit", 0.01), R("Reinforced Rails", "per10", 0.02), R("Steel Mill", "next", 0.2), R("Iron Will", "click", 0.1)],
+    [R("Gilded Pans", "own", 0.1), R("Rich Vein", "col", 0.25), R("Midas Touch", "all", 0.01), R("Gold Rush", "click", 0.08), R("Bullion Vault", "tokens", 0.05), R("Golden Age", "own", 0.5)],
+    [R("Sharp Picks", "own", 0.1), R("Gem Cutter", "cost", 0.05), R("Pristine Cut", "crit", 0.01), R("Diamond Core", "next", 0.2), R("Refracted Light", "critDmg", 0.1), R("Crown Jewel", "all", 0.02)],
+    [R("Blue Dust", "own", 0.1), R("Enchant Table", "col", 0.25), R("Scholar's Tithe", "tokens", 0.05), R("Sapphire Runes", "per10", 0.02), R("Deep Wisdom", "click", 0.08), R("Grand Library", "own", 0.5)],
+    [R("Trade Routes", "own", 0.1), R("Villager Haggle", "cost", 0.08), R("Emerald Ledger", "offline", 0.05), R("Hero of the Village", "all", 0.02), R("Merchant Guild", "next", 0.25), R("Green Fortune", "own", 0.6)],
+    [R("Hardened Edge", "own", 0.1), R("Forge Heat", "cost", 0.05), R("Void Gaze", "crit", 0.01), R("Nether Portal", "next", 0.25), R("Crying Stone", "critDmg", 0.1), R("Obsidian Throne", "all", 0.03)],
+    [R("Bright Sparks", "own", 0.1), R("Lantern Line", "col", 0.3), R("Radiant Dust", "offline", 0.05), R("Photon Feed", "next", 0.25), R("Nightless", "per10", 0.03), R("Beacon", "all", 0.03)],
+    [R("Cracked Shard", "own", 0.1), R("Rift Siphon", "cost", 0.08), R("Shard Storm", "click", 0.1), R("Fracture Harmonics", "next", 0.25), R("Portal Network", "tokens", 0.08), R("Shattered Reality", "all", 0.04)],
+    [R("Overclocked Dust", "own", 0.1), R("Comparator", "col", 0.3), R("Repeater Chain", "per10", 0.03), R("Piston Rush", "click", 0.1), R("Redstone Brain", "next", 0.3), R("Perpetual Motion", "own", 0.75)],
+    [R("Polished Blocks", "own", 0.1), R("Chisel Set", "cost", 0.08), R("Pure Crystal", "crit", 0.015), R("Quartz Pillars", "next", 0.3), R("Resonance", "critDmg", 0.15), R("Crystal Cathedral", "all", 0.04)],
+    [R("Frost Bite", "own", 0.1), R("Permafrost", "offline", 0.08), R("Glacial Drift", "per10", 0.03), R("Cold Storage", "col", 0.3), R("Whiteout", "click", 0.12), R("Ice Age", "own", 0.8)],
+    [R("Sea Lantern", "own", 0.1), R("Tidal Pull", "cost", 0.1), R("Guardian's Gift", "crit", 0.015), R("Deep Currents", "per10", 0.04), R("Ocean Monument", "tokens", 0.1), R("Heart of the Sea", "all", 0.05)],
+];
+
+/** How many collection tiers `items` has reached. */
+export const colTier = (items: number) => {
+    let n = 0;
+    while (n < COL_AT.length && items >= COL_AT[n]) n++;
+    return n;
+};
+
+const pctText = (v: number) => `${Math.round(v * 1000) / 10}%`;
+
+export function colRewardText(r: ColReward, minion: string, next?: string): string {
+    const m = minion.replace(" Minion", "");
+    const p = pctText(r.value);
+    switch (r.kind) {
+        case "own": return `+${p} ${m} output`;
+        case "cost": return `-${p} ${m} price`;
+        case "all": return `+${p} all shards`;
+        case "click": return `+${p} click power`;
+        case "crit": return `+${p} crit chance`;
+        case "critDmg": return `+${p} crit damage`;
+        case "offline": return `+${p} offline efficiency`;
+        case "next": return next ? `+${p} ${next.replace(" Minion", "")} output` : "Boosts the next minion";
+        case "per10": return `+${p} ${m} output per 10 owned`;
+        case "col": return `+${p} ${m} collection speed`;
+        case "tokens": return `+${p} rebirth tokens`;
+    }
+}
+
+export type UpKind = "click" | "minion" | "all" | "auto" | "critChance" | "critDmg" | "synergy" | "mown";
 
 export interface UpgradeDef {
     id: string;
     name: string;
     desc: string;
     kind: UpKind;
-    value: number; // multiplier for click/minion/all, per-level amount for the rest
+    value: number; // multiplier for click/minion/all/mown, per-level amount for the rest
     cost: number;
     growth: number;
     max: number; // 1 = one-time
     symbol: McSymbolName;
     color: string;
+    /** Minion-specific upgrades: which minion, and how many of it you must own. */
+    minion?: number;
+    req?: number;
+    extra?: { col?: number; disc?: number };
 }
 
 const once = (
@@ -122,7 +194,7 @@ const once = (
               : `All shards x${value}`,
 });
 
-export const UPGRADES: UpgradeDef[] = [
+const BASE_UPGRADES: UpgradeDef[] = [
     // Repeatable
     { id: "auto", name: "Auto-Clicker", desc: "+1 automatic click per second", kind: "auto", value: 1, cost: 250, growth: 1.9, max: 25, symbol: "attackSpeed", color: "var(--mc-red)" },
     { id: "critc", name: "Critical Eye", desc: "+2% crit chance", kind: "critChance", value: 0.02, cost: 1e3, growth: 1.8, max: 25, symbol: "critChance", color: "var(--mc-blue)" },
@@ -161,6 +233,52 @@ export const UPGRADES: UpgradeDef[] = [
     once("tal8", "Ender Artifact", "all", 2, 1e19, "wisdom", "var(--mc-light-purple)"),
     once("tal9", "Fractured Relic", "all", 3, 1e21, "wisdom", "var(--mc-blue)"),
 ];
+
+// Three upgrades per minion. Price is a multiple of that minion's base price
+// and each needs a number of that minion owned.
+const UP_NAMES: [string, string, string][] = [
+    ["Stone Pickaxe Heads", "Cobble Compactor", "Infinite Generator"],
+    ["Iron Hoe", "Enchanted Seeds", "Automated Harvester"],
+    ["Sharpened Axe", "Growth Fertilizer", "Lumber Mill"],
+    ["Coal Hopper", "Pressure Chamber", "Coal Refinery"],
+    ["Iron Smelter", "Ore Cart Line", "Iron Golem Guard"],
+    ["Gold Pan", "Midas Sluice", "Gilded Furnace"],
+    ["Diamond Drill Bit", "Gem Polisher", "Crystal Refinery"],
+    ["Lapis Grinder", "Enchant Table Link", "Blue Dye Vat"],
+    ["Villager Contract", "Trading Hall", "Emerald Exchange"],
+    ["Water Bucket Trick", "Lava Quench", "Obsidian Forge"],
+    ["Nether Lantern", "Dust Condenser", "Light Reactor"],
+    ["Shard Lens", "Rift Anchor", "Fracture Engine"],
+    ["Redstone Torch Array", "Piston Assembly", "Clock Circuit"],
+    ["Nether Chisel", "Crystal Lattice", "Quartz Resonator"],
+    ["Frost Pick", "Packed Ice Press", "Blizzard Engine"],
+    ["Sea Lantern Lamp", "Guardian Beam", "Ocean Core"],
+];
+const UP_COST = [60, 1200, 2e5];
+const UP_REQ = [5, 25, 75];
+const UP_MULT = [2, 2, 3];
+
+export const MINION_UPS: UpgradeDef[] = MINIONS.flatMap((m, i) =>
+    UP_NAMES[i].map((name, t): UpgradeDef => ({
+        id: `mu-${m.id}-${t + 1}`,
+        name,
+        kind: "mown",
+        value: UP_MULT[t],
+        cost: m.cost * UP_COST[t],
+        growth: 1,
+        max: 1,
+        symbol: m.symbol,
+        color: m.color,
+        minion: i,
+        req: UP_REQ[t],
+        extra: t === 1 ? { col: 0.5 } : t === 2 ? { disc: 0.1 } : undefined,
+        desc: `${m.name} output x${UP_MULT[t]}${t === 1 ? ", collects 50% faster" : t === 2 ? ", costs 10% less" : ""}`,
+    })),
+);
+
+export const MINION_UPS_BY: UpgradeDef[][] = MINIONS.map((_, i) => MINION_UPS.filter((u) => u.minion === i));
+
+export const UPGRADES: UpgradeDef[] = [...BASE_UPGRADES, ...MINION_UPS];
 
 export interface RebirthUpDef {
     id: string;
