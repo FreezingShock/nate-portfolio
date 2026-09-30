@@ -4,8 +4,8 @@ import { useState } from "react";
 import { Check, ChevronDown, Lock, Sparkles } from "lucide-react";
 import { McSymbol } from "@/components/mc-symbol";
 import { COL_AT, COL_ITEM, MILESTONES, MINIONS, MINION_COL, MINION_UPS_BY, colRewardText, colTier } from "@/lib/fractured-idle/data";
-import { bestBuys, buyInfo, buyMinion, buyUpgrade, fmtEta, income, milestoneMult, upAvailable } from "@/lib/fractured-idle/engine";
-import { BUY_OPTIONS, Teaser, tint, type Ctx } from "./ui";
+import { bestBuys, buyInfo, buyMinion, buyUpgrade, fmtEta, income, milestoneMult, upAvailable, upCost } from "@/lib/fractured-idle/engine";
+import { BUY_OPTIONS, Teaser, lift, tint, type Ctx } from "./ui";
 
 // Minions tab: a sticky buy-amount bar, a "best value" ribbon, and one card
 // per minion. Each card opens into that minion's collection (resets on
@@ -17,7 +17,6 @@ const RANKS = [
     { label: "#3 value", color: "#e0955a" },
 ];
 
-const lift = (c: string) => `color-mix(in oklch, ${c} 68%, white)`;
 const clamp01 = (n: number) => Math.max(0, Math.min(1, isFinite(n) ? n : 0));
 const pctOf = (a: number, b: number) => {
     const p = b > 0 ? (a / b) * 100 : 0;
@@ -362,7 +361,8 @@ export function MinionsTab({ s, d, F, act, render }: Ctx) {
                                             {MINION_UPS_BY[i].map((u) => {
                                                 const have = !!s.ups[u.id];
                                                 const avail = upAvailable(s, u);
-                                                const can = !have && avail && s.shards >= u.cost;
+                                                const cost = upCost(s, u.id, 0);
+                                                const can = !have && avail && s.shards >= cost;
                                                 return (
                                                     <button
                                                         key={u.id}
@@ -385,7 +385,7 @@ export function MinionsTab({ s, d, F, act, render }: Ctx) {
                                                             {have ? (
                                                                 <><Check className="size-3" /> Owned</>
                                                             ) : avail ? (
-                                                                F(u.cost)
+                                                                F(cost)
                                                             ) : (
                                                                 <><Lock className="size-3" /> Own {u.req}</>
                                                             )}

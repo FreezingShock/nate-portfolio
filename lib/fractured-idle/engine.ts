@@ -1,11 +1,28 @@
 import {
+    ASC_BASE,
+    ASC_UPS,
+    EGGS,
     ISLANDS,
     MILESTONES,
     MINIONS,
     MINION_COL,
     MINION_GROWTH,
     MINION_UPS_BY,
+    PETS,
+    PET_MAX,
+    PET_PERK_AT,
+    RARITIES,
+    RARITY_ORDER,
+    ascGain,
+    ascReq,
     colTier,
+    petLevel,
+    petXpFor,
+    type AscUpDef,
+    type EggDef,
+    type PetDef,
+    type PetStat,
+    type Rarity,
     REBIRTH_MILESTONES,
     REBIRTH_UPS,
     SKILL_CAP,
@@ -54,6 +71,16 @@ export function newState(): State {
         sci: false,
         fx: true,
         buy: 1,
+        orbit: true,
+        toasts: true,
+        asc: 0,
+        ap: 0,
+        aups: {},
+        pets: {},
+        equip: [],
+        hatched: 0,
+        freeEggs: 0,
+        peakInc: 0,
     };
 }
 
@@ -111,6 +138,30 @@ export interface Derived {
     mult: number[]; // per-minion multiplier (everything except count, base rate and milestones)
     upOwn: number[]; // per-minion multiplier from that minion's own upgrades
     colSpeed: number[]; // per-minion collection speed
+    pet: PetBonus; // equipped pets + pet collection
+    ascMult: number;
+}
+
+export type PetBonus = Record<PetStat, number>;
+
+const PET_MAP = new Map(PETS.map((p) => [p.id, p]));
+export const petOf = (id: string) => PET_MAP.get(id);
+export const petSlots = (s: State) => 1 + (s.aups.perch2 ? 1 : 0) + (s.aups.perch3 ? 1 : 0);
+export const ascMult = (s: State) => Math.pow(ASC_BASE, s.asc) * (1 + 0.25 * (s.aups.cosmic || 0));
+
+/** Main stat + unlocked perks of the equipped pets, plus +0.5% all shards per species found. */
+export function petBonus(s: State): PetBonus {
+    const b: PetBonus = { all: 0, click: 0, minion: 0, critChance: 0, critDmg: 0, tokens: 0, skillXp: 0, offline: 0, bobber: 0, col: 0, cost: 0 };
+    b.all += 0.005 * Object.keys(s.pets).length;
+    for (const id of s.equip) {
+        const p = PET_MAP.get(id);
+        const st = s.pets[id];
+        if (!p || !st) continue;
+        const lv = petLevel(p, st.xp);
+        b[p.stat] += p.base + p.per * (lv - 1);
+        for (let i = 0; i < p.perks.length; i++) if (lv >= PET_PERK_AT[i]) b[p.perks[i].stat] += p.perks[i].value;
+    }
+    return b;
 }
 
 export interface ColFx {
@@ -199,11 +250,12 @@ export function derive(s: State): Derived {
         }
     }
     const ce = collectionEffects(s);
+    const pb = petBonus(s);
     const bonus = trophyBonus(s);
-    clickMult *= (1 + bonus.click) * (1 + ce.click) * (1 + 0.05 * (s.rups.might || 0));
-    minionMult *= (1 + bonus.minion) * (1 + 0.05 * (s.rups.engine || 0));
-    critChance += bonus.critChance + ce.crit + 0.01 * (s.rups.luck || 0);
-    critDmg += bonus.critDmg + ce.critDmg;
+    clickMult *= (1 + bonus.click) * (1 + ce.click) * (1 + pb.click) * (1 + 0.05 * (s.rups.might || 0));
+    minionMult *= (1 + bonus.minion) * (1 + pb.minion) * (1 + 0.05 * (s.rups.engine || 0)) * (1 + 0.25 * (s.aups.union || 0));
+    critChance += bonus.critChance + ce.crit + pb.critChance + 0.01 * (s.rups.luck || 0);
+    critDmg += bonus.critDmg + ce.critDmg + pb.critDmg;
     const mining = skillLevel(s.mining);
     const farming = skillLevel(s.farming);
     const combat = skillLevel(s.combat);
@@ -212,18 +264,19 @@ export function derive(s: State): Derived {
     critDmg += 0.02 * combat;
 
     const core = s.rups.core || 0;
-    const rMult = Math.pow(1.5 + 0.05 * core, s.rebirths);
+    const rMult = Math.pow(1.3 + 0.03 * core, s.rebirths);
     let islandMult = 1;
     for (const i of ISLANDS) if (s.total >= i.at) islandMult = Math.max(islandMult, i.mult);
     const achMult = 1 + bonus.all;
-    const all = rMult * islandMult * achMult * allUp * (1 + ce.all) * (1 + 0.01 * fishing);
+    const am = ascMult(s);
+    const all = rMult * islandMult * achMult * allUp * (1 + ce.all + pb.all) * (1 + 0.01 * fishing) * am;
 
     const shared = minionMult * (1 + 0.03 * farming) * all;
     let cps = 0;
     const mult = MINIONS.map(
         (_, i) => shared * upOwn[i] * (1 + ce.own[i]) * (1 + ce.per10[i] * Math.floor(s.minions[i] / 10)) * (1 + ce.next[i]),
     );
-    const colSpeed = MINIONS.map((_, i) => 1 + ce.col[i] + colUp[i]);
+    const colSpeed = MINIONS.map((_, i) => 1 + ce.col[i] + colUp[i] + pb.col + 0.3 * (s.aups.depth || 0));
     const minionCps = MINIONS.map((m, i) => {
         const c = s.minions[i] * m.cps * milestoneMult(s.minions[i]) * mult[i];
         cps += c;
@@ -241,8 +294,8 @@ export function derive(s: State): Derived {
         rMult,
         islandMult,
         achMult,
-        xpMult: 1 + bonus.skillXp,
-        bobberMult: 1 + bonus.bobber,
+        xpMult: 1 + bonus.skillXp + pb.skillXp,
+        bobberMult: 1 + bonus.bobber + pb.bobber,
         bonus,
         all,
         mining,
@@ -257,6 +310,8 @@ export function derive(s: State): Derived {
         mult,
         upOwn,
         colSpeed,
+        pet: pb,
+        ascMult: am,
     };
 }
 
@@ -264,7 +319,7 @@ export function derive(s: State): Derived {
 
 export const minionDiscount = (s: State) => 1 - 0.05 * (s.rups.disc || 0);
 export const offlineEff = (s: State) =>
-    Math.min(1, 0.5 + 0.1 * (s.rups.off || 0) + trophyBonus(s).offline + collectionEffects(s).offline);
+    Math.min(1, 0.5 + 0.1 * (s.rups.off || 0) + trophyBonus(s).offline + collectionEffects(s).offline + petBonus(s).offline);
 
 /** Price of the first minion of type `i` after every discount (rebirth, collection, upgrades). */
 export function minionBase(s: State, i: number): number {
@@ -272,7 +327,7 @@ export function minionBase(s: State, i: number): number {
     let col = 0;
     const t = colTier(s.mcol[i] || 0);
     for (let k = 0; k < t; k++) if (MINION_COL[i][k].kind === "cost") col += MINION_COL[i][k].value;
-    disc *= 1 - Math.min(0.75, col);
+    disc *= 1 - Math.min(0.75, col + petBonus(s).cost);
     for (const u of MINION_UPS_BY[i]) if (s.ups[u.id] && u.extra?.disc) disc *= 1 - u.extra.disc;
     return MINIONS[i].cost * disc;
 }
@@ -317,9 +372,14 @@ export function bulk(base: number, g: number, owned: number, money: number, want
     return { n, cost: (first * (Math.pow(g, n) - 1)) / (g - 1) };
 }
 
-export const upCost = (id: string, lvl: number) => {
+// Shard-priced upgrades are wiped by every rebirth, so their price inflates
+// with rebirth count; otherwise they'd be rebought for pocket change each run.
+export const UP_INFLATION = 3;
+export const upInflation = (s: State) => Math.pow(UP_INFLATION, s.rebirths);
+
+export const upCost = (s: State, id: string, lvl: number) => {
     const u = UPGRADES.find((x) => x.id === id)!;
-    return u.cost * Math.pow(u.growth, lvl);
+    return u.cost * Math.pow(u.growth, lvl) * upInflation(s);
 };
 
 // ---- Actions (return true when state changed) ----
@@ -340,7 +400,7 @@ export function buyUpgrade(s: State, id: string): boolean {
     const u = UPGRADES.find((x) => x.id === id)!;
     const lvl = s.ups[id] || 0;
     if (lvl >= u.max || !upAvailable(s, u)) return false;
-    const cost = u.cost * Math.pow(u.growth, lvl);
+    const cost = upCost(s, id, lvl);
     if (s.shards < cost) return false;
     s.shards -= cost;
     s.ups[id] = lvl + 1;
@@ -358,27 +418,27 @@ export function buyRebirthUp(s: State, id: string): boolean {
     return true;
 }
 
-export const rebirthBase = (s: State) => 1.5 + 0.05 * (s.rups.core || 0);
+export const rebirthBase = (s: State) => 1.3 + 0.03 * (s.rups.core || 0);
 export const rebirthMultAt = (s: State, r: number) => Math.pow(rebirthBase(s), r);
 
 /** Base tokens for clearing rebirth cost index `r` while holding `shards`. */
-export const tokensFor = (shards: number, r: number) =>
-    Math.max(1, Math.floor(1 + Math.log10(shards / rebirthCost(r)) * 2));
+export const tokensFor = (shards: number, r: number, asc = 0) =>
+    Math.max(1, Math.floor(1 + Math.log10(shards / rebirthCost(r, asc)) * 2));
 
 export const rebirthCap = (s: State) => 1 + (s.rups.stack || 0);
-export const tokenMult = (s: State) => 1 + trophyBonus(s).tokens + collectionEffects(s).tokens + 0.25 * (s.rups.magnet || 0);
+export const tokenMult = (s: State) => 1 + trophyBonus(s).tokens + collectionEffects(s).tokens + petBonus(s).tokens + 0.25 * (s.aups.well || 0) + 0.25 * (s.rups.magnet || 0);
 export const milestoneTokens = (level: number) => REBIRTH_MILESTONES[level] || 0;
 
 /** Tokens for taking rebirth number `level` (1-based) while holding `shards`. */
 export const tokensAt = (s: State, shards: number, level: number) =>
-    Math.max(1, Math.round(tokensFor(shards, level - 1) * tokenMult(s))) + milestoneTokens(level);
+    Math.max(1, Math.round(tokensFor(shards, level - 1, s.asc) * tokenMult(s))) + milestoneTokens(level);
 
 /** How many rebirths you could take right now (up to your stack cap) and what they pay. */
 export function rebirthPlan(s: State, take?: number) {
     const limit = Math.min(rebirthCap(s), take ?? Infinity);
     let count = 0;
     let tokens = 0;
-    while (count < limit && s.shards >= rebirthCost(s.rebirths + count)) {
+    while (count < limit && s.shards >= rebirthCost(s.rebirths + count, s.asc)) {
         tokens += tokensAt(s, s.shards, s.rebirths + count + 1);
         count++;
     }
@@ -464,6 +524,138 @@ export function checkTrophies(s: State): string[] {
     return fresh;
 }
 
+// ---- Pets ----
+
+export const eggPrice = (s: State, egg: EggDef) =>
+    Math.max(egg.min, s.peakInc * egg.secs) * Math.pow(1.05, s.hatched) * (1 - 0.08 * (s.aups.nest || 0));
+
+export const feedCost = (s: State) => Math.max(1e3, s.peakInc * 120);
+
+export interface HatchResult {
+    id: string;
+    rarity: Rarity;
+    isNew: boolean;
+    xp: number; // xp a duplicate gave
+}
+
+export function hatch(s: State, eggId: string, free = false): HatchResult | null {
+    const egg = EGGS.find((e) => e.id === eggId);
+    if (!egg) return null;
+    if (free) {
+        if (s.freeEggs < 1 || egg.id !== "wood") return null;
+        s.freeEggs--;
+    } else {
+        const cost = eggPrice(s, egg);
+        if (s.shards < cost) return null;
+        s.shards -= cost;
+    }
+    const total = RARITY_ORDER.reduce((a, r) => a + (egg.odds[r] || 0), 0);
+    let roll = Math.random() * total;
+    let rarity: Rarity = RARITY_ORDER.find((r) => egg.odds[r]) ?? "common";
+    for (const r of RARITY_ORDER) {
+        const w = egg.odds[r] || 0;
+        if (w && roll < w) {
+            rarity = r;
+            break;
+        }
+        roll -= w;
+    }
+    const pool = PETS.filter((p) => p.rarity === rarity);
+    const pet = pool[Math.floor(Math.random() * pool.length)];
+    const cur = s.pets[pet.id];
+    let xp = 0;
+    if (!cur) {
+        s.pets[pet.id] = { xp: 0, n: 1 };
+        if (s.equip.length < petSlots(s)) s.equip.push(pet.id);
+    } else {
+        cur.n++;
+        xp = RARITIES[rarity].dupe * (1 + 0.3 * (s.aups.mentor || 0));
+        cur.xp = Math.min(petXpFor(pet, PET_MAX), cur.xp + xp);
+    }
+    s.hatched++;
+    return { id: pet.id, rarity, isNew: !cur, xp };
+}
+
+/** Equip a pet; with every slot full the pet in the oldest slot is swapped out. */
+export function equipPet(s: State, id: string): boolean {
+    if (!s.pets[id] || s.equip.includes(id)) return false;
+    if (s.equip.length >= petSlots(s)) s.equip.shift();
+    s.equip.push(id);
+    return true;
+}
+
+export function unequipPet(s: State, id: string): boolean {
+    const i = s.equip.indexOf(id);
+    if (i < 0) return false;
+    s.equip.splice(i, 1);
+    return true;
+}
+
+/** Give experience to every equipped pet (mentor bonus applied). */
+export function addPetXp(s: State, amount: number) {
+    const m = 1 + 0.3 * (s.aups.mentor || 0);
+    for (const id of s.equip) {
+        const p = PET_MAP.get(id);
+        const st = s.pets[id];
+        if (p && st) st.xp = Math.min(petXpFor(p, PET_MAX), st.xp + amount * m);
+    }
+}
+
+/** Spend shards to give a pet 30% of the xp its current level needs. */
+export function feedPet(s: State, id: string): boolean {
+    const p = PET_MAP.get(id);
+    const st = s.pets[id];
+    if (!p || !st) return false;
+    const lv = petLevel(p, st.xp);
+    const cost = feedCost(s);
+    if (lv >= PET_MAX || s.shards < cost) return false;
+    s.shards -= cost;
+    st.xp = Math.min(petXpFor(p, PET_MAX), st.xp + 0.3 * (petXpFor(p, lv + 1) - petXpFor(p, lv)) * (1 + 0.3 * (s.aups.mentor || 0)));
+    return true;
+}
+
+// ---- Ascension ----
+
+export function ascPlan(s: State) {
+    const req = ascReq(s.asc);
+    const can = s.rebirths >= req;
+    return { req, can, ap: can ? ascGain(s.rebirths, s.asc) : 0, next: ascGain(Math.max(s.rebirths, req), s.asc) };
+}
+
+export const aupCost = (u: AscUpDef, lvl: number) => Math.ceil(u.cost * Math.pow(u.growth, lvl));
+
+export function buyAscUp(s: State, id: string): boolean {
+    const u = ASC_UPS.find((x) => x.id === id);
+    if (!u) return false;
+    const lvl = s.aups[id] || 0;
+    if (lvl >= u.max || (u.needs && !s.aups[u.needs])) return false;
+    const cost = aupCost(u, lvl);
+    if (s.ap < cost) return false;
+    s.ap -= cost;
+    s.aups[id] = lvl + 1;
+    return true;
+}
+
+export function ascend(s: State): boolean {
+    const plan = ascPlan(s);
+    if (!plan.can) return false;
+    const keep = 0.1 * (s.aups.keep || 0);
+    const kept = Object.entries(s.rups)
+        .map(([id, lvl]) => [id, Math.floor(lvl * keep)] as const)
+        .filter(([, lvl]) => lvl > 0);
+    s.ap += plan.ap;
+    s.asc += 1;
+    s.tokens = 0;
+    s.rups = Object.fromEntries(kept);
+    s.rebirths = s.aups.echo || 0;
+    s.shards = 0;
+    s.minions = MINIONS.map(() => 0);
+    s.mcol = MINIONS.map(() => 0);
+    s.ups = {};
+    if (s.aups.auto2) s.ups.auto = 3 * s.aups.auto2;
+    return true;
+}
+
 /** How many trophy tiers are unlocked / exist. */
 export const trophyCounts = (s: State) => ({
     got: TROPHIES.reduce((a, t) => a + (s.tro[t.id] || 0), 0),
@@ -484,6 +676,9 @@ export function advance(s: State, d: Derived, dt: number) {
     s.farming += (d.cps > 0 ? 1 + 2 * Math.log10(d.cps + 1) : 0) * dt * d.xpMult;
     for (let i = 0; i < MINIONS.length; i++) if (s.minions[i] > 0) s.mcol[i] += s.minions[i] * dt * d.colSpeed[i];
     s.playTime += dt;
+    if (s.equip.length) addPetXp(s, dt);
+    const inc = d.cps + d.auto * d.avgClick;
+    if (inc > s.peakInc) s.peakInc = inc;
 }
 
 // ---- Save / load ----
@@ -509,6 +704,14 @@ export function parseSave(raw: string): State | null {
         s.rups = { ...(o.rups ?? {}) };
         s.tro = { ...(o.tro ?? {}) };
         s.peak = { minions: Number(o.peak?.minions) || 0, types: Number(o.peak?.types) || 0 };
+        s.aups = { ...(o.aups ?? {}) };
+        s.pets = {};
+        for (const p of PETS) {
+            const r = o.pets?.[p.id];
+            if (r) s.pets[p.id] = { xp: Math.max(0, Number(r.xp) || 0), n: Math.max(1, Number(r.n) || 1) };
+        }
+        s.equip = (Array.isArray(o.equip) ? (o.equip as string[]) : []).filter((id, i, a) => s.pets[id] && a.indexOf(id) === i).slice(0, 3);
+        s.peakInc = Math.max(0, Number(o.peakInc) || 0);
         if (!isFinite(s.shards) || !isFinite(s.total)) return null;
         return s;
     } catch {
@@ -538,6 +741,7 @@ export function loadGame(): { state: State; offline: number } {
                 s.shards += offline;
                 s.total += offline;
                 s.playTime += secs * offlineEff(s);
+                addPetXp(s, secs * offlineEff(s));
                 for (let i = 0; i < MINIONS.length; i++) s.mcol[i] += s.minions[i] * secs * offlineEff(s) * d.colSpeed[i];
             }
             return { state: s, offline };

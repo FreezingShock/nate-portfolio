@@ -3,13 +3,16 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useReducer, useRef, useState } from "react";
 import { Expand, Minimize } from "lucide-react";
 import { McSymbol } from "@/components/mc-symbol";
-import { ISLANDS, MINIONS, MINION_GROWTH, UPGRADES } from "@/lib/fractured-idle/data";
+import { EGGS, ISLANDS, MINIONS, MINION_GROWTH, PETS, RARITIES, UPGRADES, petLevel } from "@/lib/fractured-idle/data";
 import {
+    addPetXp,
     advance,
+    ascPlan,
     bulk,
     checkTrophies,
     colTiers,
     derive,
+    eggPrice,
     fmt,
     income,
     loadGame,
@@ -25,6 +28,8 @@ import { Goals } from "./goals";
 import { Orbit } from "./orbit";
 import { BUY_OPTIONS, CSS, IconBtn, Kbd, Stat, tint, type Ctx, type TipApi, type TipSource } from "./ui";
 import { MinionsTab } from "./tab-minions";
+import { PetsTab } from "./tab-pets";
+import { AscensionTab } from "./tab-ascension";
 import { UpgradeTip, UpgradesTab } from "./tab-upgrades";
 import { TrophiesTab, TrophyTip } from "./tab-trophies";
 import { IslandsTab } from "./tab-islands";
@@ -39,15 +44,17 @@ import { SettingsTab, SoonTab } from "./tab-misc";
 // 100ms re-render keeps the UI live, so clicking never waits on React.
 // To add a tab: write a component that takes Ctx and register it in TABS.
 
-type TabId = "minions" | "upgrades" | "islands" | "skills" | "stats" | "rebirth" | "trophies" | "soon" | "settings";
+type TabId = "minions" | "upgrades" | "pets" | "islands" | "skills" | "stats" | "rebirth" | "ascension" | "trophies" | "soon" | "settings";
 
 const TABS: { id: TabId; label: string; symbol: React.ComponentProps<typeof McSymbol>["name"] }[] = [
     { id: "minions", label: "Minions", symbol: "forge" },
     { id: "upgrades", label: "Upgrades", symbol: "strength" },
+    { id: "pets", label: "Pets", symbol: "petLuck" },
     { id: "islands", label: "Islands", symbol: "location" },
     { id: "skills", label: "Skills", symbol: "wisdom" },
     { id: "stats", label: "Stats", symbol: "intelligence" },
     { id: "rebirth", label: "Rebirth", symbol: "portal" },
+    { id: "ascension", label: "Ascension", symbol: "comet" },
     { id: "trophies", label: "Trophies", symbol: "pristine" },
     { id: "soon", label: "Soon", symbol: "comet" },
     { id: "settings", label: "Settings", symbol: "defense" },
@@ -122,6 +129,7 @@ export function FracturedIdle() {
     });
 
     const say = useCallback((msg: string) => {
+        if (ref.current?.toasts === false) return;
         setToast(msg);
         clearTimeout(toastTimer.current);
         toastTimer.current = setTimeout(() => setToast(null), 3500);
@@ -253,6 +261,7 @@ export function FracturedIdle() {
         s.total += v;
         s.clicks += 1;
         s.mining += d.xpMult;
+        if (s.equip.length) addPetXp(s, 0.4);
         if (crit) {
             s.crits += 1;
             s.combat += 3 * d.xpMult;
@@ -280,7 +289,12 @@ export function FracturedIdle() {
         bob.current.left = 0;
         bob.current.next = nextBobber(s);
         setBobber(null);
-        say(`Treasure! +${fmt(reward, s.sci)} shards`);
+        if (Math.random() < 0.1) {
+            s.freeEggs += 1;
+            say(`Treasure! +${fmt(reward, s.sci)} shards and a Wooden Egg!`);
+        } else {
+            say(`Treasure! +${fmt(reward, s.sci)} shards`);
+        }
     };
 
     const replaceState = (n: State) => {
@@ -327,6 +341,7 @@ export function FracturedIdle() {
     const d = derive(s);
     const island = ISLANDS.find((i) => i.id === s.island && s.total >= i.at) ?? ISLANDS[0];
     const plan = rebirthPlan(s);
+    const asc = ascPlan(s);
     const F = (n: number) => fmt(n, s.sci);
     const full = isFs || pseudoFs;
     const totalMinions = s.minions.reduce((a, b) => a + b, 0);
@@ -339,8 +354,10 @@ export function FracturedIdle() {
     // Dots on tabs that have something to spend on.
     const dots: Partial<Record<TabId, boolean>> = {
         minions: MINIONS.some((m, i) => bulk(minionBase(s, i), MINION_GROWTH, s.minions[i], s.shards, 1).cost <= s.shards && (i === 0 || s.minions[i] > 0 || s.total >= m.cost * 0.25)),
-        upgrades: UPGRADES.some((u) => (s.ups[u.id] || 0) < u.max && upAvailable(s, u) && s.shards >= upCost(u.id, s.ups[u.id] || 0)),
+        upgrades: UPGRADES.some((u) => (s.ups[u.id] || 0) < u.max && upAvailable(s, u) && s.shards >= upCost(s, u.id, s.ups[u.id] || 0)),
         rebirth: plan.count > 0,
+        ascension: asc.can,
+        pets: s.freeEggs > 0 || (Object.keys(s.pets).length < PETS.length && s.shards >= eggPrice(s, EGGS[0])),
     };
 
     return (
@@ -388,6 +405,27 @@ export function FracturedIdle() {
                         )}
                     </div>
                 </button>
+                {(s.asc > 0 || asc.can) && (
+                    <button
+                        type="button"
+                        title="Open Ascension"
+                        onClick={() => {
+                            tip.hide();
+                            setTab("ascension");
+                        }}
+                        className="text-left"
+                    >
+                        <div className="font-minecraft text-[10px] uppercase tracking-widest text-muted-foreground">Ascension</div>
+                        <div className="flex items-center gap-1.5 font-minecraft text-lg leading-none" style={{ color: "var(--mc-aqua)" }}>
+                            {s.asc}
+                            {asc.can && (
+                                <span className="fi-afford rounded-full px-1.5 py-0.5 text-[10px] text-black" style={{ backgroundColor: "var(--mc-aqua)", ["--c" as string]: "var(--mc-aqua)" }}>
+                                    ready
+                                </span>
+                            )}
+                        </div>
+                    </button>
+                )}
                 <div className="ml-auto flex items-center gap-2">
                     <div className="flex overflow-hidden rounded-lg border border-white/15">
                         {BUY_OPTIONS.map((o) => (
@@ -422,9 +460,35 @@ export function FracturedIdle() {
                         </span>
                     </div>
 
+                    {s.equip.length > 0 && (
+                        <div className="flex flex-wrap items-center justify-center gap-1.5">
+                            {s.equip.map((id) => {
+                                const p = PETS.find((x) => x.id === id);
+                                const st = s.pets[id];
+                                if (!p || !st) return null;
+                                const rc = RARITIES[p.rarity].color;
+                                return (
+                                    <button
+                                        key={id}
+                                        type="button"
+                                        title={`${p.name}: open Pets`}
+                                        onClick={() => {
+                                            tip.hide();
+                                            setTab("pets");
+                                        }}
+                                        className="flex items-center gap-1 rounded-full border px-2 py-0.5 font-rubik text-[10px] transition-colors hover:bg-white/10"
+                                        style={{ borderColor: tint(rc, 55), color: p.color }}
+                                    >
+                                        <McSymbol name={p.symbol} /> {p.name} <span className="text-muted-foreground">Lv {petLevel(p, st.xp)}</span>
+                                    </button>
+                                );
+                            })}
+                        </div>
+                    )}
+
                     <div className="relative my-6">
                         <div className="fi-pulse pointer-events-none absolute -inset-6 rounded-[2.5rem] blur-2xl" style={{ backgroundColor: tint(island.color, 40) }} />
-                        <Orbit counts={s.minions} />
+                        {s.orbit && <Orbit counts={s.minions} />}
                         <button
                             type="button"
                             tabIndex={-1}
@@ -508,10 +572,12 @@ export function FracturedIdle() {
                     <div className="min-h-[360px] flex-1 space-y-2 overflow-y-auto p-3 [scrollbar-width:thin]">
                         {tab === "minions" && <MinionsTab {...ctx} />}
                         {tab === "upgrades" && <UpgradesTab {...ctx} />}
+                        {tab === "pets" && <PetsTab {...ctx} />}
                         {tab === "islands" && <IslandsTab {...ctx} />}
                         {tab === "skills" && <SkillsTab {...ctx} />}
                         {tab === "stats" && <StatsTab {...ctx} />}
                         {tab === "rebirth" && <RebirthTab {...ctx} />}
+                        {tab === "ascension" && <AscensionTab {...ctx} />}
                         {tab === "trophies" && <TrophiesTab {...ctx} />}
                         {tab === "soon" && <SoonTab {...ctx} />}
                         {tab === "settings" && <SettingsTab {...ctx} replaceState={replaceState} />}

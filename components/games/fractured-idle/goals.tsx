@@ -1,8 +1,10 @@
 "use client";
 
 import { McSymbol } from "@/components/mc-symbol";
-import { ISLANDS, REWARD_LABEL, SKILLS, TROPHIES, rebirthCost } from "@/lib/fractured-idle/data";
+import { ASC_BASE, EGGS, ISLANDS, PETS, REWARD_LABEL, SKILLS, TROPHIES, rebirthCost } from "@/lib/fractured-idle/data";
 import {
+    ascPlan,
+    eggPrice,
     fmtEta,
     income,
     rebirthMultAt,
@@ -47,7 +49,7 @@ export function Goals({ s, d, F, open }: Pick<Ctx, "s" | "d" | "F"> & { open: (t
     // ---- Rebirth ----
     const plan = rebirthPlan(s);
     const level = s.rebirths + 1;
-    const cost = rebirthCost(s.rebirths);
+    const cost = rebirthCost(s.rebirths, s.asc);
     if (plan.count > 0) {
         goals.push({
             key: "rebirth",
@@ -74,6 +76,42 @@ export function Goals({ s, d, F, open }: Pick<Ctx, "s" | "d" | "F"> & { open: (t
             pct: logPct(s.shards, cost),
             left: `${F(s.shards)} / ${F(cost)} (${realPct(s.shards, cost)})`,
             right: `x${F(d.rMult)} → x${F(rebirthMultAt(s, level))} · +${tokens}+ tokens`,
+        });
+    }
+
+    // ---- Ascension (shown once you are within reach of it) ----
+    const ap = ascPlan(s);
+    if (ap.can || s.rebirths >= ap.req - 6) {
+        goals.push({
+            key: "ascension",
+            tab: "ascension",
+            symbol: "comet",
+            color: "var(--mc-aqua)",
+            title: ap.can ? "Ascension ready!" : `Ascension #${s.asc + 1}`,
+            chip: ap.can ? `+${ap.ap} points` : `${ap.req - s.rebirths} rebirths`,
+            chipHot: ap.can,
+            pct: Math.min(1, s.rebirths / ap.req),
+            ready: ap.can,
+            left: `Rebirth ${s.rebirths} / ${ap.req}`,
+            right: ap.can ? "Click to ascend" : "multiplies everything by x" + ASC_BASE,
+        });
+    }
+
+    // ---- A pet egg you can hatch right now ----
+    const egg = [...EGGS].reverse().find((e) => s.shards >= eggPrice(s, e));
+    if ((s.freeEggs > 0 || egg) && Object.keys(s.pets).length < PETS.length) {
+        goals.push({
+            key: "egg",
+            tab: "pets",
+            symbol: "petLuck",
+            color: "var(--mc-dark-aqua)",
+            title: s.freeEggs > 0 ? "Free egg to hatch!" : `${egg!.name} ready to hatch`,
+            chip: s.freeEggs > 0 ? `x${s.freeEggs}` : F(eggPrice(s, egg!)),
+            chipHot: true,
+            pct: 1,
+            ready: true,
+            left: `${Object.keys(s.pets).length}/${PETS.length} pets found`,
+            right: "Click to open Pets",
         });
     }
 

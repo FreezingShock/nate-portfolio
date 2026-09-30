@@ -31,6 +31,8 @@ export interface TipApi {
 export type SymbolName = ComponentProps<typeof McSymbol>["name"];
 
 export const tint = (c: string, pct: number) => `color-mix(in oklch, ${c} ${pct}%, transparent)`;
+/** Lighten a color so dark palette entries (blue, purple) stay readable as text. */
+export const lift = (c: string) => `color-mix(in oklch, ${c} 68%, white)`;
 
 export const BUY_OPTIONS = [
     { v: 1, label: "x1" },

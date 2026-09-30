@@ -8,13 +8,15 @@ import type { McSymbolName } from "@/components/mc-symbol";
 //    engine.advance / the click handler, and apply its bonus in engine.derive.
 //  - New island / trophy / rebirth upgrade: add a row to ISLANDS / ACHIEVEMENTS
 //    / REBIRTH_UPS.
+//  - New pet / egg / ascension upgrade: add a row to PETS / EGGS / ASC_UPS.
 //  - New tab: add a file under components/games/fractured-idle/ and register it
 //    in TABS in index.tsx.
 //
-// Content tables for Fractured Idle. Everything named here (minions, islands,
-// upgrades, achievements) is a WORKING PLACEHOLDER: edit the names, colors and
-// numbers here and the game picks them up. Balance is untuned; treat every
-// cost / rate as a first pass.
+// Content tables for Fractured Idle. Edit the names, colors and numbers here
+// and the game picks them up. Pacing was tuned with scripts/fi-sim.ts (a
+// greedy-player simulation): re-run it after touching costs or multipliers.
+// Rough targets for an optimal player: first rebirth ~15 min, Spider's Den
+// ~3h, The End ~13h, Fractured Islands a few days, first ascension ~a day.
 
 export interface State {
     v: 1;
@@ -41,6 +43,18 @@ export interface State {
     sci: boolean;
     fx: boolean;
     buy: number; // 1 | 10 | 100 | -1 (max)
+    orbit: boolean; // orbiting minions around the button
+    toasts: boolean; // popup messages
+    // Ascension: the prestige layer above rebirth.
+    asc: number; // ascensions taken
+    ap: number; // unspent ascension points
+    aups: Record<string, number>;
+    // Pets: survive rebirth and ascension.
+    pets: Record<string, { xp: number; n: number }>; // n = copies found
+    equip: string[]; // equipped pet ids, one per slot used
+    hatched: number;
+    freeEggs: number; // wooden eggs from treasure bobbers
+    peakInc: number; // best shards/sec ever, prices eggs
 }
 
 export interface MinionDef {
@@ -52,7 +66,7 @@ export interface MinionDef {
     cps: number;
 }
 
-export const MINION_GROWTH = 1.17;
+export const MINION_GROWTH = 1.2;
 export const MILESTONES = [25, 50, 100, 200, 400];
 
 export const SKILL_CAP = 60;
@@ -63,7 +77,12 @@ export const skillLevel = (xp: number) =>
 export const skillXpFor = (level: number) =>
     (XP_BASE * (Math.pow(XP_GROWTH, level) - 1)) / (XP_GROWTH - 1);
 
-export const MINIONS: MinionDef[] = [
+// Each tier's price is multiplied by MINION_STEEP^index on top of the table,
+// so price outpaces output as you climb and the shop can't be bought out the
+// moment your multipliers grow.
+export const MINION_STEEP = 3;
+
+const MINION_ROWS: MinionDef[] = [
     { id: "cobble", name: "Cobblestone Minion", color: "var(--mc-gray, #aaaaaa)", symbol: "defense", cost: 15, cps: 0.4 },
     { id: "wheat", name: "Wheat Minion", color: "var(--mc-yellow)", symbol: "fortune", cost: 120, cps: 2.4 },
     { id: "oak", name: "Oak Minion", color: "var(--mc-dark-green)", symbol: "regen", cost: 1.1e3, cps: 16 },
@@ -81,6 +100,8 @@ export const MINIONS: MinionDef[] = [
     { id: "ice", name: "Ice Minion", color: "var(--mc-aqua)", symbol: "night", cost: 2.4e17, cps: 8e11 },
     { id: "prismarine", name: "Prismarine Minion", color: "var(--mc-dark-aqua)", symbol: "fishing", cost: 5e18, cps: 1.4e13 },
 ];
+
+export const MINIONS: MinionDef[] = MINION_ROWS.map((m, i) => ({ ...m, cost: m.cost * Math.pow(MINION_STEEP, i) }));
 
 // ---- Minion collections ----
 // Every minion works a collection: it fills by (minions owned x seconds), is
@@ -310,7 +331,10 @@ export const REBIRTH_MILESTONES: Record<number, number> = {
     5: 5, 10: 10, 15: 15, 20: 20, 25: 30, 30: 35, 40: 50, 50: 75, 75: 100, 100: 150,
 };
 
-export const rebirthCost = (r: number) => 1e6 * Math.pow(16, r);
+// Each ascension makes every rebirth ASC_COST times pricier, so the extra power
+// it grants has to be earned back rather than skipping the climb.
+export const ASC_COST = 12;
+export const rebirthCost = (r: number, asc = 0) => 1e6 * Math.pow(16, r) * Math.pow(ASC_COST, asc);
 
 export interface IslandDef {
     id: string;
@@ -324,12 +348,12 @@ export interface IslandDef {
 
 export const ISLANDS: IslandDef[] = [
     { id: "hub", name: "The Hub", color: "var(--mc-green)", symbol: "location", at: 0, mult: 1, blurb: "Where every adventure starts." },
-    { id: "mine", name: "Gold Mine", color: "var(--mc-gold)", symbol: "forge", at: 1e5, mult: 1.5, blurb: "Placeholder: a warm tunnel with veins of shard ore." },
-    { id: "caverns", name: "Deep Caverns", color: "var(--mc-aqua)", symbol: "pristine", at: 1e9, mult: 2.5, blurb: "Placeholder: crystal ceilings and echoing minecarts." },
-    { id: "den", name: "Spider's Den", color: "var(--mc-dark-purple)", symbol: "night", at: 1e13, mult: 4, blurb: "Placeholder: webs, eggs and something watching." },
-    { id: "fortress", name: "Blazing Fortress", color: "var(--mc-red)", symbol: "heat", at: 1e18, mult: 7, blurb: "Placeholder: lava bridges and blaze spawners." },
-    { id: "end", name: "The End", color: "var(--mc-light-purple)", symbol: "portal", at: 1e24, mult: 12, blurb: "Placeholder: pale stone floating in the dark." },
-    { id: "fractured", name: "Fractured Islands", color: "var(--mc-blue)", symbol: "comet", at: 1e32, mult: 25, blurb: "Placeholder: the shattered home of it all." },
+    { id: "mine", name: "Gold Mine", color: "var(--mc-gold)", symbol: "forge", at: 1e5, mult: 1.5, blurb: "A warm tunnel lined with veins of raw shard ore." },
+    { id: "caverns", name: "Deep Caverns", color: "var(--mc-aqua)", symbol: "pristine", at: 1e9, mult: 2.5, blurb: "Crystal ceilings and the far-off echo of minecarts." },
+    { id: "den", name: "Spider's Den", color: "var(--mc-dark-purple)", symbol: "night", at: 1e13, mult: 4, blurb: "Webs, egg sacs and something watching from the dark." },
+    { id: "fortress", name: "Blazing Fortress", color: "var(--mc-red)", symbol: "heat", at: 1e18, mult: 7, blurb: "Lava bridges, blaze spawners and a constant, shimmering heat." },
+    { id: "end", name: "The End", color: "var(--mc-light-purple)", symbol: "portal", at: 1e24, mult: 12, blurb: "Pale stone drifting in an endless dark." },
+    { id: "fractured", name: "Fractured Islands", color: "var(--mc-blue)", symbol: "comet", at: 1e32, mult: 25, blurb: "The shattered home of it all." },
 ];
 
 // ---- Trophies ----
@@ -364,6 +388,7 @@ export const TROPHY_CATEGORIES: TrophyCategory[] = [
     { id: "rebirth", name: "Rebirth", color: "var(--mc-light-purple)", symbol: "portal" },
     { id: "skills", name: "Skills", color: "var(--mc-red)", symbol: "wisdom" },
     { id: "explore", name: "Exploration", color: "var(--mc-blue)", symbol: "location" },
+    { id: "pets", name: "Pets", color: "var(--mc-dark-aqua)", symbol: "petLuck" },
     { id: "unique", name: "Unique", color: "var(--mc-yellow)", symbol: "pristine" },
 ];
 
@@ -405,6 +430,11 @@ export const TROPHIES: TrophyDef[] = [
     { id: "isles", name: "Island Hopper", category: "explore", symbol: "location", stat: "all", unit: "islands unlocked", metric: islands, tiers: tiers([2, 3, 4, 5, 6, 7], [0.01, 0.01, 0.02, 0.02, 0.03, 0.05]) },
     { id: "bobbers", name: "Gone Fishing", category: "explore", symbol: "fishing", stat: "bobber", unit: "bobbers caught", metric: (s) => s.bobbers, tiers: tiers([1, 10, 50, 250, 1000], [0.05, 0.1, 0.15, 0.2, 0.25]) },
     { id: "time", name: "Dedicated", category: "explore", symbol: "day", stat: "offline", unit: "hours played", metric: (s) => s.playTime / 3600, tiers: tiers([1, 5, 24, 100], [0.05, 0.05, 0.1, 0.1]) },
+    { id: "menagerie", name: "Menagerie", category: "pets", symbol: "petLuck", stat: "all", unit: "pets found", metric: (s) => Object.keys(s.pets).length, tiers: tiers([1, 4, 8, 12, 15], [0.01, 0.01, 0.02, 0.03, 0.05]) },
+    { id: "hatch", name: "Egg Hunter", category: "pets", symbol: "flower", stat: "skillXp", unit: "eggs hatched", metric: (s) => s.hatched, tiers: tiers([1, 10, 30, 100, 300], [0.05, 0.05, 0.1, 0.1, 0.15]) },
+    { id: "legend", name: "Legendary Luck", category: "pets", symbol: "magicFind", stat: "minion", unit: "legendary pets", metric: (s) => PETS.filter((p) => p.rarity === "legendary" && s.pets[p.id]).length, tiers: tiers([1, 2, 3], [0.05, 0.1, 0.2]) },
+    { id: "bestfriend", name: "Best Friend", category: "pets", symbol: "regen", stat: "click", unit: "top pet level", metric: (s) => Math.max(0, ...PETS.map((p) => (s.pets[p.id] ? petLevel(p, s.pets[p.id].xp) : 0))), tiers: tiers([10, 25, 50, 75, 100], [0.02, 0.03, 0.05, 0.08, 0.15]) },
+    { id: "ascended", name: "Ascended", category: "rebirth", symbol: "comet", stat: "tokens", unit: "ascensions", metric: (s) => s.asc, tiers: tiers([1, 2, 3, 5, 10], [0.1, 0.1, 0.15, 0.2, 0.3]) },
     { id: "u-first", name: "First Click", category: "unique", symbol: "check", stat: "all", unit: "clicks", metric: (s) => s.clicks, tiers: tiers([1], [0.01]) },
     { id: "u-auto", name: "Fully Automated", category: "unique", symbol: "attackSpeed", stat: "click", unit: "Auto-Clicker level", metric: (s) => s.ups.auto || 0, tiers: tiers([25], [0.1]) },
     { id: "u-speed", name: "Speedrunner", category: "unique", symbol: "speed", stat: "tokens", unit: "rebirths inside the first 30 min", metric: (s) => (s.rebirths >= 1 && s.playTime < 1800 ? 1 : 0), tiers: tiers([1], [0.1]) },
@@ -414,10 +444,134 @@ export const TROPHIES: TrophyDef[] = [
 
 // Not built yet: shown as locked cards so the roadmap is visible in-game.
 export const COMING_SOON = [
-    { name: "Pets", symbol: "petLuck" as McSymbolName, color: "var(--mc-light-purple)", desc: "Hatch eggs, level companions and equip one for a big boost." },
     { name: "Enchanting", symbol: "intelligence" as McSymbolName, color: "var(--mc-blue)", desc: "Enchant your pickaxe with rolling perks." },
-    { name: "Ascension", symbol: "comet" as McSymbolName, color: "var(--mc-aqua)", desc: "A second prestige layer above rebirths." },
     { name: "Bazaar", symbol: "magicFind" as McSymbolName, color: "var(--mc-gold)", desc: "A fake market where resources swing in price." },
+];
+
+// ---- Pets ----
+// Hatch eggs for pets, equip up to a few, and they level while equipped.
+// A pet's main stat scales with level; three perks unlock at levels 25 / 60 / 100.
+
+export type Rarity = "common" | "uncommon" | "rare" | "epic" | "legendary";
+export type PetStat = RewardStat | "col" | "cost";
+
+export const RARITIES: Record<Rarity, { name: string; color: string; xp: number; dupe: number }> = {
+    common: { name: "Common", color: "#ffffff", xp: 1, dupe: 600 },
+    uncommon: { name: "Uncommon", color: "var(--mc-green)", xp: 1.5, dupe: 1500 },
+    rare: { name: "Rare", color: "var(--mc-blue)", xp: 2.2, dupe: 4000 },
+    epic: { name: "Epic", color: "var(--mc-light-purple)", xp: 3.2, dupe: 12000 },
+    legendary: { name: "Legendary", color: "var(--mc-gold)", xp: 5, dupe: 40000 },
+};
+export const RARITY_ORDER: Rarity[] = ["common", "uncommon", "rare", "epic", "legendary"];
+
+export const PET_LABEL: Record<PetStat, string> = {
+    ...REWARD_LABEL,
+    col: "collection speed",
+    cost: "minion price",
+};
+
+export const PET_MAX = 100;
+export const PET_PERK_AT = [25, 60, 100];
+
+export interface PetPerk {
+    name: string;
+    stat: PetStat;
+    value: number;
+}
+
+export interface PetDef {
+    id: string;
+    name: string;
+    rarity: Rarity;
+    symbol: McSymbolName;
+    color: string;
+    stat: PetStat;
+    base: number; // main stat at level 1
+    per: number; // added per level
+    blurb: string;
+    perks: [PetPerk, PetPerk, PetPerk];
+}
+
+const P = (name: string, stat: PetStat, value: number): PetPerk => ({ name, stat, value });
+
+export const PETS: PetDef[] = [
+    { id: "silverfish", name: "Silverfish", rarity: "common", symbol: "strength", color: "#d0d0d8", stat: "click", base: 0.02, per: 0.004, blurb: "Gnaws through stone one click at a time.", perks: [P("Tunneler", "click", 0.05), P("Silver Lining", "all", 0.02), P("Swarm", "click", 0.15)] },
+    { id: "rabbit", name: "Rabbit", rarity: "common", symbol: "fortune", color: "var(--mc-yellow)", stat: "minion", base: 0.02, per: 0.004, blurb: "Keeps every minion hopping.", perks: [P("Lucky Foot", "col", 0.05), P("Carrot Patch", "minion", 0.05), P("Warren", "cost", 0.03)] },
+    { id: "bat", name: "Bat", rarity: "common", symbol: "night", color: "var(--mc-dark-purple)", stat: "offline", base: 0.01, per: 0.002, blurb: "Works the night shift while you are away.", perks: [P("Echolocation", "skillXp", 0.05), P("Night Owl", "offline", 0.05), P("Swarm Song", "all", 0.05)] },
+    { id: "ocelot", name: "Ocelot", rarity: "uncommon", symbol: "attackSpeed", color: "var(--mc-green)", stat: "critChance", base: 0.002, per: 0.0006, blurb: "Stalks weak points.", perks: [P("Pounce", "critDmg", 0.05), P("Jungle Reflexes", "click", 0.08), P("Apex", "critChance", 0.02)] },
+    { id: "squid", name: "Squid", rarity: "uncommon", symbol: "fishing", color: "var(--mc-aqua)", stat: "bobber", base: 0.05, per: 0.01, blurb: "Treasure bobbers pay far more.", perks: [P("Ink Trail", "skillXp", 0.1), P("Ink Cloud", "all", 0.02), P("Kraken's Cut", "bobber", 0.5)] },
+    { id: "sheep", name: "Sheep", rarity: "uncommon", symbol: "flower", color: "#ffffff", stat: "col", base: 0.03, per: 0.007, blurb: "Wool for every collection.", perks: [P("Soft Touch", "cost", 0.03), P("Shear Luck", "minion", 0.08), P("Golden Fleece", "col", 0.25)] },
+    { id: "wolf", name: "Wolf", rarity: "rare", symbol: "critDamage", color: "var(--mc-red)", stat: "critDmg", base: 0.03, per: 0.008, blurb: "Hits hardest when it counts.", perks: [P("Pack Hunter", "critChance", 0.01), P("Alpha", "click", 0.1), P("Moonhowl", "critDmg", 0.3)] },
+    { id: "dolphin", name: "Dolphin", rarity: "rare", symbol: "wisdom", color: "var(--mc-aqua)", stat: "skillXp", base: 0.03, per: 0.008, blurb: "Quick learner, quicker skills.", perks: [P("Echo Sense", "bobber", 0.25), P("Pod Leader", "all", 0.03), P("Deep Dive", "skillXp", 0.25)] },
+    { id: "blaze", name: "Blaze", rarity: "rare", symbol: "heat", color: "var(--mc-gold)", stat: "minion", base: 0.03, per: 0.008, blurb: "Runs the furnaces hot.", perks: [P("Ember Bargain", "cost", 0.04), P("Inferno", "minion", 0.12), P("Cinder Wake", "col", 0.2)] },
+    { id: "tiger", name: "Tiger", rarity: "epic", symbol: "critChance", color: "var(--mc-gold)", stat: "critDmg", base: 0.05, per: 0.012, blurb: "Ferocity given a face.", perks: [P("Stalk", "critChance", 0.015), P("Rend", "click", 0.15), P("Apex Predator", "critDmg", 0.5)] },
+    { id: "golem", name: "Golem", rarity: "epic", symbol: "defense", color: "var(--mc-gray, #aaaaaa)", stat: "minion", base: 0.05, per: 0.014, blurb: "A tireless foreman.", perks: [P("Iron Bargain", "cost", 0.05), P("Guardian", "all", 0.04), P("Colossus", "minion", 0.4)] },
+    { id: "phoenix", name: "Phoenix", rarity: "epic", symbol: "regen", color: "var(--mc-red)", stat: "all", base: 0.03, per: 0.008, blurb: "Everything rises again, stronger.", perks: [P("Ashes", "offline", 0.05), P("Rebirth Flame", "tokens", 0.08), P("Eternal Flame", "all", 0.08)] },
+    { id: "dragon", name: "Ender Dragon", rarity: "legendary", symbol: "comet", color: "var(--mc-light-purple)", stat: "all", base: 0.06, per: 0.018, blurb: "Lord of the End. Bends every stat your way.", perks: [P("Dragon Breath", "critDmg", 0.1), P("Wing Beat", "click", 0.25), P("Ender Sovereign", "all", 0.25)] },
+    { id: "griffin", name: "Griffin", rarity: "legendary", symbol: "flag", color: "var(--mc-yellow)", stat: "tokens", base: 0.06, per: 0.012, blurb: "Carries rebirth tokens back from the sky.", perks: [P("Keen Eye", "skillXp", 0.15), P("Sky Hoard", "all", 0.06), P("Myth", "tokens", 0.3)] },
+    { id: "wisp", name: "Fractured Wisp", rarity: "legendary", symbol: "portal", color: "var(--mc-blue)", stat: "col", base: 0.1, per: 0.02, blurb: "A shard of the islands that learned to float.", perks: [P("Refraction", "cost", 0.06), P("Prism", "minion", 0.3), P("Shattered Dawn", "all", 0.12)] },
+];
+
+export const PET_SLOTS_MAX = 3;
+
+/** Level from total xp: cost to reach level L is K * (1.06^(L-1) - 1) / 0.06. */
+const PET_GROWTH = 1.06;
+const PET_K = 40;
+export const petXpFor = (p: PetDef, level: number) =>
+    (PET_K * RARITIES[p.rarity].xp * (Math.pow(PET_GROWTH, level - 1) - 1)) / (PET_GROWTH - 1);
+export const petLevel = (p: PetDef, xp: number) =>
+    Math.min(PET_MAX, 1 + Math.floor(Math.log(1 + (xp * (PET_GROWTH - 1)) / (PET_K * RARITIES[p.rarity].xp)) / Math.log(PET_GROWTH)));
+
+export interface EggDef {
+    id: string;
+    name: string;
+    color: string;
+    symbol: McSymbolName;
+    secs: number; // price = this many seconds of your best income
+    min: number; // price floor
+    odds: Partial<Record<Rarity, number>>;
+    blurb: string;
+}
+
+export const EGGS: EggDef[] = [
+    { id: "wood", name: "Wooden Egg", color: "var(--mc-gold)", symbol: "flower", secs: 900, min: 1e6, odds: { common: 70, uncommon: 26, rare: 4 }, blurb: "Plain, warm and full of surprises." },
+    { id: "gold", name: "Golden Egg", color: "var(--mc-yellow)", symbol: "magicFind", secs: 7200, min: 5e8, odds: { uncommon: 40, rare: 42, epic: 17, legendary: 1 }, blurb: "Heavy. Something big is inside." },
+    { id: "fracture", name: "Fractured Egg", color: "var(--mc-light-purple)", symbol: "portal", secs: 36000, min: 2e12, odds: { rare: 38, epic: 47, legendary: 15 }, blurb: "Cracked already, and humming." },
+];
+
+// ---- Ascension ----
+// The prestige layer above rebirth. Ascending wipes rebirths, tokens and
+// token upgrades and pays Ascension Points, which buy upgrades that last
+// forever. Pets, skills, trophies and islands are never touched.
+
+export const ASC_BASE = 3; // every ascension multiplies all shards by this
+export const ascReq = (asc: number) => 16 + 2 * asc; // rebirths needed
+export const ascGain = (rebirths: number, asc: number) => Math.max(0, Math.floor((rebirths - 10) / 2) + asc);
+
+export interface AscUpDef {
+    id: string;
+    name: string;
+    desc: string;
+    cost: number; // ascension points
+    growth: number;
+    max: number;
+    symbol: McSymbolName;
+    color: string;
+    needs?: string; // another upgrade that must be bought first
+}
+
+export const ASC_UPS: AscUpDef[] = [
+    { id: "cosmic", name: "Cosmic Core", desc: "+25% to all shards", cost: 1, growth: 1.35, max: 20, symbol: "comet", color: "var(--mc-aqua)" },
+    { id: "echo", name: "Echo Memory", desc: "Begin each ascension with +1 rebirth level", cost: 5, growth: 1.9, max: 6, symbol: "portal", color: "var(--mc-light-purple)" },
+    { id: "well", name: "Token Well", desc: "+25% rebirth tokens", cost: 2, growth: 1.5, max: 10, symbol: "magicFind", color: "var(--mc-yellow)" },
+    { id: "union", name: "Minion Union", desc: "+25% minion output", cost: 2, growth: 1.5, max: 10, symbol: "forge", color: "var(--mc-green)" },
+    { id: "depth", name: "Deep Delvers", desc: "+30% collection speed", cost: 2, growth: 1.4, max: 10, symbol: "pristine", color: "var(--mc-blue)" },
+    { id: "keep", name: "Keepsake", desc: "Keep 10% of your token upgrade levels through ascension", cost: 4, growth: 1.6, max: 8, symbol: "check", color: "var(--mc-gold)" },
+    { id: "auto2", name: "Cosmic Reflexes", desc: "Begin each ascension with +3 Auto-Clicker levels", cost: 2, growth: 1.4, max: 8, symbol: "attackSpeed", color: "var(--mc-red)" },
+    { id: "perch2", name: "Second Perch", desc: "Unlock a second pet slot", cost: 4, growth: 1, max: 1, symbol: "petLuck", color: "var(--mc-dark-aqua)" },
+    { id: "perch3", name: "Third Perch", desc: "Unlock a third pet slot", cost: 25, growth: 1, max: 1, symbol: "petLuck", color: "var(--mc-dark-aqua)", needs: "perch2" },
+    { id: "nest", name: "Egg Fluency", desc: "-8% egg prices", cost: 2, growth: 1.5, max: 8, symbol: "flower", color: "var(--mc-gold)" },
+    { id: "mentor", name: "Pet Mentor", desc: "+30% pet experience", cost: 1, growth: 1.4, max: 10, symbol: "wisdom", color: "var(--mc-light-purple)" },
 ];
 
 export type SkillId = "mining" | "farming" | "combat" | "fishing";

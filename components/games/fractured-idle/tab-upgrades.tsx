@@ -21,7 +21,7 @@ const GROUPS: { title: string; color: string; kinds: UpgradeDef["kind"][] }[] = 
 export function UpgradesTab({ s, act, render, tip }: Ctx) {
     const [picked, setPicked] = useState<string | null>(null);
     const pointer = useRef("mouse");
-    const costOf = (u: UpgradeDef) => upCost(u.id, s.ups[u.id] || 0);
+    const costOf = (u: UpgradeDef) => upCost(s, u.id, s.ups[u.id] || 0);
     const isOwned = (u: UpgradeDef) => (s.ups[u.id] || 0) >= u.max;
 
     // The tooltip belongs to the game root, so close it if this tab goes away.
@@ -140,7 +140,7 @@ export function UpgradeTip({ id, s, d, F }: { id: string } & Pick<Ctx, "s" | "d"
     if (!u) return null;
     const lvl = s.ups[u.id] || 0;
     const maxed = lvl >= u.max;
-    const cost = u.cost * Math.pow(u.growth, lvl);
+    const cost = upCost(s, u.id, lvl);
     const can = s.shards >= cost;
     const avail = upAvailable(s, u);
     const info = upgradeInfo(d, u, s.sci);

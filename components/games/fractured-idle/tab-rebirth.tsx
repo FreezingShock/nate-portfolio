@@ -49,7 +49,7 @@ export function RebirthTab({ s, d, F, act, say }: Ctx) {
 
     const nodes = Array.from({ length: total }, (_, k) => {
         const level = s.rebirths + k + 1;
-        const cost = rebirthCost(level - 1);
+        const cost = rebirthCost(level - 1, s.asc);
         const ready = s.shards >= cost;
         return {
             k: k + 1,

@@ -1,5 +1,5 @@
-import { ISLANDS, MINIONS, REWARD_LABEL, type RewardStat } from "@/lib/fractured-idle/data";
-import { fmtTime, income, offlineEff, rebirthCap, tokenMult, trophyCounts } from "@/lib/fractured-idle/engine";
+import { COL_AT, ISLANDS, MINIONS, PETS, PET_LABEL, REWARD_LABEL, type PetStat, type RewardStat } from "@/lib/fractured-idle/data";
+import { colTiers, fmtTime, income, offlineEff, petSlots, rebirthCap, tokenMult, trophyCounts } from "@/lib/fractured-idle/engine";
 import { SectionTitle, type Ctx } from "./ui";
 
 type Row = [label: string, value: string, hint?: string];
@@ -31,6 +31,7 @@ export function StatsTab({ s, d, F }: Ctx) {
                 ["Auto-click output", `${F(d.auto * d.avgClick)}/s`],
                 ["Total income", `${F(income(d))}/s`],
                 ["Minions owned", F(owned), `${s.minions.filter((n) => n > 0).length}/${MINIONS.length} types`],
+                ["Collection tiers", `${colTiers(s).reduce((a, b) => a + b, 0)}/${MINIONS.length * COL_AT.length}`, "reset on rebirth"],
                 ["Pocket Minion bonus", `+${pct(d.synergy)}`, "of shards/sec added to each click"],
             ],
         },
@@ -39,7 +40,9 @@ export function StatsTab({ s, d, F }: Ctx) {
             color: "var(--mc-gold)",
             rows: [
                 ["Everything", `x${F(d.all)}`, "all sources combined"],
+                ["Ascensions", `x${F(d.ascMult)}`],
                 ["Rebirths", `x${F(d.rMult)}`],
+                ["Pets", `x${F(1 + d.pet.all)}`, "all-shards bonus from pets"],
                 ["Island", `x${F(d.islandMult)}`],
                 ["Trophies", `x${F(d.achMult)}`],
                 ["Talismans & Golden Touch", `x${F(d.allUp)}`],
@@ -67,13 +70,26 @@ export function StatsTab({ s, d, F }: Ctx) {
                 ["Tokens", String(s.tokens)],
                 ["Islands", `${unlocked}/${ISLANDS.length}`],
                 ["Trophy tiers", `${trophyCounts(s).got}/${trophyCounts(s).all}`],
+                ["Ascensions", String(s.asc), `${s.ap} points unspent`],
                 ["Rebirth stack", `${rebirthCap(s)}/15`, "levels per rebirth"],
+                ["Best income", `${F(s.peakInc)}/s`, "prices your eggs"],
                 ["Token bonus", `x${tokenMult(s).toFixed(2)}`, "trophies + Token Magnet"],
                 ["Play time", fmtTime(s.playTime)],
                 ["Offline efficiency", pct(offlineEff(s)), "up to 8 hours"],
             ],
         },
     ];
+
+    groups.splice(4, 0, {
+        title: "Pets",
+        color: "var(--mc-dark-aqua)",
+        rows: [
+            ["Pets found", `${Object.keys(s.pets).length}/${PETS.length}`],
+            ["Eggs hatched", String(s.hatched)],
+            ["Slots", `${s.equip.length}/${petSlots(s)}`, "equipped / unlocked"],
+            ...(Object.keys(d.pet) as PetStat[]).filter((k) => d.pet[k] > 0).map((k): Row => [PET_LABEL[k], `+${+(d.pet[k] * 100).toFixed(1)}%`]),
+        ],
+    });
 
     const bonusRows: Row[] = (Object.keys(REWARD_LABEL) as RewardStat[])
         .filter((k) => d.bonus[k] > 0)

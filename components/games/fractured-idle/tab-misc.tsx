@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Download, RotateCcw, Save, Upload } from "lucide-react";
+import { Copy, Download, RotateCcw, Save, Upload } from "lucide-react";
 import { McSymbol } from "@/components/mc-symbol";
 import { COMING_SOON } from "@/lib/fractured-idle/data";
 import { exportSave, importSave, newState, offlineEff, writeSave } from "@/lib/fractured-idle/engine";
@@ -30,12 +30,24 @@ export function SettingsTab({ s, render, say, replaceState }: Ctx & { replaceSta
         <>
             <Toggle label="Scientific notation" on={s.sci} onChange={(v) => { s.sci = v; render(); }} />
             <Toggle label="Floating click numbers" on={s.fx} onChange={(v) => { s.fx = v; render(); }} />
+            <Toggle label="Orbiting minions (turn off to save battery)" on={s.orbit} onChange={(v) => { s.orbit = v; render(); }} />
+            <Toggle label="Popup messages" on={s.toasts} onChange={(v) => { s.toasts = v; render(); }} />
             <p className="font-rubik text-[11px] text-muted-foreground">
                 Offline progress: {Math.round(offlineEff(s) * 100)}% efficiency, up to 8 hours. Saves to this browser every 10 seconds.
             </p>
             <div className="flex flex-wrap gap-2">
                 <ActionBtn icon={<Save className="size-4" />} onClick={() => { writeSave(s); say("Saved."); }}>Save now</ActionBtn>
                 <ActionBtn icon={<Download className="size-4" />} onClick={() => { setText(exportSave(s)); say("Save code ready below. Copy it somewhere safe."); }}>Export</ActionBtn>
+                <ActionBtn
+                    icon={<Copy className="size-4" />}
+                    onClick={() => {
+                        const code = exportSave(s);
+                        setText(code);
+                        navigator.clipboard?.writeText(code).then(() => say("Save code copied."), () => say("Copy failed. Select the code below instead."));
+                    }}
+                >
+                    Copy code
+                </ActionBtn>
                 <ActionBtn
                     icon={<Upload className="size-4" />}
                     onClick={() => {
@@ -65,7 +77,7 @@ export function SettingsTab({ s, render, say, replaceState }: Ctx & { replaceSta
                 className="h-24 w-full resize-none rounded-lg border border-white/15 bg-black/30 p-2 font-mono text-[11px]"
             />
             <p className="font-rubik text-[11px] text-muted-foreground">
-                Keys: Space click · F fullscreen · B buy amount · 1-9 tabs
+                Keys: Space click · F fullscreen · B buy amount · 1-9 open the first nine tabs
             </p>
         </>
     );
