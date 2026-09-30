@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useReducer, useRef, useState } from "react";
 import { Expand, Minimize } from "lucide-react";
 import { McSymbol } from "@/components/mc-symbol";
+import { HEAT_SECONDS, HOLD_BASE, holdMax } from "@/lib/fractured-idle/button";
 import { EGGS, ISLANDS, MINIONS, MINION_GROWTH, PETS, RARITIES, UPGRADES, petLevel } from "@/lib/fractured-idle/data";
 import {
     addPetXp,
@@ -25,6 +26,9 @@ import {
 } from "@/lib/fractured-idle/engine";
 import type { State } from "@/lib/fractured-idle/data";
 import { Goals } from "./goals";
+import { BTN_CSS, ButtonFace, skinAccent } from "./button-face";
+import { kick, spawnBurst, spawnNumber } from "./button-fx";
+import { ButtonTab } from "./tab-button";
 import { Orbit } from "./orbit";
 import { BUY_OPTIONS, CSS, IconBtn, Kbd, Stat, tint, type Ctx, type TipApi, type TipSource } from "./ui";
 import { MinionsTab } from "./tab-minions";
@@ -44,11 +48,12 @@ import { SettingsTab, SoonTab } from "./tab-misc";
 // 100ms re-render keeps the UI live, so clicking never waits on React.
 // To add a tab: write a component that takes Ctx and register it in TABS.
 
-type TabId = "minions" | "upgrades" | "pets" | "islands" | "skills" | "stats" | "rebirth" | "ascension" | "trophies" | "soon" | "settings";
+type TabId = "minions" | "upgrades" | "button" | "pets" | "islands" | "skills" | "stats" | "rebirth" | "ascension" | "trophies" | "soon" | "settings";
 
 const TABS: { id: TabId; label: string; symbol: React.ComponentProps<typeof McSymbol>["name"] }[] = [
     { id: "minions", label: "Minions", symbol: "forge" },
     { id: "upgrades", label: "Upgrades", symbol: "strength" },
+    { id: "button", label: "Button", symbol: "speed" },
     { id: "pets", label: "Pets", symbol: "petLuck" },
     { id: "islands", label: "Islands", symbol: "location" },
     { id: "skills", label: "Skills", symbol: "wisdom" },
@@ -73,6 +78,14 @@ export function FracturedIdle() {
     const [bobber, setBobber] = useState<{ x: number; y: number } | null>(null);
     const rootRef = useRef<HTMLDivElement>(null);
     const floatRef = useRef<HTMLDivElement>(null);
+    const btnRef = useRef<HTMLButtonElement>(null);
+    const wrapRef = useRef<HTMLDivElement>(null);
+    const meterRef = useRef<HTMLDivElement>(null);
+    // Everything currently holding the button: pointer ids and "space", with
+    // their last position (px, relative to the float layer).
+    const held = useRef(new Map<string, { x: number; y: number }>());
+    const hold = useRef({ raf: 0, last: 0, acc: 0, heat: 0, flip: false, hit: false });
+    const clickFn = useRef<(x?: number, y?: number) => void>(() => {});
     const toastTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
     const bob = useRef({ left: 0, next: 25 });
     const lastTiers = useRef<number[]>([]);
@@ -238,19 +251,6 @@ export function FracturedIdle() {
     }, [pseudoFs]);
 
     // ---- Clicking ----
-    const spawnFloat = (x: number, y: number, text: string, crit: boolean) => {
-        const host = floatRef.current;
-        if (!host) return;
-        if (host.childElementCount > 24) host.firstElementChild?.remove();
-        const el = document.createElement("span");
-        el.className = crit ? "fi-float fi-crit" : "fi-float";
-        el.textContent = (crit ? "☠ " : "+") + text;
-        el.style.left = `${x}px`;
-        el.style.top = `${y}px`;
-        el.addEventListener("animationend", () => el.remove());
-        host.appendChild(el);
-    };
-
     const doClick = (x?: number, y?: number) => {
         const s = ref.current;
         if (!s) return;
@@ -266,15 +266,109 @@ export function FracturedIdle() {
             s.crits += 1;
             s.combat += 3 * d.xpMult;
         }
-        if (s.fx && x !== undefined && y !== undefined) {
-            spawnFloat(x + (Math.random() - 0.5) * 60, y - 20, fmt(v, s.sci), crit);
+        const host = floatRef.current;
+        if (s.fx && host && x !== undefined && y !== undefined) {
+            const isl = ISLANDS.find((i) => i.id === s.island && s.total >= i.at) ?? ISLANDS[0];
+            spawnNumber(host, x, y - 12, (crit ? "✦ " : "+") + fmt(v, s.sci), crit);
+            spawnBurst(host, s.btn.burst, x, y, skinAccent(s.btn.skin, isl.color), crit);
+            kick(btnRef.current, crit, hold.current.heat);
+            const w = wrapRef.current;
+            if (w) {
+                const h = hold.current;
+                h.hit = !h.hit;
+                w.classList.remove("fi-hit-a", "fi-hit-b", "fi-crit-a", "fi-crit-b");
+                w.classList.add(`${crit ? "fi-crit" : "fi-hit"}-${h.hit ? "a" : "b"}`);
+            }
         }
+    };
+    useEffect(() => {
+        clickFn.current = doClick;
+    });
+
+    // Position in the float layer's coordinates.
+    const localPos = (clientX: number, clientY: number) => {
+        const r = floatRef.current?.getBoundingClientRect();
+        return r ? { x: clientX - r.left, y: clientY - r.top } : { x: 0, y: 0 };
+    };
+    const buttonCenter = () => {
+        const r = wrapRef.current?.getBoundingClientRect();
+        return r ? localPos(r.left + r.width / 2, r.top + r.height * 0.42) : { x: 0, y: 0 };
+    };
+
+    // Holding: clicks repeat at HOLD_BASE/s and heat up to the max over
+    // HEAT_SECONDS. The loop runs while anything is held, then cools off.
+    const startHold = () => {
+        const h = hold.current;
+        if (h.raf) return;
+        h.last = performance.now();
+        const tick = (now: number) => {
+            const st = ref.current;
+            const dt = Math.min(0.1, (now - h.last) / 1000);
+            h.last = now;
+            const holding = !!st && st.btn.hold && held.current.size > 0;
+            if (holding && st) {
+                h.heat = Math.min(1, h.heat + dt / HEAT_SECONDS);
+                h.acc += (HOLD_BASE + h.heat * (holdMax(st) - HOLD_BASE)) * dt;
+                let n = 0;
+                while (h.acc >= 1 && n < 3) {
+                    h.acc -= 1;
+                    n++;
+                    const pts = [...held.current.entries()];
+                    const [id, p] = pts[Math.floor(Math.random() * pts.length)];
+                    const c = id === "space" ? buttonCenter() : p;
+                    clickFn.current(c.x + (id === "space" ? (Math.random() - 0.5) * 50 : 0), c.y + (id === "space" ? (Math.random() - 0.5) * 30 : 0));
+                }
+                if (h.acc >= 1) h.acc = 0;
+            } else {
+                h.heat = Math.max(0, h.heat - dt / 0.7);
+                h.acc = 0;
+            }
+            wrapRef.current?.style.setProperty("--heat", h.heat.toFixed(2));
+            if (meterRef.current) meterRef.current.style.width = `${h.heat * 100}%`;
+            if (holding || h.heat > 0) h.raf = requestAnimationFrame(tick);
+            else h.raf = 0;
+        };
+        h.raf = requestAnimationFrame(tick);
+    };
+    const press = (id: string, pos: { x: number; y: number }) => {
+        const first = held.current.size === 0;
+        held.current.set(id, pos);
+        if (first) hold.current.acc = 0;
+        clickFn.current(pos.x, pos.y);
+        startHold();
+    };
+    const release = (id: string) => {
+        held.current.delete(id);
     };
 
     const onPress = (e: React.PointerEvent<HTMLButtonElement>) => {
-        const host = floatRef.current?.getBoundingClientRect();
-        doClick(host ? e.clientX - host.left : undefined, host ? e.clientY - host.top : undefined);
+        if (e.pointerType === "mouse" && e.button !== 0) return;
+        e.preventDefault();
+        try {
+            e.currentTarget.setPointerCapture(e.pointerId);
+        } catch {
+            /* synthetic or already released pointer */
+        }
+        press(`p${e.pointerId}`, localPos(e.clientX, e.clientY));
     };
+    const onMove = (e: React.PointerEvent<HTMLButtonElement>) => {
+        const id = `p${e.pointerId}`;
+        if (held.current.has(id)) held.current.set(id, localPos(e.clientX, e.clientY));
+    };
+    const onLift = (e: React.PointerEvent<HTMLButtonElement>) => release(`p${e.pointerId}`);
+
+    // Never leave a hold stuck if the window loses focus mid-press.
+    useEffect(() => {
+        const clear = () => held.current.clear();
+        window.addEventListener("blur", clear);
+        document.addEventListener("visibilitychange", clear);
+        return () => {
+            window.removeEventListener("blur", clear);
+            document.removeEventListener("visibilitychange", clear);
+            cancelAnimationFrame(hold.current.raf);
+            hold.current.raf = 0;
+        };
+    }, []);
 
     const catchBobber = () => {
         const s = ref.current;
@@ -310,8 +404,7 @@ export function FracturedIdle() {
             if (t && (t.tagName === "INPUT" || t.tagName === "TEXTAREA")) return;
             if (e.code === "Space") {
                 e.preventDefault();
-                const host = floatRef.current?.getBoundingClientRect();
-                doClick(host ? host.width / 2 : undefined, host ? host.height * 0.45 : undefined);
+                if (!e.repeat) press("space", buttonCenter());
             } else if (e.key === "f" || e.key === "F") {
                 toggleFs();
             } else if (e.key === "b" || e.key === "B") {
@@ -325,8 +418,15 @@ export function FracturedIdle() {
                 setTab(TABS[Number(e.key) - 1].id);
             }
         };
+        const onUp = (e: KeyboardEvent) => {
+            if (e.code === "Space") release("space");
+        };
         window.addEventListener("keydown", onKey);
-        return () => window.removeEventListener("keydown", onKey);
+        window.addEventListener("keyup", onUp);
+        return () => {
+            window.removeEventListener("keydown", onKey);
+            window.removeEventListener("keyup", onUp);
+        };
     });
 
     const s = ref.current;
@@ -373,7 +473,7 @@ export function FracturedIdle() {
                 backgroundColor: "color-mix(in oklch, var(--background) 92%, black)",
             }}
         >
-            <style>{CSS}</style>
+            <style>{CSS}{BTN_CSS}</style>
 
             {/* HUD */}
             <div className="flex flex-wrap items-center gap-x-6 gap-y-2 border-b border-white/10 px-4 py-3">
@@ -489,28 +589,23 @@ export function FracturedIdle() {
                     <div className="relative my-6">
                         <div className="fi-pulse pointer-events-none absolute -inset-6 rounded-[2.5rem] blur-2xl" style={{ backgroundColor: tint(island.color, 40) }} />
                         {s.orbit && <Orbit counts={s.minions} />}
-                        <button
-                            type="button"
-                            tabIndex={-1}
-                            aria-label="Click for shards"
-                            onPointerDown={onPress}
-                            className="fi-btn relative z-[1] grid size-48 touch-manipulation select-none place-items-center rounded-[2rem] border-4 sm:size-56"
-                            style={{
-                                borderColor: island.color,
-                                backgroundImage: `linear-gradient(160deg, ${tint(island.color, 55)}, ${tint(island.color, 18)})`,
-                                boxShadow: `0 8px 0 ${tint(island.color, 70)}, 0 0 40px ${tint(island.color, 45)}, inset 0 2px 0 rgba(255,255,255,0.35)`,
-                                WebkitTapHighlightColor: "transparent",
-                            }}
-                        >
-                            <span className="text-7xl text-white drop-shadow-[0_3px_0_rgba(0,0,0,0.5)] sm:text-8xl">
-                                <McSymbol name="speed" />
-                            </span>
-                        </button>
-                        <div ref={floatRef} className="pointer-events-none absolute -inset-16 z-[4]" aria-hidden="true" />
+                        <ButtonFace
+                            as="button"
+                            shape={s.btn.shape}
+                            skin={s.btn.skin}
+                            glyph={s.btn.glyph}
+                            color={island.color}
+                            className="relative z-[1] size-48 sm:size-56"
+                            btnRef={btnRef}
+                            wrapRef={wrapRef}
+                            btnProps={{ onPointerDown: onPress, onPointerMove: onMove, onPointerUp: onLift, onPointerCancel: onLift, onContextMenu: (e) => e.preventDefault(), "aria-label": "Click for shards" }}
+                        />
                     </div>
+                    <div ref={floatRef} className="pointer-events-none absolute inset-0 z-[4]" aria-hidden="true" />
 
                     <div className="text-center font-rubik text-xs text-muted-foreground">
-                        Press <Kbd>Space</Kbd> or click. Crit {Math.round(d.critChance * 100)}% for +{Math.round(d.critDmg * 100)}%.
+                        Press <Kbd>Space</Kbd> or click{s.btn.hold ? ", or hold either to keep clicking" : ""}. Crit {Math.round(d.critChance * 100)}% for +{Math.round(d.critDmg * 100)}%.
+                        {s.btn.hold && <div className="mx-auto mt-1.5 h-1 w-40 overflow-hidden rounded-full bg-white/10"><div ref={meterRef} className="h-full w-0 rounded-full" style={{ backgroundColor: "var(--mc-aqua)", boxShadow: "0 0 8px var(--mc-aqua)" }} /></div>}
                     </div>
 
                     <Goals
@@ -572,6 +667,7 @@ export function FracturedIdle() {
                     <div className="min-h-[360px] flex-1 space-y-2 overflow-y-auto p-3 [scrollbar-width:thin]">
                         {tab === "minions" && <MinionsTab {...ctx} />}
                         {tab === "upgrades" && <UpgradesTab {...ctx} />}
+                        {tab === "button" && <ButtonTab {...ctx} />}
                         {tab === "pets" && <PetsTab {...ctx} />}
                         {tab === "islands" && <IslandsTab {...ctx} />}
                         {tab === "skills" && <SkillsTab {...ctx} />}

@@ -77,7 +77,7 @@ export function SettingsTab({ s, render, say, replaceState }: Ctx & { replaceSta
                 className="h-24 w-full resize-none rounded-lg border border-white/15 bg-black/30 p-2 font-mono text-[11px]"
             />
             <p className="font-rubik text-[11px] text-muted-foreground">
-                Keys: Space click · F fullscreen · B buy amount · 1-9 open the first nine tabs
+                Keys: Space click · F fullscreen · B buy amount · 1-9 open the first nine tabs · hold Space or the button to keep clicking
             </p>
         </>
     );

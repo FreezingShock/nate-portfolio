@@ -42,11 +42,6 @@ export const BUY_OPTIONS = [
 ];
 
 export const CSS = `
-.fi-float{position:absolute;transform:translate(-50%,-50%);font-family:var(--font-minecraft,inherit);font-size:1.05rem;color:#fff;text-shadow:0 2px 0 #000,0 0 10px currentColor;animation:fi-rise .9s ease-out forwards;pointer-events:none;will-change:transform,opacity;white-space:nowrap}
-.fi-crit{color:var(--mc-yellow);font-size:1.5rem}
-@keyframes fi-rise{from{opacity:1;transform:translate(-50%,-50%) scale(.9)}to{opacity:0;transform:translate(-50%,-260%) scale(1.15)}}
-.fi-btn{transition:transform .06s ease,box-shadow .2s ease}
-.fi-btn:active{transform:translateY(6px) scale(.98)}
 @keyframes fi-pulse{0%,100%{opacity:.55}50%{opacity:1}}
 .fi-pulse{animation:fi-pulse 2.4s ease-in-out infinite}
 @keyframes fi-afford{0%,100%{box-shadow:0 0 5px -2px var(--c)}50%{box-shadow:0 0 15px 0 var(--c)}}
@@ -61,7 +56,7 @@ export const CSS = `
 .fi-tip[data-open="false"]{opacity:0;transform:scale(.94) translateY(4px)}
 .fi-tip[data-open="true"]{opacity:1;transform:none}
 .fi-tip .tl{text-shadow:2px 2px 0 color-mix(in srgb,currentColor 25%,black);white-space:normal}
-@media (prefers-reduced-motion:reduce){.fi-float{animation-duration:.01s}.fi-pulse,.fi-afford,.fi-bob,.fi-pop,.fi-shine{animation:none}.fi-tip{transition:none}.fi-btn{transition:none}}
+@media (prefers-reduced-motion:reduce){.fi-pulse,.fi-afford,.fi-bob,.fi-pop,.fi-shine{animation:none}.fi-tip{transition:none}}
 `;
 
 export function Stat({ label, value, color }: { label: string; value: string; color: string }) {

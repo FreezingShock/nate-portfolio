@@ -1,4 +1,5 @@
 import type { McSymbolName } from "@/components/mc-symbol";
+import type { BtnPrefs } from "./button";
 
 // HOW TO EXPAND (everything below is data-driven):
 //  - New minion: add a row to MINIONS (order = shop order; saves map by index,
@@ -55,6 +56,7 @@ export interface State {
     hatched: number;
     freeEggs: number; // wooden eggs from treasure bobbers
     peakInc: number; // best shards/sec ever, prices eggs
+    btn: BtnPrefs; // click button look (unlocks live in button.ts)
 }
 
 export interface MinionDef {

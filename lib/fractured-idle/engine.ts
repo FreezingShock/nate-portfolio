@@ -1,3 +1,4 @@
+import { DEFAULT_BTN, btnBonus, cleanBtn } from "./button";
 import {
     ASC_BASE,
     ASC_UPS,
@@ -81,6 +82,7 @@ export function newState(): State {
         hatched: 0,
         freeEggs: 0,
         peakInc: 0,
+        btn: { ...DEFAULT_BTN },
     };
 }
 
@@ -252,10 +254,11 @@ export function derive(s: State): Derived {
     const ce = collectionEffects(s);
     const pb = petBonus(s);
     const bonus = trophyBonus(s);
-    clickMult *= (1 + bonus.click) * (1 + ce.click) * (1 + pb.click) * (1 + 0.05 * (s.rups.might || 0));
+    const bb = btnBonus(s);
+    clickMult *= (1 + bonus.click) * (1 + ce.click) * (1 + pb.click) * (1 + bb.click) * (1 + 0.05 * (s.rups.might || 0));
     minionMult *= (1 + bonus.minion) * (1 + pb.minion) * (1 + 0.05 * (s.rups.engine || 0)) * (1 + 0.25 * (s.aups.union || 0));
-    critChance += bonus.critChance + ce.crit + pb.critChance + 0.01 * (s.rups.luck || 0);
-    critDmg += bonus.critDmg + ce.critDmg + pb.critDmg;
+    critChance += bonus.critChance + ce.crit + pb.critChance + bb.crit + 0.01 * (s.rups.luck || 0);
+    critDmg += bonus.critDmg + ce.critDmg + pb.critDmg + bb.critDmg;
     const mining = skillLevel(s.mining);
     const farming = skillLevel(s.farming);
     const combat = skillLevel(s.combat);
@@ -712,6 +715,7 @@ export function parseSave(raw: string): State | null {
         }
         s.equip = (Array.isArray(o.equip) ? (o.equip as string[]) : []).filter((id, i, a) => s.pets[id] && a.indexOf(id) === i).slice(0, 3);
         s.peakInc = Math.max(0, Number(o.peakInc) || 0);
+        s.btn = cleanBtn(o.btn, s);
         if (!isFinite(s.shards) || !isFinite(s.total)) return null;
         return s;
     } catch {
