@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useReducer, useRef, useState } from "react";
 import { Expand, Minimize } from "lucide-react";
 import { McSymbol } from "@/components/mc-symbol";
-import { HEAT_SECONDS, HOLD_BASE, holdMax } from "@/lib/fractured-idle/button";
+import { HEAT_SECONDS, HOLD_BASE, critColor, holdMax, lookName, unlockedKeys } from "@/lib/fractured-idle/button";
 import { EGGS, ISLANDS, MINIONS, MINION_GROWTH, PETS, RARITIES, UPGRADES, petLevel } from "@/lib/fractured-idle/data";
 import {
     addPetXp,
@@ -26,8 +26,8 @@ import {
 } from "@/lib/fractured-idle/engine";
 import type { State } from "@/lib/fractured-idle/data";
 import { Goals } from "./goals";
-import { BTN_CSS, ButtonFace, skinAccent } from "./button-face";
-import { kick, spawnBurst, spawnNumber } from "./button-fx";
+import { Aura, BTN_CSS, ButtonFace, skinAccent } from "./button-face";
+import { kick, shake, spawnBurst, spawnCrit, spawnNumber } from "./button-fx";
 import { ButtonTab } from "./tab-button";
 import { Orbit } from "./orbit";
 import { BUY_OPTIONS, CSS, IconBtn, Kbd, Stat, tint, type Ctx, type TipApi, type TipSource } from "./ui";
@@ -89,6 +89,7 @@ export function FracturedIdle() {
     const toastTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
     const bob = useRef({ left: 0, next: 25 });
     const lastTiers = useRef<number[]>([]);
+    const lastLooks = useRef<string[]>([]);
     const tipRef = useRef<HTMLDivElement>(null);
     const anchor = useRef({ x: 0, y: 0 });
     const [tipState, setTipState] = useState<{ id: string; open: boolean }>({ id: "", open: false });
@@ -157,6 +158,7 @@ export function FracturedIdle() {
         ref.current = state;
         bob.current.next = nextBobber(state);
         lastTiers.current = colTiers(state);
+        lastLooks.current = unlockedKeys(state);
         setReady(true);
         if (offline > 0) say(`Welcome back! Your minions earned ${fmt(offline, state.sci)} shards while you were away.`);
 
@@ -199,6 +201,12 @@ export function FracturedIdle() {
                 const up = tiers.findIndex((t, i) => t > (lastTiers.current[i] ?? 0));
                 if (up >= 0) say(`${MINIONS[up].name.replace(" Minion", "")} collection tier ${tiers[up]} reached!`);
                 lastTiers.current = tiers;
+                const keys = unlockedKeys(s);
+                if (keys.length > lastLooks.current.length) {
+                    const fresh = keys.filter((k) => !lastLooks.current.includes(k));
+                    say(`New button look: ${fresh.slice(0, 2).map(lookName).join(", ")}${fresh.length > 2 ? ` and ${fresh.length - 2} more` : ""}`);
+                }
+                lastLooks.current = keys;
             }
             if (sinceSave >= 10) {
                 sinceSave = 0;
@@ -269,13 +277,20 @@ export function FracturedIdle() {
         const host = floatRef.current;
         if (s.fx && host && x !== undefined && y !== undefined) {
             const isl = ISLANDS.find((i) => i.id === s.island && s.total >= i.at) ?? ISLANDS[0];
-            spawnNumber(host, x, y - 12, (crit ? "✦ " : "+") + fmt(v, s.sci), crit);
-            spawnBurst(host, s.btn.burst, x, y, skinAccent(s.btn.skin, isl.color), crit);
+            const accent = skinAccent(s.btn.skin, isl.color);
+            const col = critColor(s, accent, s.crits);
+            spawnNumber(host, x, y - 12, (crit ? "✦ " : "+") + fmt(v, s.sci), { crit, color: col, accent, style: s.btn.nums });
+            spawnBurst(host, s.btn.burst, x, y, accent);
+            if (crit) {
+                spawnCrit(host, s.btn.crit, x, y, col);
+                if (s.btn.shake) shake(host.parentElement, 1);
+            }
             kick(btnRef.current, crit, hold.current.heat);
             const w = wrapRef.current;
             if (w) {
                 const h = hold.current;
                 h.hit = !h.hit;
+                if (crit) w.style.setProperty("--crit", col);
                 w.classList.remove("fi-hit-a", "fi-hit-b", "fi-crit-a", "fi-crit-b");
                 w.classList.add(`${crit ? "fi-crit" : "fi-hit"}-${h.hit ? "a" : "b"}`);
             }
@@ -588,6 +603,7 @@ export function FracturedIdle() {
 
                     <div className="relative my-6">
                         <div className="fi-pulse pointer-events-none absolute -inset-6 rounded-[2.5rem] blur-2xl" style={{ backgroundColor: tint(island.color, 40) }} />
+                        <Aura id={s.btn.aura} accent={skinAccent(s.btn.skin, island.color)} />
                         {s.orbit && <Orbit counts={s.minions} />}
                         <ButtonFace
                             as="button"
