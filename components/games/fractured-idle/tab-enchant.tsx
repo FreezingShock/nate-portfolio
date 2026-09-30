@@ -574,7 +574,7 @@ export function EnchantTab({ s, d, F, render, say }: Ctx) {
                     {/* Actions */}
                     {open && (
                         <div className="fi-en-actions">
-                            <Tip box className="flex-[1_1_9rem]" tip={<TipCard title={busy ? "Skip" : "Roll"} color="var(--mc-light-purple)" tag="key R" lines={busy ? ["Jump straight to the result."] : ["Spend dust for a brand new enchant: a random enchant, rarity, quality and affixes."]} rows={[["Cost", `${cost} dust`], ["Focus", s.enc.focus[slot] ? `x${FOCUS_COST} cost` : "off"], ["Smart equip", o.smart ? "on" : "off", o.smart ? "var(--mc-green)" : undefined]]} foot={!roll.ok && !busy ? roll.why : o.smart ? "Better results are worn for you, worse ones are salvaged. Review undoes it." : "Results wait as a candidate until you equip or discard them."} />}>
+                            <Tip box className="fi-en-rollwrap flex-[1_1_9rem]" tip={<TipCard title={busy ? "Skip" : "Roll"} color="var(--mc-light-purple)" tag="key R" lines={busy ? ["Jump straight to the result."] : ["Spend dust for a brand new enchant: a random enchant, rarity, quality and affixes."]} rows={[["Cost", `${cost} dust`], ["Focus", s.enc.focus[slot] ? `x${FOCUS_COST} cost` : "off"], ["Smart equip", o.smart ? "on" : "off", o.smart ? "var(--mc-green)" : undefined]]} foot={!roll.ok && !busy ? roll.why : o.smart ? "Better results are worn for you, worse ones are salvaged. Review undoes it." : "Results wait as a candidate until you equip or discard them."} />}>
                                 <button type="button" disabled={!busy && !roll.ok} onClick={() => (busy ? ritual.current.skip?.() : start("roll"))} className="fi-en-roll w-full" data-ready={roll.ok && !busy} data-busy={busy} style={{ ["--rr" as string]: shown && !busy ? showColor : "var(--mc-light-purple)", ["--dur" as string]: `${chargeMs}ms` } as CSSProperties}>
                                     {busy && <i className="fi-en-roll-fill" key={shown?.out.cand.id + String(chargeMs)} />}
                                     <span className="fi-en-roll-t">{busy ? "Skip" : shown || cand ? "Roll again" : "Roll"}</span>
@@ -598,18 +598,6 @@ export function EnchantTab({ s, d, F, render, say }: Ctx) {
                             </Tip>
                         </div>
                     )}
-                    {open && (
-                        <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1 font-rubik text-[10px] text-muted-foreground">
-                            <span>
-                                {!roll.ok && roll.why ? <span style={{ color: "var(--mc-red)" }}>{roll.why}. </span> : null}
-                                {roll.why === "Not enough dust" && dustRate > 0 && <>About {fmtEta((cost - s.enc.dust) / dustRate)} of passive dust. </>}
-                                Dust also drops from clicks, popups and rebirths.
-                            </span>
-                            <span>
-                                Epic+ guaranteed in {Math.max(1, PITY_EPIC - s.enc.pe)} · Legendary+ in {Math.max(1, PITY_LEGEND - s.enc.pl)}
-                            </span>
-                        </div>
-                    )}
                     {/* Compare */}
                     {showCompare && cand && (
                         <div className="fi-en-compare">
@@ -631,6 +619,18 @@ export function EnchantTab({ s, d, F, render, say }: Ctx) {
                         </div>
                     )}
 
+                    {open && (
+                        <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1 font-rubik text-[10px] text-muted-foreground">
+                            <span>
+                                {!roll.ok && roll.why ? <span style={{ color: "var(--mc-red)" }}>{roll.why}. </span> : null}
+                                {roll.why === "Not enough dust" && dustRate > 0 && <>About {fmtEta((cost - s.enc.dust) / dustRate)} of passive dust. </>}
+                                Dust also drops from clicks, popups and rebirths.
+                            </span>
+                            <span>
+                                Epic+ guaranteed in {Math.max(1, PITY_EPIC - s.enc.pe)} · Legendary+ in {Math.max(1, PITY_LEGEND - s.enc.pl)}
+                            </span>
+                        </div>
+                    )}
                     {open && lvl >= NEED.focus && (
                         <label className="flex flex-wrap items-center gap-2 font-rubik text-[11px] text-muted-foreground">
                             Attune:
@@ -698,7 +698,7 @@ function EnchCard({ e, tag, vs, glow }: { e: Ench | undefined; tag: string; vs?:
         return (
             <div className="rounded-xl border border-dashed border-white/15 p-3">
                 <div className="font-rubik text-[10px] uppercase tracking-widest text-muted-foreground">{tag}</div>
-                <div className="py-4 text-center font-rubik text-xs text-muted-foreground">Nothing worn</div>
+                <div className="py-2 text-center font-rubik text-xs text-muted-foreground sm:py-4">Nothing worn</div>
             </div>
         );
     }
@@ -1016,6 +1016,7 @@ export const ENCH_CSS = `
 @keyframes fi-en-bar{from{width:0!important}}
 .fi-en-compare{border-radius:1rem;border:1px solid color-mix(in oklch,var(--mc-light-purple) 40%,transparent);padding:.6rem;background:rgba(255,255,255,.02)}
 .fi-en-actions{display:flex;flex-wrap:wrap;gap:.4rem;align-items:stretch}
+@media (max-width:639px){.fi-en-actions{display:grid;grid-template-columns:repeat(3,minmax(0,1fr))}.fi-en-rollwrap{grid-column:1/-1}.fi-en-actions .fi-en-btn{width:100%;height:100%;padding:.45rem .3rem;text-align:center}.fi-en-actions .fi-en-btn small{display:block;margin:0}.fi-en-stage{height:14rem}}
 .fi-en-btn{padding:.45rem .8rem;border-radius:.65rem;border:1px solid rgba(255,255,255,.18);font-family:var(--font-minecraft,inherit);font-size:.75rem;color:#fff;transition:background .15s,transform .1s,opacity .15s;touch-action:manipulation}
 .fi-en-btn small{font-family:var(--font-rubik,inherit);font-size:.6rem;color:var(--muted-foreground);margin-left:.25rem}
 .fi-en-btn:hover:not(:disabled){background:rgba(255,255,255,.1)}
@@ -1042,7 +1043,7 @@ export const ENCH_CSS = `
 .fi-en-verdict button:hover{background:rgba(255,255,255,.25)}
 .fi-en-roll:disabled{opacity:.5;cursor:not-allowed;animation:none}
 @keyframes fi-en-ready{0%,100%{box-shadow:0 4px 0 color-mix(in oklch,var(--rr) 35%,#000),0 0 8px -2px var(--rr)}50%{box-shadow:0 4px 0 color-mix(in oklch,var(--rr) 35%,#000),0 0 24px 2px var(--rr)}}
-.fi-en-opt{display:block;text-align:left;padding:.4rem .5rem;border-radius:.65rem;border:1px solid rgba(255,255,255,.12);background:rgba(255,255,255,.02);min-width:0;transition:border-color .15s,background .15s,transform .1s}
+.fi-en-opt{display:block;width:100%;text-align:left;padding:.4rem .5rem;border-radius:.65rem;border:1px solid rgba(255,255,255,.12);background:rgba(255,255,255,.02);min-width:0;transition:border-color .15s,background .15s,transform .1s}
 .fi-en-opt:hover:not(:disabled){background:rgba(255,255,255,.07);transform:translateY(-1px)}
 .fi-en-opt:disabled{opacity:.5;cursor:not-allowed}
 .fi-en-opt[data-on="true"]{border-color:var(--mc-light-purple);background:color-mix(in oklch,var(--mc-light-purple) 16%,transparent);box-shadow:0 0 14px -5px var(--mc-light-purple)}
