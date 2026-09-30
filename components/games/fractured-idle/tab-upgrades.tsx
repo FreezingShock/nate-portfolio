@@ -16,6 +16,7 @@ const GROUPS: { title: string; color: string; kinds: UpgradeDef["kind"][] }[] = 
     { title: "Pickaxes and Drills", color: "var(--mc-gold)", kinds: ["click"] },
     { title: "Minion Upgrades", color: "var(--mc-blue)", kinds: ["minion", "mown"] },
     { title: "Talismans", color: "var(--mc-green)", kinds: ["all"] },
+    { title: "Events", color: "var(--mc-gold)", kinds: ["evRate", "evBobber", "evLoot", "evGolden", "evLife", "evPower", "evCurse", "qteSize", "qteTime", "qteReward"] },
 ];
 
 export function UpgradesTab({ s, act, render, tip }: Ctx) {

@@ -491,3 +491,54 @@ export function comboSurge(host: HTMLElement, width: number, y: number) {
     }
     comboBurst(host, width, y, c, 22);
 }
+
+// ---- Popup event effects (hosted on the button column's float layer) ----
+
+/** Two-line result text that pops off where a popup was caught. */
+export function eventLabel(host: HTMLElement, x: number, y: number, title: string, sub: string, color: string) {
+    const el = part("fi-part", { textAlign: "center", whiteSpace: "nowrap" });
+    const t = document.createElement("div");
+    t.textContent = title;
+    Object.assign(t.style, { fontFamily: "var(--font-minecraft, inherit)", fontSize: "1.25rem", color, textShadow: `0 0 10px ${color}, 0 0 22px ${color}, 0 2px 0 rgba(0,0,0,.65)` });
+    const u = document.createElement("div");
+    u.textContent = sub;
+    Object.assign(u.style, { fontFamily: "var(--font-rubik, inherit)", fontSize: "0.68rem", marginTop: "2px", color: "#fff", textShadow: "0 1px 0 #000, 0 0 6px rgba(0,0,0,.8)" });
+    el.append(t, u);
+    const cx = Math.max(90, Math.min(host.clientWidth - 90, x));
+    if (reduced()) return add(host, el, [{ transform: at(cx, y - 20), opacity: 1 }, { transform: at(cx, y - 24), opacity: 0 }], 900);
+    add(
+        host,
+        el,
+        [
+            { transform: at(cx, y, "scale(.4)"), opacity: 0 },
+            { transform: at(cx, y - 18, "scale(1.25)"), opacity: 1, offset: 0.14 },
+            { transform: at(cx, y - 34, "scale(1)"), opacity: 1, offset: 0.7 },
+            { transform: at(cx, y - 56, "scale(.96)"), opacity: 0 },
+        ],
+        2000,
+        "ease-out",
+    );
+}
+
+/** Burst when a popup is caught. Tone picks the flavor. */
+export function eventBurst(host: HTMLElement, x: number, y: number, color: string, tone: "good" | "long" | "perm" | "bad" | "loot") {
+    if (reduced()) return;
+    flash(host, x, y, color, 110, 420);
+    ring(host, x, y, color, 36, 4.2, 560, 3, true);
+    ring(host, x, y, "#fff", 28, 5.6, 680, 1.5);
+    if (tone === "bad") {
+        risers(host, x, y, 8, "embers");
+        sparks(host, x, y, "#ff3b3b", 10, 34, 70, 480, 12);
+    } else if (tone === "loot") {
+        for (let i = 0; i < 8; i++) {
+            const el = part("fi-part", { width: "10px", height: "10px", borderRadius: "50%", background: "radial-gradient(circle at 35% 30%, #fff6b0, #ffd23a 55%, #b87b00)", border: "1px solid #8a5d00" });
+            const dur = rand(750, 1000);
+            const flip = rand(3, 6);
+            add(host, el, arc(x, y, rand(-110, 110), rand(200, 330), 900, dur, (f) => `translate(-50%,-50%) scaleX(${Math.cos(f * flip * Math.PI).toFixed(2)})`, 14, 0.7), dur);
+        }
+        sparks(host, x, y, color, 10, 40, 80, 520, 12);
+    } else {
+        confetti(host, x, y, tone === "perm" ? 26 : 16);
+        sparks(host, x, y, color, 12, 44, 92, 560, 13);
+    }
+}

@@ -1,5 +1,6 @@
 import type { McSymbolName } from "@/components/mc-symbol";
 import type { BtnPrefs } from "./button";
+import type { ActiveBuff, EventStats } from "./events";
 
 // HOW TO EXPAND (everything below is data-driven):
 //  - New minion: add a row to MINIONS (order = shop order; saves map by index,
@@ -59,6 +60,10 @@ export interface State {
     btn: BtnPrefs; // click button look (unlocks live in button.ts)
     combo: number; // live combo multiplier from holding; transient, never saved (see combo.ts)
     bestCombo: number; // highest combo multiplier reached
+    buffs: ActiveBuff[]; // timed boons and curses from popup events (see events.ts)
+    popups: boolean; // popup events on / off
+    frag: number; // Fracture Fragments: permanent +0.2% all shards each
+    evs: EventStats; // popup event counters
 }
 
 export interface MinionDef {
@@ -174,7 +179,7 @@ export function colRewardText(r: ColReward, minion: string, next?: string): stri
     }
 }
 
-export type UpKind = "click" | "minion" | "all" | "auto" | "critChance" | "critDmg" | "synergy" | "mown" | "comboMax" | "comboGain" | "comboLuck";
+export type UpKind = "click" | "minion" | "all" | "auto" | "critChance" | "critDmg" | "synergy" | "mown" | "comboMax" | "comboGain" | "comboLuck" | "evRate" | "evBobber" | "evLoot" | "evGolden" | "evLife" | "evPower" | "evCurse" | "qteSize" | "qteTime" | "qteReward";
 
 export interface UpgradeDef {
     id: string;
@@ -228,6 +233,17 @@ const BASE_UPGRADES: UpgradeDef[] = [
     { id: "combo", name: "Momentum", desc: "+0.25 max combo multiplier (hold the button)", kind: "comboMax", value: 0.25, cost: 2e3, growth: 1.85, max: 20, symbol: "speed", color: "var(--mc-yellow)" },
     { id: "flow", name: "Flow State", desc: "+8% combo build speed", kind: "comboGain", value: 0.08, cost: 8e3, growth: 1.9, max: 15, symbol: "attackSpeed", color: "var(--mc-gold)" },
     { id: "rod", name: "Lightning Rod", desc: "+0.4% surge chance per second of holding", kind: "comboLuck", value: 0.004, cost: 5e4, growth: 2.1, max: 10, symbol: "magicFind", color: "var(--mc-aqua)" },
+    // Popup events: bobbers, golden shards and quick time events (events.ts).
+    { id: "beacon", name: "Beacon", desc: "+8% more popups of every kind", kind: "evRate", value: 0.08, cost: 1.5e4, growth: 2.1, max: 15, symbol: "flag", color: "var(--mc-yellow)" },
+    { id: "sonar", name: "Treasure Sonar", desc: "+12% more treasure bobbers", kind: "evBobber", value: 0.12, cost: 2e4, growth: 2.1, max: 15, symbol: "fishing", color: "var(--mc-aqua)" },
+    { id: "hook", name: "Deep Hook", desc: "+15% treasure bobber loot", kind: "evLoot", value: 0.15, cost: 4e4, growth: 2.2, max: 15, symbol: "fishing", color: "var(--mc-dark-aqua)" },
+    { id: "eyes", name: "Gilded Eyes", desc: "+8% more golden shards", kind: "evGolden", value: 0.08, cost: 8e4, growth: 2.2, max: 15, symbol: "magicFind", color: "var(--mc-gold)" },
+    { id: "magnet", name: "Shard Magnet", desc: "Popups stay +12% longer", kind: "evLife", value: 0.12, cost: 6e4, growth: 2.1, max: 10, symbol: "arrow", color: "var(--mc-green)" },
+    { id: "luck", name: "Overflowing Luck", desc: "+8% boon strength and duration", kind: "evPower", value: 0.08, cost: 3e5, growth: 2.4, max: 15, symbol: "fortune", color: "var(--mc-light-purple)" },
+    { id: "lens", name: "Purifying Lens", desc: "-8% cracked shards and weaker curses", kind: "evCurse", value: 0.08, cost: 2e5, growth: 2.3, max: 9, symbol: "check", color: "var(--mc-red)" },
+    { id: "hands", name: "Steady Hands", desc: "+8% bigger sweet spots in quick time events", kind: "qteSize", value: 0.08, cost: 1e5, growth: 2.2, max: 10, symbol: "critChance", color: "var(--mc-blue)" },
+    { id: "fingers", name: "Quick Fingers", desc: "+0.4s more time in quick time events", kind: "qteTime", value: 0.4, cost: 1.2e5, growth: 2.2, max: 10, symbol: "attackSpeed", color: "var(--mc-red)" },
+    { id: "show", name: "Showman", desc: "+10% quick time event rewards", kind: "qteReward", value: 0.1, cost: 5e5, growth: 2.3, max: 15, symbol: "pristine", color: "var(--mc-gold)" },
     { id: "gold", name: "Golden Touch", desc: "+5% to all shards", kind: "all", value: 1.05, cost: 1e6, growth: 3.5, max: 20, symbol: "magicFind", color: "var(--mc-gold)" },
     { id: "overclock", name: "Minion Overclock", desc: "+10% minion output", kind: "minion", value: 1.1, cost: 1e5, growth: 3, max: 20, symbol: "speed", color: "var(--mc-yellow)" },
     // Pickaxes (click)
@@ -330,6 +346,7 @@ export const REBIRTH_UPS: RebirthUpDef[] = [
     { id: "kit", name: "Starter Kit", desc: "Begin each rebirth with free Cobblestone and Wheat Minions", cost: 3, growth: 1.8, max: 10, symbol: "fortune", color: "var(--mc-green)" },
     { id: "keep", name: "Muscle Memory", desc: "Keep 20% of your training upgrade levels through rebirth", cost: 5, growth: 2, max: 5, symbol: "attackSpeed", color: "var(--mc-red)" },
     { id: "mom", name: "Momentum Core", desc: "+0.5 max combo multiplier, permanently", cost: 2, growth: 1.6, max: 10, symbol: "speed", color: "var(--mc-yellow)" },
+    { id: "omen", name: "Good Omens", desc: "+10% more popups of every kind, permanently", cost: 2, growth: 1.6, max: 10, symbol: "flag", color: "var(--mc-yellow)" },
     { id: "disc", name: "Bulk Discount", desc: "-5% minion cost", cost: 2, growth: 2, max: 10, symbol: "petLuck", color: "var(--mc-green)" },
     { id: "off", name: "Night Owl", desc: "+10% offline efficiency", cost: 1, growth: 2, max: 5, symbol: "night", color: "var(--mc-blue)" },
 ];
@@ -436,6 +453,8 @@ export const TROPHIES: TrophyDef[] = [
     { id: "s-fishing", name: "Deep Angler", category: "skills", symbol: "fishing", stat: "bobber", unit: "Fishing level", metric: (s) => skillLevel(s.fishing), tiers: tiers([5, 10, 20, 30, 40, 50, 60], [0.05, 0.05, 0.1, 0.1, 0.15, 0.15, 0.25]) },
     { id: "s-total", name: "Well Rounded", category: "skills", symbol: "intelligence", stat: "skillXp", unit: "total skill levels", metric: skillSum, tiers: tiers([20, 50, 100, 150, 200], [0.05, 0.05, 0.1, 0.1, 0.15]) },
     { id: "isles", name: "Island Hopper", category: "explore", symbol: "location", stat: "all", unit: "islands unlocked", metric: islands, tiers: tiers([2, 3, 4, 5, 6, 7], [0.01, 0.01, 0.02, 0.02, 0.03, 0.05]) },
+    { id: "hunter", name: "Event Hunter", category: "explore", symbol: "flag", stat: "bobber", unit: "popups caught", metric: (s) => s.evs.caught, tiers: tiers([1, 25, 100, 500, 2500], [0.05, 0.05, 0.1, 0.1, 0.15]) },
+    { id: "perfect", name: "Perfectionist", category: "explore", symbol: "critChance", stat: "critChance", unit: "perfect quick time events", metric: (s) => s.evs.perfect, tiers: tiers([1, 10, 50, 250], [0.005, 0.005, 0.01, 0.01]) },
     { id: "bobbers", name: "Gone Fishing", category: "explore", symbol: "fishing", stat: "bobber", unit: "bobbers caught", metric: (s) => s.bobbers, tiers: tiers([1, 10, 50, 250, 1000], [0.05, 0.1, 0.15, 0.2, 0.25]) },
     { id: "time", name: "Dedicated", category: "explore", symbol: "day", stat: "offline", unit: "hours played", metric: (s) => s.playTime / 3600, tiers: tiers([1, 5, 24, 100], [0.05, 0.05, 0.1, 0.1]) },
     { id: "menagerie", name: "Menagerie", category: "pets", symbol: "petLuck", stat: "all", unit: "pets found", metric: (s) => Object.keys(s.pets).length, tiers: tiers([1, 4, 8, 12, 15], [0.01, 0.01, 0.02, 0.03, 0.05]) },
@@ -580,6 +599,7 @@ export const ASC_UPS: AscUpDef[] = [
     { id: "perch3", name: "Third Perch", desc: "Unlock a third pet slot", cost: 25, growth: 1, max: 1, symbol: "petLuck", color: "var(--mc-dark-aqua)", needs: "perch2" },
     { id: "nest", name: "Egg Fluency", desc: "-8% egg prices", cost: 2, growth: 1.5, max: 8, symbol: "flower", color: "var(--mc-gold)" },
     { id: "over", name: "Overdrive Core", desc: "+1 max combo multiplier and +10% combo build speed", cost: 2, growth: 1.5, max: 10, symbol: "attackSpeed", color: "var(--mc-red)" },
+    { id: "horizon", name: "Event Horizon", desc: "+12% boon strength and duration, and popups last 10% longer", cost: 2, growth: 1.5, max: 10, symbol: "comet", color: "var(--mc-light-purple)" },
     { id: "mentor", name: "Pet Mentor", desc: "+30% pet experience", cost: 1, growth: 1.4, max: 10, symbol: "wisdom", color: "var(--mc-light-purple)" },
 ];
 

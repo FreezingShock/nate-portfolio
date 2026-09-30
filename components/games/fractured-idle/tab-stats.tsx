@@ -62,6 +62,18 @@ export function StatsTab({ s, d, F }: Ctx) {
             ],
         },
         {
+            title: "Popup events",
+            color: "var(--mc-gold)",
+            rows: [
+                ["Popups caught", F(s.evs.caught)],
+                ["Golden shards", F(s.evs.golden)],
+                ["Quick time events", F(s.evs.qte), `${F(s.evs.perfect)} perfect`],
+                ["Fracture Fragments", String(s.frag), `+${+(Math.min(500, s.frag) * 0.2).toFixed(1)}% all shards`],
+                ["Curses taken", String(s.evs.curses)],
+                ["Best combo", `x${s.bestCombo.toFixed(2)}`],
+            ],
+        },
+        {
             title: "Progress",
             color: "var(--mc-yellow)",
             rows: [

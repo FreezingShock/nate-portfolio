@@ -1,5 +1,6 @@
 import { DEFAULT_BTN, btnBonus, cleanBtn } from "./button";
 import { COMBO_BASE_MAX, COMBO_CPS_SHARE, SURGE_BASE_CHANCE } from "./combo";
+import { buffFx, newEventStats, tickBuffs } from "./events";
 import {
     ASC_BASE,
     ASC_UPS,
@@ -86,6 +87,10 @@ export function newState(): State {
         btn: { ...DEFAULT_BTN, seen: [], saved: [null, null, null] },
         combo: 1,
         bestCombo: 1,
+        buffs: [],
+        popups: true,
+        frag: 0,
+        evs: newEventStats(),
     };
 }
 
@@ -148,6 +153,16 @@ export interface Derived {
     comboMax: number; // max combo multiplier while holding
     comboGain: number; // combo build speed, 1 = base
     surgeChance: number; // per second of holding once warm
+    evFreq: number; // popup frequency multiplier
+    evBobber: number; // bobber spawn weight multiplier
+    evGolden: number; // golden shard spawn weight multiplier
+    evLife: number; // popup lifetime multiplier
+    evPower: number; // boon strength / duration multiplier
+    curseResist: number; // 0..0.7
+    evCurseChance: number; // cracked shard weight multiplier
+    qteSize: number; // QTE sweet spot multiplier
+    qteTime: number; // extra QTE seconds
+    qteRewardLvl: number; // Showman levels
 }
 
 export type PetBonus = Record<PetStat, number>;
@@ -241,6 +256,7 @@ export function derive(s: State): Derived {
     let comboMax = COMBO_BASE_MAX;
     let comboGain = 1;
     let surge = SURGE_BASE_CHANCE;
+    const ev = { rate: 0, bobber: 0, loot: 0, golden: 0, life: 0, power: 0, curse: 0, qteSize: 0, qteTime: 0, qteRew: 0 };
     const upOwn = MINIONS.map(() => 1);
     const colUp = MINIONS.map(() => 0);
     for (const u of UPGRADES) {
@@ -257,6 +273,16 @@ export function derive(s: State): Derived {
             case "comboMax": comboMax += u.value * l; break;
             case "comboGain": comboGain += u.value * l; break;
             case "comboLuck": surge += u.value * l; break;
+            case "evRate": ev.rate += u.value * l; break;
+            case "evBobber": ev.bobber += u.value * l; break;
+            case "evLoot": ev.loot += u.value * l; break;
+            case "evGolden": ev.golden += u.value * l; break;
+            case "evLife": ev.life += u.value * l; break;
+            case "evPower": ev.power += u.value * l; break;
+            case "evCurse": ev.curse += u.value * l; break;
+            case "qteSize": ev.qteSize += u.value * l; break;
+            case "qteTime": ev.qteTime += u.value * l; break;
+            case "qteReward": ev.qteRew += l; break;
             case "mown":
                 upOwn[u.minion!] *= Math.pow(u.value, l);
                 if (u.extra?.col) colUp[u.minion!] += u.extra.col * l;
@@ -267,10 +293,11 @@ export function derive(s: State): Derived {
     const pb = petBonus(s);
     const bonus = trophyBonus(s);
     const bb = btnBonus(s);
-    clickMult *= (1 + bonus.click) * (1 + ce.click) * (1 + pb.click) * (1 + bb.click) * (1 + 0.05 * (s.rups.might || 0));
-    minionMult *= (1 + bonus.minion) * (1 + pb.minion) * (1 + 0.05 * (s.rups.engine || 0)) * (1 + 0.25 * (s.aups.union || 0));
-    critChance += bonus.critChance + ce.crit + pb.critChance + bb.crit + 0.01 * (s.rups.luck || 0);
-    critDmg += bonus.critDmg + ce.critDmg + pb.critDmg + bb.critDmg;
+    const bf = buffFx(s); // popup boons and curses, plus Fracture Fragments
+    clickMult *= (1 + bonus.click) * (1 + ce.click) * (1 + pb.click) * (1 + bb.click) * (1 + 0.05 * (s.rups.might || 0)) * bf.click;
+    minionMult *= (1 + bonus.minion) * (1 + pb.minion) * (1 + 0.05 * (s.rups.engine || 0)) * (1 + 0.25 * (s.aups.union || 0)) * bf.minion;
+    critChance += bonus.critChance + ce.crit + pb.critChance + bb.crit + bf.crit + 0.01 * (s.rups.luck || 0);
+    critDmg += bonus.critDmg + ce.critDmg + pb.critDmg + bb.critDmg + bf.critDmg;
     const mining = skillLevel(s.mining);
     const farming = skillLevel(s.farming);
     const combat = skillLevel(s.combat);
@@ -280,6 +307,7 @@ export function derive(s: State): Derived {
     // Combo: max and build speed come from upgrades, rebirth / ascension upgrades, skills and button looks.
     comboMax += 0.5 * (s.rups.mom || 0) + (s.aups.over || 0) + 0.02 * combat + bb.combo;
     comboGain += 0.1 * (s.aups.over || 0) + 0.005 * mining + bb.flow;
+    comboGain *= bf.combo;
     surge += 0.0005 * fishing;
 
     const core = s.rups.core || 0;
@@ -288,7 +316,7 @@ export function derive(s: State): Derived {
     for (const i of ISLANDS) if (s.total >= i.at) islandMult = Math.max(islandMult, i.mult);
     const achMult = 1 + bonus.all;
     const am = ascMult(s);
-    const all = rMult * islandMult * achMult * allUp * (1 + ce.all + pb.all) * (1 + 0.01 * fishing) * am;
+    const all = rMult * islandMult * achMult * allUp * bf.all * (1 + ce.all + pb.all) * (1 + 0.01 * fishing) * am;
 
     const shared = minionMult * (1 + 0.03 * farming) * all;
     let cps = 0;
@@ -314,7 +342,7 @@ export function derive(s: State): Derived {
         islandMult,
         achMult,
         xpMult: 1 + bonus.skillXp + pb.skillXp + bb.xp,
-        bobberMult: 1 + bonus.bobber + pb.bobber + bb.bobber,
+        bobberMult: 1 + bonus.bobber + pb.bobber + bb.bobber + ev.loot,
         bonus,
         all,
         mining,
@@ -334,6 +362,17 @@ export function derive(s: State): Derived {
         comboMax,
         comboGain,
         surgeChance: surge,
+        // Popup events (events.ts)
+        evFreq: (1 + ev.rate + 0.1 * (s.rups.omen || 0)) * bf.freq / Math.max(0.4, 1 - 0.01 * fishing),
+        evBobber: 1 + ev.bobber,
+        evGolden: 1 + ev.golden,
+        evLife: 1 + ev.life + 0.1 * (s.aups.horizon || 0),
+        evPower: 1 + ev.power + 0.12 * (s.aups.horizon || 0),
+        curseResist: Math.min(0.7, ev.curse),
+        evCurseChance: 1 - Math.min(0.7, ev.curse),
+        qteSize: 1 + ev.qteSize,
+        qteTime: ev.qteTime,
+        qteRewardLvl: ev.qteRew,
     };
 }
 
@@ -524,6 +563,26 @@ export function upgradeInfo(d: Derived, u: UpgradeDef, sci = false): UpInfo {
             return { label: "Combo build speed", cur: x(d.comboGain), next: x(d.comboGain + u.value) };
         case "comboLuck":
             return { label: "Surge chance per second", cur: pct(d.surgeChance), next: pct(d.surgeChance + u.value) };
+        case "evRate":
+            return { label: "Popup frequency", cur: x(d.evFreq), next: x(d.evFreq + u.value) };
+        case "evBobber":
+            return { label: "Bobber frequency", cur: x(d.evBobber), next: x(d.evBobber + u.value) };
+        case "evLoot":
+            return { label: "Bobber loot", cur: x(d.bobberMult), next: x(d.bobberMult + u.value) };
+        case "evGolden":
+            return { label: "Golden shard frequency", cur: x(d.evGolden), next: x(d.evGolden + u.value) };
+        case "evLife":
+            return { label: "Popup lifetime", cur: x(d.evLife), next: x(d.evLife + u.value) };
+        case "evPower":
+            return { label: "Boon strength", cur: x(d.evPower), next: x(d.evPower + u.value) };
+        case "evCurse":
+            return { label: "Curse resistance", cur: pct(d.curseResist), next: pct(Math.min(0.7, d.curseResist + u.value)) };
+        case "qteSize":
+            return { label: "QTE sweet spot", cur: x(d.qteSize), next: x(d.qteSize + u.value) };
+        case "qteTime":
+            return { label: "Extra QTE time", cur: `+${d.qteTime.toFixed(1)}s`, next: `+${(d.qteTime + u.value).toFixed(1)}s` };
+        case "qteReward":
+            return { label: "QTE rewards", cur: pct(0.1 * d.qteRewardLvl), next: pct(0.1 * (d.qteRewardLvl + 1)) };
         case "mown": {
             const cur = d.upOwn[u.minion!];
             return { label: `${MINIONS[u.minion!].name.replace(" Minion", "")} output`, cur: x(cur), next: x(cur * u.value) };
@@ -705,6 +764,7 @@ export function advance(s: State, d: Derived, dt: number) {
     s.farming += (d.cps > 0 ? 1 + 2 * Math.log10(d.cps + 1) : 0) * dt * d.xpMult;
     for (let i = 0; i < MINIONS.length; i++) if (s.minions[i] > 0) s.mcol[i] += s.minions[i] * dt * d.colSpeed[i];
     s.playTime += dt;
+    tickBuffs(s, dt);
     if (s.equip.length) addPetXp(s, dt);
     const inc = d.cps + d.auto * d.avgClick;
     if (inc > s.peakInc) s.peakInc = inc;
@@ -744,6 +804,13 @@ export function parseSave(raw: string): State | null {
         s.btn = cleanBtn(o.btn, s);
         s.combo = 1;
         s.bestCombo = Math.max(1, Number(o.bestCombo) || 1);
+        s.frag = Math.max(0, Math.floor(Number(o.frag) || 0));
+        s.popups = o.popups !== false;
+        s.evs = { ...newEventStats(), ...(o.evs && typeof o.evs === "object" ? o.evs : {}) };
+        s.buffs = (Array.isArray(o.buffs) ? o.buffs : [])
+            .filter((b: { id?: unknown; left?: unknown; power?: unknown }) => typeof b?.id === "string" && Number(b.left) > 0)
+            .map((b: { id: string; left: number; dur?: number; power?: number }) => ({ id: b.id, left: Number(b.left), dur: Math.max(Number(b.left), Number(b.dur) || 0), power: Math.max(0.1, Number(b.power) || 1) }))
+            .slice(0, 12);
         if (!isFinite(s.shards) || !isFinite(s.total)) return null;
         return s;
     } catch {
@@ -767,6 +834,7 @@ export function loadGame(): { state: State; offline: number } {
             const elapsed = Math.max(0, (Date.now() - s.savedAt) / 1000);
             let offline = 0;
             if (elapsed > 60) {
+                tickBuffs(s, elapsed); // timed buffs keep running while you are away (and do not inflate offline income)
                 const d = derive(s);
                 const secs = Math.min(elapsed, MAX_OFFLINE_S);
                 offline = (d.cps + d.auto * d.avgClick) * secs * offlineEff(s);

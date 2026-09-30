@@ -4,11 +4,12 @@ import { useCallback, useEffect, useLayoutEffect, useMemo, useReducer, useRef, u
 import { Expand, Minimize } from "lucide-react";
 import { McSymbol } from "@/components/mc-symbol";
 import { HOLD_BASE, critColor, holdMax, lookName, unlockedKeys } from "@/lib/fractured-idle/button";
-import { COMBO_BOBBER_SHARE, COMBO_TIERS, comboFill, holdRate, newCombo, stepCombo, type ComboCfg } from "@/lib/fractured-idle/combo";
+import { COMBO_TIERS, comboFill, holdRate, newCombo, stepCombo, type ComboCfg } from "@/lib/fractured-idle/combo";
 import { EGGS, ISLANDS, MINIONS, MINION_GROWTH, PETS, RARITIES, UPGRADES, petLevel } from "@/lib/fractured-idle/data";
 import {
     addPetXp,
     advance,
+    type Derived,
     ascPlan,
     bulk,
     checkTrophies,
@@ -29,6 +30,7 @@ import type { State } from "@/lib/fractured-idle/data";
 import { Goals } from "./goals";
 import { Aura, BTN_CSS, ButtonFace, skinAccent } from "./button-face";
 import { COMBO_CSS, ComboMeter, type ComboApi } from "./combo-meter";
+import { BuffBar, POPUP_CSS, Popups } from "./popups";
 import { kick, shake, spawnBurst, spawnCrit, spawnNumber } from "./button-fx";
 import { ButtonTab } from "./tab-button";
 import { Orbit } from "./orbit";
@@ -67,7 +69,6 @@ const TABS: { id: TabId; label: string; symbol: React.ComponentProps<typeof McSy
     { id: "settings", label: "Settings", symbol: "defense" },
 ];
 
-const BOBBER_LIFETIME = 10; // seconds a bobber stays clickable
 
 export function FracturedIdle() {
     const ref = useRef<State | null>(null);
@@ -77,7 +78,6 @@ export function FracturedIdle() {
     const [toast, setToast] = useState<string | null>(null);
     const [isFs, setIsFs] = useState(false);
     const [pseudoFs, setPseudoFs] = useState(false);
-    const [bobber, setBobber] = useState<{ x: number; y: number } | null>(null);
     const rootRef = useRef<HTMLDivElement>(null);
     const floatRef = useRef<HTMLDivElement>(null);
     const btnRef = useRef<HTMLButtonElement>(null);
@@ -91,7 +91,8 @@ export function FracturedIdle() {
     const hold = useRef({ raf: 0, last: 0, acc: 0, heat: 0, shown: 0, tier: -1, flip: false, hit: false });
     const clickFn = useRef<(x?: number, y?: number) => void>(() => {});
     const toastTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
-    const bob = useRef({ left: 0, next: 25 });
+    const getCombo = useCallback(() => combo.current.mult, []);
+    const dRef = useRef<Derived | null>(null); // latest derived stats, for the popup scheduler
     const lastTiers = useRef<number[]>([]);
     const lastLooks = useRef<string[]>([]);
     const tipRef = useRef<HTMLDivElement>(null);
@@ -153,14 +154,10 @@ export function FracturedIdle() {
         toastTimer.current = setTimeout(() => setToast(null), 3500);
     }, []);
 
-    const nextBobber = (s: State) =>
-        (25 + Math.random() * 20) * Math.max(0.4, 1 - 0.01 * skillLevel(s.fishing));
-
     // ---- Load + game loop ----
     useEffect(() => {
         const { state, offline } = loadGame();
         ref.current = state;
-        bob.current.next = nextBobber(state);
         lastTiers.current = colTiers(state);
         lastLooks.current = unlockedKeys(state);
         setReady(true);
@@ -176,26 +173,12 @@ export function FracturedIdle() {
             const now = performance.now();
             const dt = Math.min((now - last) / 1000, 86400);
             last = now;
-            advance(s, derive(s), dt);
+            const dd = derive(s);
+            dRef.current = dd;
+            advance(s, dd, dt);
             sinceRender += dt;
             sinceSave += dt;
             sinceAch += dt;
-
-            // Treasure bobbers (fishing mini-event)
-            const b = bob.current;
-            if (b.left > 0) {
-                b.left -= dt;
-                if (b.left <= 0) {
-                    setBobber(null);
-                    b.next = nextBobber(s);
-                }
-            } else {
-                b.next -= dt * (1 + COMBO_BOBBER_SHARE * (combo.current.mult - 1)); // a hot combo brings bobbers sooner
-                if (b.next <= 0) {
-                    b.left = BOBBER_LIFETIME;
-                    setBobber({ x: 8 + Math.random() * 84, y: 14 + Math.random() * 62 });
-                }
-            }
 
             if (sinceAch >= 1) {
                 sinceAch = 0;
@@ -423,27 +406,6 @@ export function FracturedIdle() {
         };
     }, []);
 
-    const catchBobber = () => {
-        const s = ref.current;
-        if (!s) return;
-        const d = derive(s);
-        const lvl = skillLevel(s.fishing);
-        const reward = Math.max(d.click * 40, d.cps * (30 + lvl)) * d.bobberMult;
-        s.shards += reward;
-        s.total += reward;
-        s.bobbers += 1;
-        s.fishing += 30 * d.xpMult;
-        bob.current.left = 0;
-        bob.current.next = nextBobber(s);
-        setBobber(null);
-        if (Math.random() < 0.1) {
-            s.freeEggs += 1;
-            say(`Treasure! +${fmt(reward, s.sci)} shards and a Wooden Egg!`);
-        } else {
-            say(`Treasure! +${fmt(reward, s.sci)} shards`);
-        }
-    };
-
     const replaceState = (n: State) => {
         ref.current = n;
         writeSave(n);
@@ -526,7 +488,7 @@ export function FracturedIdle() {
                 backgroundColor: "color-mix(in oklch, var(--background) 92%, black)",
             }}
         >
-            <style>{CSS}{BTN_CSS}{COMBO_CSS}</style>
+            <style>{CSS}{BTN_CSS}{COMBO_CSS}{POPUP_CSS}</style>
 
             {/* HUD */}
             <div className="flex flex-wrap items-center gap-x-6 gap-y-2 border-b border-white/10 px-4 py-3">
@@ -639,6 +601,8 @@ export function FracturedIdle() {
                         </div>
                     )}
 
+                    <BuffBar s={s} />
+
                     <div className="relative my-6">
                         <div className="fi-pulse pointer-events-none absolute -inset-6 rounded-[2.5rem] blur-2xl" style={{ backgroundColor: tint(island.color, 40) }} />
                         <Aura id={s.btn.aura} accent={skinAccent(s.btn.skin, island.color)} />
@@ -656,6 +620,7 @@ export function FracturedIdle() {
                         />
                     </div>
                     <div ref={floatRef} className="pointer-events-none absolute inset-0 z-[4]" aria-hidden="true" />
+                    <Popups stateRef={ref} dRef={dRef} getCombo={getCombo} say={say} enabled={s.popups} />
 
                     <div className="text-center font-rubik text-xs text-muted-foreground">
                         Press <Kbd>Space</Kbd> or click. Crit {Math.round(d.critChance * 100)}% for +{Math.round(d.critDmg * 100)}%.
@@ -707,24 +672,6 @@ export function FracturedIdle() {
                         }}
                     />
 
-                    {bobber && (
-                        <button
-                            type="button"
-                            onClick={catchBobber}
-                            aria-label="Catch the treasure bobber"
-                            className="fi-bob fi-pop absolute z-10 grid size-14 -translate-x-1/2 -translate-y-1/2 place-items-center rounded-full border-2 text-2xl"
-                            style={{
-                                left: `${bobber.x}%`,
-                                top: `${bobber.y}%`,
-                                color: "var(--mc-aqua)",
-                                borderColor: "var(--mc-aqua)",
-                                backgroundColor: tint("var(--mc-aqua)", 25),
-                                boxShadow: `0 0 24px ${tint("var(--mc-aqua)", 70)}`,
-                            }}
-                        >
-                            <McSymbol name="fishing" />
-                        </button>
-                    )}
                 </div>
 
                 {/* Panels */}
