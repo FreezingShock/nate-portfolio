@@ -1,12 +1,12 @@
 "use client";
 
-import { useCallback, useEffect, useLayoutEffect, useMemo, useReducer, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useReducer, useRef, useState } from "react";
 import { Expand, Minimize } from "lucide-react";
 import { McSymbol } from "@/components/mc-symbol";
 import { HOLD_BASE, critColor, holdMax, lookName, unlockedKeys } from "@/lib/fractured-idle/button";
 import { COMBO_TIERS, comboFill, holdRate, newCombo, stepCombo, type ComboCfg } from "@/lib/fractured-idle/combo";
 import { activeIsland } from "@/lib/fractured-idle/island-logic";
-import { EGGS, MINIONS, MINION_GROWTH, PETS, RARITIES, SKILLS, UPGRADES, petLevel, type SkillId } from "@/lib/fractured-idle/data";
+import { EGGS, LEVEL_BONUS, MINIONS, MINION_GROWTH, PETS, PET_LABEL, PET_PERK_AT, RARITIES, SKILLS, UPGRADES, petLevel, rebirthCost, type SkillId } from "@/lib/fractured-idle/data";
 import { DUST_CLICK, DUST_CRIT, PROCS, addDust, canRoll, fmtStat, glintColor, slotOpen, SLOT_IDS } from "@/lib/fractured-idle/enchant";
 import { claimMilestones, rewardLine } from "@/lib/fractured-idle/skills";
 import {
@@ -36,7 +36,7 @@ import { COMBO_CSS, ComboMeter, type ComboApi } from "./combo-meter";
 import { BuffBar, POPUP_CSS, Popups } from "./popups";
 import { ISLAND_CSS, IslandScene } from "./island-art";
 import { IslandsMenu, MENU_CSS } from "./islands-menu";
-import { ISLAND_BY_ID, MASTERY_AT, perkText } from "@/lib/fractured-idle/islands";
+import { ISLAND_BY_ID, perkText } from "@/lib/fractured-idle/islands";
 import { masteryInfo, openIslands } from "@/lib/fractured-idle/island-logic";
 import { FXP_PER_LEVEL, levelUpText, prefixOf, recentGains, symbolOf, updateFxp } from "@/lib/fractured-idle/fxp";
 import { LEVEL_CSS, LevelBadge } from "./level-badge";
@@ -44,7 +44,7 @@ import { LevelTab } from "./tab-level";
 import { kick, shake, spawnBurst, spawnCrit, spawnNumber } from "./button-fx";
 import { ButtonTab } from "./tab-button";
 import { Orbit } from "./orbit";
-import { BUY_OPTIONS, CSS, IconBtn, Kbd, Stat, tint, type Ctx, type TipApi, type TipSource } from "./ui";
+import { BUY_OPTIONS, CSS, IconBtn, Kbd, Stat, tint, type Ctx, type TipApi } from "./ui";
 import { MinionsTab } from "./tab-minions";
 import { PetsTab } from "./tab-pets";
 import { AscensionTab } from "./tab-ascension";
@@ -56,6 +56,8 @@ import { ENCH_CSS, EnchantTab } from "./tab-enchant";
 import { GLINT_CSS, Glint } from "./enchant-glint";
 import { PROC_LABEL, dustPop, procBolt, procEcho, procMidas } from "./enchant-fx";
 import { EnchantGems } from "./enchant-gems";
+import { TIP_CSS, Tip, TipCard, TipProvider, type TipHost } from "./tooltip";
+import { TABBAR_CSS, TabBar, type TabGroup, type TabItem } from "./tab-bar";
 import { SKILL_TOAST_CSS, SkillToasts, type SkillToastApi } from "./skill-toasts";
 import { StatsTab } from "./tab-stats";
 import { RebirthTab } from "./tab-rebirth";
@@ -69,21 +71,28 @@ import { SettingsTab, SoonTab } from "./tab-misc";
 
 type TabId = "minions" | "upgrades" | "button" | "pets" | "islands" | "skills" | "enchant" | "stats" | "rebirth" | "ascension" | "trophies" | "level" | "soon" | "settings";
 
-const TABS: { id: TabId; label: string; symbol: React.ComponentProps<typeof McSymbol>["name"] }[] = [
-    { id: "minions", label: "Minions", symbol: "forge" },
-    { id: "upgrades", label: "Upgrades", symbol: "strength" },
-    { id: "button", label: "Button", symbol: "speed" },
-    { id: "pets", label: "Pets", symbol: "petLuck" },
-    { id: "islands", label: "Islands", symbol: "location" },
-    { id: "skills", label: "Skills", symbol: "wisdom" },
-    { id: "enchant", label: "Enchant", symbol: "intelligence" },
-    { id: "stats", label: "Stats", symbol: "intelligence" },
-    { id: "rebirth", label: "Rebirth", symbol: "portal" },
-    { id: "ascension", label: "Ascension", symbol: "comet" },
-    { id: "trophies", label: "Trophies", symbol: "pristine" },
-    { id: "level", label: "Level", symbol: "flag" },
-    { id: "soon", label: "Soon", symbol: "comet" },
-    { id: "settings", label: "Settings", symbol: "defense" },
+const GROUPS: TabGroup[] = [
+    { id: "play", label: "Play", color: "var(--mc-aqua)" },
+    { id: "world", label: "World", color: "var(--mc-green)" },
+    { id: "prog", label: "Progress", color: "var(--mc-yellow)" },
+    { id: "sys", label: "More", color: "var(--mc-light-purple)" },
+];
+
+const TABS: TabItem<TabId>[] = [
+    { id: "minions", label: "Minions", symbol: "forge", group: "play", blurb: "Hire and upgrade minions that earn shards for you." },
+    { id: "upgrades", label: "Upgrades", symbol: "strength", group: "play", blurb: "Spend shards on click, minion, combo and popup upgrades." },
+    { id: "button", label: "Button", symbol: "speed", group: "play", blurb: "Customize your button: shapes, skins, effects and loadouts." },
+    { id: "pets", label: "Pets", symbol: "petLuck", group: "play", blurb: "Hatch eggs, equip pets and level them." },
+    { id: "islands", label: "Islands", symbol: "location", group: "world", blurb: "Travel between islands and master their perks." },
+    { id: "skills", label: "Skills", symbol: "wisdom", group: "world", blurb: "Six skills with milestone rewards." },
+    { id: "enchant", label: "Enchant", symbol: "intelligence", group: "world", blurb: "Roll enchants for your button, minions, popups and more." },
+    { id: "rebirth", label: "Rebirth", symbol: "portal", group: "prog", blurb: "Reset for tokens and a permanent multiplier." },
+    { id: "ascension", label: "Ascension", symbol: "comet", group: "prog", blurb: "The prestige above rebirth." },
+    { id: "trophies", label: "Trophies", symbol: "pristine", group: "prog", blurb: "Permanent bonuses for milestones you hit." },
+    { id: "level", label: "Level", symbol: "flag", group: "prog", blurb: "Your Fractured Level, rewards, badges and prefixes." },
+    { id: "stats", label: "Stats", symbol: "check", group: "prog", blurb: "Every number behind your income." },
+    { id: "soon", label: "Soon", symbol: "night", group: "sys", blurb: "What is planned next." },
+    { id: "settings", label: "Settings", symbol: "defense", group: "sys", blurb: "Display, saving, import/export and keys." },
 ];
 
 
@@ -118,57 +127,24 @@ export function FracturedIdle() {
     const lastIslands = useRef<string[]>([]);
     const lastSkills = useRef<Partial<Record<SkillId, number>>>({});
     const skillApi = useRef<SkillToastApi>(null);
-    const tipRef = useRef<HTMLDivElement>(null);
-    const anchor = useRef({ x: 0, y: 0 });
-    const [tipState, setTipState] = useState<{ id: string; open: boolean }>({ id: "", open: false });
+    const tipHost = useRef<TipHost | null>(null);
 
-    // Tooltip: position is written straight to the DOM (no re-render per mouse
-    // move); open/close and content go through state so they can fade.
-    const placeTip = useCallback(() => {
-        const el = tipRef.current;
-        const root = rootRef.current;
-        if (!el || !root) return;
-        const r = root.getBoundingClientRect();
-        const w = el.offsetWidth;
-        const h = el.offsetHeight;
-        const cx = anchor.current.x - r.left;
-        const cy = anchor.current.y - r.top;
-        let x = cx + 14;
-        let y = cy - 14 - h;
-        if (x + w > r.width - 6) x = cx - 14 - w; // flip to the left of the cursor
-        if (y < 6) y = Math.min(cy + 18, r.height - h - 6); // flip below
-        x = Math.max(6, Math.min(x, r.width - w - 6));
-        y = Math.max(6, Math.min(y, r.height - h - 6));
-        el.style.transform = `translate3d(${Math.round(x)}px,${Math.round(y)}px,0)`;
-    }, []);
-
-    const tip: TipApi = useMemo(() => {
-        const at = (src: TipSource) => {
-            if ("clientX" in src) {
-                anchor.current = { x: src.clientX, y: src.clientY };
-            } else {
-                const b = src.getBoundingClientRect(); // keyboard / touch: anchor to the tile
-                anchor.current = { x: b.left + b.width / 2, y: b.top + b.height / 2 };
-            }
-        };
-        return {
-            show: (id, src) => {
-                at(src);
-                setTipState({ id, open: true });
-                placeTip();
-            },
-            move: (src) => {
-                at(src);
-                placeTip();
-            },
-            hide: () => setTipState((t) => (t.open ? { ...t, open: false } : t)),
-        };
-    }, [placeTip]);
-
-    // Re-place after every render: the content (and so its size) may have changed.
-    useLayoutEffect(() => {
-        if (tipState.open) placeTip();
-    });
+    // The Ctx tooltip API used by the upgrade and trophy lists: ids are resolved to content here and drawn by the shared TipProvider.
+    const tip: TipApi = useMemo(
+        () => ({
+            show: (id, src) =>
+                tipHost.current?.show(() => {
+                    const st = ref.current;
+                    const dd = dRef.current;
+                    if (!st || !dd) return null;
+                    const f = (n: number) => fmt(n, st.sci);
+                    return id.startsWith("t:") ? <TrophyTip id={id.slice(2)} s={st} F={f} /> : <UpgradeTip id={id} s={st} d={dd} F={f} />;
+                }, src),
+            move: (src) => tipHost.current?.move(src),
+            hide: () => tipHost.current?.hide(),
+        }),
+        [],
+    );
 
     const say = useCallback((msg: string) => {
         if (ref.current?.toasts === false) return;
@@ -516,8 +492,14 @@ export function FracturedIdle() {
                     s.buy = order[(order.indexOf(s.buy) + 1) % order.length];
                     render();
                 }
-            } else if (/^[1-9]$/.test(e.key)) {
-                setTab(TABS[Number(e.key) - 1].id);
+            } else if (/^[0-9]$/.test(e.key)) {
+                const i = (Number(e.key) + 9) % 10;
+                if (TABS[i]) setTab(TABS[i].id);
+            } else if (e.key === "[" || e.key === "]") {
+                setTab((cur) => {
+                    const i = TABS.findIndex((x) => x.id === cur);
+                    return TABS[(i + (e.key === "]" ? 1 : TABS.length - 1)) % TABS.length].id;
+                });
             }
         };
         const onUp = (e: KeyboardEvent) => {
@@ -578,19 +560,41 @@ export function FracturedIdle() {
                 backgroundColor: "color-mix(in oklch, var(--background) 92%, black)",
             }}
         >
-            <style>{CSS}{BTN_CSS}{COMBO_CSS}{POPUP_CSS}{ISLAND_CSS}{MENU_CSS}{LEVEL_CSS}{ENCH_CSS}{GLINT_CSS}{SKILL_TOAST_CSS}</style>
+            <style>{CSS}{BTN_CSS}{COMBO_CSS}{POPUP_CSS}{ISLAND_CSS}{MENU_CSS}{LEVEL_CSS}{ENCH_CSS}{GLINT_CSS}{SKILL_TOAST_CSS}{TABBAR_CSS}{TIP_CSS}</style>
+            <TipProvider hostRef={tipHost}>
 
             {/* HUD */}
             <div className="flex flex-wrap items-center gap-x-6 gap-y-2 border-b border-white/10 px-4 py-3">
-                <div className="min-w-0">
-                    <div className="font-minecraft text-[10px] uppercase tracking-widest text-muted-foreground">Shards</div>
-                    <div className="rainbow-text truncate font-minecraft text-3xl leading-none sm:text-4xl">
-                        <McSymbol name="speed" /> {F(s.shards)}
+                <Tip
+                    tip={() => (
+                        <TipCard
+                            title="Shards"
+                            color="var(--mc-aqua)"
+                            lines={["The main currency. Spend it on minions and upgrades; rebirth resets it for permanent power."]}
+                            rows={[["Lifetime", F(s.total)], ["Best income", `${F(s.peakInc)}/s`]]}
+                        />
+                    )}
+                >
+                    <div className="min-w-0">
+                        <div className="font-minecraft text-[10px] uppercase tracking-widest text-muted-foreground">Shards</div>
+                        <div className="rainbow-text truncate font-minecraft text-3xl leading-none sm:text-4xl">
+                            <McSymbol name="speed" /> {F(s.shards)}
+                        </div>
                     </div>
-                </div>
+                </Tip>
+                <Tip
+                    tip={() => (
+                        <TipCard
+                            title={`Fractured Level ${s.lvl}`}
+                            color="var(--mc-yellow)"
+                            lines={["Earn Fracture EXP by unlocking things across every system. Each level adds to all shards."]}
+                            rows={[["Bonus", `+${(LEVEL_BONUS * s.lvl * 100).toFixed(2)}% all shards`], ["EXP", `${Object.values(s.fxp).reduce((x, y) => x + y, 0) - s.lvl * FXP_PER_LEVEL} / ${FXP_PER_LEVEL}`]]}
+                            foot="Click to open the Level tab."
+                        />
+                    )}
+                >
                 <button
                     type="button"
-                    title="Fractured Level: open the Level tab"
                     onClick={() => {
                         tip.hide();
                         setTab("level");
@@ -610,12 +614,67 @@ export function FracturedIdle() {
                         ))}
                     </div>
                 </button>
-                <Stat label="Per second" value={F(income(d))} color="var(--mc-green)" />
-                <Stat label="Per click" value={F(d.click)} color="var(--mc-aqua)" />
-                <Stat label="Multiplier" value={`x${F(d.all)}`} color="var(--mc-gold)" />
+                </Tip>
+                <Tip
+                    tip={() => (
+                        <TipCard
+                            title="Per second"
+                            color="var(--mc-green)"
+                            lines={["Shards earned every second without clicking."]}
+                            rows={[["Minions", F(d.cps)], ["Auto-clicks", `${d.auto.toFixed(2)}/s x ${F(d.avgClick)}`], ["Combo boost", s.combo > 1.01 ? `+${Math.round((s.combo - 1) * 12)}% while held` : "hold the button"]]}
+                        />
+                    )}
+                >
+                    <Stat label="Per second" value={F(income(d))} color="var(--mc-green)" />
+                </Tip>
+                <Tip
+                    tip={() => (
+                        <TipCard
+                            title="Per click"
+                            color="var(--mc-aqua)"
+                            lines={["What one plain click is worth right now."]}
+                            rows={[["Crit chance", `${Math.round(d.critChance * 100)}%`], ["Crit bonus", `+${Math.round(d.critDmg * 100)}%`], ["Average with crits", F(d.avgClick)], ["Combo", `x${s.combo.toFixed(2)}`]]}
+                        />
+                    )}
+                >
+                    <Stat label="Per click" value={F(d.click)} color="var(--mc-aqua)" />
+                </Tip>
+                <Tip
+                    tip={() => (
+                        <TipCard
+                            title="Multiplier"
+                            color="var(--mc-gold)"
+                            lines={["Applies to everything you earn. It is the product of these:"]}
+                            rows={(
+                                [
+                                    ["Rebirths", d.rMult],
+                                    ["Island", d.islandMult],
+                                    ["Trophies", d.achMult],
+                                    ["Upgrades", d.allUp],
+                                    ["Ascension", d.ascMult],
+                                    ["Fractured Level", 1 + LEVEL_BONUS * s.lvl],
+                                ] as [string, number][]
+                            )
+                                .filter(([, v]) => Math.abs(v - 1) > 0.0005)
+                                .map(([k, v]): [string, string] => [k, `x${v >= 100 ? F(v) : v.toFixed(2)}`])}
+                            foot="Pets, enchants, boons and the Codex add on top."
+                        />
+                    )}
+                >
+                    <Stat label="Multiplier" value={`x${F(d.all)}`} color="var(--mc-gold)" />
+                </Tip>
+                <Tip
+                    tip={() => (
+                        <TipCard
+                            title="Rebirth"
+                            color="var(--mc-light-purple)"
+                            lines={["Reset shards, minions and shop upgrades for tokens and a permanent multiplier."]}
+                            rows={[["Rebirths", String(s.rebirths)], ["Tokens", String(s.tokens)], plan.count > 0 ? ["Ready now", `x${plan.count} (+${plan.tokens} tokens)`, "var(--mc-green)"] : ["Next cost", F(rebirthCost(s.rebirths, s.asc))]]}
+                        />
+                    )}
+                >
                 <button
                     type="button"
-                    title="Open Rebirth"
                     onClick={() => {
                         tip.hide();
                         setTab("rebirth");
@@ -632,10 +691,20 @@ export function FracturedIdle() {
                         )}
                     </div>
                 </button>
+                </Tip>
                 {(s.asc > 0 || asc.can) && (
+                    <Tip
+                        tip={() => (
+                            <TipCard
+                                title="Ascension"
+                                color="var(--mc-aqua)"
+                                lines={["The prestige above rebirth: reset almost everything for ascension points and permanent upgrades."]}
+                                rows={[["Ascensions", String(s.asc)], ["Points", String(s.ap)], asc.can ? ["Ready", `+${asc.ap} points`, "var(--mc-green)"] : ["Needs", `${asc.req} rebirths`]]}
+                            />
+                        )}
+                    >
                     <button
                         type="button"
-                        title="Open Ascension"
                         onClick={() => {
                             tip.hide();
                             setTab("ascension");
@@ -652,6 +721,7 @@ export function FracturedIdle() {
                             )}
                         </div>
                     </button>
+                    </Tip>
                 )}
                 <div className="ml-auto flex items-center gap-2">
                     <div className="flex overflow-hidden rounded-lg border border-white/15">
@@ -680,13 +750,23 @@ export function FracturedIdle() {
                 {/* Button side */}
                 <div className="relative isolate flex flex-col items-center justify-center gap-3 overflow-hidden px-4 py-3 lg:border-r lg:border-white/10">
                     <IslandScene key={island.id} island={island} variant="backdrop" className="fi-backdrop absolute inset-0 -z-10 size-full" />
+                    <Tip
+                        tip={() => (
+                            <TipCard
+                                title={island.name}
+                                color={island.color}
+                                tag={`x${island.mult} shards`}
+                                lines={island.perks.filter((p) => p.k !== "affinity").map((p) => perkText(p, masteryInfo(s.isec[island.id] || 0).strength, NAMES))}
+                                foot="Click or press I to open the travel map."
+                            />
+                        )}
+                    >
                     <button
                         type="button"
                         onClick={() => {
                             tip.hide();
                             setMenu("");
                         }}
-                        title={`Open the travel map (I). Active perks:\n${island.perks.filter((p) => p.k !== "affinity").map((p) => perkText(p, masteryInfo(s.isec[island.id] || 0).strength, NAMES)).join("\n")}`}
                         className="group flex flex-wrap items-center justify-center gap-2 rounded-full border border-white/10 bg-black/25 px-3 py-1 font-minecraft text-sm backdrop-blur-sm transition-colors hover:bg-black/45"
                         style={{ color: island.color }}
                     >
@@ -697,6 +777,7 @@ export function FracturedIdle() {
                         </span>
                         <span className="rounded-full border border-white/15 px-2 py-0.5 font-rubik text-[10px] text-muted-foreground transition-colors group-hover:text-foreground">Travel ▸</span>
                     </button>
+                    </Tip>
 
                     {s.equip.length > 0 && (
                         <div className="flex flex-wrap items-center justify-center gap-1.5">
@@ -706,10 +787,24 @@ export function FracturedIdle() {
                                 if (!p || !st) return null;
                                 const rc = RARITIES[p.rarity].color;
                                 return (
-                                    <button
+                                    <Tip
                                         key={id}
+                                        tip={() => {
+                                            const lv = petLevel(p, st.xp);
+                                            return (
+                                                <TipCard
+                                                    title={p.name}
+                                                    color={p.color}
+                                                    tag={`${RARITIES[p.rarity].name} · Lv ${lv}`}
+                                                    lines={[p.blurb]}
+                                                    rows={[[PET_LABEL[p.stat], `+${+((p.base + p.per * (lv - 1)) * 100).toFixed(1)}%`], ...p.perks.map((pk, n): [string, string, string?] => [pk.name, lv >= PET_PERK_AT[n] ? "unlocked" : `Lv ${PET_PERK_AT[n]}`, lv >= PET_PERK_AT[n] ? "var(--mc-green)" : undefined])]}
+                                                    foot="Click to open Pets."
+                                                />
+                                            );
+                                        }}
+                                    >
+                                    <button
                                         type="button"
-                                        title={`${p.name}: open Pets`}
                                         onClick={() => {
                                             tip.hide();
                                             setTab("pets");
@@ -719,6 +814,7 @@ export function FracturedIdle() {
                                     >
                                         <McSymbol name={p.symbol} /> {p.name} <span className="text-muted-foreground">Lv {petLevel(p, st.xp)}</span>
                                     </button>
+                                    </Tip>
                                 );
                             })}
                         </div>
@@ -808,29 +904,16 @@ export function FracturedIdle() {
 
                 {/* Panels */}
                 <div className="flex min-h-0 min-w-0 flex-col">
-                    <div className="flex gap-1 overflow-x-auto border-b border-white/10 px-2 py-2 [scrollbar-width:none]">
-                        {TABS.map((t, i) => {
-                            const on = tab === t.id;
-                            return (
-                                <button
-                                    key={t.id}
-                                    type="button"
-                                    onClick={() => {
-                                        tip.hide();
-                                        setTab(t.id);
-                                    }}
-                                    title={`${t.label} (${i + 1})`}
-                                    className="relative flex shrink-0 items-center gap-1.5 rounded-lg px-3 py-1.5 font-minecraft text-xs transition-colors"
-                                    style={on ? { backgroundColor: tint("var(--mc-aqua)", 18), color: "var(--mc-aqua)", boxShadow: `inset 0 0 0 1px ${tint("var(--mc-aqua)", 45)}` } : { color: "var(--muted-foreground)" }}
-                                >
-                                    <McSymbol name={t.symbol} /> {t.label}
-                                    {dots[t.id] && !on && (
-                                        <span className="absolute right-1 top-1 size-1.5 rounded-full" style={{ backgroundColor: "var(--mc-green)", boxShadow: "0 0 6px var(--mc-green)" }} />
-                                    )}
-                                </button>
-                            );
-                        })}
-                    </div>
+                    <TabBar
+                        tabs={TABS}
+                        groups={GROUPS}
+                        current={tab}
+                        dots={dots}
+                        onSelect={(id) => {
+                            tip.hide();
+                            setTab(id);
+                        }}
+                    />
 
                     <div className="min-h-[360px] flex-1 space-y-2 overflow-y-auto p-3 [scrollbar-width:thin]">
                         {tab === "minions" && <MinionsTab {...ctx} />}
@@ -848,12 +931,6 @@ export function FracturedIdle() {
                         {tab === "soon" && <SoonTab {...ctx} />}
                         {tab === "settings" && <SettingsTab {...ctx} replaceState={replaceState} />}
                     </div>
-                </div>
-            </div>
-
-            <div ref={tipRef} className="pointer-events-none absolute left-0 top-0 z-30" aria-hidden="true">
-                <div className="fi-tip" data-open={tipState.open}>
-                    {tipState.id.startsWith("t:") ? <TrophyTip id={tipState.id.slice(2)} s={s} F={F} /> : tipState.id && <UpgradeTip id={tipState.id} s={s} d={d} F={F} />}
                 </div>
             </div>
 
@@ -887,6 +964,7 @@ export function FracturedIdle() {
                     {toast}
                 </div>
             )}
+            </TipProvider>
         </div>
     );
 }

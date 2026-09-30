@@ -6,6 +6,7 @@ import { SKILLS, type SkillId } from "@/lib/fractured-idle/data";
 import { fmtStat } from "@/lib/fractured-idle/enchant";
 import { SKILL_CAP, fmt, fmtEta, skillLevel, skillXpFor } from "@/lib/fractured-idle/engine";
 import { MILESTONES_BY_SKILL, nextMilestone, rewardLine } from "@/lib/fractured-idle/skills";
+import { Tip, TipCard } from "./tooltip";
 import { Badge, Progress, SectionTitle, tint, type Ctx } from "./ui";
 
 // Skills: six skills with their own level curve, a per-level perk and a path
@@ -66,8 +67,20 @@ export function SkillsTab({ s, d, open }: Props) {
                     const ms = MILESTONES_BY_SKILL[sk.id];
                     const next = ms.find((m) => m.at > l);
                     return (
-                        <button
+                        <Tip
                             key={sk.id}
+                            tip={() => (
+                                <TipCard
+                                    title={`${sk.name} ${l}/${SKILL_CAP}`}
+                                    color={sk.color}
+                                    tag={next ? `next reward Lv ${next.at}` : "all rewards"}
+                                    lines={[sk.perk]}
+                                    rows={[["Current bonus", sk.bonus(l)], ["XP from", sk.earn], ["Passive", passive[sk.id] > 0 ? `${passive[sk.id].toFixed(2)} xp/s` : "none"]]}
+                                    foot="Click to see the milestone path."
+                                />
+                            )}
+                        >
+                        <button
                             type="button"
                             onClick={() => setSel(sk.id)}
                             aria-pressed={on}
@@ -97,6 +110,7 @@ export function SkillsTab({ s, d, open }: Props) {
                                 ))}
                             </div>
                         </button>
+                        </Tip>
                     );
                 })}
             </div>
@@ -149,8 +163,8 @@ export function SkillsTab({ s, d, open }: Props) {
                         const done = m.at <= lvl;
                         const isNext = nm?.at === m.at;
                         return (
+                            <Tip key={m.at} box tip={<TipCard title={m.name} color={k.color} tag={done ? "Earned" : `Level ${m.at}`} rows={m.rewards.map((r): [string, string, string?] => [r.grant ? "Reward" : r.unlock ? "Unlocks" : "Permanent", rewardLine(r, fx), r.grant ? "var(--mc-yellow)" : r.unlock ? "var(--mc-light-purple)" : "var(--mc-green)"])} foot={done ? "Already paid out." : `${m.at - lvl} level${m.at - lvl === 1 ? "" : "s"} to go.`} />}>
                             <div
-                                key={m.at}
                                 className="flex gap-2 rounded-lg border p-2"
                                 style={{
                                     borderColor: done ? tint(k.color, 55) : isNext ? "rgba(255,255,255,0.35)" : "rgba(255,255,255,0.08)",
@@ -178,6 +192,7 @@ export function SkillsTab({ s, d, open }: Props) {
                                     </div>
                                 </div>
                             </div>
+                            </Tip>
                         );
                     })}
                 </div>

@@ -4,6 +4,7 @@ import { McSymbol } from "@/components/mc-symbol";
 import type { State } from "@/lib/fractured-idle/data";
 import { ENCH_BY_ID, RARITIES, SLOTS, canRoll, rarityColor, slotOpen } from "@/lib/fractured-idle/enchant";
 import { fmt } from "@/lib/fractured-idle/engine";
+import { Tip, TipCard } from "./tooltip";
 import { tint } from "./ui";
 
 // A small chip under the button: your Arcane Dust and one gem per enchant slot
@@ -14,10 +15,23 @@ export function EnchantGems({ s, onOpen }: { s: State; onOpen: () => void }) {
     const ready = SLOTS.some((sl) => slotOpen(s, sl.id) && canRoll(s, sl.id).ok);
     const pending = SLOTS.some((sl) => s.enc.pend[sl.id]);
     return (
+        <Tip
+            tip={() => (
+                <TipCard
+                    title="Enchantments"
+                    color="var(--mc-light-purple)"
+                    lines={[ready ? "You have enough Arcane Dust to roll." : "Arcane Dust pays for rolls. It drops from clicks, popups and rebirths."]}
+                    rows={SLOTS.map((sl): [string, string, string?] => {
+                        const e = s.enc.eq[sl.id];
+                        return [sl.name, !slotOpen(s, sl.id) ? `locked (Enchanting ${sl.need})` : e ? `${RARITIES[e.r].name} ${ENCH_BY_ID[e.id].name}` : "empty", e ? rarityColor(e.r) : undefined];
+                    })}
+                    foot="Click to open the Enchant table."
+                />
+            )}
+        >
         <button
             type="button"
             onClick={onOpen}
-            title={ready ? "You can roll an enchant: open the Enchant table" : "Open the Enchant table"}
             className={`flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 font-rubik text-[10px] transition-colors hover:bg-white/10 ${ready || pending ? "fi-afford" : ""}`}
             style={{ borderColor: tint("var(--mc-light-purple)", 55), color: "#e2b8ff", ["--c" as string]: "var(--mc-light-purple)" }}
         >
@@ -30,7 +44,6 @@ export function EnchantGems({ s, onOpen }: { s: State; onOpen: () => void }) {
                     return (
                         <span
                             key={sl.id}
-                            title={open ? `${sl.name}: ${e ? `${RARITIES[e.r].name} ${ENCH_BY_ID[e.id].name}` : "empty"}` : `${sl.name}: locked`}
                             className="grid size-4 place-items-center rounded-[5px] text-[10px]"
                             style={{ color: col, border: `1px solid ${col}`, opacity: open ? 1 : 0.35, boxShadow: e && e.r >= 3 ? `0 0 8px ${col}` : undefined }}
                         >
@@ -41,5 +54,6 @@ export function EnchantGems({ s, onOpen }: { s: State; onOpen: () => void }) {
             </span>
             <span className="text-muted-foreground">{pending ? "candidate!" : ready ? "roll ready" : "Enchant"}</span>
         </button>
+        </Tip>
     );
 }

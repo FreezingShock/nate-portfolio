@@ -7,6 +7,7 @@ import { McSymbol } from "@/components/mc-symbol";
 import {
     ANIMS,
     CODEX_ALL,
+    codexLuck,
     CODEX_MILES,
     CODEX_TOTAL,
     DUST_BASE,
@@ -59,6 +60,7 @@ import { ButtonFace } from "./button-face";
 import { shake } from "./button-fx";
 import { chargeFx, flashScreen, revealFx } from "./enchant-fx";
 import { Glint } from "./enchant-glint";
+import { Tip, TipCard } from "./tooltip";
 import { Progress, SectionTitle, tint, type Ctx } from "./ui";
 
 // The Enchant table. Pick a slot, press Roll and watch the ritual: the runes
@@ -154,7 +156,7 @@ export function EnchantTab({ s, d, F, render, say }: Ctx) {
             }
             const gl = glyph.current;
             if (gl) {
-                const s = R.on ? p * p * 5 : 0;
+                const s = R.on ? p * p * 2.4 : 0;
                 gl.style.translate = s ? `${((Math.random() - 0.5) * s).toFixed(1)}px ${((Math.random() - 0.5) * s).toFixed(1)}px` : "0 0";
                 gl.style.scale = R.on ? String(1 + p * 0.12) : "1";
             }
@@ -352,26 +354,34 @@ export function EnchantTab({ s, d, F, render, say }: Ctx) {
         <div className="fi-en" data-table={o.table}>
             {/* Top strip */}
             <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
-                <div className="fi-en-stat" style={{ ["--c" as string]: "#d9a8ff" } as CSSProperties}>
-                    <span>Arcane Dust</span>
-                    <b>✧ {F(s.enc.dust)}</b>
-                    <small>+{dustRate.toFixed(2)}/s</small>
-                </div>
-                <div className="fi-en-stat" style={{ ["--c" as string]: "var(--mc-green)" } as CSSProperties}>
-                    <span>Luck</span>
-                    <b>x{luck.toFixed(2)}</b>
-                    <small>better odds for rare pulls</small>
-                </div>
-                <div className="fi-en-stat" style={{ ["--c" as string]: "var(--mc-yellow)" } as CSSProperties}>
-                    <span>Rolls</span>
-                    <b>{s.enc.rolls.toLocaleString()}</b>
-                    <small>{s.enc.polishes} polishes</small>
-                </div>
-                <div className="fi-en-stat" style={{ ["--c" as string]: "var(--mc-light-purple)" } as CSSProperties}>
-                    <span>Codex</span>
-                    <b>{codexCount(s)}/{CODEX_TOTAL}</b>
-                    <small>+{(CODEX_ALL * codexCount(s) * 100).toFixed(1)}% all shards</small>
-                </div>
+                <Tip tip={() => <TipCard title="Arcane Dust" color="#d9a8ff" lines={["Pays for every roll, polish and reforge. Salvaging enchants returns some."]} rows={[["Passive", `+${dustRate.toFixed(2)}/s`], ["Earned in total", F(s.enc.earned)], ["Dust bonus", `x${d.dustMult.toFixed(2)}`]]} foot="Also drops from clicks, popups, rebirths and skill milestones." />}>
+                    <div className="fi-en-stat" style={{ ["--c" as string]: "#d9a8ff" } as CSSProperties}>
+                        <span>Arcane Dust</span>
+                        <b>✧ {F(s.enc.dust)}</b>
+                        <small>+{dustRate.toFixed(2)}/s</small>
+                    </div>
+                </Tip>
+                <Tip tip={() => <TipCard title="Luck" color="var(--mc-green)" lines={["Luck shifts rolls toward rarer pulls (each rarity scales by luck^(rank/7))."]} rows={[["Total", `x${luck.toFixed(2)}`], ["Enchanting level", `+${lvl * 2}%`], ["Codex", `+${Math.round(codexLuck(codexCount(s)) * 100)}%`]]} foot="Tome enchants, affixes, skills and Fortune's Favor add more." />}>
+                    <div className="fi-en-stat" style={{ ["--c" as string]: "var(--mc-green)" } as CSSProperties}>
+                        <span>Luck</span>
+                        <b>x{luck.toFixed(2)}</b>
+                        <small>better odds for rare pulls</small>
+                    </div>
+                </Tip>
+                <Tip tip={() => <TipCard title="Rolls" color="var(--mc-yellow)" lines={["Pity keeps bad streaks short."]} rows={[["Total rolls", s.enc.rolls.toLocaleString()], ["Epic+ in", `${Math.max(1, PITY_EPIC - s.enc.pe)} rolls`], ["Legendary+ in", `${Math.max(1, PITY_LEGEND - s.enc.pl)} rolls`]]} />}>
+                    <div className="fi-en-stat" style={{ ["--c" as string]: "var(--mc-yellow)" } as CSSProperties}>
+                        <span>Rolls</span>
+                        <b>{s.enc.rolls.toLocaleString()}</b>
+                        <small>{s.enc.polishes} polishes</small>
+                    </div>
+                </Tip>
+                <Tip tip={() => { const n = codexCount(s); const nx = CODEX_MILES.find((m) => m.n > n); return <TipCard title="Codex" color="var(--mc-light-purple)" lines={["Every enchant and rarity you roll is recorded. Each entry adds to all shards."]} rows={[["Found", `${n}/${CODEX_TOTAL}`], ["Bonus", `+${(CODEX_ALL * n * 100).toFixed(1)}% all shards`], nx ? ["Next reward", `${nx.n} entries`] : ["Complete", "all rewards earned", "var(--mc-green)"]]} />; }}>
+                    <div className="fi-en-stat" style={{ ["--c" as string]: "var(--mc-light-purple)" } as CSSProperties}>
+                        <span>Codex</span>
+                        <b>{codexCount(s)}/{CODEX_TOTAL}</b>
+                        <small>+{(CODEX_ALL * codexCount(s) * 100).toFixed(1)}% all shards</small>
+                    </div>
+                </Tip>
             </div>
             <Progress label={`Enchanting ${lvl}`} color="var(--mc-light-purple)" pct={lvl >= 60 ? 1 : (s.enchanting - lo) / (hi - lo)} right={lvl >= 60 ? "MAX" : `${F(s.enchanting - lo)} / ${F(hi - lo)} xp`} />
 
@@ -393,8 +403,20 @@ export function EnchantTab({ s, d, F, render, say }: Ctx) {
                             const on = slot === sl.id;
                             const col = e ? rcolor(e.r) : sl.color;
                             return (
-                                <button
+                                <Tip
                                     key={sl.id}
+                                    tip={() => (
+                                        <TipCard
+                                            title={sl.name}
+                                            color={sl.color}
+                                            tag={isOpen ? (e ? rar(e.r).name : "Empty") : `Enchanting ${sl.need}`}
+                                            lines={[sl.blurb]}
+                                            rows={e ? enchLines(e).map((l): [string, string] => [l.affix ?? "Enchant", fmtStat(l.stat, l.value)]) : undefined}
+                                            foot={isOpen ? `Roll cost: ${rollCost(s, sl.id)} dust` : "Raise your Enchanting skill to open this slot."}
+                                        />
+                                    )}
+                                >
+                                <button
                                     type="button"
                                     onClick={() => {
                                         if (!busy) setSlot(sl.id);
@@ -415,6 +437,7 @@ export function EnchantTab({ s, d, F, render, say }: Ctx) {
                                     </span>
                                     {s.enc.pend[sl.id] && <i className="fi-en-dot" />}
                                 </button>
+                                </Tip>
                             );
                         })}
                     </div>
@@ -444,8 +467,10 @@ export function EnchantTab({ s, d, F, render, say }: Ctx) {
                                 ))}
                             </g>
                         </svg>
-                        <div ref={glyph} className="fi-en-glyph" key={`${glyphName}${phase === "reveal" ? shown?.out.cand.r : ""}`}>
-                            {open ? <McSymbol name={glyphName} /> : <Lock className="size-10" />}
+                        <div ref={glyph} className="fi-en-glyph">
+                            <span className="fi-en-glyph-in" key={`${glyphName}${phase === "reveal" ? shown?.out.cand.r : ""}`}>
+                                {open ? <McSymbol name={glyphName} /> : <Lock className="size-10" />}
+                            </span>
                         </div>
                         <div ref={reel} className="fi-en-reel" aria-hidden="true" />
                         {!open && (
@@ -491,26 +516,27 @@ export function EnchantTab({ s, d, F, render, say }: Ctx) {
                     {/* Actions */}
                     {open && (
                         <div className="fi-en-actions">
-                            <button type="button" disabled={!roll.ok || busy} onClick={() => start("roll")} className="fi-en-roll" data-ready={roll.ok && !busy} data-busy={busy} title="Roll (R)">
-                                <span className="fi-en-roll-t">{busy ? "Rolling..." : "Roll"}</span>
-                                <span className="fi-en-roll-c">✧ {cost}</span>
-                            </button>
-                            <button type="button" disabled={!pol.ok || busy} onClick={() => start("polish")} className="fi-en-btn" title={pol.why ?? "Re-roll the quality of what you wear"}>
-                                Polish <small>✧ {polishCost(s, slot)}</small>
-                            </button>
-                            <button type="button" disabled={!ref.ok || busy} onClick={() => start("reforge")} className="fi-en-btn" title={ref.why ?? "Re-roll the affixes of what you wear"}>
-                                Reforge <small>✧ {reforgeCost(s, slot)}</small>
-                            </button>
-                            <button
-                                type="button"
-                                disabled={lvl < NEED.auto}
-                                onClick={toggleAuto}
-                                className="fi-en-btn"
-                                data-on={auto}
-                                title={lvl < NEED.auto ? `Auto-roll opens at Enchanting ${NEED.auto}` : `Rolls this slot until a ${rar(o.stop).name} or better (change in Style)`}
-                            >
-                                {lvl < NEED.auto ? <><Lock className="mr-1 inline size-3" />Auto</> : auto ? "Stop auto" : "Auto-roll"}
-                            </button>
+                            <Tip box className="flex-[1_1_9rem]" tip={<TipCard title="Roll" color="var(--mc-light-purple)" tag="key R" lines={["Spend dust for a brand new enchant: a random enchant, rarity, quality and affixes."]} rows={[["Cost", `${cost} dust`], ["Focus", s.enc.focus[slot] ? `x${FOCUS_COST} cost` : "off"]]} foot={!roll.ok ? roll.why : "Results wait as a candidate until you equip or discard them."} />}>
+                                <button type="button" disabled={!roll.ok || busy} onClick={() => start("roll")} className="fi-en-roll w-full" data-ready={roll.ok && !busy} data-busy={busy}>
+                                    <span className="fi-en-roll-t">{busy ? "Rolling..." : "Roll"}</span>
+                                    <span className="fi-en-roll-c">✧ {cost}</span>
+                                </button>
+                            </Tip>
+                            <Tip box tip={<TipCard title="Polish" color="var(--mc-aqua)" lines={["Re-roll only the quality of what you wear. Same enchant, rarity and affixes; the numbers can go up or down."]} rows={[["Cost", `${polishCost(s, slot)} dust`]]} foot={pol.why ?? "You can keep the old version if the new one is worse."} />}>
+                                <button type="button" disabled={!pol.ok || busy} onClick={() => start("polish")} className="fi-en-btn">
+                                    Polish <small>✧ {polishCost(s, slot)}</small>
+                                </button>
+                            </Tip>
+                            <Tip box tip={<TipCard title="Reforge" color="var(--mc-gold)" lines={["Re-roll only the affixes of what you wear. Needs a Rare or better enchant."]} rows={[["Cost", `${reforgeCost(s, slot)} dust`]]} foot={ref.why ?? "Keeps the enchant, rarity and quality."} />}>
+                                <button type="button" disabled={!ref.ok || busy} onClick={() => start("reforge")} className="fi-en-btn">
+                                    Reforge <small>✧ {reforgeCost(s, slot)}</small>
+                                </button>
+                            </Tip>
+                            <Tip box tip={<TipCard title="Auto-roll" color="var(--mc-green)" lines={["Rolls this slot again and again, wearing anything stronger."]} rows={[["Stops at", `${rar(o.stop).name} or better`], ["Equips better", o.better ? "yes" : "no"]]} foot={lvl < NEED.auto ? `Opens at Enchanting ${NEED.auto}. Runs while this tab is open; change the rules in Style.` : "Runs while this tab is open; change the rules in Style."} />}>
+                                <button type="button" disabled={lvl < NEED.auto} onClick={toggleAuto} className="fi-en-btn" data-on={auto}>
+                                    {lvl < NEED.auto ? <><Lock className="mr-1 inline size-3" />Auto</> : auto ? "Stop auto" : "Auto-roll"}
+                                </button>
+                            </Tip>
                         </div>
                     )}
                     {open && (
@@ -552,12 +578,14 @@ export function EnchantTab({ s, d, F, render, say }: Ctx) {
                     <SectionTitle color={C}>Odds at x{luck.toFixed(2)} luck</SectionTitle>
                     <div className="grid grid-cols-2 gap-1 sm:grid-cols-4">
                         {RARITIES.map((r, i) => (
-                            <div key={r.id} className="rounded-lg border px-2 py-1" style={{ borderColor: tint(rcolor(i), 40) }}>
+                            <Tip key={r.id} tip={<TipCard title={r.name} color={rcolor(i)} tag={`x${r.m} power`} rows={[["Odds now", `1 in ${fmtOdds(oddsOf(i, luck))}`], ["Base odds", `1 in ${fmtOdds(oddsOf(i, 1))}`], ["Affixes", String(r.affixes)], ["Rolled", String(s.enc.byR[i])]]} foot="Higher luck improves these odds." />}>
+                            <div className="rounded-lg border px-2 py-1" style={{ borderColor: tint(rcolor(i), 40) }}>
                                 <div className={`font-minecraft text-[11px] ${isCosmic(i) ? "fi-rainbow" : ""}`} style={{ color: rcolor(i) }}>{r.name}</div>
                                 <div className="font-rubik text-[10px] text-muted-foreground">
                                     1 in {fmtOdds(oddsOf(i, luck))} · x{r.m} · {s.enc.byR[i]} rolled
                                 </div>
                             </div>
+                            </Tip>
                         ))}
                     </div>
                     {s.enc.recent.length > 0 && (
@@ -716,12 +744,12 @@ function Codex({ s }: { s: Ctx["s"] }) {
                                         {RARITIES.map((r, i) => {
                                             const got = !!(mask & (1 << i));
                                             return (
+                                                <Tip key={r.id} tip={<TipCard title={r.name} color={rcolor(i)} tag={got ? "Found" : "Not found"} lines={[got ? `You have rolled ${e.name} at ${r.name}.` : `Roll ${e.name} at ${r.name} to fill this in.`]} />}>
                                                 <i
-                                                    key={r.id}
-                                                    title={`${r.name}${got ? " (found)" : ""}`}
                                                     className={`size-2.5 rounded-full ${got && isCosmic(i) ? "fi-en-pip-rainbow" : ""}`}
                                                     style={{ backgroundColor: got ? rcolor(i) : "transparent", border: `1px solid ${got ? rcolor(i) : "rgba(255,255,255,0.22)"}`, boxShadow: got ? `0 0 6px ${rcolor(i)}` : undefined }}
                                                 />
+                                                </Tip>
                                             );
                                         })}
                                     </div>
@@ -752,13 +780,12 @@ function Style({ s, render }: { s: Ctx["s"]; render: () => void }) {
                 const ok = cosOpen(s, c);
                 const on = cur === c.id;
                 return (
+                    <Tip key={c.id} box tip={<TipCard title={c.name} color={C} lines={c.blurb ? [c.blurb] : undefined} foot={ok ? "Click to use." : `Opens at Enchanting ${c.need}.`} />}>
                     <button
-                        key={c.id}
                         type="button"
                         disabled={!ok}
                         onClick={() => pick(key, c.id)}
                         aria-pressed={on}
-                        title={ok ? c.blurb : `Opens at Enchanting ${c.need}`}
                         className="fi-en-opt"
                         data-on={on}
                     >
@@ -766,6 +793,7 @@ function Style({ s, render }: { s: Ctx["s"]; render: () => void }) {
                         <span className="block truncate font-minecraft text-[11px]">{c.name}</span>
                         <span className="block truncate font-rubik text-[9px] text-muted-foreground">{ok ? c.blurb || " " : <><Lock className="mr-0.5 inline size-2.5" />Enchanting {c.need}</>}</span>
                     </button>
+                    </Tip>
                 );
             })}
         </div>
@@ -867,13 +895,13 @@ export const ENCH_CSS = `
 .fi-en-stage[data-table="prism"] .fi-en-rune{animation:fi-hue 6s linear infinite}
 @keyframes fi-en-throb{from{transform:translate(-50%,-50%) scale(.97)}to{transform:translate(-50%,-50%) scale(1.04)}}
 @keyframes fi-en-land{0%{transform:translate(-50%,-50%) scale(1.25);filter:drop-shadow(0 0 22px var(--rc)) brightness(2)}100%{transform:translate(-50%,-50%) scale(1)}}
-.fi-en-glyph{position:absolute;left:50%;top:44%;transform:translate(-50%,-50%);font-size:3.6rem;line-height:1;color:var(--rc);text-shadow:0 0 22px var(--rc),0 4px 0 rgba(0,0,0,.5);animation:fi-en-float 3s ease-in-out infinite,fi-en-gin .5s cubic-bezier(.2,1.7,.4,1)}
-.fi-en-stage[data-phase="charge"] .fi-en-glyph{animation:none}
-.fi-en-stage[data-phase="reveal"] .fi-en-glyph{top:36%}
-.fi-en-glyph{transition:top .45s cubic-bezier(.2,1.4,.4,1)}
-.fi-en-stage[data-r="7"] .fi-en-glyph{animation:fi-en-float 3s ease-in-out infinite,fi-hue 3s linear infinite}
-@keyframes fi-en-float{0%,100%{margin-top:0}50%{margin-top:-6px}}
-@keyframes fi-en-gin{from{transform:translate(-50%,-50%) scale(.2) rotate(-90deg);opacity:0}}
+.fi-en-glyph{position:absolute;left:50%;top:50%;width:4.5rem;height:4.5rem;margin:-2.25rem 0 0 -2.25rem;display:grid;place-items:center;font-size:3.6rem;line-height:1;color:var(--rc);text-shadow:0 0 22px var(--rc),0 4px 0 rgba(0,0,0,.5);pointer-events:none}
+.fi-en-glyph-in{display:grid;place-items:center;width:100%;height:100%;line-height:1;animation:fi-en-float 3s ease-in-out infinite,fi-en-gin .5s cubic-bezier(.2,1.7,.4,1)}
+.fi-en-glyph-in>*{display:block;line-height:1;margin:0}
+.fi-en-stage[data-phase="charge"] .fi-en-glyph-in{animation:none}
+.fi-en-stage[data-r="7"] .fi-en-glyph-in{animation:fi-en-float 3s ease-in-out infinite,fi-hue 3s linear infinite}
+@keyframes fi-en-float{0%,100%{transform:translateY(0)}50%{transform:translateY(-2px)}}
+@keyframes fi-en-gin{from{transform:scale(.2) rotate(-90deg);opacity:0}}
 @keyframes fi-en-shiver{0%{transform:translate(-50%,-50%) translate(-2px,1px)}50%{transform:translate(-50%,-50%) translate(2px,-1px)}100%{transform:translate(-50%,-50%) translate(-1px,-2px)}}
 .fi-en-reel{position:absolute;left:0;right:0;bottom:.7rem;text-align:center;font-family:var(--font-minecraft,inherit);font-size:1rem;min-height:1.3rem;text-shadow:0 0 12px currentColor,0 2px 0 rgba(0,0,0,.6);pointer-events:none}
 .fi-en-lock{position:absolute;inset:auto 0 .8rem;display:flex;justify-content:center;align-items:center;gap:.4rem;font-family:var(--font-rubik,inherit);font-size:.75rem;color:var(--muted-foreground)}
@@ -939,5 +967,5 @@ export const ENCH_CSS = `
 @keyframes fi-en-cut{from{opacity:0}}
 @keyframes fi-en-veil{0%{opacity:0}15%{opacity:1}80%{opacity:1}100%{opacity:0}}
 @keyframes fi-en-cutbody{from{transform:scale(.3);opacity:0;filter:blur(10px)}}
-@media (prefers-reduced-motion:reduce){.fi-en-r1,.fi-en-r2,.fi-en-r3,.fi-en-glyph,.fi-en-slot,.fi-en-roll,.fi-en-banner,.fi-en-card,.fi-en-li,.fi-en-bar,.fi-en-cut,.fi-en-cut-body,.fi-en-pip-rainbow,.fi-en-rune{animation:none!important}}
+@media (prefers-reduced-motion:reduce){.fi-en-glyph-in,.fi-en-slot,.fi-en-roll,.fi-en-banner,.fi-en-card,.fi-en-li,.fi-en-bar,.fi-en-cut,.fi-en-cut-body,.fi-en-pip-rainbow,.fi-en-rune{animation:none!important}}
 `;

@@ -1,5 +1,6 @@
 "use client";
 
+import { Tip, TipCard } from "./tooltip";
 import { McSymbol } from "@/components/mc-symbol";
 import { ASC_BASE, EGGS, ISLANDS, PETS, REWARD_LABEL, SKILLS, TROPHIES, rebirthCost } from "@/lib/fractured-idle/data";
 import {
@@ -236,11 +237,13 @@ export function Goals({ s, d, F, open }: Pick<Ctx, "s" | "d" | "F"> & { open: (t
             <div className="mb-1 font-minecraft text-[10px] uppercase tracking-widest text-muted-foreground">Goals</div>
             <div className="grid grid-cols-2 gap-1.5">
                 {shown.map((g) => (
-                    <button
+                    <Tip
                         key={g.key}
+                        tip={<TipCard title={g.title} color={g.color} tag={g.chip} rows={[["Progress", g.left], ["Target", g.right]]} foot="Click to open." />}
+                    >
+                    <button
                         type="button"
                         onClick={() => open(g.tab)}
-                        title={`${g.title} (${g.chip})\n${g.left}\n${g.right}`}
                         className={`block min-w-0 rounded-lg border px-2 py-1.5 text-left transition-transform hover:-translate-y-px ${g.ready ? "fi-afford" : ""}`}
                         style={{
                             ["--c" as string]: g.color,
@@ -265,6 +268,7 @@ export function Goals({ s, d, F, open }: Pick<Ctx, "s" | "d" | "F"> & { open: (t
                             </span>
                         </div>
                     </button>
+                    </Tip>
                 ))}
             </div>
         </div>

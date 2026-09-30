@@ -10,6 +10,7 @@ import { addDust } from "@/lib/fractured-idle/enchant";
 import { eventBurst, eventLabel } from "./button-fx";
 import { dustPop } from "./enchant-fx";
 import { QteCard } from "./qte";
+import { Tip, TipCard } from "./tooltip";
 
 // Popup events around the button. This component owns the scheduler (a slow
 // interval, so it never competes with the click loop), the floating orbs
@@ -184,11 +185,11 @@ function Orb({ spec, onCatch, onExpire }: { spec: PopupSpec; onCatch: (s: PopupS
     }, [spec.id, spec.life, onExpire]);
     const o = ORB[spec.kind];
     return (
+        <Tip tip={<TipCard title={o.name} color={o.color} lines={[o.hint]} foot="Click it before the ring runs out." />} delay={0}>
         <button
             type="button"
             className="fi-orb"
             data-kind={spec.kind}
-            title={`${o.name}: ${o.hint}`}
             aria-label={`${o.name}. ${o.hint}`}
             onPointerDown={(e) => {
                 e.preventDefault();
@@ -205,6 +206,7 @@ function Orb({ spec, onCatch, onExpire }: { spec: PopupSpec; onCatch: (s: PopupS
             <span className="fi-orb-spark" />
             <span className="fi-orb-spark" style={{ animationDelay: "-1.1s" }} />
         </button>
+        </Tip>
     );
 }
 
@@ -219,18 +221,21 @@ export function BuffBar({ s }: { s: State }) {
                 const def = BUFF_BY_ID[b.id];
                 if (!def) return null;
                 return (
-                    <div
+                    <Tip
                         key={b.id}
+                        tip={() => <TipCard title={def.name} color={def.color} tag={def.term === "curse" ? "Curse" : def.term === "long" ? "Long boon" : "Short boon"} lines={[def.desc]} rows={[["Time left", fmtLeft(b.left)], ...(b.power > 1.05 && def.term !== "curse" ? [["Strength", `x${b.power.toFixed(2)}`, "var(--mc-green)"] as [string, string, string]] : [])]} />}
+                    >
+                    <div
                         className="fi-buff"
                         data-term={def.term}
                         style={{ ["--bc" as string]: def.color }}
-                        title={`${def.name}: ${def.desc}${b.power > 1.05 && def.term !== "curse" ? ` (strength x${b.power.toFixed(2)})` : ""}`}
                     >
                         <McSymbol name={def.symbol} />
                         <span>{def.name}</span>
                         <b className="font-minecraft font-normal">{fmtLeft(b.left)}</b>
                         <i className="fi-buff-bar" style={{ width: `${Math.max(0, Math.min(1, b.left / b.dur)) * 100}%` }} />
                     </div>
+                    </Tip>
                 );
             })}
         </div>
