@@ -65,6 +65,11 @@ export interface State {
     bestCombo: number; // highest combo multiplier reached
     buffs: ActiveBuff[]; // timed boons and curses from popup events (see events.ts)
     popups: boolean; // popup events on / off
+    fxp: Record<string, number>; // Fracture EXP claimed per source (see fxp.ts)
+    lvl: number; // Fractured Level
+    lvClaim: number; // highest level whose milestone rewards were paid
+    pfx: string; // equipped level prefix
+    bsym: string; // equipped level badge symbol
     frag: number; // Fracture Fragments: permanent +0.2% all shards each
     evs: EventStats; // popup event counters
 }
@@ -80,6 +85,9 @@ export interface MinionDef {
 
 export const MINION_GROWTH = 1.2;
 export const MILESTONES = [25, 50, 100, 200, 400];
+
+/** Every Fractured Level adds this much to all shards. */
+export const LEVEL_BONUS = 0.0015;
 
 export const SKILL_CAP = 60;
 const XP_BASE = 20;

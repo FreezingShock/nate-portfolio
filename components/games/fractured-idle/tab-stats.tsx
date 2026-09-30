@@ -72,6 +72,7 @@ export function StatsTab({ s, d, F }: Ctx) {
                 ["Fracture Fragments", String(s.frag), `+${+(Math.min(500, s.frag) * 0.2).toFixed(1)}% all shards`],
                 ["Curses taken", String(s.evs.curses)],
                 ["Best combo", `x${s.bestCombo.toFixed(2)}`],
+                ["Fractured Level", `${s.lvl}`, `+${+(s.lvl * 0.15).toFixed(1)}% all shards`],
             ],
         },
         {

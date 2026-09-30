@@ -11,6 +11,7 @@ const minionBase = (s: State, i: number): number => (X.minionBase ? X.minionBase
 const upAvailable = (s: State, u: (typeof UPGRADES)[number]): boolean => (X.upAvailable ? X.upAvailable(s, u) : true);
 import type { State } from "../lib/fractured-idle/data";
 import { islandOpen } from "../lib/fractured-idle/island-logic";
+import { updateFxp } from "../lib/fractured-idle/fxp";
 void 0;
 
 const CPS_IN = Number(process.argv[2] ?? 4);
@@ -85,6 +86,7 @@ while (t < HOURS * 3600) {
         }
     }
     const fresh = checkTrophies(s);
+    if (t % 10 === 0) { updateFxp(s, true); if ([3600, 21600].includes(t)) console.log(`FXP t=${t / 3600}h level ${s.lvl} (${Object.values(s.fxp).reduce((x, y) => x + y, 0)} xp)`); { const by: Record<string, number> = {}; for (const [k, v] of Object.entries(s.fxp)) by[k.split(':')[0]] = (by[k.split(':')[0]] || 0) + v; console.log('   ', JSON.stringify(by)); } }
     if (process.env.SNAP && (process.env.SNAP === "fine" ? t % 30 === 0 && t <= 900 : [600, 1200, 3600, 7200].includes(t))) {
         const dd = derive(s);
         console.log(`SNAP t=${t}s rebirths=${s.rebirths} income=${inc(dd, CPS_IN).toExponential(2)} cps=${dd.cps.toExponential(2)} click=${dd.click.toExponential(2)} all=${dd.all.toExponential(2)} rMult=${dd.rMult.toExponential(2)} island=${dd.islandMult} ach=${dd.achMult.toFixed(2)} allUp=${dd.allUp.toExponential(2)} minionUp=${dd.minionUp.toExponential(2)} clickUp=${dd.clickUp.toExponential(2)} auto=${dd.auto} syn=${dd.synergy} minions=${s.minions.join(',')}`);

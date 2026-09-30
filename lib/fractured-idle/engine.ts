@@ -8,6 +8,7 @@ import {
     ASC_UPS,
     EGGS,
     ISLANDS,
+    LEVEL_BONUS,
     MILESTONES,
     MINIONS,
     MINION_COL,
@@ -93,6 +94,11 @@ export function newState(): State {
         bestCombo: 1,
         buffs: [],
         popups: true,
+        fxp: {},
+        lvl: 0,
+        lvClaim: 0,
+        pfx: "none",
+        bsym: "none",
         frag: 0,
         evs: newEventStats(),
     };
@@ -323,7 +329,7 @@ export function derive(s: State): Derived {
     const islandMult = tierMult(s);
     const achMult = 1 + bonus.all;
     const am = ascMult(s);
-    const all = rMult * islandMult * achMult * allUp * bf.all * (1 + ce.all + pb.all) * (1 + 0.01 * fishing * isl.eff.fishing) * am * isl.all * (1 + visitBonus(s));
+    const all = rMult * islandMult * achMult * allUp * bf.all * (1 + ce.all + pb.all) * (1 + 0.01 * fishing * isl.eff.fishing) * am * isl.all * (1 + visitBonus(s)) * (1 + LEVEL_BONUS * s.lvl);
 
     const shared = minionMult * (1 + 0.03 * farming * isl.eff.farming) * all;
     let cps = 0;
@@ -820,6 +826,12 @@ export function parseSave(raw: string): State | null {
         s.bestCombo = Math.max(1, Number(o.bestCombo) || 1);
         s.frag = Math.max(0, Math.floor(Number(o.frag) || 0));
         s.popups = o.popups !== false;
+        s.fxp = {};
+        for (const [k, v] of Object.entries(o.fxp && typeof o.fxp === "object" ? o.fxp : {})) if (Number(v) > 0) s.fxp[k] = Math.floor(Number(v));
+        s.lvl = Math.max(0, Math.floor(Number(o.lvl) || 0));
+        s.lvClaim = Math.max(0, Math.floor(Number(o.lvClaim) || 0));
+        s.pfx = typeof o.pfx === "string" ? o.pfx : "none";
+        s.bsym = typeof o.bsym === "string" ? o.bsym : "none";
         s.isec = {};
         for (const [k, v] of Object.entries(o.isec && typeof o.isec === "object" ? o.isec : {})) if (ISLAND_IDS.has(k) && Number(v) > 0) s.isec[k] = Number(v);
         s.visited = Array.isArray(o.visited) ? (o.visited as unknown[]).filter((x): x is string => typeof x === "string" && ISLAND_IDS.has(x)) : openIslands(s).map((i) => i.id);

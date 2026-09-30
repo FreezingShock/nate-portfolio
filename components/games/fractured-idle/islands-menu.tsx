@@ -303,6 +303,7 @@ export function IslandsMenu({ s, d, F, startId, onClose, onTravel }: Props) {
                             <Lock className="size-3.5" /> Locked
                         </div>
                         <div className="mt-1 font-rubik text-xs">{need ? need.label : `Reach ${F(focus.at)} lifetime shards`}</div>
+                        <div className="mt-0.5 font-rubik text-[10px]" style={{ color: "var(--mc-yellow)" }}>Unlocking pays {isSpecial(focus) ? 300 : 160} Fracture EXP</div>
                         <div className="mt-1.5 h-1.5 overflow-hidden rounded-full bg-white/10">
                             <div className="h-full rounded-full" style={{ width: `${prog * 100}%`, backgroundColor: "var(--mc-yellow)", boxShadow: "0 0 8px var(--mc-yellow)" }} />
                         </div>

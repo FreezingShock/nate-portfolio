@@ -36,6 +36,9 @@ import { ISLAND_CSS, IslandScene } from "./island-art";
 import { IslandsMenu, MENU_CSS } from "./islands-menu";
 import { ISLAND_BY_ID, MASTERY_AT, perkText } from "@/lib/fractured-idle/islands";
 import { masteryInfo, openIslands } from "@/lib/fractured-idle/island-logic";
+import { FXP_PER_LEVEL, levelUpText, prefixOf, recentGains, symbolOf, updateFxp } from "@/lib/fractured-idle/fxp";
+import { LEVEL_CSS, LevelBadge } from "./level-badge";
+import { LevelTab } from "./tab-level";
 import { kick, shake, spawnBurst, spawnCrit, spawnNumber } from "./button-fx";
 import { ButtonTab } from "./tab-button";
 import { Orbit } from "./orbit";
@@ -57,7 +60,7 @@ import { SettingsTab, SoonTab } from "./tab-misc";
 // 100ms re-render keeps the UI live, so clicking never waits on React.
 // To add a tab: write a component that takes Ctx and register it in TABS.
 
-type TabId = "minions" | "upgrades" | "button" | "pets" | "islands" | "skills" | "stats" | "rebirth" | "ascension" | "trophies" | "soon" | "settings";
+type TabId = "minions" | "upgrades" | "button" | "pets" | "islands" | "skills" | "stats" | "rebirth" | "ascension" | "trophies" | "level" | "soon" | "settings";
 
 const TABS: { id: TabId; label: string; symbol: React.ComponentProps<typeof McSymbol>["name"] }[] = [
     { id: "minions", label: "Minions", symbol: "forge" },
@@ -70,6 +73,7 @@ const TABS: { id: TabId; label: string; symbol: React.ComponentProps<typeof McSy
     { id: "rebirth", label: "Rebirth", symbol: "portal" },
     { id: "ascension", label: "Ascension", symbol: "comet" },
     { id: "trophies", label: "Trophies", symbol: "pristine" },
+    { id: "level", label: "Level", symbol: "flag" },
     { id: "soon", label: "Soon", symbol: "comet" },
     { id: "settings", label: "Settings", symbol: "defense" },
 ];
@@ -170,7 +174,9 @@ export function FracturedIdle() {
         lastTiers.current = colTiers(state);
         lastLooks.current = unlockedKeys(state);
         lastIslands.current = openIslands(state).map((i) => i.id);
+        const loadUps = updateFxp(state, true); // existing progress counts, without flooding the screen
         setReady(true);
+        if (loadUps.length) say(levelUpText(state.lvl, loadUps));
         if (offline > 0) say(`Welcome back! Your minions earned ${fmt(offline, state.sci)} shards while you were away.`);
 
         let last = performance.now();
@@ -199,6 +205,8 @@ export function FracturedIdle() {
                 if (up >= 0) say(`${MINIONS[up].name.replace(" Minion", "")} collection tier ${tiers[up]} reached!`);
                 lastTiers.current = tiers;
                 if (s.rebirths > s.btn.rb) s.btn.rb = s.rebirths;
+                const lvUps = updateFxp(s);
+                if (lvUps.length) say(levelUpText(s.lvl, lvUps));
                 const keys = unlockedKeys(s);
                 if (keys.length > lastLooks.current.length) {
                     const fresh = keys.filter((k) => !lastLooks.current.includes(k));
@@ -507,7 +515,7 @@ export function FracturedIdle() {
                 backgroundColor: "color-mix(in oklch, var(--background) 92%, black)",
             }}
         >
-            <style>{CSS}{BTN_CSS}{COMBO_CSS}{POPUP_CSS}{ISLAND_CSS}{MENU_CSS}</style>
+            <style>{CSS}{BTN_CSS}{COMBO_CSS}{POPUP_CSS}{ISLAND_CSS}{MENU_CSS}{LEVEL_CSS}</style>
 
             {/* HUD */}
             <div className="flex flex-wrap items-center gap-x-6 gap-y-2 border-b border-white/10 px-4 py-3">
@@ -517,6 +525,28 @@ export function FracturedIdle() {
                         <McSymbol name="speed" /> {F(s.shards)}
                     </div>
                 </div>
+                <button
+                    type="button"
+                    title="Fractured Level: open the Level tab"
+                    onClick={() => {
+                        tip.hide();
+                        setTab("level");
+                    }}
+                    className="relative text-left"
+                >
+                    <div className="font-minecraft text-[10px] uppercase tracking-widest text-muted-foreground">Fractured Level</div>
+                    <LevelBadge level={s.lvl} sym={symbolOf(s)} prefix={prefixOf(s)} size="sm" />
+                    <div className="mt-1 h-1 w-28 overflow-hidden rounded-full bg-white/10">
+                        <div className="h-full rounded-full transition-[width] duration-500" style={{ width: `${((Object.values(s.fxp).reduce((x, y) => x + y, 0) - s.lvl * FXP_PER_LEVEL) / FXP_PER_LEVEL) * 100}%`, backgroundColor: "var(--mc-yellow)", boxShadow: "0 0 6px var(--mc-yellow)" }} />
+                    </div>
+                    <div className="pointer-events-none absolute left-0 top-full z-30 mt-1 space-y-0.5">
+                        {recentGains(Date.now()).slice(-3).map((g) => (
+                            <div key={`${g.at}${g.label}`} className="fi-fxp-pop rounded-md border px-1.5 py-0.5 font-rubik text-[10px]" style={{ borderColor: "var(--mc-yellow)", color: "var(--mc-yellow)", backgroundColor: "rgba(0,0,0,.75)" }}>
+                                +{g.xp} Fracture EXP · {g.label}
+                            </div>
+                        ))}
+                    </div>
+                </button>
                 <Stat label="Per second" value={F(income(d))} color="var(--mc-green)" />
                 <Stat label="Per click" value={F(d.click)} color="var(--mc-aqua)" />
                 <Stat label="Multiplier" value={`x${F(d.all)}`} color="var(--mc-gold)" />
@@ -741,6 +771,7 @@ export function FracturedIdle() {
                         {tab === "rebirth" && <RebirthTab {...ctx} />}
                         {tab === "ascension" && <AscensionTab {...ctx} />}
                         {tab === "trophies" && <TrophiesTab {...ctx} />}
+                        {tab === "level" && <LevelTab {...ctx} />}
                         {tab === "soon" && <SoonTab {...ctx} />}
                         {tab === "settings" && <SettingsTab {...ctx} replaceState={replaceState} />}
                     </div>
