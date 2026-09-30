@@ -6,7 +6,9 @@ import { BUFF_BY_ID, isQte, nextPopupIn, noteCaught, popupLife, resolveBobber, r
 import { COMBO_BOBBER_SHARE } from "@/lib/fractured-idle/combo";
 import type { State } from "@/lib/fractured-idle/data";
 import { skillLevel, type Derived } from "@/lib/fractured-idle/engine";
+import { addDust } from "@/lib/fractured-idle/enchant";
 import { eventBurst, eventLabel } from "./button-fx";
+import { dustPop } from "./enchant-fx";
 import { QteCard } from "./qte";
 
 // Popup events around the button. This component owns the scheduler (a slow
@@ -107,6 +109,18 @@ export function Popups({ stateRef, dRef, getCombo, say, enabled }: Props) {
         if (o.tone === "perm") say(`${o.title}: ${o.sub}`);
     };
 
+    // Every caught popup also pays Arcane Dust and Foraging xp, and Chain Reaction may spark another one.
+    const extras = (s: State, d: Derived, xp: number, dust: number, x: number, y: number) => {
+        s.foraging += xp * d.xpMult;
+        const amt = (dust + d.evDust) * d.dustMult;
+        addDust(s, amt);
+        if (fx.current) dustPop(fx.current, x + 26, y + 20, amt);
+        if (d.chain > 0 && Math.random() < d.chain) {
+            sched.current.next = Math.min(sched.current.next, 0.8);
+            say("Chain Reaction! Another popup is coming.");
+        }
+    };
+
     const local = (cx: number, cy: number) => {
         const r = layer.current?.getBoundingClientRect();
         return r ? { x: cx - r.left, y: cy - r.top } : { x: 0, y: 0 };
@@ -130,6 +144,7 @@ export function Popups({ stateRef, dRef, getCombo, say, enabled }: Props) {
             out = resolveCracked(s, d);
         }
         show(out, p.x, p.y);
+        extras(s, d, spec.kind === "bobber" ? 6 : 8, spec.kind === "cracked" ? 1.4 : 1.2, p.x, p.y);
         drop(spec.id);
     };
 
@@ -139,7 +154,10 @@ export function Popups({ stateRef, dRef, getCombo, say, enabled }: Props) {
         if (!s || !d) return;
         const out = resolveQte(s, d, spec.kind, grade);
         const p = at ? local(at.cx, at.cy) : { x: 120, y: 80 };
-        if (grade !== "miss") show(out, p.x, p.y + 30);
+        if (grade !== "miss") {
+            show(out, p.x, p.y + 30);
+            extras(s, d, grade === "perfect" ? 22 : grade === "great" ? 12 : 6, grade === "perfect" ? 6 : grade === "great" ? 3 : 1.5, p.x, p.y + 30);
+        }
     };
 
     if (!enabled) return null;

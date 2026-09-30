@@ -51,6 +51,8 @@ export interface BuffFx {
     freq?: number; // popup frequency multiplier
     crit?: number; // added crit chance
     critDmg?: number; // added crit damage
+    luck?: number; // enchant luck multiplier
+    dust?: number; // Arcane Dust multiplier
 }
 
 export type BuffTerm = "short" | "long" | "curse";
@@ -74,10 +76,12 @@ export const BUFFS: BuffDef[] = [
     { id: "lucky", name: "Lucky Streak", desc: "+35% crit chance, +100% crit damage", term: "short", dur: 15, color: "var(--mc-blue)", symbol: "critChance", fx: { crit: 0.35, critDmg: 1 } },
     { id: "precision", name: "Precision", desc: "+25% crit chance, +50% crit damage", term: "short", dur: 15, color: "var(--mc-aqua)", symbol: "critDamage", fx: { crit: 0.25, critDmg: 0.5 } },
     { id: "overheat", name: "Overheat", desc: "x2.5 click power, x2 combo speed", term: "short", dur: 12, color: "var(--mc-red)", symbol: "heat", fx: { click: 2.5, combo: 2 } },
+    { id: "dustfall", name: "Dust Storm", desc: "x3 Arcane Dust", term: "short", dur: 45, color: "var(--mc-light-purple)", symbol: "night", fx: { dust: 3 } },
     { id: "rune", name: "Rune Power", desc: "x2.5 combo speed, x1.5 all shards", term: "short", dur: 30, color: "var(--mc-light-purple)", symbol: "portal", fx: { combo: 2.5, all: 1.5 } },
     // Long term (minutes)
     { id: "wealth", name: "Blessing of Wealth", desc: "x1.25 all shards", term: "long", dur: 300, color: "var(--mc-yellow)", symbol: "magicFind", fx: { all: 1.25 } },
     { id: "clockwork", name: "Clockwork", desc: "x1.6 combo speed", term: "long", dur: 360, color: "var(--mc-gold)", symbol: "attackSpeed", fx: { combo: 1.6 } },
+    { id: "fortune", name: "Fortune's Favor", desc: "x1.5 enchant luck", term: "long", dur: 240, color: "var(--mc-green)", symbol: "petLuck", fx: { luck: 1.5 } },
     { id: "beacon", name: "Beacon", desc: "x2 popup frequency", term: "long", dur: 300, color: "var(--mc-aqua)", symbol: "flag", fx: { freq: 2 } },
     // Curses (only from Cracked Shards)
     { id: "clumsy", name: "Clumsy Minions", desc: "x0.6 minion output", term: "curse", dur: 30, color: "var(--mc-red)", symbol: "forge", fx: { minion: 0.6 } },
@@ -90,7 +94,7 @@ export const BUFF_BY_ID: Record<string, BuffDef> = Object.fromEntries(BUFFS.map(
 
 /** Product of everything active, plus the Fracture Fragment bonus. */
 export function buffFx(s: State) {
-    const out = { click: 1, minion: 1, all: 1 + fragBonus(s), combo: 1, freq: 1, crit: 0, critDmg: 0 };
+    const out = { click: 1, minion: 1, all: 1 + fragBonus(s), combo: 1, freq: 1, crit: 0, critDmg: 0, luck: 1, dust: 1 };
     for (const b of s.buffs) {
         const d = BUFF_BY_ID[b.id];
         if (!d) continue;
@@ -100,6 +104,8 @@ export function buffFx(s: State) {
         if (d.fx.all) out.all *= m(d.fx.all);
         if (d.fx.combo) out.combo *= m(d.fx.combo);
         if (d.fx.freq) out.freq *= m(d.fx.freq);
+        if (d.fx.luck) out.luck *= m(d.fx.luck);
+        if (d.fx.dust) out.dust *= m(d.fx.dust);
         if (d.fx.crit) out.crit += d.fx.crit * b.power;
         if (d.fx.critDmg) out.critDmg += d.fx.critDmg * b.power;
     }
@@ -133,7 +139,7 @@ export function grantBuff(s: State, id: string, power: number) {
 
 const SEC = 1;
 /** One minute of income, or 80 clicks, whichever is more: the unit popup rewards are measured in. */
-export const popupBase = (d: Derived) => Math.max(d.click * 80, d.cps * 60 * SEC);
+export const popupBase = (d: Derived) => Math.max(d.click * 80, d.cps * 60 * SEC) * d.evPay;
 
 export const POPUP_LIFE: Record<PopupKind, number> = { bobber: 10, golden: 13, cracked: 10, timing: 9, mash: 10, rune: 12 };
 
@@ -212,6 +218,8 @@ const GOLDEN: GoldenRow[] = [
     { w: 8, run: (s, d) => buffOutcome(s, "wealth", d.evPower, "long") },
     { w: 6, run: (s, d) => buffOutcome(s, "clockwork", d.evPower, "long") },
     { w: 6, run: (s, d) => buffOutcome(s, "beacon", d.evPower, "long") },
+    { w: 5, run: (s, d) => buffOutcome(s, "fortune", d.evPower, "long") },
+    { w: 7, run: (s, d) => buffOutcome(s, "dustfall", d.evPower, "good") },
     {
         w: 3,
         run: (s) => {
@@ -265,7 +273,7 @@ export function resolveCracked(s: State, d: Derived, rng: () => number = Math.ra
 }
 
 export function resolveBobber(s: State, d: Derived, fishingLevel: number, rng: () => number = Math.random): Outcome {
-    const reward = Math.max(d.click * 40, d.cps * (30 + fishingLevel)) * d.bobberMult;
+    const reward = Math.max(d.click * 40, d.cps * (30 + fishingLevel)) * d.bobberMult * d.evPay;
     give(s, reward);
     s.bobbers += 1;
     s.fishing += 30 * d.xpMult * d.xpSkill.fishing;

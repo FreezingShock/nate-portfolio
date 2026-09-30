@@ -12,6 +12,8 @@ const upAvailable = (s: State, u: (typeof UPGRADES)[number]): boolean => (X.upAv
 import type { State } from "../lib/fractured-idle/data";
 import { islandOpen } from "../lib/fractured-idle/island-logic";
 import { updateFxp } from "../lib/fractured-idle/fxp";
+import { DUST_CLICK, RARITIES, SLOT_IDS, addDust, canRoll, discardCand, enchScore, enchLevel, equipCand, rollSlot } from "../lib/fractured-idle/enchant";
+import { claimMilestones } from "../lib/fractured-idle/skills";
 void 0;
 
 const CPS_IN = Number(process.argv[2] ?? 4);
@@ -24,6 +26,24 @@ function click(s: State, d: Derived, n: number) {
     const v = d.click * (1 + d.critChance * d.critDmg) * n;
     s.shards += v; s.total += v; s.clicks += n; s.mining += d.xpMult * n;
     const c = d.critChance * n; s.crits += c; s.combat += 3 * d.xpMult * c;
+    addDust(s, n * DUST_CLICK * d.dustMult + (1.3 * d.dustMult * n) / (CPS_IN * 40)); // click motes + roughly one popup per 40s
+}
+
+// A patient player rolls whatever they can afford every 30s, round-robin over the open slots, and wears anything stronger.
+function enchantStep(s: State, d: Derived) {
+    if (process.env.NO_ENCH) return;
+    for (let g = 0; g < 80; g++) {
+        let any = false;
+        for (const slot of SLOT_IDS) {
+            if (!canRoll(s, slot).ok) continue;
+            const out = rollSlot(s, slot, d.xpMult);
+            if (!out) continue;
+            any = true;
+            const cur = s.enc.eq[slot];
+            if (!cur || enchScore(out.cand) > enchScore(cur)) equipCand(s, slot); else discardCand(s, slot);
+        }
+        if (!any) break;
+    }
 }
 
 type Cand = { cost: number; payback: number; buy: () => void; name?: string };
@@ -85,6 +105,8 @@ while (t < HOURS * 3600) {
             if (!pick) break;
         }
     }
+    if (t % 30 === 0) enchantStep(s, derive(s));
+    if (t % 10 === 0) claimMilestones(s);
     const fresh = checkTrophies(s);
     if (t % 10 === 0) { updateFxp(s, true); if ([3600, 21600].includes(t)) console.log(`FXP t=${t / 3600}h level ${s.lvl} (${Object.values(s.fxp).reduce((x, y) => x + y, 0)} xp)`); { const by: Record<string, number> = {}; for (const [k, v] of Object.entries(s.fxp)) by[k.split(':')[0]] = (by[k.split(':')[0]] || 0) + v; console.log('   ', JSON.stringify(by)); } }
     if (process.env.SNAP && (process.env.SNAP === "fine" ? t % 30 === 0 && t <= 900 : [600, 1200, 3600, 7200].includes(t))) {
@@ -128,4 +150,6 @@ const d = derive(s);
 console.log(log.join("\n"));
 console.log(`\nAfter ${HOURS}h @ ${CPS_IN} clicks/s: rebirths ${s.rebirths}, lifetime ${s.total.toExponential(2)}, income ${inc(d, CPS_IN).toExponential(2)}/s, trophies ${trophyCounts(s).got}/${trophyCounts(s).all}`);
 console.log("minions", s.minions.join(","), "tokens", s.tokens, "rups", JSON.stringify(s.rups));
+const worn = SLOT_IDS.map((k) => s.enc.eq[k] ? `${k}:${RARITIES[s.enc.eq[k]!.r].name[0]}${s.enc.eq[k]!.id}` : `${k}:-`).join(" ");
+console.log(`enchanting lvl ${enchLevel(s)} rolls ${s.enc.rolls} dust ${Math.round(s.enc.dust)} luck ${d.luck.toFixed(2)} all-fx x${d.all.toExponential(2)} worn ${worn} byR ${s.enc.byR.join("/")}`);
 

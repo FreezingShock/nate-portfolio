@@ -1,6 +1,7 @@
 import { openIslands } from "@/lib/fractured-idle/island-logic";
 import { COL_AT, ISLANDS, MINIONS, PETS, PET_LABEL, REWARD_LABEL, type PetStat, type RewardStat } from "@/lib/fractured-idle/data";
 import { colTiers, fmtTime, income, offlineEff, petSlots, rebirthCap, tokenMult, trophyCounts } from "@/lib/fractured-idle/engine";
+import { CODEX_TOTAL, RARITIES, SLOTS, codexCount, enchLevel } from "@/lib/fractured-idle/enchant";
 import { SectionTitle, type Ctx } from "./ui";
 
 type Row = [label: string, value: string, hint?: string];
@@ -59,7 +60,25 @@ export function StatsTab({ s, d, F }: Ctx) {
                 ["Farming", `Lv ${d.farming}`, `+${d.farming * 3}% minion output`],
                 ["Combat", `Lv ${d.combat}`, `+${d.combat * 2}% crit damage`],
                 ["Fishing", `Lv ${d.fishing}`, `+${d.fishing}% all shards`],
+                ["Foraging", `Lv ${d.foraging}`, `+${(d.foraging * 0.5).toFixed(1)}% popup frequency`],
+                ["Enchanting", `Lv ${d.enchanting}`, `+${d.enchanting * 3}% dust, +${d.enchanting * 2}% luck`],
                 ["Bobbers caught", F(s.bobbers)],
+            ],
+        },
+        {
+            title: "Enchanting",
+            color: "var(--mc-light-purple)",
+            rows: [
+                ["Arcane Dust", F(s.enc.dust), `${F(s.enc.earned)} earned in total`],
+                ["Rolls", F(s.enc.rolls), `${s.enc.polishes} polishes and reforges`],
+                ["Luck", `x${d.luck.toFixed(2)}`, `table level ${enchLevel(s)}`],
+                ["Best pull", s.enc.byR.some((n) => n > 0) ? RARITIES[s.enc.byR.reduce((a, n, i) => (n > 0 ? i : a), 0)].name : "none yet"],
+                ["Codex", `${codexCount(s)}/${CODEX_TOTAL}`],
+                ...SLOTS.map((sl): Row => {
+                    const e = s.enc.eq[sl.id];
+                    return [sl.name, e ? `${RARITIES[e.r].name}` : "empty"];
+                }),
+                ["Click procs", `${(d.procs.bolt * 100).toFixed(1)}% / ${(d.procs.midas * 100).toFixed(1)}% / ${(d.procs.echo * 100).toFixed(1)}%`, "Lightning / Midas / Echo per click"],
             ],
         },
         {

@@ -15,6 +15,7 @@ import {
     skillLevel,
     type State,
 } from "./data";
+import { CODEX_TOTAL, ENCHANTS, RARITY_N } from "./enchant";
 import { colTiers } from "./engine";
 import { islandOpen, masteryLevel } from "./island-logic";
 import { ISLANDS, MASTERY_AT, isSpecial } from "./islands";
@@ -35,17 +36,18 @@ import { ISLANDS, MASTERY_AT, isSpecial } from "./islands";
 export const FXP_PER_LEVEL = 100;
 export const MAX_DISPLAY_LEVEL = 400; // where the badge turns gold and "endgame" starts
 
-export type FxpCat = "trophies" | "skills" | "islands" | "looks" | "pets" | "minions" | "upgrades" | "events" | "progress";
+export type FxpCat = "trophies" | "skills" | "islands" | "looks" | "pets" | "minions" | "upgrades" | "events" | "enchant" | "progress";
 
 export const FXP_CATS: { id: FxpCat; name: string; color: string; symbol: McSymbolName; hint: string }[] = [
     { id: "trophies", name: "Trophies", color: "var(--mc-yellow)", symbol: "pristine", hint: "Every trophy tier you unlock" },
-    { id: "skills", name: "Skills", color: "var(--mc-green)", symbol: "wisdom", hint: "Each Mining, Farming, Combat and Fishing level" },
+    { id: "skills", name: "Skills", color: "var(--mc-green)", symbol: "wisdom", hint: "Every level of all six skills" },
     { id: "islands", name: "Islands", color: "var(--mc-aqua)", symbol: "location", hint: "Unlocking, visiting and mastering islands" },
     { id: "looks", name: "Button looks", color: "var(--mc-light-purple)", symbol: "speed", hint: "Every look you unlock for the button" },
     { id: "pets", name: "Pets", color: "var(--mc-dark-aqua)", symbol: "petLuck", hint: "Discovering pets and levelling them" },
     { id: "minions", name: "Minions", color: "var(--mc-gold)", symbol: "forge", hint: "Collection tiers and minion milestones" },
     { id: "upgrades", name: "Upgrades", color: "var(--mc-red)", symbol: "attackSpeed", hint: "Shop, token and ascension upgrades" },
     { id: "events", name: "Popups and combo", color: "var(--mc-blue)", symbol: "flag", hint: "Popup events, quick time events, Fragments and combo" },
+    { id: "enchant", name: "Enchanting", color: "var(--mc-light-purple)", symbol: "intelligence", hint: "Codex discoveries and rolling enchants" },
     { id: "progress", name: "Progress", color: "var(--mc-white, #ffffff)", symbol: "comet", hint: "Rebirths, ascensions, wealth, time and eggs" },
 ];
 
@@ -67,6 +69,8 @@ const PERFECT: [number, number][] = [[1, 15], [10, 25], [50, 50], [250, 100]];
 const CURSES: [number, number][] = [[1, 8], [5, 16], [20, 32]];
 const COMBO: [number, number][] = [[2, 15], [3, 15], [4, 20], [5, 20], [7, 25], [10, 30], [15, 35], [20, 40], [30, 50], [50, 70]];
 const HOURS: [number, number][] = [[1, 10], [5, 20], [12, 35], [24, 55], [72, 90], [168, 150], [500, 300]];
+const ROLLS: [number, number][] = [[1, 6], [10, 10], [50, 16], [200, 28], [1000, 50], [5000, 90]];
+const CODEX_XP = [1, 2, 3, 6, 10, 18, 32, 56]; // per entry, by rarity
 const EGGS: [number, number][] = [[1, 10], [10, 20], [50, 40], [200, 80], [1000, 160]];
 
 const RARITY_XP: Record<string, number> = { common: 10, uncommon: 18, rare: 32, epic: 55, legendary: 90 };
@@ -99,7 +103,7 @@ export function fxpSources(s: State): FxpSource[] {
 
     // Skills: per level, a bit more every ten levels.
     for (const k of SKILLS) {
-        const lvl = skillLevel(s[k.id]);
+        const lvl = skillLevel(s[k.id], k.id);
         let got = 0;
         let all = 0;
         for (let l = 1; l <= 60; l++) {
@@ -163,6 +167,12 @@ export function fxpSources(s: State): FxpSource[] {
     add("ev:curses", "events", "Curses survived", ladder(s.evs.curses, CURSES), ladderMax(CURSES));
     add("ev:frag", "events", "Fracture Fragments", Math.min(100, s.frag) * 6, 600);
     add("ev:combo", "events", "Best combo", ladder(s.bestCombo, COMBO), ladderMax(COMBO));
+
+    // Enchanting: every (enchant, rarity) pair you discover pays once, deeper rarities pay more.
+    let cx = 0;
+    for (const e of ENCHANTS) for (let r = 0; r < RARITY_N; r++) if ((s.enc.codex[e.id] || 0) & (1 << r)) cx += CODEX_XP[r];
+    add("ench:codex", "enchant", `Enchant codex (${CODEX_TOTAL} entries)`, cx, ENCHANTS.length * CODEX_XP.reduce((a, b) => a + b, 0));
+    add("ench:rolls", "enchant", "Enchant rolls", ladder(s.enc.rolls, ROLLS), ladderMax(ROLLS));
 
     // Progress that is not tied to one system.
     const rb = Math.max(s.rebirths, s.btn.rb);

@@ -3,6 +3,7 @@
 import type { ButtonHTMLAttributes, CSSProperties, Ref } from "react";
 import { McSymbol } from "@/components/mc-symbol";
 import { GLYPHS } from "@/lib/fractured-idle/button";
+import { FaceGlint, type GlintProps } from "./enchant-glint";
 import { tint } from "./ui";
 
 // The click button, drawn from three independent layers so any shape can take
@@ -81,9 +82,10 @@ interface Props {
     btnRef?: Ref<HTMLButtonElement>;
     wrapRef?: Ref<HTMLDivElement>;
     btnProps?: ButtonHTMLAttributes<HTMLButtonElement>;
+    glint?: GlintProps; // enchant glint drawn inside the face (see enchant-glint.tsx)
 }
 
-export function ButtonFace({ shape, skin, glyph, color, className = "", depth = 8, as = "span", btnRef, wrapRef, btnProps }: Props) {
+export function ButtonFace({ shape, skin, glyph, color, className = "", depth = 8, as = "span", btnRef, wrapRef, btnProps, glint }: Props) {
     const c = CLIP[shape] ?? CLIP.block;
     const accent = skinAccent(skin, color);
     const inset = Math.max(2, Math.round(depth * 0.6));
@@ -99,6 +101,7 @@ export function ButtonFace({ shape, skin, glyph, color, className = "", depth = 
             <span className="fi-glyph grid size-full place-items-center text-white" style={{ ["--g" as string]: c.glyph, ["--gy" as string]: `${c.gy}%` } as CSSProperties}>
                 <McSymbol name={sym} />
             </span>
+            {glint && <FaceGlint {...glint} />}
         </span>
     );
     return (

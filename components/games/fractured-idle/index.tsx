@@ -6,7 +6,9 @@ import { McSymbol } from "@/components/mc-symbol";
 import { HOLD_BASE, critColor, holdMax, lookName, unlockedKeys } from "@/lib/fractured-idle/button";
 import { COMBO_TIERS, comboFill, holdRate, newCombo, stepCombo, type ComboCfg } from "@/lib/fractured-idle/combo";
 import { activeIsland } from "@/lib/fractured-idle/island-logic";
-import { EGGS, MINIONS, MINION_GROWTH, PETS, RARITIES, UPGRADES, petLevel } from "@/lib/fractured-idle/data";
+import { EGGS, MINIONS, MINION_GROWTH, PETS, RARITIES, SKILLS, UPGRADES, petLevel, type SkillId } from "@/lib/fractured-idle/data";
+import { DUST_CLICK, DUST_CRIT, PROCS, addDust, canRoll, fmtStat, glintColor, slotOpen, SLOT_IDS } from "@/lib/fractured-idle/enchant";
+import { claimMilestones, rewardLine } from "@/lib/fractured-idle/skills";
 import {
     addPetXp,
     advance,
@@ -50,6 +52,11 @@ import { UpgradeTip, UpgradesTab } from "./tab-upgrades";
 import { TrophiesTab, TrophyTip } from "./tab-trophies";
 import { IslandsTab } from "./tab-islands";
 import { SkillsTab } from "./tab-skills";
+import { ENCH_CSS, EnchantTab } from "./tab-enchant";
+import { GLINT_CSS, Glint } from "./enchant-glint";
+import { PROC_LABEL, dustPop, procBolt, procEcho, procMidas } from "./enchant-fx";
+import { EnchantGems } from "./enchant-gems";
+import { SKILL_TOAST_CSS, SkillToasts, type SkillToastApi } from "./skill-toasts";
 import { StatsTab } from "./tab-stats";
 import { RebirthTab } from "./tab-rebirth";
 import { SettingsTab, SoonTab } from "./tab-misc";
@@ -60,7 +67,7 @@ import { SettingsTab, SoonTab } from "./tab-misc";
 // 100ms re-render keeps the UI live, so clicking never waits on React.
 // To add a tab: write a component that takes Ctx and register it in TABS.
 
-type TabId = "minions" | "upgrades" | "button" | "pets" | "islands" | "skills" | "stats" | "rebirth" | "ascension" | "trophies" | "level" | "soon" | "settings";
+type TabId = "minions" | "upgrades" | "button" | "pets" | "islands" | "skills" | "enchant" | "stats" | "rebirth" | "ascension" | "trophies" | "level" | "soon" | "settings";
 
 const TABS: { id: TabId; label: string; symbol: React.ComponentProps<typeof McSymbol>["name"] }[] = [
     { id: "minions", label: "Minions", symbol: "forge" },
@@ -69,6 +76,7 @@ const TABS: { id: TabId; label: string; symbol: React.ComponentProps<typeof McSy
     { id: "pets", label: "Pets", symbol: "petLuck" },
     { id: "islands", label: "Islands", symbol: "location" },
     { id: "skills", label: "Skills", symbol: "wisdom" },
+    { id: "enchant", label: "Enchant", symbol: "intelligence" },
     { id: "stats", label: "Stats", symbol: "intelligence" },
     { id: "rebirth", label: "Rebirth", symbol: "portal" },
     { id: "ascension", label: "Ascension", symbol: "comet" },
@@ -108,6 +116,8 @@ export function FracturedIdle() {
     const lastTiers = useRef<number[]>([]);
     const lastLooks = useRef<string[]>([]);
     const lastIslands = useRef<string[]>([]);
+    const lastSkills = useRef<Partial<Record<SkillId, number>>>({});
+    const skillApi = useRef<SkillToastApi>(null);
     const tipRef = useRef<HTMLDivElement>(null);
     const anchor = useRef({ x: 0, y: 0 });
     const [tipState, setTipState] = useState<{ id: string; open: boolean }>({ id: "", open: false });
@@ -174,9 +184,12 @@ export function FracturedIdle() {
         lastTiers.current = colTiers(state);
         lastLooks.current = unlockedKeys(state);
         lastIslands.current = openIslands(state).map((i) => i.id);
+        const paid = claimMilestones(state); // milestones already earned are paid quietly
+        for (const k of SKILLS) lastSkills.current[k.id] = skillLevel(state[k.id], k.id);
         const loadUps = updateFxp(state, true); // existing progress counts, without flooding the screen
         setReady(true);
         if (loadUps.length) say(levelUpText(state.lvl, loadUps));
+        else if (paid.length) say(`Skill milestones paid: ${paid.slice(0, 3).map((p) => p.milestone.name).join(", ")}${paid.length > 3 ? ` and ${paid.length - 3} more` : ""}`);
         if (offline > 0) say(`Welcome back! Your minions earned ${fmt(offline, state.sci)} shards while you were away.`);
 
         let last = performance.now();
@@ -226,6 +239,30 @@ export function FracturedIdle() {
             }
             if (sinceRender >= 0.1) {
                 sinceRender = 0;
+                const ups: SkillId[] = [];
+                for (const k of SKILLS) {
+                    const l = skillLevel(s[k.id], k.id);
+                    if (l > (lastSkills.current[k.id] ?? l)) ups.push(k.id);
+                }
+                if (ups.length) {
+                    const paid = claimMilestones(s);
+                    for (const id of ups) {
+                        const k = SKILLS.find((x) => x.id === id)!;
+                        const from = lastSkills.current[id] ?? 0;
+                        const to = skillLevel(s[id], id);
+                        const ms = paid.filter((p) => p.skill === id).map((p) => p.milestone);
+                        skillApi.current?.push({
+                            kind: ms.length ? "milestone" : "level",
+                            skill: k,
+                            from,
+                            to,
+                            perk: [k.bonus(from), k.bonus(to)],
+                            title: ms.map((m) => m.name).join(" · "),
+                            rewards: ms.flatMap((m) => m.rewards.map((r) => rewardLine(r, fmtStat))),
+                        });
+                        lastSkills.current[id] = to;
+                    }
+                }
                 render();
             }
         }, 50);
@@ -281,6 +318,21 @@ export function FracturedIdle() {
         s.total += v;
         s.clicks += 1;
         s.mining += d.xpMult * d.xpSkill.mining;
+        // Button enchant procs: Lightning, Midas Touch and Echo pay a multiple of a plain click.
+        let hit: (typeof PROCS)[number] | null = null;
+        let procV = 0;
+        for (const p of PROCS) {
+            if (d.procs[p.id] > 0 && Math.random() < d.procs[p.id]) {
+                hit = p;
+                procV += d.click * s.combo * p.mult;
+            }
+        }
+        if (procV > 0) {
+            s.shards += procV;
+            s.total += procV;
+        }
+        const dustHit = Math.random() < (crit ? DUST_CRIT : DUST_CLICK);
+        if (dustHit) addDust(s, d.dustMult);
         if (s.equip.length) addPetXp(s, 0.4 * d.petXp);
         if (crit) {
             s.crits += 1;
@@ -297,6 +349,14 @@ export function FracturedIdle() {
                 spawnCrit(host, s.btn.crit, x, y, col);
                 if (s.btn.shake) shake(host.parentElement, 1);
             }
+            if (hit && x !== undefined && y !== undefined) {
+                const lab = PROC_LABEL[hit.id];
+                if (hit.id === "bolt") procBolt(host, x, y);
+                else if (hit.id === "midas") procMidas(host, x, y);
+                else procEcho(host, x, y);
+                spawnNumber(host, x, y - 36, `${lab.text} +${fmt(procV, s.sci)}`, { crit: true, color: lab.color, accent: lab.color, style: s.btn.nums });
+            }
+            if (dustHit) dustPop(host, x, y - 4, d.dustMult);
             kick(btnRef.current, crit, hold.current.heat);
             const w = wrapRef.current;
             if (w) {
@@ -492,6 +552,7 @@ export function FracturedIdle() {
         if (fn()) render();
     };
     const ctx: Ctx = { s, d, F, act, render, say, tip };
+    const glintOn = s.enc.eq.button && s.enc.opts.glint !== "none" ? { id: s.enc.opts.glint, color: glintColor(s), power: s.enc.eq.button.r } : null;
 
     // Dots on tabs that have something to spend on.
     const dots: Partial<Record<TabId, boolean>> = {
@@ -499,12 +560,14 @@ export function FracturedIdle() {
         upgrades: UPGRADES.some((u) => (s.ups[u.id] || 0) < u.max && upAvailable(s, u) && s.shards >= upCost(s, u.id, s.ups[u.id] || 0)),
         rebirth: plan.count > 0,
         ascension: asc.can,
+        enchant: SLOT_IDS.some((id) => slotOpen(s, id) && (canRoll(s, id).ok || !!s.enc.pend[id])),
         pets: s.freeEggs > 0 || (Object.keys(s.pets).length < PETS.length && s.shards >= eggPrice(s, EGGS[0])),
     };
 
     return (
         <div
             ref={rootRef}
+            data-fi-root=""
             className={
                 full
                     ? "fixed inset-0 z-[100] flex flex-col overflow-hidden bg-background"
@@ -515,7 +578,7 @@ export function FracturedIdle() {
                 backgroundColor: "color-mix(in oklch, var(--background) 92%, black)",
             }}
         >
-            <style>{CSS}{BTN_CSS}{COMBO_CSS}{POPUP_CSS}{ISLAND_CSS}{MENU_CSS}{LEVEL_CSS}</style>
+            <style>{CSS}{BTN_CSS}{COMBO_CSS}{POPUP_CSS}{ISLAND_CSS}{MENU_CSS}{LEVEL_CSS}{ENCH_CSS}{GLINT_CSS}{SKILL_TOAST_CSS}</style>
 
             {/* HUD */}
             <div className="flex flex-wrap items-center gap-x-6 gap-y-2 border-b border-white/10 px-4 py-3">
@@ -662,10 +725,18 @@ export function FracturedIdle() {
                     )}
 
                     <BuffBar s={s} />
+                    <EnchantGems
+                        s={s}
+                        onOpen={() => {
+                            tip.hide();
+                            setTab("enchant");
+                        }}
+                    />
 
                     <div className="relative my-6">
                         <div className="fi-pulse pointer-events-none absolute -inset-6 rounded-[2.5rem] blur-2xl" style={{ backgroundColor: tint(island.color, 40) }} />
                         <Aura id={s.btn.aura} accent={skinAccent(s.btn.skin, island.color)} />
+                        {glintOn && <Glint {...glintOn} />}
                         {s.orbit && <Orbit counts={s.minions} />}
                         <ButtonFace
                             as="button"
@@ -673,6 +744,7 @@ export function FracturedIdle() {
                             skin={s.btn.skin}
                             glyph={s.btn.glyph}
                             color={island.color}
+                            glint={glintOn ?? undefined}
                             className="relative z-[1] size-48 sm:size-56"
                             btnRef={btnRef}
                             wrapRef={wrapRef}
@@ -766,7 +838,8 @@ export function FracturedIdle() {
                         {tab === "button" && <ButtonTab {...ctx} />}
                         {tab === "pets" && <PetsTab {...ctx} />}
                         {tab === "islands" && <IslandsTab {...ctx} openMenu={(id) => setMenu(id)} />}
-                        {tab === "skills" && <SkillsTab {...ctx} />}
+                        {tab === "skills" && <SkillsTab {...ctx} open={(id) => setTab(id as TabId)} />}
+                        {tab === "enchant" && <EnchantTab {...ctx} />}
                         {tab === "stats" && <StatsTab {...ctx} />}
                         {tab === "rebirth" && <RebirthTab {...ctx} />}
                         {tab === "ascension" && <AscensionTab {...ctx} />}
@@ -802,6 +875,8 @@ export function FracturedIdle() {
                     }}
                 />
             )}
+
+            <SkillToasts ref={skillApi} />
 
             {toast && (
                 <div

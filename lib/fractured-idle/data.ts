@@ -2,6 +2,7 @@ import type { McSymbolName } from "@/components/mc-symbol";
 import type { BtnPrefs } from "./button";
 import { ISLANDS } from "./islands";
 import type { ActiveBuff, EventStats } from "./events";
+import type { EnchState } from "./enchant";
 
 // HOW TO EXPAND (everything below is data-driven):
 //  - New minion: add a row to MINIONS (order = shop order; saves map by index,
@@ -9,6 +10,7 @@ import type { ActiveBuff, EventStats } from "./events";
 //  - New upgrade: add a row to UPGRADES (kind decides which stat it feeds).
 //  - New skill: add to SKILLS, add its xp field to State + newState, feed xp in
 //    engine.advance / the click handler, and apply its bonus in engine.derive.
+//    Milestone rewards for it go in skills.ts.
 //  - New island / trophy / rebirth upgrade: add a row to ISLANDS / ACHIEVEMENTS
 //    / REBIRTH_UPS.
 //  - New pet / egg / ascension upgrade: add a row to PETS / EGGS / ASC_UPS.
@@ -36,6 +38,10 @@ export interface State {
     farming: number;
     combat: number;
     fishing: number;
+    foraging: number; // xp from popup events
+    enchanting: number; // xp from rolling enchants
+    skm: Record<string, number>; // highest level whose milestone rewards were paid, per skill
+    enc: EnchState; // enchanting: dust, worn enchants, codex (see enchant.ts)
     crits: number;
     bobbers: number; // treasure bobbers caught
     tro: Record<string, number>; // trophy id -> tiers unlocked
@@ -92,10 +98,20 @@ export const LEVEL_BONUS = 0.0015;
 export const SKILL_CAP = 60;
 const XP_BASE = 20;
 const XP_GROWTH = 1.45;
-export const skillLevel = (xp: number) =>
-    Math.min(SKILL_CAP, Math.floor(Math.log((xp * (XP_GROWTH - 1)) / XP_BASE + 1) / Math.log(XP_GROWTH)));
-export const skillXpFor = (level: number) =>
-    (XP_BASE * (Math.pow(XP_GROWTH, level) - 1)) / (XP_GROWTH - 1);
+// Foraging and Enchanting level on gentler curves: their xp comes in small pieces.
+const CURVES: Partial<Record<string, { base: number; growth: number }>> = {
+    foraging: { base: 12, growth: 1.22 },
+    enchanting: { base: 12, growth: 1.22 },
+};
+const curve = (id?: string) => (id && CURVES[id]) || { base: XP_BASE, growth: XP_GROWTH };
+export const skillLevel = (xp: number, id?: SkillId) => {
+    const { base, growth } = curve(id);
+    return Math.min(SKILL_CAP, Math.floor(Math.log((xp * (growth - 1)) / base + 1) / Math.log(growth)));
+};
+export const skillXpFor = (level: number, id?: SkillId) => {
+    const { base, growth } = curve(id);
+    return (base * (Math.pow(growth, level) - 1)) / (growth - 1);
+};
 
 // Each tier's price is multiplied by MINION_STEEP^index on top of the table,
 // so price outpaces output as you climb and the shop can't be bought out the
@@ -430,7 +446,7 @@ export interface TrophyDef {
 
 const tiers = (at: number[], reward: number[]): TrophyTier[] => at.map((a, i) => ({ at: a, reward: reward[i] }));
 const owned = (s: State) => s.minions.reduce((a, b) => a + b, 0);
-const skillSum = (s: State) => skillLevel(s.mining) + skillLevel(s.farming) + skillLevel(s.combat) + skillLevel(s.fishing);
+const skillSum = (s: State) => skillLevel(s.mining) + skillLevel(s.farming) + skillLevel(s.combat) + skillLevel(s.fishing) + skillLevel(s.foraging, "foraging") + skillLevel(s.enchanting, "enchanting");
 const islands = (s: State) => ISLANDS.filter((i) => Number.isFinite(i.at) && s.total >= i.at).length;
 
 export const TROPHIES: TrophyDef[] = [
@@ -445,7 +461,11 @@ export const TROPHIES: TrophyDef[] = [
     { id: "s-farming", name: "Green Thumb", category: "skills", symbol: "fortune", stat: "minion", unit: "Farming level", metric: (s) => skillLevel(s.farming), tiers: tiers([5, 10, 20, 30, 40, 50, 60], [0.01, 0.01, 0.02, 0.02, 0.03, 0.03, 0.05]) },
     { id: "s-combat", name: "Slayer", category: "skills", symbol: "critDamage", stat: "critDmg", unit: "Combat level", metric: (s) => skillLevel(s.combat), tiers: tiers([5, 10, 20, 30, 40, 50, 60], [0.02, 0.02, 0.03, 0.04, 0.05, 0.06, 0.1]) },
     { id: "s-fishing", name: "Deep Angler", category: "skills", symbol: "fishing", stat: "bobber", unit: "Fishing level", metric: (s) => skillLevel(s.fishing), tiers: tiers([5, 10, 20, 30, 40, 50, 60], [0.05, 0.05, 0.1, 0.1, 0.15, 0.15, 0.25]) },
-    { id: "s-total", name: "Well Rounded", category: "skills", symbol: "intelligence", stat: "skillXp", unit: "total skill levels", metric: skillSum, tiers: tiers([20, 50, 100, 150, 200], [0.05, 0.05, 0.1, 0.1, 0.15]) },
+    { id: "s-forage", name: "Trailblazer", category: "skills", symbol: "flower", stat: "bobber", unit: "Foraging level", metric: (s) => skillLevel(s.foraging, "foraging"), tiers: tiers([5, 10, 20, 30, 40, 50, 60], [0.05, 0.05, 0.1, 0.1, 0.15, 0.15, 0.25]) },
+    { id: "s-ench", name: "Arcane Scholar", category: "skills", symbol: "intelligence", stat: "skillXp", unit: "Enchanting level", metric: (s) => skillLevel(s.enchanting, "enchanting"), tiers: tiers([5, 10, 20, 30, 40, 50, 60], [0.02, 0.02, 0.04, 0.04, 0.06, 0.06, 0.1]) },
+    { id: "s-total", name: "Well Rounded", category: "skills", symbol: "intelligence", stat: "skillXp", unit: "total skill levels", metric: skillSum, tiers: tiers([20, 50, 100, 150, 200, 300], [0.05, 0.05, 0.1, 0.1, 0.15, 0.2]) },
+    { id: "rolls", name: "Table Regular", category: "unique", symbol: "portal", stat: "all", unit: "enchant rolls", metric: (s) => s.enc.rolls, tiers: tiers([10, 50, 250, 1000, 5000], [0.01, 0.01, 0.02, 0.03, 0.05]) },
+    { id: "lucky-roll", name: "Lucky Star", category: "unique", symbol: "petLuck", stat: "critChance", unit: "best rarity rolled (1 = Common)", metric: (s) => s.enc.byR.reduce((a, n, i) => (n > 0 ? i + 1 : a), 0), tiers: tiers([3, 4, 5, 6, 7, 8], [0.005, 0.005, 0.01, 0.01, 0.015, 0.02]) },
     { id: "isles", name: "Island Hopper", category: "explore", symbol: "location", stat: "all", unit: "islands unlocked", metric: islands, tiers: tiers([2, 3, 4, 5, 6, 7], [0.01, 0.01, 0.02, 0.02, 0.03, 0.05]) },
     { id: "hunter", name: "Event Hunter", category: "explore", symbol: "flag", stat: "bobber", unit: "popups caught", metric: (s) => s.evs.caught, tiers: tiers([1, 25, 100, 500, 2500], [0.05, 0.05, 0.1, 0.1, 0.15]) },
     { id: "perfect", name: "Perfectionist", category: "explore", symbol: "critChance", stat: "critChance", unit: "perfect quick time events", metric: (s) => s.evs.perfect, tiers: tiers([1, 10, 50, 250], [0.005, 0.005, 0.01, 0.01]) },
@@ -465,7 +485,6 @@ export const TROPHIES: TrophyDef[] = [
 
 // Not built yet: shown as locked cards so the roadmap is visible in-game.
 export const COMING_SOON = [
-    { name: "Enchanting", symbol: "intelligence" as McSymbolName, color: "var(--mc-blue)", desc: "Enchant your pickaxe with rolling perks." },
     { name: "Bazaar", symbol: "magicFind" as McSymbolName, color: "var(--mc-gold)", desc: "A fake market where resources swing in price." },
 ];
 
@@ -597,7 +616,7 @@ export const ASC_UPS: AscUpDef[] = [
     { id: "mentor", name: "Pet Mentor", desc: "+30% pet experience", cost: 1, growth: 1.4, max: 10, symbol: "wisdom", color: "var(--mc-light-purple)" },
 ];
 
-export type SkillId = "mining" | "farming" | "combat" | "fishing";
+export type SkillId = "mining" | "farming" | "combat" | "fishing" | "foraging" | "enchanting";
 
 export interface SkillDef {
     id: SkillId;
@@ -615,4 +634,6 @@ export const SKILLS: SkillDef[] = [
     { id: "farming", name: "Farming", symbol: "fortune", color: "var(--mc-green)", earn: "Minions working", perk: "+3% minion output per level", bonus: (l) => `+${l * 3}%` },
     { id: "combat", name: "Combat", symbol: "critDamage", color: "var(--mc-red)", earn: "Critical hits", perk: "+2% crit damage per level", bonus: (l) => `+${l * 2}%` },
     { id: "fishing", name: "Fishing", symbol: "fishing", color: "var(--mc-aqua)", earn: "Treasure bobbers", perk: "+1% all shards per level, bobbers appear sooner", bonus: (l) => `+${l}%` },
+    { id: "foraging", name: "Foraging", symbol: "flower", color: "#8be35a", earn: "Catching popups and a slow passive trickle", perk: "+0.5% popup frequency and +1.5% popup payouts per level", bonus: (l) => `+${(l * 0.5).toFixed(1).replace(".0", "")}% / +${(l * 1.5).toFixed(1).replace(".0", "")}%` },
+    { id: "enchanting", name: "Enchanting", symbol: "intelligence", color: "var(--mc-light-purple)", earn: "Rolling, polishing and reforging enchants", perk: "+3% Arcane Dust and +2% enchant luck per level, opens slots and cosmetics", bonus: (l) => `+${l * 3}% dust / +${l * 2}% luck` },
 ];
