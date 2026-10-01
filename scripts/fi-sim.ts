@@ -14,6 +14,7 @@ import { islandOpen } from "../lib/fractured-idle/island-logic";
 import { updateFxp } from "../lib/fractured-idle/fxp";
 import { DUST_CLICK, RARITIES, SLOT_IDS, addDust, canRoll, discardCand, enchScore, enchLevel, equipCand, rollSlot } from "../lib/fractured-idle/enchant";
 import { claimMilestones } from "../lib/fractured-idle/skills";
+import * as MN from "../lib/fractured-idle/mine";
 void 0;
 
 const CPS_IN = Number(process.argv[2] ?? 4);
@@ -24,7 +25,9 @@ const inc = (d: Derived, clicks: number) => d.cps + (d.auto + clicks) * d.avgCli
 
 function click(s: State, d: Derived, n: number) {
     const v = d.click * (1 + d.critChance * d.critDmg) * n;
-    s.shards += v; s.total += v; s.clicks += n; s.mining += d.xpMult * n;
+    s.shards += v; s.total += v; s.clicks += n;
+    // Every click is a swing (expected value at a typical held combo of x2.2).
+    if (!process.env.NOMINE) MN.bulkSwings(s, MN.mineCtx(d), n, MN.pickPower(s) * MN.comboFactor(2.2), 1);
     const c = d.critChance * n; s.crits += c; s.combat += 3 * d.xpMult * c;
     addDust(s, n * DUST_CLICK * d.dustMult + (1.3 * d.dustMult * n) / (CPS_IN * 40)); // click motes + roughly one popup per 40s
 }
@@ -44,6 +47,24 @@ function enchantStep(s: State, d: Derived) {
         }
         if (!any) break;
     }
+}
+
+// A player who uses the Mine without living in it: every few seconds they press the quick actions.
+function mineBot(s: State, d: Derived, now: number) {
+    if (process.env.NOMINE || process.env.NOBOT) return;
+    const ctx = MN.mineCtx(d);
+    MN.collectAll(s, now);
+    MN.crackAll(s, ctx);
+    MN.claimAllFeats(s);
+    if (MN.canBuyPick(s).ok) MN.buyPick(s);
+    MN.upgradeAll(s);
+    MN.buildDrillsAll(s);
+    for (const r of MN.RECIPES) {
+        if (r.kind === "relic" && MN.canCraft(s, r, 1).ok) MN.startCraft(s, r.id, 1, now);
+    }
+    MN.queueGoal(s, now);
+    for (const r of s.mine.relics) MN.equipRelic(s, r);
+    for (const id of ["dynamite", "rushPotion", "geodeCache"] as const) while ((s.mine.items[id] || 0) > 0) MN.consumeItem(s, id, ctx);
 }
 
 type Cand = { cost: number; payback: number; buy: () => void; name?: string };
@@ -106,6 +127,8 @@ while (t < HOURS * 3600) {
         }
     }
     if (t % 30 === 0) enchantStep(s, derive(s));
+    if (t % 5 === 0) mineBot(s, derive(s), Date.now() + t * 1000);
+    if (t % 1800 === 0 && !process.env.NOMINE) console.log(`MINE t=${(t / 3600).toFixed(1)}h lvl ${MN.mineLevel(s)} pick ${MN.pickOf(s).name} drills ${MN.totalDrills(s)} idle ${MN.idleSwings(s, derive(s).auto).toFixed(1)}/s relics ${s.mine.relics.length} feats ${s.mine.claimed.length}/${MN.FEATS.length} crafts ${s.mine.crafted} geodes ${s.mine.cracked} income ${inc(derive(s), CPS_IN).toExponential(2)}`);
     if (t % 10 === 0) claimMilestones(s);
     const fresh = checkTrophies(s);
     if (t % 10 === 0) { updateFxp(s, true); if ([3600, 21600].includes(t)) console.log(`FXP t=${t / 3600}h level ${s.lvl} (${Object.values(s.fxp).reduce((x, y) => x + y, 0)} xp)`); { const by: Record<string, number> = {}; for (const [k, v] of Object.entries(s.fxp)) by[k.split(':')[0]] = (by[k.split(':')[0]] || 0) + v; console.log('   ', JSON.stringify(by)); } }

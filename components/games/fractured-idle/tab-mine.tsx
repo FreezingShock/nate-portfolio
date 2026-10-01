@@ -4,11 +4,38 @@ import { useEffect, useReducer, useRef, useState, type CSSProperties, type React
 import { Lock } from "lucide-react";
 import { McSymbol } from "@/components/mc-symbol";
 import { SKILL_CAP, fmtTime, skillXpFor } from "@/lib/fractured-idle/engine";
-import { ISLAND_BY_ID, type Dim } from "@/lib/fractured-idle/islands";
+import { ISLANDS, ISLAND_BY_ID, type Dim } from "@/lib/fractured-idle/islands";
 import { activeIsland, openIslands } from "@/lib/fractured-idle/island-logic";
+import { fmtStat } from "@/lib/fractured-idle/enchant";
+import { GRANT_LABEL } from "@/lib/fractured-idle/skills";
 import {
     COL_AT,
     DIMS,
+    DIM_FX,
+    FEATS,
+    FEAT_LADDERS,
+    GEODE_TOKENS,
+    GEODE_W,
+    ISLAND_ORES,
+    bottleneck,
+    buildDrillsAll,
+    claimAllFeats,
+    claimFeat,
+    crackAll,
+    digHit,
+    digHits,
+    equipRelic,
+    featClaimed,
+    featReady,
+    featsReady,
+    goalOf,
+    isOre,
+    ownsRelic,
+    queueGoal,
+    relicSlots,
+    toggleLoop,
+    unequipRelic,
+    upgradeAll,
     DIM_LABEL,
     DIM_ORES,
     GEODES,
@@ -81,6 +108,7 @@ import {
     veinNeed,
     yieldMult,
     type Cost,
+    type FeatReward,
     type ItemId,
     type MineUpDef,
     type OreDef,
@@ -101,7 +129,7 @@ import { Progress, SectionTitle, type Ctx } from "./ui";
 // they are while numbers change, like the Roll button in Enchant.
 
 const C = "#e0b070";
-type View = "dig" | "gear" | "drills" | "forge" | "ores";
+type View = "dig" | "gear" | "drills" | "forge" | "ores" | "worlds" | "feats";
 
 const fmtPct = (n: number) => `${+(n * 100).toFixed(1)}%`;
 const amt = (F: (n: number) => string, n: number) => (n >= 1000 ? F(Math.floor(n)) : n >= 100 ? String(Math.floor(n)) : String(+n.toFixed(n < 10 ? 2 : 1)));
@@ -136,12 +164,15 @@ export function MineTab({ s, d, F, render, say }: Ctx) {
             </div>
             <Progress label={`Mining ${lvl}`} color={C} pct={lvl >= SKILL_CAP ? 1 : (s.mining - lo) / (hi - lo)} right={lvl >= SKILL_CAP ? "MAX" : `${Math.floor(Math.max(0, (s.mining - lo) / (hi - lo)) * 100)}% to ${lvl + 1}`} />
 
+            <QuickBar s={s} d={d} render={render} say={say} />
+
             <div className="fi-mn-seg" role="tablist">
-                {([["dig", "Mine"], ["gear", "Gear"], ["drills", "Drills"], ["forge", "Forge"], ["ores", "Ores"]] as const).map(([v, label]) => (
+                {([["dig", "Mine"], ["gear", "Gear"], ["drills", "Drills"], ["forge", "Forge"], ["ores", "Ores"], ["worlds", "Worlds"], ["feats", "Feats"]] as const).map(([v, label]) => (
                     <button key={v} type="button" role="tab" aria-selected={view === v} data-on={view === v} onClick={() => setView(v)}>
                         {label}
                         {v === "forge" && ready > 0 && <i className="fi-mn-dot">{ready}</i>}
                         {v === "dig" && geodes > 0 && <i className="fi-mn-dot gem">{geodes}</i>}
+                        {v === "feats" && featsReady(s).length > 0 && <i className="fi-mn-dot feat">{featsReady(s).length}</i>}
                     </button>
                 ))}
             </div>
@@ -151,6 +182,8 @@ export function MineTab({ s, d, F, render, say }: Ctx) {
             {view === "drills" && <Drills s={s} d={d} F={F} render={render} />}
             {view === "forge" && <Forge s={s} d={d} F={F} render={render} say={say} ctx={ctx} />}
             {view === "ores" && <Ores s={s} F={F} />}
+            {view === "worlds" && <Worlds s={s} F={F} />}
+            {view === "feats" && <Feats s={s} F={F} render={render} say={say} />}
         </div>
     );
 }
@@ -269,6 +302,8 @@ function UpgradeList({ s, cat, render }: { s: Ctx["s"]; cat: MineUpDef["cat"]; r
 
 // ---- Mine: the rock face ----
 
+type Spot = { hp: number; max: number };
+
 function DigView({ s, d, F, render, say }: { s: Ctx["s"]; d: Ctx["d"]; F: (n: number) => string; render: () => void; say: (m: string) => void }) {
     const m = s.mine;
     const isl = activeIsland(s);
@@ -279,10 +314,13 @@ function DigView({ s, d, F, render, say }: { s: Ctx["s"]; d: Ctx["d"]; F: (n: nu
     const face = useRef<HTMLDivElement>(null);
     const last = useRef<SwingOut | null>(null);
     const stamp = useRef({ pop: 0, spark: 0 });
+    const spots = useRef<Spot[]>([]);
+    const sig = useRef("");
+    const held = useRef<{ id: ReturnType<typeof setInterval> | null }>({ id: null });
     const [, bump] = useReducer((x: number) => x + 1, 0);
-    const live = useRef({ s, d });
+    const live = useRef({ s, d, say, render });
     useEffect(() => {
-        live.current = { s, d };
+        live.current = { s, d, say, render };
     });
 
     // Blobs per ore, shared out by odds (the rock face is a picture of the table).
@@ -292,83 +330,135 @@ function DigView({ s, d, F, render, say }: { s: Ctx["s"]; d: Ctx["d"]; F: (n: nu
         const left = BLOBS.length;
         const want = open.map((r) => Math.max(1, Math.round(r.p * left)));
         let i = 0;
-        while (blobs.length < left) {
+        while (blobs.length < left && i < 400) {
             const k = i % open.length;
             if (want[k] > 0) {
                 blobs.push(open[k].ore.id);
                 want[k]--;
             }
             i++;
-            if (i > 200) break;
         }
         while (blobs.length < left) blobs.push(open[0].ore.id);
     }
+    const nowSig = blobs.join(",");
+    if (sig.current !== nowSig) {
+        sig.current = nowSig;
+        spots.current = blobs.map((id) => {
+            const h = digHits(s, ORE_BY_ID[id]);
+            return { hp: h, max: h };
+        });
+    }
 
-    // The rock face reacts to every press of the big button (DOM only, so a fast hold never waits on React).
-    useEffect(() => {
-        const reduced = typeof matchMedia === "function" && matchMedia("(prefers-reduced-motion: reduce)").matches;
-        const spark = (host: HTMLElement, color: string, n: number) => {
-            if (reduced) return;
+    // Everything that happens on the rock face is DOM work, so a fast hold never waits on React.
+    const fx = useRef({
+        reduced: false,
+        spark(color: string, x: number, y: number, n: number, far = 40) {
+            const host = face.current;
+            if (!host || this.reduced) return;
             for (let i = 0; i < n; i++) {
                 const a = Math.random() * Math.PI * 2;
-                const dist = 22 + Math.random() * 46;
+                const dist = 14 + Math.random() * far;
                 const el = document.createElement("i");
                 el.className = "fi-mn-spark";
                 el.style.background = color;
-                el.style.left = `${30 + Math.random() * 40}%`;
-                el.style.top = `${30 + Math.random() * 40}%`;
+                el.style.left = `${x}%`;
+                el.style.top = `${y}%`;
                 host.appendChild(el);
                 el.animate(
                     [
                         { transform: "translate(-50%,-50%) scale(1)", opacity: 1 },
-                        { transform: `translate(calc(-50% + ${Math.cos(a) * dist}px), calc(-50% + ${Math.sin(a) * dist}px)) scale(0)`, opacity: 0 },
+                        { transform: `translate(calc(-50% + ${Math.cos(a) * dist}px), calc(-50% + ${Math.sin(a) * dist + 10}px)) scale(0)`, opacity: 0 },
                     ],
-                    { duration: 380 + Math.random() * 260, easing: "cubic-bezier(.1,.7,.3,1)" },
+                    { duration: 360 + Math.random() * 260, easing: "cubic-bezier(.1,.7,.3,1)" },
                 ).onfinish = () => el.remove();
             }
-        };
-        const pop = (host: HTMLElement, text: string, color: string, big = false) => {
+        },
+        pop(text: string, color: string, x: number, y: number, big = false) {
+            const host = face.current;
+            if (!host) return;
             const el = document.createElement("span");
             el.className = `fi-mn-pop${big ? " big" : ""}`;
             el.textContent = text;
             el.style.color = color;
-            el.style.left = `${35 + Math.random() * 30}%`;
+            el.style.left = `${Math.max(12, Math.min(88, x))}%`;
+            el.style.top = `${y}%`;
             host.appendChild(el);
             el.onanimationend = () => el.remove();
-        };
+        },
+        /** The pickaxe flies to a node and swings. */
+        swingAt(i: number) {
+            const host = face.current;
+            const pick = host?.querySelector<HTMLElement>(".fi-mn-pickfx");
+            if (!pick) return;
+            const [x, y] = BLOBS[i];
+            pick.style.left = `${x}%`;
+            pick.style.top = `${y}%`;
+            if (!this.reduced) pick.animate([{ rotate: "-55deg" }, { rotate: "25deg", offset: 0.5 }, { rotate: "0deg" }], { duration: 190, easing: "ease-out" });
+        },
+        /** Wear a node down; breaks it (with a burst) at zero and grows it back a moment later. */
+        chip(i: number, amount: number, color: string) {
+            const sp = spots.current[i];
+            const el = face.current?.querySelector<HTMLElement>(`[data-i="${i}"]`);
+            if (!sp || !el || sp.hp <= 0) return false;
+            sp.hp -= amount;
+            el.style.setProperty("--dmg", String(Math.max(0, 1 - sp.hp / sp.max)));
+            if (!this.reduced) el.animate([{ transform: "translate(-50%,-50%) scale(.82) rotate(-6deg)" }, { transform: "translate(-50%,-50%) scale(1)" }], { duration: 150 });
+            if (sp.hp > 0) return false;
+            el.dataset.broken = "true";
+            const [x, y] = BLOBS[i];
+            this.spark(color, x, y, 14, 70);
+            setTimeout(() => {
+                const id = blobs[i];
+                if (!id || !el.isConnected) return;
+                const h = digHits(live.current.s, ORE_BY_ID[id]);
+                sp.hp = sp.max = h;
+                el.style.setProperty("--dmg", "0");
+                el.dataset.broken = "false";
+                if (!this.reduced) el.animate([{ transform: "translate(-50%,-50%) scale(.2)", opacity: 0 }, { transform: "translate(-50%,-50%) scale(1.15)", opacity: 1, offset: 0.7 }, { transform: "translate(-50%,-50%) scale(1)" }], { duration: 380 });
+            }, 950);
+            return true;
+        },
+    });
+
+    // The big button swings the pickaxe at a matching node (the ore is already paid; this is the picture of it).
+    useEffect(() => {
+        const f = fx.current;
+        f.reduced = typeof matchMedia === "function" && matchMedia("(prefers-reduced-motion: reduce)").matches;
         const off = onSwing((e) => {
             const host = face.current;
             if (!host) return;
             last.current = e;
             const o = ORE_BY_ID[e.ore];
             const now = performance.now();
-            if (!reduced) {
-                host.querySelector<HTMLElement>(".fi-mn-pickfx")?.animate([{ transform: "rotate(-48deg)" }, { transform: "rotate(22deg)" }, { transform: "rotate(0deg)" }], { duration: 170, easing: "ease-out" });
-                host.querySelectorAll<HTMLElement>(`[data-ore="${e.ore}"]`).forEach((b) => b.animate([{ filter: "brightness(2.4)", transform: "translate(-50%,-50%) scale(1.3)" }, { filter: "none", transform: "translate(-50%,-50%) scale(1)" }], { duration: 280 }));
-                host.animate([{ transform: "translate(2px,1px)" }, { transform: "translate(-1px,0)" }, { transform: "none" }], { duration: 110 });
+            const idx: number[] = [];
+            blobs.forEach((id, i) => {
+                if (id === e.ore && spots.current[i]?.hp > 0) idx.push(i);
+            });
+            const i = idx.length ? idx[Math.floor(Math.random() * idx.length)] : -1;
+            if (i >= 0) {
+                f.swingAt(i);
+                f.chip(i, 0.34, o.color);
+                f.spark(o.color, BLOBS[i][0], BLOBS[i][1], e.rush ? 5 : e.lucky ? 6 : 3);
             }
-            if (now - stamp.current.spark > 45) {
-                stamp.current.spark = now;
-                spark(host, o.color, e.rush ? 5 : e.lucky ? 6 : 3);
-            }
-            if (now - stamp.current.pop > 120 || e.rushStart || e.lucky || e.geode) {
+            if (now - stamp.current.pop > 130 || e.rushStart || e.lucky || e.geode) {
                 stamp.current.pop = now;
-                pop(host, `+${amt((n) => String(Math.round(n)), e.units)} ${o.name}`, o.color, e.rush);
+                const [x, y] = i >= 0 ? BLOBS[i] : [50, 50];
+                f.pop(`+${amt((n) => String(Math.round(n)), e.units)} ${o.name}`, o.color, x, y - 8, e.rush);
             }
-            if (e.rushStart) pop(host, "ORE RUSH!", "#ffd23a", true);
-            else if (e.lucky) pop(host, "TRIPLE HAUL!", "#ffe29a", true);
-            if (e.geode) pop(host, `${GEODES[e.geode].name}!`, GEODES[e.geode].color, true);
+            if (e.rushStart) f.pop("ORE RUSH!", "#ffd23a", 50, 30, true);
+            else if (e.lucky) f.pop("TRIPLE HAUL!", "#ffe29a", 50, 30, true);
+            if (e.geode) f.pop(`${GEODES[e.geode].name}!`, GEODES[e.geode].color, 50, 20, true);
         });
         // Drills and the passive trickle: soft sparks in the ore's colour, a few a second.
         const id = setInterval(() => {
             const host = face.current;
-            if (!host || reduced) return;
+            if (!host || f.reduced) return;
             const { s: st, d: dd } = live.current;
             const rate = idleSwings(st, dd.auto);
             const t = oreTable(st).filter((r) => r.p > 0);
             if (!t.length) return;
             const n = Math.min(3, Math.round(rate * 0.25 + Math.random()));
-            for (let i = 0; i < n; i++) {
+            for (let k = 0; k < n; k++) {
                 const r = t[Math.floor(Math.random() * t.length)];
                 const el = document.createElement("i");
                 el.className = "fi-mn-spark soft";
@@ -383,27 +473,52 @@ function DigView({ s, d, F, render, say }: { s: Ctx["s"]; d: Ctx["d"]; F: (n: nu
         return () => {
             off();
             clearInterval(id);
+            if (held.current.id) clearInterval(held.current.id);
         };
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
+
+    // Digging by hand: each hit pays small bits of ore, the break pays a lot. It is not a press of the big button.
+    const hit = (i: number) => {
+        const { s: st, d: dd, say: tell } = live.current;
+        const id = blobs[i];
+        const sp = spots.current[i];
+        if (!id || !sp || sp.hp <= 0) return;
+        const o = ORE_BY_ID[id];
+        const f = fx.current;
+        const broke = sp.hp <= 1;
+        const out = digHit(st, mineCtx(dd), id, broke);
+        f.swingAt(i);
+        f.chip(i, 1, o.color);
+        const [x, y] = BLOBS[i];
+        f.spark(o.color, x, y, broke ? 6 : 3);
+        f.pop(`+${amt((n) => String(Math.round(n)), out.units)} ${o.name}`, o.color, x, y - 10, broke);
+        if (out.lucky) f.pop("TRIPLE BREAK!", "#ffe29a", 50, 26, true);
+        if (out.geode) tell(`A ${GEODES[out.geode].name} dropped! Crack it below.`);
+    };
+    const stop = () => {
+        if (held.current.id) clearInterval(held.current.id);
+        held.current.id = null;
+    };
+    const press = (i: number) => {
+        stop();
+        hit(i);
+        held.current.id = setInterval(() => hit(i), 150);
+        const up = () => {
+            stop();
+            window.removeEventListener("pointerup", up);
+            window.removeEventListener("pointercancel", up);
+        };
+        window.addEventListener("pointerup", up);
+        window.addEventListener("pointercancel", up);
+    };
 
     const geodes = geodeCount(s);
     const dimWithGeodes = DIMS.filter((x) => (m.geodes[x] || 0) > 0);
     const crackOne = (all: boolean) => {
-        const ctx = mineCtx(d);
-        let n = 0;
-        let lastOut = "";
-        for (const dm of DIMS) {
-            while ((m.geodes[dm] || 0) > 0 && (all || n === 0)) {
-                const out = crackGeode(s, ctx, dm);
-                if (!out) break;
-                n++;
-                lastOut = `${out.title}: ${out.sub}`;
-                pushLog(s, `${GEODES[dm].name}: ${out.sub}`, out.color);
-            }
-            if (!all && n) break;
-        }
-        if (n) {
-            say(n === 1 ? `Geode: ${lastOut}` : `Cracked ${n} geodes. Latest: ${lastOut}`);
+        const { n, last: out } = crackAll(s, mineCtx(d), !all);
+        if (n && out) {
+            say(n === 1 ? `Geode: ${out.title}, ${out.sub}` : `Cracked ${n} geodes. Latest: ${out.title}, ${out.sub}`);
             render();
         }
     };
@@ -415,21 +530,45 @@ function DigView({ s, d, F, render, say }: { s: Ctx["s"]; d: Ctx["d"]; F: (n: nu
         }
     };
     const lo = last.current;
+    const goal = goalOf(s);
 
     return (
         <>
-            <div ref={face} className="fi-mn-face" data-rush={rush} data-dim={isl.dim} style={{ ["--pc" as string]: pickOf(s).color, ["--dc" as string]: isl.dim === "overworld" ? "#8a7a60" : isl.dim === "nether" ? "#b5483f" : "#c48ae0" } as CSSProperties} role="img" aria-label={`The rock face on ${isl.name}: ${open.map((r) => `${Math.round(r.p * 100)}% ${r.ore.name}`).join(", ")}`}>
-                {BLOBS.map(([x, y, r], i) => (
-                    <i key={i} className="fi-mn-blob" data-ore={blobs[i]} style={{ left: `${x}%`, top: `${y}%`, width: `clamp(1.1rem, ${r * 0.9}%, 3rem)`, aspectRatio: "1", ["--oc" as string]: ORE_BY_ID[blobs[i] ?? "coal"].color } as CSSProperties} />
-                ))}
-                <span className="fi-mn-pickfx" style={{ ["--pc" as string]: pickOf(s).color } as CSSProperties}>
+            <div ref={face} className="fi-mn-face" data-rush={rush} data-dim={isl.dim} style={{ ["--pc" as string]: pickOf(s).color, ["--dc" as string]: isl.dim === "overworld" ? "#8a7a60" : isl.dim === "nether" ? "#b5483f" : "#c48ae0" } as CSSProperties}>
+                {BLOBS.map(([x, y, r], i) => {
+                    const o = ORE_BY_ID[blobs[i] ?? "coal"];
+                    return (
+                        <button
+                            key={`${i}:${blobs[i]}`}
+                            type="button"
+                            className="fi-mn-blob"
+                            data-i={i}
+                            data-ore={blobs[i]}
+                            data-broken="false"
+                            aria-label={`Dig ${o.name} ore. About ${spots.current[i]?.max ?? 8} hits to break. Hold to keep digging.`}
+                            style={{ left: `${x}%`, top: `${y}%`, width: `clamp(2rem, ${r * 0.9}%, 3.1rem)`, ["--oc" as string]: o.color, ["--dmg" as string]: spots.current[i] ? Math.max(0, 1 - spots.current[i].hp / spots.current[i].max) : 0 } as CSSProperties}
+                            onPointerDown={(e) => {
+                                if (e.pointerType === "mouse" && e.button !== 0) return;
+                                e.preventDefault();
+                                press(i);
+                            }}
+                            onClick={(e) => {
+                                if (e.detail === 0) hit(i); // keyboard
+                            }}
+                            onContextMenu={(e) => e.preventDefault()}
+                        />
+                    );
+                })}
+                <span className="fi-mn-pickfx" style={{ ["--pc" as string]: pickOf(s).color } as CSSProperties} aria-hidden="true">
                     <McSymbol name="pick" />
                 </span>
                 <span className="fi-mn-where" style={{ color: dim.color }}>
                     {isl.name} <em>· {dim.name}</em>
                 </span>
-                <span className="fi-mn-hint">{lo ? "" : "Press the big button to swing!"}</span>
             </div>
+            <p className="fi-mn-tip">
+                <b>Tap or hold an ore</b> to dig it yourself: small bits every hit, a big haul when it breaks. The big button swings at random ore.
+            </p>
 
             <div className="fi-mn-vein" data-rush={rush}>
                 <div className="fi-mn-vein-h">
@@ -456,9 +595,11 @@ function DigView({ s, d, F, render, say }: { s: Ctx["s"]; d: Ctx["d"]; F: (n: nu
                         <span> · damage x{(pp * comboFactor(s.combo)).toFixed(pp < 10 ? 1 : 0)} at combo x{s.combo.toFixed(1)}</span>
                     </>
                 ) : (
-                    <>Swing damage is <b>x{pp.toFixed(pp < 10 ? 2 : 1)}</b>, and goes up with your combo. Hold the button!</>
+                    <>Swing damage is <b>x{pp.toFixed(pp < 10 ? 2 : 1)}</b>, and goes up with your combo. Hold the big button!</>
                 )}
             </div>
+
+            {goal && <GoalCard s={s} goal={goal} F={F} render={render} say={say} />}
 
             <SectionTitle color={C}>Ore here</SectionTitle>
             <div className="fi-mn-table">
@@ -495,7 +636,7 @@ function DigView({ s, d, F, render, say }: { s: Ctx["s"]; d: Ctx["d"]; F: (n: nu
                     );
                 })}
             </div>
-            <p className="fi-mn-note">{lvlOpen(s) ? "Tap a star to prospect: that ore gets 35% of your swings. " : ""}Other islands and dimensions carry other ore. Travel with I to hunt the ones you need.</p>
+            <p className="fi-mn-note">{lvlOpen(s) ? "Tap a star to prospect: that ore gets 35% of your swings. " : ""}Other islands and dimensions carry other ore: see the Worlds tab, and travel with I.</p>
 
             {(geodes > 0 || itemCount(s) > 0) && (
                 <div className="fi-mn-actions">
@@ -541,31 +682,167 @@ function DigView({ s, d, F, render, say }: { s: Ctx["s"]; d: Ctx["d"]; F: (n: nu
     );
 }
 
+/** What you are working toward, what is missing, and one-tap ways to get it. */
+function GoalCard({ s, goal, F, render, say }: { s: Ctx["s"]; goal: NonNullable<ReturnType<typeof goalOf>>; F: (n: number) => string; render: () => void; say: (m: string) => void }) {
+    const lvlOk = mineLevel(s) >= goal.need;
+    const short = bottleneck(s, goal);
+    const ore = short ? ORE_BY_ID[short] : null;
+    const missing = Object.entries(goal.cost).some(([k, v]) => have(s, k as ResId) < (v ?? 0));
+    const startable = Object.entries(goal.cost).some(([k]) => RECIPES.find((r) => r.id === k && r.kind === "ingot") && have(s, k as ResId) < (goal.cost[k as ResId] ?? 0));
+    void F;
+    return (
+        <div className="fi-mn-goal" style={{ ["--c" as string]: goal.color } as CSSProperties}>
+            <div className="fi-mn-goal-h">
+                <span>Next goal</span>
+                <b>{goal.title}</b>
+                {!lvlOk && <em><Lock className="inline size-3" /> Mining {goal.need}</em>}
+            </div>
+            <CostRow s={s} cost={goal.cost} />
+            <div className="fi-mn-goal-f">
+                {ore && missing && (
+                    <button
+                        type="button"
+                        className="fi-mn-buy small ghost"
+                        onClick={() => {
+                            setFocus(s, ore.id);
+                            say(`Prospecting ${ore.name}: it now gets 35% of your swings.`);
+                            render();
+                        }}
+                    >
+                        Prospect {ore.name}
+                    </button>
+                )}
+                {startable && missing && (
+                    <button
+                        type="button"
+                        className="fi-mn-buy small ghost"
+                        onClick={() => {
+                            const n = queueGoal(s);
+                            say(n ? `Started ${n} craft${n > 1 ? "s" : ""} for the ${goal.title}.` : "Nothing to start: check ore and free furnaces.");
+                            render();
+                        }}
+                    >
+                        Smelt what is missing
+                    </button>
+                )}
+                {ore && missing && <span className="fi-mn-goal-w">{ore.name} is on {oreIslands(ore.id).slice(0, 2).map((id) => ISLAND_BY_ID[id]?.name ?? id).join(" and ")}</span>}
+            </div>
+        </div>
+    );
+}
+
+// ---- Quick actions ----
+
+function QuickBar({ s, d, render, say }: { s: Ctx["s"]; d: Ctx["d"]; render: () => void; say: (m: string) => void }) {
+    const ctx = mineCtx(d);
+    const ready = jobsReady(s);
+    const geodes = geodeCount(s);
+    const feats = featsReady(s).length;
+    const ups = MINE_UPS.filter((u) => canBuyUp(s, u).ok && Object.keys(u.cost).every((k) => isOre(k))).length;
+    const dr = ORES.filter((o) => canBuyDrill(s, o).ok && drillCost(s, o) <= haveOre(s, o.id) * 0.6).length;
+    const pick = canBuyPick(s).ok;
+    const goal = goalOf(s);
+    const smelt = !!goal && slotsFree(s) > 0 && Object.entries(goal.cost).some(([k, v]) => {
+        const r = RECIPES.find((x) => x.id === k && x.kind === "ingot");
+        return !!r && have(s, k as ResId) + s.mine.jobs.filter((j) => j.r === k).reduce((a, j) => a + j.n, 0) < (v ?? 0) && canCraft(s, r, 1).ok;
+    });
+    const rushPot = (s.mine.items.rushPotion || 0) > 0 && s.mine.rush <= 0;
+
+    const run = {
+        collect: () => {
+            const got = collectAll(s, Date.now());
+            return got.length ? `Collected ${got.length} craft${got.length > 1 ? "s" : ""}.` : "";
+        },
+        crack: () => {
+            const { n, last } = crackAll(s, ctx);
+            return n && last ? `Cracked ${n} geode${n > 1 ? "s" : ""}. Latest: ${last.title}, ${last.sub}` : "";
+        },
+        claim: () => {
+            const got = claimAllFeats(s);
+            return got.length ? `Claimed ${got.length} feat${got.length > 1 ? "s" : ""}.` : "";
+        },
+        pick: () => {
+            if (!canBuyPick(s).ok) return "";
+            const nm = PICKS[s.mine.pick + 1].name;
+            return buyPick(s) ? `Made the ${nm}!` : "";
+        },
+        ups: () => {
+            const n = upgradeAll(s);
+            return n ? `Bought ${n} upgrade${n > 1 ? "s" : ""}.` : "";
+        },
+        drills: () => {
+            const n = buildDrillsAll(s);
+            return n ? `Built ${n} drill${n > 1 ? "s" : ""}.` : "";
+        },
+        smelt: () => {
+            const n = queueGoal(s);
+            return n ? `Started ${n} craft${n > 1 ? "s" : ""} for your goal.` : "";
+        },
+        rush: () => (consumeItem(s, "rushPotion", ctx) ?? ""),
+    };
+    const go = (keys: (keyof typeof run)[]) => {
+        const out = keys.map((k) => run[k]()).filter(Boolean);
+        if (out.length) {
+            say(out.slice(0, 3).join(" "));
+            render();
+        }
+    };
+    const all = ready + geodes + feats + ups + dr + (pick ? 1 : 0) + (smelt ? 1 : 0) > 0;
+    const B = (k: keyof typeof run, label: string, tip: string, on: boolean, n?: number) => (
+        <Tip key={k} box tip={<TipCard title={label} color={C} lines={[tip]} foot={on ? "Click!" : "Nothing to do right now"} />}>
+            <button type="button" className="fi-mn-q" data-on={on} disabled={!on} onClick={() => go([k])}>
+                {label}
+                {on && n ? <i>{n}</i> : null}
+            </button>
+        </Tip>
+    );
+    return (
+        <div className="fi-mn-quick" role="group" aria-label="Quick actions">
+            {B("collect", "Collect", "Collect every finished Forge craft.", ready > 0, ready)}
+            {B("crack", "Crack", "Crack every geode you are holding.", geodes > 0, geodes)}
+            {B("claim", "Claim", "Claim every feat you have earned.", feats > 0, feats)}
+            {B("pick", "Pickaxe", "Make the next pickaxe, if you have everything for it.", pick)}
+            {B("ups", "Upgrade", "Buy every ore-priced upgrade you can afford, cheapest first.", ups > 0, ups)}
+            {B("drills", "Drills", "Build drills while they cost under 60% of that ore's stock.", dr > 0, dr)}
+            {B("smelt", "Smelt", "Start crafts for the ingots your next goal is short of.", smelt)}
+            {B("rush", "Rush", "Drink a Rush Potion to start an Ore Rush now.", rushPot)}
+            <button type="button" className="fi-mn-q all" data-on={all} disabled={!all} onClick={() => go(["collect", "crack", "claim", "pick", "ups", "drills", "smelt"])}>
+                Do everything
+            </button>
+        </div>
+    );
+}
+
 const lvlOpen = (s: Ctx["s"]) => mineLevel(s) >= 5;
 
 /** A dimension shows up in the Drills and Ores lists once you can reach one of its islands (or already mined its ore). */
 const dimOpen = (s: Ctx["s"], dm: Dim) => dm === "overworld" || openIslands(s).some((i) => i.dim === dm) || DIM_ORES[dm].some((o) => (s.mine.mined[o.id] || 0) > 0);
 
-function OreTip({ s, d, o, p, F }: { s: Ctx["s"]; d: Ctx["d"]; o: OreDef; p: number; F: (n: number) => string }) {
+function OreTip({ s, d, o, p, F, brief }: { s: Ctx["s"]; d?: Ctx["d"]; o: OreDef; p: number; F: (n: number) => string; brief?: boolean }) {
     const tier = colTierOf(s.mine.mined[o.id] || 0);
     const dmg = pickPower(s) * comboFactor(Math.max(1, s.combo));
     const ratio = dmg / o.hard;
     const perSwing = (ratio <= 3 ? ratio : 3 + Math.pow(ratio - 3, 0.6)) * yieldMult(s) * (1 + drillBoost(s, o) * 0.5);
-    const ctx = mineCtx(d);
+    const ctx = d ? mineCtx(d) : null;
     return (
         <TipCard
             title={o.name}
             color={o.color}
             tag={o.need ? `Mining ${o.need}` : DIM_LABEL[o.dim].name}
             lines={mineLevel(s) < o.need ? [`Opens at Mining ${o.need}.`] : undefined}
-            rows={[
-                ["Chance per swing", p > 0 ? fmtPct(p) : "not here / locked"],
-                ["Hardness", `${o.hard} pick power`],
-                ["Ore per swing now", `${perSwing.toFixed(2)}`],
-                ["Mining XP per swing", F(oreXp(o) * ctx.xp)],
-                ["Shards per swing", F(swingShards(ctx, o))],
-                ["Collection", `tier ${tier}/${COL_AT.length}`, o.color],
-            ]}
+            rows={
+                brief || !ctx
+                    ? [["Hardness", `${o.hard} pick power`], ["Hits to dig", `${digHits(s, o)}`], ["Collection", `tier ${tier}/${COL_AT.length}`, o.color]]
+                    : [
+                          ["Chance per swing", p > 0 ? fmtPct(p) : "not here / locked"],
+                          ["Hardness", `${o.hard} pick power`],
+                          ["Ore per swing now", `${perSwing.toFixed(2)}`],
+                          ["Hits to dig by hand", `${digHits(s, o)}`],
+                          ["Mining XP per swing", F(oreXp(o) * ctx.xp)],
+                          ["Shards per swing", F(swingShards(ctx, o))],
+                          ["Collection", `tier ${tier}/${COL_AT.length}`, o.color],
+                      ]
+            }
             notes={[{ text: `Collection pays +${fmtPct(o.col[1])} ${o.colText} per tier`, color: o.color }, { text: `Found on: ${oreIslands(o.id).map((id) => ISLAND_BY_ID[id]?.name ?? id).slice(0, 5).join(", ")}`, color: "var(--mc-aqua)" }]}
             foot={p > 0 ? undefined : "Travel to an island that has it"}
         />
@@ -615,6 +892,7 @@ function Gear({ s, F, render, say }: { s: Ctx["s"]; F: (n: number) => string; re
                     </Tip>
                 )}
             </div>
+            <Loadout s={s} render={render} say={say} />
             <SectionTitle color={C}>Hand tools</SectionTitle>
             <UpgradeList s={s} cat="hand" render={render} />
             <p className="fi-mn-note">Everything here is permanent: rebirths and ascensions never touch your mine. Ore in stock: {F(Math.floor(ORES.reduce((a, o) => a + haveOre(s, o.id), 0)))}.</p>
@@ -710,6 +988,7 @@ function Forge({ s, d, F, render, say, ctx }: { s: Ctx["s"]; d: Ctx["d"]; F: (n:
     const lvl = mineLevel(s);
     const now = Date.now();
     const slots = forgeSlots(s);
+    const tongs = upLevel(s, "tongs") > 0;
     const ready = jobsReady(s, now);
     const [kind, setKind] = useState<RecipeDef["kind"]>("ingot");
     const list = RECIPES.filter((r) => r.kind === kind);
@@ -760,6 +1039,11 @@ function Forge({ s, d, F, render, say, ctx }: { s: Ctx["s"]; d: Ctx["d"]; F: (n:
                             >
                                 Collect
                             </button>
+                            {tongs && r.kind !== "relic" && (
+                                <button type="button" className="fi-mn-loop" data-on={!!j.loop} aria-pressed={!!j.loop} onClick={() => { toggleLoop(s, i); render(); }}>
+                                    {j.loop ? "Repeating" : "Repeat"}
+                                </button>
+                            )}
                         </div>
                     );
                 })}
@@ -810,7 +1094,7 @@ function Forge({ s, d, F, render, say, ctx }: { s: Ctx["s"]; d: Ctx["d"]; F: (n:
 
 function RecipeCard({ s, r, F, lvl, onDone }: { s: Ctx["s"]; r: RecipeDef; F: (n: number) => string; lvl: number; onDone: (t: string) => void }) {
     const locked = lvl < r.need;
-    const owned = r.kind === "relic" && hasRelic(s, r.out);
+    const owned = r.kind === "relic" && ownsRelic(s, r.out);
     const batch = maxBatch(s, r);
     const one = canCraft(s, r, 1);
     const five = Math.min(5, batch);
@@ -859,7 +1143,7 @@ function RelicShelf({ s }: { s: Ctx["s"] }) {
             <SectionTitle color="var(--mc-yellow)">Relic shelf ({s.mine.relics.length}/{RELICS.length})</SectionTitle>
             <div className="fi-mn-shelf">
                 {RELICS.map((r) => {
-                    const own = hasRelic(s, r.out);
+                    const own = ownsRelic(s, r.out);
                     return (
                         <Tip key={r.id} tip={<TipCard title={own ? r.name : mineLevel(s) >= r.need ? r.name : "???"} color={r.color} lines={[own || mineLevel(s) >= r.need ? r.desc : `Opens at Mining ${r.need}`]} tag={own ? "Forged" : undefined} />}>
                             <span className="fi-mn-relic" data-own={own} style={col(r.color)}>
@@ -942,6 +1226,228 @@ function OreCard({ s, o, F }: { s: Ctx["s"]; o: OreDef; F: (n: number) => string
     );
 }
 
+
+// ---- Loadout: which relics are switched on ----
+
+function Loadout({ s, render, say }: { s: Ctx["s"]; render: () => void; say: (m: string) => void }) {
+    const slots = relicSlots(s);
+    const eq = s.mine.equipped;
+    const owned = s.mine.relics.map((id) => RELICS.find((r) => r.out === id)).filter((r): r is RecipeDef => !!r);
+    const off = owned.filter((r) => !eq.includes(r.out));
+    const toggle = (r: RecipeDef) => {
+        if (hasRelic(s, r.out)) unequipRelic(s, r.out);
+        else if (!equipRelic(s, r.out)) {
+            say("Every slot is full. Take a relic off first.");
+            return;
+        }
+        render();
+    };
+    return (
+        <>
+            <SectionTitle color="var(--mc-yellow)">Relic loadout ({eq.length}/{slots})</SectionTitle>
+            <div className="fi-mn-loadout">
+                {Array.from({ length: slots }, (_, i) => {
+                    const r = RELICS.find((x) => x.out === eq[i]);
+                    return r ? (
+                        <Tip key={i} box tip={<TipCard title={r.name} color={r.color} lines={[r.desc]} foot="Click to take off" />}>
+                            <button type="button" className="fi-mn-slotr" data-on style={col(r.color)} onClick={() => toggle(r)}>
+                                <McSymbol name="gem" />
+                                <b>{r.name}</b>
+                                <small>{r.desc}</small>
+                            </button>
+                        </Tip>
+                    ) : (
+                        <div key={i} className="fi-mn-slotr" data-empty>
+                            <small>Empty slot</small>
+                        </div>
+                    );
+                })}
+            </div>
+            {off.length > 0 && (
+                <div className="fi-mn-shelf">
+                    {off.map((r) => (
+                        <Tip key={r.id} box tip={<TipCard title={r.name} color={r.color} lines={[r.desc]} foot={eq.length < slots ? "Click to equip" : "Every slot is full"} />}>
+                            <button type="button" className="fi-mn-relic" data-own="true" data-off style={col(r.color)} onClick={() => toggle(r)} aria-label={`Equip ${r.name}`}>
+                                <McSymbol name="gem" />
+                            </button>
+                        </Tip>
+                    ))}
+                </div>
+            )}
+            <p className="fi-mn-note">Relics only work while equipped. {slots < 4 ? `More slots open at Mining ${mineLevel(s) < 25 ? 25 : 45}.` : "Every slot is open."} {owned.length === 0 ? "Forge your first relic in the Forge tab." : ""}</p>
+        </>
+    );
+}
+
+// ---- Worlds: the dimensions ----
+
+const GEODE_ROWS = ["Arcane Dust", "Rebirth Tokens", "Free egg", "Shard Vein", "Fracture Fragment", "Ascension point"];
+
+function Worlds({ s, F }: { s: Ctx["s"]; F: (n: number) => string }) {
+    const here = activeIsland(s).dim;
+    const openIds = new Set(openIslands(s).map((i) => i.id));
+    const lvl = mineLevel(s);
+    return (
+        <>
+            <p className="fi-mn-note">Each dimension has its own ore, its own geodes and its own effect on mining. You cannot change dimension from here: travel from the Islands tab (press I), and the mine follows you.</p>
+            {DIMS.map((dm) => {
+                const lab = DIM_LABEL[dm];
+                const fx = DIM_FX[dm];
+                const isls = ISLANDS.filter((i) => i.dim === dm);
+                const reach = isls.some((i) => openIds.has(i.id));
+                const firstLocked = isls.filter((i) => !openIds.has(i.id) && Number.isFinite(i.at)).sort((a, b) => a.at - b.at)[0];
+                const set = dimSet(s, dm);
+                const w = GEODE_W[dm];
+                const wt = w.reduce((a, b) => a + b, 0);
+                return (
+                    <div key={dm} className="fi-mn-world" data-here={here === dm} data-locked={!reach} style={{ ["--c" as string]: lab.color } as CSSProperties}>
+                        <div className="fi-mn-world-h">
+                            <b>{lab.name}</b>
+                            <span className="fi-mn-tag">{fx.tag}</span>
+                            {here === dm && <span className="fi-mn-here">You are here</span>}
+                            {!reach && <span className="fi-mn-lock"><Lock className="inline size-3" /> {firstLocked ? `${F(firstLocked.at)} shards` : "Locked"}</span>}
+                        </div>
+                        <p className="fi-mn-world-b">{fx.blurb}</p>
+                        <div className="fi-mn-fx">
+                            {fx.lines.map((l) => (
+                                <span key={l}>{l}</span>
+                            ))}
+                        </div>
+
+                        <div className="fi-mn-world-s">Islands</div>
+                        <div className="fi-mn-isl">
+                            {isls.map((i) => (
+                                <span key={i.id} data-open={openIds.has(i.id)} style={{ ["--oc" as string]: i.color } as CSSProperties}>
+                                    {openIds.has(i.id) ? "" : <Lock className="inline size-3" />} {i.name}
+                                </span>
+                            ))}
+                        </div>
+
+                        <div className="fi-mn-world-s">Loot pool</div>
+                        <div className="fi-mn-pool">
+                            {DIM_ORES[dm].map((o) => {
+                                const odds = oreIslands(o.id).map((id) => {
+                                    const t = ISLAND_ORES[id];
+                                    const tot = t.reduce((a, [, x]) => a + x, 0);
+                                    return (t.find(([k]) => k === o.id)?.[1] ?? 0) / tot;
+                                }).filter((x) => x > 0 && isls.some((i) => oreIslands(o.id).includes(i.id)));
+                                const lo = Math.min(...odds);
+                                const hi = Math.max(...odds);
+                                const open = lvl >= o.need;
+                                return (
+                                    <Tip key={o.id} tip={<OreTip s={s} d={undefined} o={o} p={0} F={F} brief />}>
+                                        <div className="fi-mn-prow" data-locked={!open} style={col(o.color)}>
+                                            <i className="fi-mn-sw" />
+                                            <span className="fi-mn-rn">{open ? o.name : "???"}</span>
+                                            <span className="fi-mn-pc">{odds.length ? `${Math.round(lo * 100)}${hi - lo > 0.01 ? `-${Math.round(hi * 100)}` : ""}%` : "-"}</span>
+                                            <span className="fi-mn-pn">{o.need ? <><Lock className="inline size-3" /> {o.need}</> : "any"}</span>
+                                        </div>
+                                    </Tip>
+                                );
+                            })}
+                        </div>
+
+                        <div className="fi-mn-world-s">{GEODES[dm].name}</div>
+                        <div className="fi-mn-geo" style={{ ["--oc" as string]: GEODES[dm].color } as CSSProperties}>
+                            {GEODE_ROWS.map((n, k) => (
+                                <span key={n}>
+                                    {n} <b>{Math.round((w[k] / wt) * 100)}%</b>
+                                </span>
+                            ))}
+                        </div>
+                        <p className="fi-mn-world-b">Tokens from these geodes x{GEODE_TOKENS[dm]}. {fx.geode > 1 ? `Found ${Math.round((fx.geode - 1) * 100)}% more often here.` : "Found at the normal rate."}</p>
+
+                        <div className="fi-mn-world-s">Set bonus</div>
+                        <div className="fi-mn-setrow">
+                            {SET_STEPS.map((st) => (
+                                <span key={st.tier} className="fi-mn-set" data-on={set.tier >= st.tier} style={{ ["--oc" as string]: lab.color } as CSSProperties}>
+                                    All tier {st.tier}: +{fmtPct(st.bonus)} shards
+                                </span>
+                            ))}
+                        </div>
+                    </div>
+                );
+            })}
+        </>
+    );
+}
+
+// ---- Feats ----
+
+const rewardText = (r: FeatReward) => (r.stat ? fmtStat(r.stat[0], r.stat[1]) : r.grant ? `+${r.grant[1]} ${GRANT_LABEL[r.grant[0]]}` : "");
+
+function Feats({ s, F, render, say }: { s: Ctx["s"]; F: (n: number) => string; render: () => void; say: (m: string) => void }) {
+    const ready = featsReady(s);
+    const done = s.mine.claimed.length;
+    return (
+        <>
+            <div className="fi-mn-sum">
+                <div>
+                    <b>{done}</b> of {FEATS.length} feats claimed <span>{ready.length ? `${ready.length} ready` : "keep mining"}</span>
+                </div>
+                <small>Every kind of thing you do in the mine has a ladder of feats. Each one pays tokens, eggs, dust or a permanent stat, and some pay an ascension point.</small>
+            </div>
+            <button
+                type="button"
+                className="fi-mn-buy wide"
+                disabled={ready.length === 0}
+                onClick={() => {
+                    const got = claimAllFeats(s);
+                    if (got.length) {
+                        say(`Claimed ${got.length} feat${got.length > 1 ? "s" : ""}: ${got.slice(0, 2).map((f) => `${f.ladder.name} ${f.tier + 1}`).join(", ")}${got.length > 2 ? "..." : ""}`);
+                        render();
+                    }
+                }}
+            >
+                {ready.length ? `Claim all ${ready.length}` : "Nothing to claim"}
+            </button>
+            <div className="grid grid-cols-1 gap-1.5 sm:grid-cols-2">
+                {FEAT_LADDERS.map((l) => {
+                    const v = l.metric(s);
+                    const nextIdx = l.at.findIndex((a, i) => !s.mine.claimed.includes(`${l.key}:${i}`) && v < a);
+                    const prev = nextIdx > 0 ? l.at[nextIdx - 1] : 0;
+                    return (
+                        <div key={l.key} className="fi-mn-feat" style={{ ["--c" as string]: l.color } as CSSProperties}>
+                            <div className="fi-mn-up-h">
+                                <b>{l.name}</b>
+                                <span>{F(Math.floor(v))} {l.unit}</span>
+                            </div>
+                            <div className="fi-mn-tiers">
+                                {l.at.map((a, i) => {
+                                    const f = FEATS.find((x) => x.id === `${l.key}:${i}`)!;
+                                    const claimed = featClaimed(s, f);
+                                    const rdy = featReady(s, f);
+                                    return (
+                                        <Tip key={a} box tip={<TipCard title={`${l.name} ${i + 1}`} color={l.color} lines={[`${F(a)} ${l.unit}`]} notes={f.rewards.map((r) => ({ text: rewardText(r), color: l.color }))} foot={claimed ? "Claimed" : rdy ? "Click to claim!" : `${F(Math.max(0, Math.ceil(a - v)))} to go`} />}>
+                                            <button
+                                                type="button"
+                                                className="fi-mn-tier"
+                                                data-state={claimed ? "done" : rdy ? "ready" : "locked"}
+                                                disabled={!rdy}
+                                                onClick={() => {
+                                                    const c = claimFeat(s, f.id);
+                                                    if (c) {
+                                                        say(`${l.name} ${i + 1}: ${c.rewards.map(rewardText).join(", ")}`);
+                                                        render();
+                                                    }
+                                                }}
+                                            >
+                                                {claimed ? "✓" : F(a)}
+                                            </button>
+                                        </Tip>
+                                    );
+                                })}
+                            </div>
+                            {nextIdx >= 0 && <div className="fi-mn-col-bar"><i style={{ width: `${Math.min(1, Math.max(0, (v - prev) / (l.at[nextIdx] - prev))) * 100}%` }} /></div>}
+                            <div className="fi-mn-up-d">{nextIdx >= 0 ? `Next: ${l.rewards[nextIdx].map(rewardText).join(", ")}` : "Every tier claimed"}</div>
+                        </div>
+                    );
+                })}
+            </div>
+        </>
+    );
+}
+
 export const MINE_CSS = `
 .fi-mn{display:flex;flex-direction:column;gap:.55rem}
 .fi-mn-stat{display:flex;flex-direction:column;border-radius:.75rem;border:1px solid color-mix(in oklch,var(--c) 40%,transparent);background:linear-gradient(140deg,color-mix(in oklch,var(--c) 10%,transparent),transparent);padding:.4rem .6rem;min-width:0}
@@ -958,8 +1464,6 @@ export const MINE_CSS = `
 .fi-mn-face::before{content:"";position:absolute;inset:0;z-index:-1;background-image:linear-gradient(rgba(0,0,0,.28) 2px,transparent 2px),linear-gradient(90deg,rgba(0,0,0,.28) 2px,transparent 2px);background-size:52px 34px;opacity:.7}
 .fi-mn-face[data-rush="true"]{border-color:#ffd23a;box-shadow:inset 0 0 44px rgba(0,0,0,.5),0 0 34px -4px #ffd23a;animation:fi-mn-rush 1s ease-in-out infinite}
 @keyframes fi-mn-rush{50%{box-shadow:inset 0 0 44px rgba(0,0,0,.4),0 0 46px 0 #ffd23a}}
-.fi-mn-blob{position:absolute;transform:translate(-50%,-50%);border-radius:36% 64% 52% 48%/48% 40% 60% 52%;background:radial-gradient(circle at 32% 30%,#fff9 0 12%,transparent 30%),var(--oc);box-shadow:0 0 14px -2px var(--oc),inset 0 -3px 5px rgba(0,0,0,.35)}
-.fi-mn-pickfx{position:absolute;right:7%;top:8%;z-index:2;font-size:2.4rem;line-height:1;color:var(--pc);transform-origin:80% 90%;filter:drop-shadow(0 2px 0 rgba(0,0,0,.7)) drop-shadow(0 0 10px var(--pc));pointer-events:none}
 .fi-mn-where{position:absolute;left:.7rem;top:.5rem;z-index:2;font-family:var(--font-minecraft,inherit);font-weight:700;font-size:.78rem;text-shadow:0 1px 0 #000,0 0 8px rgba(0,0,0,.9);pointer-events:none}
 .fi-mn-where em{font-style:normal;font-weight:400;color:#fffc;font-size:.64rem}
 .fi-mn-hint{position:absolute;left:0;right:0;bottom:.55rem;z-index:2;text-align:center;font-family:var(--font-rubik,inherit);font-size:.7rem;font-weight:600;color:#fffd;text-shadow:0 1px 0 #000,0 0 8px #000;pointer-events:none;animation:fi-pulse 1.8s ease-in-out infinite}
@@ -1096,6 +1600,79 @@ export const MINE_CSS = `
 .fi-mn-setrow{display:flex;flex-wrap:wrap;gap:.3rem}
 .fi-mn-set{padding:.12rem .55rem;border-radius:999px;border:1px dashed rgba(255,255,255,.2);font-family:var(--font-rubik,inherit);font-size:.62rem;color:var(--muted-foreground)}
 .fi-mn-set[data-on="true"]{border-style:solid;border-color:var(--oc);color:#fff;background:color-mix(in oklch,var(--oc) 16%,transparent);font-weight:700}
+.fi-mn-seg{overflow-x:auto;scrollbar-width:none}
+.fi-mn-seg::-webkit-scrollbar{display:none}
+.fi-mn-seg button{flex:1 0 auto;min-width:4rem;padding-left:.7rem;padding-right:.7rem;white-space:nowrap}
+.fi-mn-dot.feat{background:#ffd23a}
+.fi-mn-blob{position:absolute;transform:translate(-50%,-50%);aspect-ratio:1;padding:0;border-radius:36% 64% 52% 48%/48% 40% 60% 52%;cursor:pointer;-webkit-tap-highlight-color:transparent;touch-action:manipulation;background:radial-gradient(circle at 32% 30%,#fff9 0 12%,transparent 30%),var(--oc);box-shadow:0 0 14px -2px var(--oc),inset 0 -3px 5px rgba(0,0,0,.35);transition:filter .12s,opacity .3s}
+.fi-mn-blob::before{content:"";position:absolute;inset:-.45rem}
+.fi-mn-blob::after{content:"";position:absolute;inset:0;border-radius:inherit;opacity:calc(var(--dmg,0) * .95);background:linear-gradient(115deg,transparent 44%,rgba(0,0,0,.7) 46% 49%,transparent 51%),linear-gradient(40deg,transparent 52%,rgba(0,0,0,.6) 54% 57%,transparent 59%),linear-gradient(160deg,transparent 28%,rgba(0,0,0,.55) 30% 33%,transparent 35%);pointer-events:none}
+.fi-mn-blob:hover{filter:brightness(1.25)}
+.fi-mn-blob:active{filter:brightness(1.5)}
+.fi-mn-blob:focus-visible{outline:2px solid #fff;outline-offset:2px}
+.fi-mn-blob[data-broken="true"]{opacity:0;pointer-events:none;transform:translate(-50%,-50%) scale(.3)}
+.fi-mn-pickfx{position:absolute;z-index:3;font-size:2.2rem;line-height:1;color:var(--pc);translate:-70% -88%;left:88%;top:18%;transform-origin:78% 92%;filter:drop-shadow(0 2px 0 rgba(0,0,0,.7)) drop-shadow(0 0 10px var(--pc));pointer-events:none;transition:left .13s cubic-bezier(.2,.9,.3,1),top .13s cubic-bezier(.2,.9,.3,1)}
+.fi-mn-tip{margin:0;font-family:var(--font-rubik,inherit);font-size:.68rem;color:var(--muted-foreground)}
+.fi-mn-tip b{color:#ff9a4d}
+.fi-mn-quick{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:.3rem}
+.fi-mn-q{position:relative;padding:.4rem .2rem;border-radius:.6rem;border:1px solid rgba(255,255,255,.14);background:rgba(255,255,255,.03);font-family:var(--font-minecraft,inherit);font-weight:700;font-size:.64rem;color:var(--muted-foreground);transition:transform .1s,background .15s,border-color .15s,color .15s;touch-action:manipulation;white-space:nowrap}
+.fi-mn-q[data-on="true"]{border-color:color-mix(in oklch,${C} 65%,transparent);background:color-mix(in oklch,${C} 16%,transparent);color:#fff}
+.fi-mn-q[data-on="true"]:hover{background:color-mix(in oklch,${C} 28%,transparent)}
+.fi-mn-q:active:not(:disabled){transform:scale(.94)}
+.fi-mn-q:disabled{cursor:not-allowed;opacity:.55}
+.fi-mn-q i{position:absolute;top:-.3rem;right:-.15rem;display:grid;place-items:center;min-width:.95rem;height:.95rem;padding:0 .2rem;border-radius:999px;background:#ff9a4d;color:#1b1206;font-style:normal;font-family:var(--font-rubik,inherit);font-size:.56rem;font-weight:700;line-height:1}
+.fi-mn-q.all{grid-column:1 / -1;border-color:rgba(255,255,255,.14)}
+.fi-mn-q.all[data-on="true"]{background:linear-gradient(90deg,color-mix(in oklch,${C} 30%,transparent),color-mix(in oklch,#ffd23a 24%,transparent));color:#fff}
+.fi-mn-goal{display:flex;flex-direction:column;gap:.3rem;padding:.55rem .65rem;border-radius:.9rem;border:1px solid color-mix(in oklch,var(--c) 45%,transparent);background:linear-gradient(130deg,color-mix(in oklch,var(--c) 11%,transparent),transparent 70%)}
+.fi-mn-goal-h{display:flex;align-items:baseline;flex-wrap:wrap;gap:.2rem .5rem;font-family:var(--font-rubik,inherit);font-size:.62rem;color:var(--muted-foreground);text-transform:uppercase;letter-spacing:.12em}
+.fi-mn-goal-h b{font-family:var(--font-minecraft,inherit);font-weight:700;font-size:.88rem;letter-spacing:0;text-transform:none;color:var(--c)}
+.fi-mn-goal-h em{font-style:normal;color:#ff9a4d;text-transform:none;letter-spacing:0}
+.fi-mn-goal-f{display:flex;flex-wrap:wrap;align-items:center;gap:.4rem}
+.fi-mn-goal-w{font-family:var(--font-rubik,inherit);font-size:.62rem;color:var(--muted-foreground)}
+.fi-mn-loadout{display:grid;grid-template-columns:repeat(auto-fit,minmax(9.5rem,1fr));gap:.4rem}
+.fi-mn-slotr{display:flex;flex-direction:column;gap:.1rem;min-height:3.6rem;padding:.45rem .6rem;border-radius:.8rem;border:1px dashed rgba(255,255,255,.2);text-align:left;font-family:var(--font-rubik,inherit);color:var(--muted-foreground)}
+.fi-mn-slotr[data-on]{border:1px solid var(--oc);background:linear-gradient(130deg,color-mix(in oklch,var(--oc) 14%,transparent),transparent 75%);box-shadow:0 0 14px -6px var(--oc);transition:transform .1s}
+.fi-mn-slotr[data-on]:active{transform:scale(.97)}
+.fi-mn-slotr b{font-family:var(--font-minecraft,inherit);font-weight:700;font-size:.78rem;color:var(--oc)}
+.fi-mn-slotr small{font-size:.62rem;color:#e6e2f0}
+.fi-mn-slotr[data-empty]{place-content:center;align-items:center}
+.fi-mn-relic[data-off]{opacity:.85;border-style:solid;cursor:pointer;transition:transform .1s}
+.fi-mn-relic[data-off]:active{transform:scale(.9)}
+button.fi-mn-relic[data-own="true"]{cursor:pointer}
+.fi-mn-loop{grid-column:2;grid-row:3;justify-self:end;margin-top:.1rem;padding:.2rem .6rem;border-radius:999px;border:1px solid rgba(255,255,255,.2);font-family:var(--font-rubik,inherit);font-size:.6rem;font-weight:700;color:var(--muted-foreground);touch-action:manipulation}
+.fi-mn-loop[data-on="true"]{border-color:var(--oc,#7fd0ff);color:#fff;background:color-mix(in oklch,var(--oc,#7fd0ff) 22%,transparent)}
+.fi-mn-world{display:flex;flex-direction:column;gap:.4rem;padding:.7rem .75rem;border-radius:1rem;border:1px solid color-mix(in oklch,var(--c) 35%,transparent);background:linear-gradient(150deg,color-mix(in oklch,var(--c) 9%,transparent),transparent 65%)}
+.fi-mn-world[data-here="true"]{border-color:var(--c);box-shadow:0 0 18px -6px var(--c)}
+.fi-mn-world[data-locked="true"]{opacity:.7}
+.fi-mn-world-h{display:flex;align-items:center;flex-wrap:wrap;gap:.4rem}
+.fi-mn-world-h b{font-family:var(--font-minecraft,inherit);font-weight:700;font-size:1rem;color:var(--c);text-shadow:0 0 10px color-mix(in oklch,var(--c) 50%,transparent)}
+.fi-mn-tag,.fi-mn-here,.fi-mn-lock{padding:.08rem .5rem;border-radius:999px;font-family:var(--font-rubik,inherit);font-size:.6rem;font-weight:700}
+.fi-mn-tag{border:1px solid color-mix(in oklch,var(--c) 60%,transparent);color:var(--c)}
+.fi-mn-here{background:var(--c);color:#12100c}
+.fi-mn-lock{border:1px dashed rgba(255,255,255,.3);color:var(--muted-foreground)}
+.fi-mn-world-b{margin:0;font-family:var(--font-rubik,inherit);font-size:.68rem;color:var(--muted-foreground)}
+.fi-mn-world-s{margin-top:.2rem;font-family:var(--font-minecraft,inherit);font-weight:700;font-size:.66rem;letter-spacing:.1em;text-transform:uppercase;color:var(--c)}
+.fi-mn-fx{display:flex;flex-wrap:wrap;gap:.3rem}
+.fi-mn-fx span{padding:.1rem .55rem;border-radius:999px;border:1px solid color-mix(in oklch,var(--mc-green) 45%,transparent);background:color-mix(in oklch,var(--mc-green) 9%,transparent);font-family:var(--font-rubik,inherit);font-size:.64rem;font-weight:600;color:#cfeccf}
+.fi-mn-isl{display:flex;flex-wrap:wrap;gap:.3rem}
+.fi-mn-isl span{padding:.1rem .55rem;border-radius:999px;border:1px solid color-mix(in oklch,var(--oc) 50%,transparent);font-family:var(--font-rubik,inherit);font-size:.62rem;color:#fff}
+.fi-mn-isl span[data-open="false"]{border-style:dashed;color:var(--muted-foreground);border-color:rgba(255,255,255,.2)}
+.fi-mn-pool{display:grid;grid-template-columns:repeat(auto-fit,minmax(9.5rem,1fr));gap:.25rem}
+.fi-mn-prow{display:grid;grid-template-columns:.8rem minmax(0,1fr) auto auto;align-items:center;gap:.4rem;padding:.2rem .5rem;border-radius:.55rem;border:1px solid color-mix(in oklch,var(--oc) 25%,transparent);background:color-mix(in oklch,var(--oc) 6%,transparent)}
+.fi-mn-prow[data-locked="true"]{opacity:.55}
+.fi-mn-pn{font-family:var(--font-rubik,inherit);font-size:.6rem;color:var(--muted-foreground);white-space:nowrap}
+.fi-mn-geo{display:grid;grid-template-columns:repeat(auto-fit,minmax(8.5rem,1fr));gap:.2rem .6rem;font-family:var(--font-rubik,inherit);font-size:.64rem;color:#e6e2f0}
+.fi-mn-geo b{color:var(--oc);font-weight:700}
+.fi-mn-feat{display:flex;flex-direction:column;gap:.35rem;padding:.55rem .65rem;border-radius:.85rem;border:1px solid color-mix(in oklch,var(--c) 30%,transparent);background:linear-gradient(150deg,color-mix(in oklch,var(--c) 7%,transparent),transparent 70%);min-width:0}
+.fi-mn-tiers{display:flex;gap:.3rem;flex-wrap:wrap}
+.fi-mn-tier{min-width:2.4rem;padding:.25rem .5rem;border-radius:.5rem;border:1px solid rgba(255,255,255,.16);font-family:var(--font-minecraft,inherit);font-weight:700;font-size:.64rem;color:var(--muted-foreground);transition:transform .1s;touch-action:manipulation}
+.fi-mn-tier[data-state="done"]{border-color:var(--c);color:var(--c);background:color-mix(in oklch,var(--c) 14%,transparent)}
+.fi-mn-tier[data-state="ready"]{border-color:#ffd23a;background:color-mix(in oklch,#ffd23a 22%,transparent);color:#fff;animation:fi-mn-ready 1.4s ease-in-out infinite}
+.fi-mn-tier:active:not(:disabled){transform:scale(.92)}
+.fi-mn-tier:disabled{cursor:default}
+.fi-mn-sum{gap:.25rem}
+@media (max-width:420px){.fi-mn-q{font-size:.6rem}}
+
 @media (max-width:639px){.fi-mn-face{height:10rem}.fi-mn-row{grid-template-columns:.8rem minmax(0,5rem) minmax(0,1fr) 2.3rem 2.6rem 2rem;gap:.3rem}.fi-mn-star{width:2rem;height:2rem}.fi-mn-pickfx{font-size:2rem}}
 @media (prefers-reduced-motion:reduce){.fi-mn-face,.fi-mn-pop,.fi-mn-hint,.fi-mn-log li,.fi-mn-crack,.fi-mn-slot{animation:none!important}}
 `;

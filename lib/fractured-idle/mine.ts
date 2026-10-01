@@ -2,6 +2,7 @@ import { skillLevel, skillXpFor, type State } from "./data";
 import type { EStat } from "./enchant";
 import { activeIsland } from "./island-logic";
 import type { Dim } from "./islands";
+import type { GrantKind } from "./skills";
 
 // Mining: the skill page. Every press of the big button is a swing of your
 // pickaxe: it hits a random ore from the island you are standing on (each
@@ -14,6 +15,24 @@ import type { Dim } from "./islands";
 // dust, fragments and even ascension points. The UI is in
 // components/games/fractured-idle/tab-mine.tsx; the permanent bonuses reach the
 // rest of the game through mineFx() (added to enchant.allFx).
+
+// TEMPLATE for the other skills (Farming, Foraging): a skill page is one
+// lib file for the rules plus one tab file for the screen, and touches the rest
+// of the game in six places only:
+//   1. State: a `<skill>: <Skill>State` field, with newX() and cleanX() so old
+//      saves load (data.ts State, engine.newState and parseSave).
+//   2. Input: the thing the player already does feeds the skill (here the big
+//      button calls swing()), and idle progress comes from tick<Skill>() that
+//      advance() and the offline load both call with the same code.
+//   3. Rewards: permanent stats leave through <skill>Fx() (added in enchant.allFx),
+//      one-time grants and stats come from a ladder of feats.
+//   4. Content tables: things to gather per island/dimension, gear, upgrades,
+//      timed crafts, collections with set bonuses, geodes/chests for surprises.
+//   5. Quality of life: a goal tracker and one-tap quick actions, so a long
+//      session never needs more than a few taps.
+//   6. UI hooks: a notes entry for the tab badge (tab-notes), XP sources
+//      (fxp.ts), trophies and stats rows, and a slim strip under the big button.
+// Balance it with a script like scripts/mine-sim.ts and scripts/fi-sim.ts.
 
 export type OreId =
     | "coal" | "copper" | "iron" | "gold" | "redstone" | "lapis" | "diamond" | "emerald" | "amethyst"
@@ -139,6 +158,26 @@ export const oreIslands = (id: OreId): string[] => Object.entries(ISLAND_ORES).f
 export const COL_AT = [50, 250, 1500, 8000, 40000];
 export const colTierOf = (mined: number) => COL_AT.filter((n) => mined >= n).length;
 
+// ---- What each dimension does to mining ----
+
+export interface DimFxDef {
+    tag: string;
+    xp: number; // Mining XP multiplier
+    yield: number; // ore multiplier
+    rush: number; // extra swings in an Ore Rush
+    geode: number; // geode chance multiplier
+    drill: number; // drill swing multiplier
+    blurb: string;
+    lines: string[];
+}
+export const DIM_FX: Record<Dim, DimFxDef> = {
+    overworld: { tag: "Steady", xp: 1.12, yield: 1, rush: 0, geode: 1, drill: 1, blurb: "Honest rock. The best place to learn and to level.", lines: ["+12% Mining XP"] },
+    nether: { tag: "Molten", xp: 1, yield: 1.12, rush: 4, geode: 1.25, drill: 1, blurb: "Hot veins break easy and pay in bulk.", lines: ["+12% ore", "Ore Rush lasts 4 swings longer", "+25% geode chance"] },
+    end: { tag: "Void", xp: 1.05, yield: 1.08, rush: 2, geode: 1.6, drill: 1.25, blurb: "Thin air, strange stone and a lot of geodes.", lines: ["+60% geode chance", "+25% drill swings", "+8% ore, +5% Mining XP", "Ore Rush lasts 2 swings longer"] },
+};
+/** The mining effects of the dimension you are standing in. */
+export const dimFx = (s: State): DimFxDef => DIM_FX[activeIsland(s).dim];
+
 // ---- Gear ----
 
 export interface PickDef {
@@ -162,7 +201,7 @@ export const PICKS: PickDef[] = [
     { id: "cosmic", name: "Cosmic Pickaxe", color: "#ffb3f2", power: 70, need: 58, cost: { fracCore: 3, voidAlloy: 6 } },
 ];
 /** Click power every pickaxe tier adds for the rest of the game. */
-export const PICK_CLICK = 0.04;
+export const PICK_CLICK = 0.025;
 
 export type UpCat = "hand" | "rig" | "forge";
 
@@ -197,6 +236,7 @@ export const MINE_UPS: MineUpDef[] = [
     // Forge parts
     { id: "furnace", name: "Extra Furnace", desc: "One more crafting slot", cat: "forge", cost: { copperIngot: 6 }, growth: 2.2, max: 3, need: 10 },
     { id: "bellows", name: "Bellows", desc: "Crafts finish 8% sooner per level", cat: "forge", cost: { iron: 20 }, growth: 1.35, max: 20, need: 8 },
+    { id: "tongs", name: "Auto-Tongs", desc: "Furnaces empty themselves, and a craft can repeat on its own", cat: "forge", cost: { steel: 4 }, growth: 1, max: 1, need: 18 },
     { id: "anvil", name: "Master Anvil", desc: "8% chance per level to craft a double batch", cat: "forge", cost: { steel: 3 }, growth: 1.6, max: 10, need: 26 },
 ];
 export const MINE_UP_BY_ID = Object.fromEntries(MINE_UPS.map((u) => [u.id, u])) as Record<string, MineUpDef>;
@@ -245,12 +285,15 @@ export const RECIPES: RecipeDef[] = [
     { id: "lamp", kind: "relic", name: "Miner's Lamp", desc: "+6% ore from everything", color: "#ffe29a", need: 5, time: 300, inputs: { copperIngot: 4, coal: 400 }, out: "lamp" },
     { id: "grip", kind: "relic", name: "Iron Grip", desc: "+10% pick power", color: "#d8d8e6", need: 12, time: 1200, inputs: { ironIngot: 6, steel: 2 }, out: "grip" },
     { id: "pan", kind: "relic", name: "Prospector's Pan", desc: "+20% geode chance, rarer ore", color: "#ffcc33", need: 18, time: 3600, inputs: { goldIngot: 6, steel: 4 }, out: "pan" },
-    { id: "compass", kind: "relic", name: "Gold Compass", desc: "+4% all shards", color: "#ffd23a", need: 24, time: 7200, inputs: { goldIngot: 10, lapis: 200 }, out: "compass" },
+    { id: "pebble", kind: "relic", name: "Lucky Pebble", desc: "+6% chance of a triple haul", color: "#9be08a", need: 15, time: 2400, inputs: { goldIngot: 3, ironIngot: 4 }, out: "pebble" },
+    { id: "totem", kind: "relic", name: "Rush Totem", desc: "+6 swings in every Ore Rush", color: "#ffb84d", need: 22, time: 5400, inputs: { goldIngot: 8, redstone: 300 }, out: "totem" },
+    { id: "compass", kind: "relic", name: "Gold Compass", desc: "+2.5% all shards", color: "#ffd23a", need: 24, time: 7200, inputs: { goldIngot: 10, lapis: 200 }, out: "compass" },
     { id: "heart", kind: "relic", name: "Steel Heart", desc: "+25% drill output, crafts 10% sooner", color: "#9fb4c8", need: 30, time: 14400, inputs: { steel: 10, redstone: 400 }, out: "heart" },
-    { id: "core", kind: "relic", name: "Diamond Core", desc: "+12% click power", color: "#55ffff", need: 36, time: 21600, inputs: { cutDiamond: 8, steel: 8 }, out: "core" },
+    { id: "dcore", kind: "relic", name: "Drill Core", desc: "+20% drill output, +10% drill swings", color: "#7fd0ff", need: 34, time: 28800, inputs: { steel: 8, cutDiamond: 3 }, out: "dcore" },
+    { id: "core", kind: "relic", name: "Diamond Core", desc: "+8% click power", color: "#55ffff", need: 36, time: 21600, inputs: { cutDiamond: 8, steel: 8 }, out: "core" },
     { id: "lens", kind: "relic", name: "Nether Lens", desc: "+10% ore, +10% minion output", color: "#ff8a5c", need: 44, time: 28800, inputs: { netherAlloy: 6, cutDiamond: 4 }, out: "lens" },
     { id: "anchor", kind: "relic", name: "Void Anchor", desc: "+15% pick power, +5 Ore Rush swings", color: "#8a7bff", need: 52, time: 43200, inputs: { voidAlloy: 6, netherIngot: 4 }, out: "anchor" },
-    { id: "crown", kind: "relic", name: "Fractured Crown", desc: "+10% all shards, +8% tokens", color: "#ff6fe0", need: 60, time: 57600, inputs: { fracCore: 4 }, out: "crown" },
+    { id: "crown", kind: "relic", name: "Fractured Crown", desc: "+6% all shards, +8% tokens", color: "#ff6fe0", need: 60, time: 57600, inputs: { fracCore: 4 }, out: "crown" },
 ];
 export const RECIPE_BY_ID = Object.fromEntries(RECIPES.map((r) => [r.id, r])) as Record<string, RecipeDef>;
 export const RELICS = RECIPES.filter((r) => r.kind === "relic");
@@ -262,6 +305,7 @@ export interface Job {
     n: number; // batch size
     end: number; // epoch ms when it is done
     slot: number; // which furnace it sits in (stays put while others finish)
+    loop?: boolean; // Auto-Tongs: collect it and start it again
 }
 
 export interface LogEntry {
@@ -274,7 +318,10 @@ export interface MineState {
     mined: Record<string, number>; // lifetime per ore (collection)
     ingots: Record<string, number>;
     items: Record<string, number>; // crafted consumables
-    relics: string[]; // crafted relics
+    relics: string[]; // crafted relics (owned)
+    equipped: string[]; // relics that are switched on (limited slots)
+    claimed: string[]; // feats paid
+    broken: number; // ore nodes broken by hand on the rock face
     pick: number; // index into PICKS
     ups: Record<string, number>;
     drills: Record<string, number>;
@@ -293,7 +340,7 @@ export interface MineState {
 }
 
 export const newMine = (): MineState => ({
-    ore: {}, mined: {}, ingots: {}, items: {}, relics: [], pick: 0, ups: {}, drills: {}, nodes: 0, rushes: 0, geodes: {}, cracked: 0, focus: "",
+    ore: {}, mined: {}, ingots: {}, items: {}, relics: [], equipped: [], claimed: [], broken: 0, pick: 0, ups: {}, drills: {}, nodes: 0, rushes: 0, geodes: {}, cracked: 0, focus: "",
     vein: 0, rush: 0, gfrac: {}, crackT: 0, jobs: [], crafted: 0, log: [],
 });
 
@@ -312,6 +359,9 @@ export function cleanMine(raw: unknown): MineState {
     out.ingots = rec(o.ingots, (k) => INGOT_IDS.has(k), true);
     out.items = rec(o.items, (k) => ITEM_IDS.has(k), true);
     out.relics = (Array.isArray(o.relics) ? o.relics : []).filter((x, i, a): x is string => typeof x === "string" && RELIC_IDS.has(x) && a.indexOf(x) === i);
+    out.equipped = (Array.isArray(o.equipped) ? o.equipped : out.relics).filter((x, i, a): x is string => typeof x === "string" && out.relics.includes(x) && a.indexOf(x) === i).slice(0, 4);
+    out.claimed = (Array.isArray(o.claimed) ? o.claimed : []).filter((x, i, a): x is string => typeof x === "string" && a.indexOf(x) === i).slice(0, 200);
+    out.broken = Math.max(0, Math.floor(num(o.broken)));
     out.ups = rec(o.ups, (k) => !!MINE_UP_BY_ID[k], true);
     for (const u of MINE_UPS) if (out.ups[u.id]) out.ups[u.id] = Math.min(u.max, out.ups[u.id]);
     out.drills = rec(o.drills, (k) => ORE_IDS.has(k), true);
@@ -328,7 +378,7 @@ export function cleanMine(raw: unknown): MineState {
     out.crackT = Math.max(0, num(o.crackT));
     out.jobs = (Array.isArray(o.jobs) ? (o.jobs as Record<string, unknown>[]) : [])
         .filter((j) => j && typeof j.r === "string" && RECIPE_IDS.has(j.r) && num(j.end) > 0)
-        .map((j, i) => ({ r: String(j.r), n: Math.max(1, Math.min(50, Math.floor(num(j.n, 1)))), end: num(j.end), slot: Math.max(0, Math.floor(num(j.slot, i))) }))
+        .map((j, i) => ({ r: String(j.r), n: Math.max(1, Math.min(50, Math.floor(num(j.n, 1)))), end: num(j.end), slot: Math.max(0, Math.floor(num(j.slot, i))), loop: j.loop === true || undefined }))
         .slice(0, 4);
     // Every job needs its own furnace, 0 to 3.
     const taken = new Set<number>();
@@ -353,7 +403,21 @@ export const oreOpen = (s: State, o: OreDef) => mineLevel(s) >= o.need;
 export const upLevel = (s: State, id: string) => s.mine.ups[id] || 0;
 export const haveOre = (s: State, id: OreId) => s.mine.ore[id] || 0;
 export const have = (s: State, id: ResId) => (isOre(id) ? s.mine.ore[id] || 0 : s.mine.ingots[id] || 0);
-export const hasRelic = (s: State, id: string) => s.mine.relics.includes(id);
+/** A relic only works while it is equipped. */
+export const hasRelic = (s: State, id: string) => s.mine.equipped.includes(id);
+export const ownsRelic = (s: State, id: string) => s.mine.relics.includes(id);
+export const relicSlots = (s: State) => 2 + (mineLevel(s) >= 25 ? 1 : 0) + (mineLevel(s) >= 45 ? 1 : 0);
+
+export function equipRelic(s: State, id: string): boolean {
+    if (!ownsRelic(s, id) || hasRelic(s, id) || s.mine.equipped.length >= relicSlots(s)) return false;
+    s.mine.equipped.push(id);
+    return true;
+}
+export function unequipRelic(s: State, id: string): boolean {
+    if (!hasRelic(s, id)) return false;
+    s.mine.equipped = s.mine.equipped.filter((x) => x !== id);
+    return true;
+}
 export const geodeCount = (s: State) => Object.values(s.mine.geodes).reduce((a, b) => a + b, 0);
 export const itemCount = (s: State) => Object.values(s.mine.items).reduce((a, b) => a + b, 0);
 
@@ -362,13 +426,13 @@ export const pickPower = (s: State) => pickOf(s).power * (1 + 0.06 * upLevel(s, 
 /** Swings hit harder the higher your combo is. */
 export const comboFactor = (combo: number) => 1 + 0.45 * Math.max(0, combo - 1);
 /** Ore from everything you mine. */
-export const yieldMult = (s: State) => (1 + 0.08 * upLevel(s, "fort")) * (hasRelic(s, "lamp") ? 1.06 : 1) * (hasRelic(s, "lens") ? 1.1 : 1);
-export const luckyChance = (s: State) => 0.015 * upLevel(s, "lucky");
-export const geodeChance = (s: State) => 0.0008 * (1 + 0.1 * upLevel(s, "seeker") + (hasRelic(s, "pan") ? 0.2 : 0));
+export const yieldMult = (s: State) => dimFx(s).yield * (1 + 0.08 * upLevel(s, "fort")) * (hasRelic(s, "lamp") ? 1.06 : 1) * (hasRelic(s, "lens") ? 1.1 : 1);
+export const luckyChance = (s: State) => 0.015 * upLevel(s, "lucky") + (hasRelic(s, "pebble") ? 0.06 : 0);
+export const geodeChance = (s: State) => dimFx(s).geode * 0.0008 * (1 + 0.1 * upLevel(s, "seeker") + (hasRelic(s, "pan") ? 0.2 : 0));
 export const veinNeed = (s: State) => Math.max(25, 70 * Math.pow(0.96, upLevel(s, "seismic")));
-export const rushLen = (s: State) => 8 + 2 * upLevel(s, "rush") + (hasRelic(s, "anchor") ? 5 : 0);
+export const rushLen = (s: State) => 8 + 2 * upLevel(s, "rush") + (hasRelic(s, "anchor") ? 5 : 0) + (hasRelic(s, "totem") ? 6 : 0) + dimFx(s).rush;
 export const rushMult = (s: State) => 3 * (1 + 0.1 * upLevel(s, "rush"));
-export const mineXpMult = (s: State) => 1 + 0.06 * upLevel(s, "scholar");
+export const mineXpMult = (s: State) => (1 + 0.06 * upLevel(s, "scholar")) * dimFx(s).xp;
 export const forgeSlots = (s: State) => 1 + upLevel(s, "furnace");
 export const forgeSpeed = (s: State) => 1 + 0.08 * upLevel(s, "bellows") + (hasRelic(s, "heart") ? 0.1 : 0);
 export const crackEvery = (s: State) => (upLevel(s, "cracker") > 0 ? 36 / upLevel(s, "cracker") : Infinity);
@@ -376,19 +440,19 @@ export const crackEvery = (s: State) => (upLevel(s, "cracker") > 0 ? 36 / upLeve
 /** Swing damage of a drill. */
 export const drillDmg = (s: State) => pickPower(s) * (1 + 0.15 * upLevel(s, "bit"));
 /** Output multiplier on everything drills mine (rig parts and the Steel Heart). */
-export const drillMult = (s: State) => (1 + 0.05 * upLevel(s, "magnet")) * (hasRelic(s, "heart") ? 1.25 : 1);
+export const drillMult = (s: State) => (1 + 0.05 * upLevel(s, "magnet")) * (hasRelic(s, "heart") ? 1.25 : 1) * (hasRelic(s, "dcore") ? 1.2 : 1);
 /** Swings per second made by one drill. */
 export const DRILL_SWINGS = 0.04;
 /** The tenth drill of an ore helps less than the first: only n^0.85 of them count. */
 export const eff = (n: number) => Math.pow(n, 0.85);
-export const drillSwings = (s: State) => Object.values(s.mine.drills).reduce((a, n) => a + eff(n), 0) * DRILL_SWINGS * (1 + 0.06 * upLevel(s, "motor"));
+export const drillSwings = (s: State) => Object.values(s.mine.drills).reduce((a, n) => a + eff(n), 0) * DRILL_SWINGS * (1 + 0.06 * upLevel(s, "motor") + (hasRelic(s, "dcore") ? 0.1 : 0)) * dimFx(s).drill;
 export const totalDrills = (s: State) => Object.values(s.mine.drills).reduce((a, b) => a + b, 0);
 /** Mining never stops: a trickle of swings even with no drills and nothing pressed. */
 export const passiveSwings = (s: State) => 0.25 + 0.02 * mineLevel(s);
 /** All the swings that happen without you pressing anything. */
 export const idleSwings = (s: State, auto: number) => drillSwings(s) + passiveSwings(s) + auto;
 
-export const SWING_VALUE = 0.12; // shards a swing pays, in clicks, per point of ore value
+export const SWING_VALUE = 0.05; // shards a swing pays, in clicks, per point of ore value
 const soft = (r: number) => (r <= 3 ? r : 3 + Math.pow(r - 3, 0.6));
 
 /** Extra ore from drills of this ore (and the bigger drills that reach down to it). */
@@ -404,7 +468,7 @@ export function drillBoost(s: State, o: OreDef): number {
 }
 
 /** Mining XP for one swing that hits this ore: a slice of the level the ore opens at, so better ore keeps levelling you. It does not grow with the amount of ore, so a strong pick or a big rig never skips levels. */
-export const oreXp = (o: OreDef) => 0.6 + (0.0003 * skillXpFor(o.need + 1)) / (1 + o.need / 8);
+export const oreXp = (o: OreDef) => 0.6 + (0.0002 * skillXpFor(o.need + 1)) / (1 + o.need / 8);
 
 export function costOf(u: MineUpDef, lvl: number): Cost {
     const out: Cost = {};
@@ -493,7 +557,7 @@ export interface DimSet {
     next: number;
     bonus: number; // all shards now
 }
-const SET_BONUS = [0, 0.01, 0.02, 0.04];
+const SET_BONUS = [0, 0.005, 0.01, 0.02];
 const SET_TIERS = [1, 3, 5];
 export function dimSet(s: State, dim: Dim): DimSet {
     const low = Math.min(...DIM_ORES[dim].map((o) => colTierOf(s.mine.mined[o.id] || 0)));
@@ -508,12 +572,13 @@ export function mineFx(s: State): Partial<Record<EStat, number>> {
     const add = (k: EStat, v: number) => {
         if (v) fx[k] = (fx[k] ?? 0) + v;
     };
-    add("click", PICK_CLICK * s.mine.pick + (hasRelic(s, "core") ? 0.12 : 0));
+    add("click", PICK_CLICK * s.mine.pick + (hasRelic(s, "core") ? 0.08 : 0));
     for (const o of ORES) add(o.col[0], o.col[1] * colTierOf(s.mine.mined[o.id] || 0));
-    add("all", 0.01 * upLevel(s, "deep") + 0.015 * upLevel(s, "ancient") + (hasRelic(s, "compass") ? 0.04 : 0) + (hasRelic(s, "crown") ? 0.1 : 0));
+    add("all", 0.01 * upLevel(s, "deep") + 0.015 * upLevel(s, "ancient") + (hasRelic(s, "compass") ? 0.025 : 0) + (hasRelic(s, "crown") ? 0.06 : 0));
     add("tokens", 0.02 * upLevel(s, "ancient") + (hasRelic(s, "crown") ? 0.08 : 0));
     add("minion", hasRelic(s, "lens") ? 0.1 : 0);
     for (const dim of DIMS) add("all", dimSet(s, dim).bonus);
+    for (const [k, v] of Object.entries(featStats(s))) add(k as EStat, v);
     return fx;
 }
 
@@ -658,7 +723,8 @@ export function swing(s: State, ctx: MineCtx, inp: { combo: number; crit: boolea
  * Works with any dt (offline too) by paying the expected result of the swings
  * instead of rolling each one.
  */
-export function tickMine(s: State, dt: number, ctx: MineCtx) {
+export function tickMine(s: State, dt: number, ctx: MineCtx, now = Date.now()) {
+    tickForge(s, now);
     if (dt <= 0) return;
     const swings = idleSwings(s, ctx.auto) * dt;
     bulkSwings(s, ctx, swings, drillDmg(s), drillMult(s), true);
@@ -752,7 +818,7 @@ export function totalCost(r: RecipeDef, n: number): Cost {
 export function canCraft(s: State, r: RecipeDef, n = 1): Blocker {
     if (mineLevel(s) < r.need) return { ok: false, why: `Mining ${r.need}` };
     if (r.kind === "relic") {
-        if (hasRelic(s, r.out)) return { ok: false, why: "Already forged" };
+        if (ownsRelic(s, r.out)) return { ok: false, why: "Already forged" };
         if (s.mine.jobs.some((j) => j.r === r.id)) return { ok: false, why: "Already forging" };
         if (n > 1) return { ok: false, why: "One only" };
     }
@@ -792,7 +858,10 @@ export function collectJob(s: State, i: number, now = Date.now(), rng: Rng = Mat
     s.mine.crafted += 1;
     if (!r) return null;
     if (r.kind === "relic") {
-        if (!hasRelic(s, r.out)) s.mine.relics.push(r.out);
+        if (!ownsRelic(s, r.out)) {
+            s.mine.relics.push(r.out);
+            equipRelic(s, r.out); // straight onto the pick if there is room
+        }
         pushLog(s, `Forged the ${r.name}`, r.color);
         return { text: `Forged the ${r.name}: ${r.desc}`, color: r.color };
     }
@@ -828,12 +897,12 @@ export const GEODES: Record<Dim, { name: string; color: string }> = {
 };
 
 // [dust, tokens, egg, shards, fragment, ascension point] weights per dimension.
-const GEODE_W: Record<Dim, number[]> = {
+export const GEODE_W: Record<Dim, number[]> = {
     overworld: [30, 28, 16, 18, 7, 1],
     nether: [22, 30, 14, 18, 13, 3],
     end: [14, 30, 12, 16, 22, 6],
 };
-const GEODE_TOKENS: Record<Dim, number> = { overworld: 1, nether: 1.6, end: 2.4 };
+export const GEODE_TOKENS: Record<Dim, number> = { overworld: 1, nether: 1.6, end: 2.4 };
 
 /** Crack one geode of a dimension: dust, tokens, eggs, shards, fragments or (rarely) an ascension point. */
 export function crackGeode(s: State, d: { avgClick: number; cps: number; dust: number }, dim: Dim, rng: Rng = Math.random): GeodeOut | null {
@@ -875,4 +944,251 @@ export function crackGeode(s: State, d: { avgClick: number; cps: number; dust: n
     }
     s.ap += 1;
     return { title: "Ascension Shard", sub: "+1 ascension point", color: "var(--mc-red)" };
+}
+
+
+// ---- Forge autopilot (Auto-Tongs) ----
+
+/** With Auto-Tongs, finished crafts are collected as they finish, and a repeating craft starts again right away (also while away). */
+export function tickForge(s: State, now = Date.now()) {
+    if (upLevel(s, "tongs") < 1) return;
+    for (let guard = 0; guard < 300; guard++) {
+        const i = s.mine.jobs.findIndex((j) => j.end <= now);
+        if (i < 0) break;
+        const j = s.mine.jobs[i];
+        const r = RECIPE_BY_ID[j.r];
+        collectJob(s, i, now);
+        if (j.loop && r && r.kind !== "relic" && afford(s, totalCost(r, j.n)).ok) {
+            spend(s, totalCost(r, j.n));
+            s.mine.jobs.push({ r: j.r, n: j.n, end: j.end + jobSeconds(s, r, j.n) * 1000, slot: j.slot, loop: true });
+        }
+    }
+}
+
+export function toggleLoop(s: State, slot: number): boolean {
+    const j = s.mine.jobs.find((x) => x.slot === slot);
+    if (!j || upLevel(s, "tongs") < 1 || RECIPE_BY_ID[j.r]?.kind === "relic") return false;
+    j.loop = !j.loop;
+    return true;
+}
+
+// ---- Feats: milestones for everything you do in the mine ----
+
+export interface FeatReward {
+    grant?: [GrantKind, number];
+    stat?: [EStat, number];
+}
+export interface FeatLadder {
+    key: string;
+    name: string;
+    unit: string;
+    color: string;
+    metric: (s: State) => number;
+    at: number[];
+    rewards: FeatReward[][];
+}
+const g = (k: GrantKind, n: number): FeatReward => ({ grant: [k, n] });
+const st = (k: EStat, v: number): FeatReward => ({ stat: [k, v] });
+
+export const FEAT_LADDERS: FeatLadder[] = [
+    { key: "swings", name: "Swinger", unit: "swings of the pickaxe", color: "#e0b070", metric: (s) => s.mine.nodes, at: [100, 1000, 10000, 50000, 250000], rewards: [[g("dust", 20)], [g("tokens", 1)], [g("eggs", 1)], [g("tokens", 2), st("click", 0.02)], [g("ap", 1)]] },
+    { key: "ore", name: "Hauler", unit: "ore mined", color: "#d8d8e6", metric: (s) => ORES.reduce((a, o) => a + (s.mine.mined[o.id] || 0), 0), at: [500, 5000, 50000, 500000, 5000000], rewards: [[g("dust", 25)], [g("tokens", 1)], [st("click", 0.01)], [g("eggs", 1)], [st("all", 0.02)]] },
+    { key: "rush", name: "Rusher", unit: "Ore Rushes", color: "#ffd23a", metric: (s) => s.mine.rushes, at: [5, 50, 250, 1000], rewards: [[g("dust", 30)], [g("tokens", 1)], [st("comboMax", 0.1)], [g("tokens", 2)]] },
+    { key: "dig", name: "Digger", unit: "nodes broken by hand", color: "#ff9a4d", metric: (s) => s.mine.broken, at: [10, 100, 500, 2500], rewards: [[g("dust", 25)], [g("tokens", 1)], [st("click", 0.02)], [g("frag", 1)]] },
+    { key: "geode", name: "Geologist", unit: "geodes cracked", color: "#c58bff", metric: (s) => s.mine.cracked, at: [5, 25, 100, 400], rewards: [[g("dust", 30)], [g("eggs", 1)], [g("tokens", 2)], [g("frag", 1)]] },
+    { key: "forge", name: "Smith", unit: "forge crafts collected", color: "#ff8a5c", metric: (s) => s.mine.crafted, at: [3, 25, 100, 400], rewards: [[g("dust", 25)], [g("tokens", 1)], [st("minion", 0.03)], [g("eggs", 1)]] },
+    { key: "drill", name: "Driller", unit: "drills built", color: "#7fd0ff", metric: (s) => totalDrills(s), at: [10, 50, 150, 400], rewards: [[g("dust", 30)], [g("tokens", 1)], [st("auto", 0.2)], [g("tokens", 2)]] },
+    { key: "relic", name: "Relic Hunter", unit: "relics forged", color: "#ffe29a", metric: (s) => s.mine.relics.length, at: [1, 4, 8, 12], rewards: [[g("dust", 40)], [g("tokens", 1)], [g("eggs", 1)], [g("frag", 2)]] },
+    { key: "disc", name: "Collector", unit: "different ores mined", color: "#55ff77", metric: (s) => ORES.filter((o) => (s.mine.mined[o.id] || 0) > 0).length, at: [6, 12, 18], rewards: [[g("dust", 40)], [g("tokens", 1)], [st("all", 0.02)]] },
+    { key: "pick", name: "Toolmaker", unit: "pickaxe tiers", color: "#55ffff", metric: (s) => s.mine.pick, at: [3, 6, 9], rewards: [[g("dust", 40)], [g("eggs", 1)], [g("tokens", 3)]] },
+];
+
+export interface Feat {
+    id: string;
+    ladder: FeatLadder;
+    tier: number;
+    at: number;
+    rewards: FeatReward[];
+}
+export const FEATS: Feat[] = FEAT_LADDERS.flatMap((l) => l.at.map((at, tier) => ({ id: `${l.key}:${tier}`, ladder: l, tier, at, rewards: l.rewards[tier] })));
+
+export const featClaimed = (s: State, f: Feat) => s.mine.claimed.includes(f.id);
+export const featReady = (s: State, f: Feat) => !featClaimed(s, f) && f.ladder.metric(s) >= f.at;
+export const featsReady = (s: State) => FEATS.filter((f) => featReady(s, f));
+
+function pay(s: State, kind: GrantKind, n: number) {
+    if (kind === "dust") {
+        s.enc.dust += n;
+        s.enc.earned += n;
+    } else if (kind === "tokens") s.tokens += n;
+    else if (kind === "eggs") s.freeEggs += n;
+    else if (kind === "ap") s.ap += n;
+    else s.frag += n;
+}
+
+export function claimFeat(s: State, id: string): Feat | null {
+    const f = FEATS.find((x) => x.id === id);
+    if (!f || !featReady(s, f)) return null;
+    s.mine.claimed.push(id);
+    for (const r of f.rewards) if (r.grant) pay(s, r.grant[0], r.grant[1]);
+    return f;
+}
+
+export function claimAllFeats(s: State): Feat[] {
+    return featsReady(s).map((f) => claimFeat(s, f.id)).filter((f): f is Feat => !!f);
+}
+
+/** Permanent stats from the feats you have claimed. */
+export function featStats(s: State): Partial<Record<EStat, number>> {
+    const out: Partial<Record<EStat, number>> = {};
+    for (const id of s.mine.claimed) {
+        const f = FEATS.find((x) => x.id === id);
+        if (f) for (const r of f.rewards) if (r.stat) out[r.stat[0]] = (out[r.stat[0]] ?? 0) + r.stat[1];
+    }
+    return out;
+}
+
+// ---- Digging by hand: the ore nodes on the rock face ----
+
+/** Hits to break a node of this ore: harder ore takes longer, a better pick shortens it. */
+export const digHits = (s: State, o: OreDef) => Math.max(4, Math.min(18, Math.round(5 + 3 * Math.log2(1 + o.hard / (pickPower(s) * 0.6)))));
+
+export interface DigOut {
+    units: number;
+    whole: number;
+    xp: number;
+    lucky: boolean;
+    geode: Dim | null;
+}
+
+/** One hit on an ore node. Small bits of ore every hit (a bit more than a swing pays), a big bonus when it breaks. Does not touch the big button, the combo or the vein. */
+export function digHit(s: State, ctx: MineCtx, oreId: OreId, broke: boolean, rng: Rng = Math.random): DigOut {
+    const o = ORE_BY_ID[oreId];
+    const per = soft(pickPower(s) / o.hard) * yieldMult(s) * (1 + drillBoost(s, o) * 0.5) * 1.5;
+    const hits = digHits(s, o);
+    let units = per;
+    let lucky = false;
+    if (broke) {
+        lucky = rng() < luckyChance(s);
+        units += per * hits * 0.6 * (lucky ? 3 : 1);
+        s.mine.broken += 1;
+    }
+    const whole = addOre(s, oreId, units);
+    const xp = oreXp(o) * (broke ? 2.5 : 0.5) * ctx.xp * mineXpMult(s);
+    s.mining += xp;
+    s.mine.nodes += 1;
+    let geode: Dim | null = null;
+    if (rng() < geodeChance(s) * (broke ? 6 : 0.5)) {
+        geode = activeIsland(s).dim;
+        s.mine.geodes[geode] = (s.mine.geodes[geode] || 0) + 1;
+    }
+    return { units, whole, xp, lucky, geode };
+}
+
+// ---- Quick actions ----
+
+export interface Goal {
+    title: string;
+    color: string;
+    kind: "pick" | "relic";
+    need: number;
+    cost: Cost;
+}
+
+/** What to work toward next: the next pickaxe, then the cheapest relic you do not own. */
+export function goalOf(s: State): Goal | null {
+    const next = PICKS[s.mine.pick + 1];
+    if (next) return { title: next.name, color: next.color, kind: "pick", need: next.need, cost: next.cost };
+    const r = RELICS.filter((x) => !ownsRelic(s, x.out)).sort((a, b) => a.need - b.need)[0];
+    return r ? { title: r.name, color: r.color, kind: "relic", need: r.need, cost: r.inputs } : null;
+}
+
+/** What a cost is still short of, broken down to raw ore (ingots expand into their recipe). */
+export function shortOres(s: State, cost: Cost, mult = 1, out: Record<string, number> = {}): Record<string, number> {
+    for (const [id, n] of Object.entries(cost)) {
+        const short = (n ?? 0) * mult - have(s, id as ResId);
+        if (short <= 0) continue;
+        if (isOre(id)) out[id] = (out[id] || 0) + short;
+        else if (RECIPE_BY_ID[id]) shortOres(s, RECIPE_BY_ID[id].inputs, short, out);
+    }
+    return out;
+}
+
+/** The ore you are furthest from having for the goal. */
+export function bottleneck(s: State, goal: Goal): OreId | null {
+    const short = shortOres(s, goal.cost);
+    let best: OreId | null = null;
+    let bv = 0;
+    for (const [id, n] of Object.entries(short)) {
+        if (n > bv) {
+            bv = n;
+            best = id as OreId;
+        }
+    }
+    return best;
+}
+
+/** Start crafts for the ingots the goal is short of (as many as the furnaces and stock allow). */
+export function queueGoal(s: State, now = Date.now()): number {
+    const goal = goalOf(s);
+    if (!goal) return 0;
+    let started = 0;
+    for (const [id, n] of Object.entries(goal.cost)) {
+        const r = RECIPE_BY_ID[id];
+        if (!r || r.kind !== "ingot") continue;
+        const queued = s.mine.jobs.filter((j) => j.r === id).reduce((a, j) => a + j.n, 0);
+        const short = (n ?? 0) - have(s, id as ResId) - queued;
+        if (short <= 0) continue;
+        for (let k = Math.min(short, 50); k >= 1; k--) {
+            if (canCraft(s, r, k).ok) {
+                startCraft(s, id, k, now);
+                started++;
+                break;
+            }
+        }
+    }
+    return started;
+}
+
+/** Buy every ore-priced upgrade you can afford, cheapest first (ingot-priced ones stay your call). */
+export function upgradeAll(s: State, limit = 40): number {
+    let n = 0;
+    while (n < limit) {
+        const opts = MINE_UPS.filter((u) => canBuyUp(s, u).ok && Object.keys(u.cost).every((k) => isOre(k)));
+        if (!opts.length) break;
+        const frac = (u: MineUpDef) => Object.entries(upCost(s, u)).reduce((a, [k, v]) => Math.max(a, (v ?? 0) / Math.max(1, have(s, k as ResId))), 0);
+        opts.sort((a, b) => frac(a) - frac(b));
+        if (!buyMineUp(s, opts[0].id)) break;
+        n++;
+    }
+    return n;
+}
+
+/** Build drills while the cost stays under 60% of that ore's stock, so the ore for upgrades is left alone. */
+export function buildDrillsAll(s: State, limit = 60): number {
+    let n = 0;
+    while (n < limit) {
+        const opts = ORES.filter((o) => canBuyDrill(s, o).ok && drillCost(s, o) <= haveOre(s, o.id) * 0.6);
+        if (!opts.length) break;
+        opts.sort((a, b) => drillCost(s, a) / haveOre(s, a.id) - drillCost(s, b) / haveOre(s, b.id));
+        if (buyDrill(s, opts[0].id, 1) < 1) break;
+        n++;
+    }
+    return n;
+}
+
+/** Crack every geode, nearest dimension first. Returns how many and the last result. */
+export function crackAll(s: State, d: { avgClick: number; cps: number; dust: number }, one = false): { n: number; last: GeodeOut | null } {
+    let n = 0;
+    let last: GeodeOut | null = null;
+    for (const dm of DIMS) {
+        while ((s.mine.geodes[dm] || 0) > 0 && !(one && n > 0)) {
+            const out = crackGeode(s, d, dm);
+            if (!out) break;
+            n++;
+            last = out;
+            pushLog(s, `${GEODES[dm].name}: ${out.sub}`, out.color);
+        }
+    }
+    return { n, last };
 }
