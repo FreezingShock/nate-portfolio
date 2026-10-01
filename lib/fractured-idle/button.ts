@@ -438,6 +438,38 @@ export function btnBonus(s: State): Required<BtnBonus> {
 
 export const SET_BONUS = 0.05;
 
+// ---- Best looks for value ----
+// How much one point of each bonus is worth, in "percent of click income" terms.
+// Click power counts fully; crit chance only matters through crit damage, held
+// clicks and combo are worth a little, skill xp and bobber loot a little less.
+const VALUE: Record<keyof BtnBonus, number> = { click: 1, crit: 0.6, critDmg: 0.15, hold: 0.08, xp: 0.2, bobber: 0.1, combo: 0.1, flow: 0.3 };
+export const valueOf = (b?: BtnBonus) => (b ? (Object.keys(VALUE) as (keyof BtnBonus)[]).reduce((a, k) => a + (b[k] ?? 0) * VALUE[k], 0) : 0);
+
+export const FUNCTIONAL: Cat[] = ["shape", "skin", "burst", "crit", "aura"];
+
+/** The best unlocked look in each functional slot by value (the complete-set bonus needs none of them to be the default). Style slots are left alone. */
+export function bestLooks(s: State): Looks {
+    const out: Looks = { shape: s.btn.shape, skin: s.btn.skin, burst: s.btn.burst, crit: s.btn.crit, color: s.btn.color, nums: s.btn.nums, aura: s.btn.aura, glyph: s.btn.glyph };
+    for (const c of FUNCTIONAL) {
+        const list = listOf(c).filter((l) => isUnlocked(s, l));
+        let best = list.find((l) => l.id === out[c]) ?? list[0];
+        for (const l of list) if (valueOf(l.bonus) > valueOf(best.bonus) + 1e-9) best = l;
+        out[c] = best.id;
+    }
+    return out;
+}
+
+export interface LookChange {
+    cat: Cat;
+    from: LookDef;
+    to: LookDef;
+}
+/** What equipping the best looks would change. */
+export function bestChanges(s: State): LookChange[] {
+    const want = bestLooks(s);
+    return FUNCTIONAL.filter((c) => want[c] !== s.btn[c]).map((c) => ({ cat: c, from: find(listOf(c), s.btn[c]), to: find(listOf(c), want[c]) }));
+}
+
 // ---- Holding ----
 // Holding the button (or Space) clicks automatically at HOLD_BASE times the
 // combo multiplier per second, up to HOLD_MAX (plus bonuses). See combo.ts.

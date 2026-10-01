@@ -1,6 +1,6 @@
 "use client";
 
-import { memo, useRef, type ComponentProps, type CSSProperties } from "react";
+import { memo, useRef, useState, type ComponentProps, type CSSProperties } from "react";
 import { McSymbol } from "@/components/mc-symbol";
 import { Tip, TipCard, type TipNote } from "./tooltip";
 
@@ -39,21 +39,39 @@ interface Props<T extends string> {
     onSelect: (id: T) => void;
     /** Show "key N" in the tooltips (only the main switcher has number keys). */
     keys?: boolean;
+    /** Called when a tab's badge is read (hovered, focused or marked read). */
+    onRead?: (id: T) => void;
+    /** Called by "Mark all read". */
+    onReadAll?: () => void;
 }
 
 const sigOf = (notes: Partial<Record<string, TipNote[]>>) =>
     Object.entries(notes)
-        .map(([k, v]) => `${k}:${(v ?? []).map((n) => `${n.act ? "!" : ""}${typeof n.text === "string" ? n.text : ""}${n.color}`).join("|")}`)
+        .map(([k, v]) => `${k}:${(v ?? []).map((n) => `${n.act ? "!" : ""}${n.n ?? 1}${typeof n.text === "string" ? n.text : ""}${n.color}`).join("|")}`)
         .join(";");
 
-function Bar<T extends string>({ tabs, groups, current, notes, onSelect, keys = true }: Props<T>) {
+/** What a tab's badge adds up to: every notice that needs a click, weighted by how many things it stands for. */
+const countOf = (notes: TipNote[] | undefined) => (notes ?? []).filter((x) => x.act).reduce((a, x) => a + (x.n ?? 1), 0);
+const actSig = (notes: TipNote[] | undefined) => (notes ?? []).filter((x) => x.act).map((x) => `${x.n ?? 1}${typeof x.text === "string" ? x.text : ""}`).join("|");
+
+function Bar<T extends string>({ tabs, groups, current, notes, onSelect, keys = true, onRead, onReadAll }: Props<T>) {
     const pick = useRef(onSelect);
     pick.current = onSelect;
+    // A badge is read once you hover or focus its tab (or press Mark all read); it comes back when the notices change.
+    const [read, setRead] = useState<Record<string, string>>({});
+    const shown = (id: T) => (current === id ? 0 : actSig(notes[id]) === read[id] ? 0 : countOf(notes[id]));
+    const markRead = (id: T) => {
+        const sg = actSig(notes[id]);
+        if (!sg) return;
+        if (read[id] !== sg) setRead((r) => ({ ...r, [id]: sg }));
+        onRead?.(id);
+    };
+    const total = tabs.reduce((a, t) => a + shown(t.id), 0);
     return (
         <nav className="fi-tabs" aria-label="Game sections">
             {groups.map((g) => {
                 const list = tabs.filter((t) => t.group === g.id);
-                const hot = list.some((t) => t.id !== current && notes[t.id]?.some((n) => n.act));
+                const hot = list.some((t) => shown(t.id) > 0);
                 return (
                     <div key={g.id} className="fi-tg" style={{ ["--g" as string]: g.color } as CSSProperties} data-hot={hot}>
                         <span className="fi-tg-l">{g.label}</span>
@@ -62,7 +80,7 @@ function Bar<T extends string>({ tabs, groups, current, notes, onSelect, keys = 
                                 const on = current === t.id;
                                 const n = tabs.indexOf(t) + 1;
                                 const tn = notes[t.id] ?? [];
-                                const count = on ? 0 : tn.filter((x) => x.act).length;
+                                const count = shown(t.id);
                                 return (
                                     <Tip
                                         key={t.id}
@@ -85,6 +103,8 @@ function Bar<T extends string>({ tabs, groups, current, notes, onSelect, keys = 
                                             data-on={on}
                                             aria-label={count ? `${t.label}, ${count} to check` : t.label}
                                             onClick={() => pick.current(t.id)}
+                                            onPointerEnter={(e) => e.pointerType === "mouse" && markRead(t.id)}
+                                            onFocus={() => markRead(t.id)}
                                             className="fi-tab"
                                             style={{ ["--c" as string]: t.color } as CSSProperties}
                                         >
@@ -103,6 +123,19 @@ function Bar<T extends string>({ tabs, groups, current, notes, onSelect, keys = 
                     </div>
                 );
             })}
+            <button
+                type="button"
+                className="fi-tabs-read"
+                data-on={total > 0}
+                disabled={total === 0}
+                onClick={() => {
+                    setRead(Object.fromEntries(tabs.map((t) => [t.id, actSig(notes[t.id])])));
+                    onReadAll?.();
+                }}
+                aria-label={total > 0 ? `Mark all ${total} notifications as read` : "No notifications"}
+            >
+                <span>✓</span> Read all{total > 0 ? ` (${total})` : ""}
+            </button>
         </nav>
     );
 }
@@ -128,6 +161,12 @@ export const TABBAR_CSS = `
 .fi-tab-n{position:absolute;right:-.3rem;top:-.35rem;min-width:.95rem;height:.95rem;padding:0 .2rem;display:grid;place-items:center;border-radius:999px;font:700 .58rem/1 var(--font-rubik,inherit);color:#111;background:var(--mc-green);box-shadow:0 0 0 2px color-mix(in oklch,var(--background) 90%,#000),0 0 9px var(--mc-green);animation:fi-tab-ping .5s cubic-bezier(.2,1.8,.4,1)}
 .fi-tab-n::before{content:"";position:absolute;inset:-2px;border-radius:inherit;border:1px solid var(--mc-green);animation:fi-tab-ring 1.8s ease-out infinite}
 .fi-tab:focus-visible{outline:2px solid var(--c);outline-offset:2px}
+.fi-tabs-read{align-self:flex-end;margin-left:auto;display:inline-flex;align-items:center;gap:.3rem;height:2.1rem;padding:0 .7rem;border-radius:.65rem;border:1px solid rgba(255,255,255,.12);font-family:var(--font-minecraft,inherit);font-size:.62rem;color:var(--muted-foreground);transition:background .15s,color .15s,border-color .15s,transform .1s;touch-action:manipulation}
+.fi-tabs-read span{font-size:.8rem}
+.fi-tabs-read[data-on="true"]{color:var(--mc-green);border-color:color-mix(in oklch,var(--mc-green) 55%,transparent);background:color-mix(in oklch,var(--mc-green) 10%,transparent)}
+.fi-tabs-read[data-on="true"]:hover{background:color-mix(in oklch,var(--mc-green) 22%,transparent)}
+.fi-tabs-read:active:not(:disabled){transform:scale(.95)}
+.fi-tabs-read:disabled{opacity:.45;cursor:default}
 @keyframes fi-tab-pop{0%{transform:scale(.9)}60%{transform:scale(1.07)}100%{transform:scale(1)}}
 @keyframes fi-tab-ping{0%{transform:scale(0)}100%{transform:scale(1)}}
 @keyframes fi-tab-ring{0%{transform:scale(1);opacity:.8}100%{transform:scale(1.9);opacity:0}}

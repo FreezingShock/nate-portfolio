@@ -30,7 +30,7 @@ import {
     writeSave,
 } from "@/lib/fractured-idle/engine";
 import type { State } from "@/lib/fractured-idle/data";
-import { Goals } from "./goals";
+import { GOALS_CSS, Goals } from "./goals";
 import { Aura, BTN_CSS, ButtonFace, skinAccent } from "./button-face";
 import { SKIN_CSS } from "./button-skins";
 import { COMBO_CSS, ComboMeter, type ComboApi } from "./combo-meter";
@@ -43,7 +43,7 @@ import { FXP_PER_LEVEL, fxpTotal, hasReward, levelColor, levelUpText, prefixOf, 
 import { LEVEL_CSS, LevelBadge, XpGain } from "./level-badge";
 import { LevelTab } from "./tab-level";
 import { kick, shake, spawnBurst, spawnCrit, spawnNumber } from "./button-fx";
-import { ButtonTab } from "./tab-button";
+import { BUTTON_TAB_CSS, ButtonTab } from "./tab-button";
 import { Orbit } from "./orbit";
 import { BUY_OPTIONS, CSS, FONT_CSS, IconBtn, Kbd, Stat, tint, type Ctx, type TipApi } from "./ui";
 import { MinionsTab } from "./tab-minions";
@@ -57,6 +57,7 @@ import { ENCH_CSS, EnchantTab } from "./tab-enchant";
 import { MINE_CSS, MineTab } from "./tab-mine";
 import { FARM_CSS, FarmTab } from "./tab-farm";
 import { DOCK_CSS, SkillDock } from "./skill-dock";
+import { ButtonDock, BUTTON_DOCK_CSS } from "./button-dock";
 import { dockBus } from "./dock-bus";
 import { farmCtx, water } from "@/lib/fractured-idle/farm";
 import { COL_AT, ORES, colTierOf, jobsReady, mineCtx, mineLevel, oreIslands, swing } from "@/lib/fractured-idle/mine";
@@ -619,7 +620,7 @@ export function FracturedIdle() {
                 backgroundColor: "color-mix(in oklch, var(--background) 92%, black)",
             }}
         >
-            <style>{CSS}{BTN_CSS}{SKIN_CSS}{COMBO_CSS}{POPUP_CSS}{ISLAND_CSS}{MENU_CSS}{LEVEL_CSS}{ENCH_CSS}{GLINT_CSS}{SKILL_TOAST_CSS}{TABBAR_CSS}{STATS_CSS}{MINE_CSS}{FARM_CSS}{DOCK_CSS}{TIP_CSS}{FONT_CSS}</style>
+            <style>{CSS}{BTN_CSS}{SKIN_CSS}{BUTTON_TAB_CSS}{COMBO_CSS}{POPUP_CSS}{ISLAND_CSS}{MENU_CSS}{LEVEL_CSS}{ENCH_CSS}{GLINT_CSS}{SKILL_TOAST_CSS}{TABBAR_CSS}{STATS_CSS}{MINE_CSS}{FARM_CSS}{DOCK_CSS}{BUTTON_DOCK_CSS}{GOALS_CSS}{TIP_CSS}{FONT_CSS}</style>
             <TipProvider hostRef={tipHost}>
 
             {/* HUD */}
@@ -813,8 +814,10 @@ export function FracturedIdle() {
 
             <div className={`grid min-h-0 grid-cols-[minmax(0,1fr)] gap-0 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.2fr)] lg:grid-rows-[minmax(0,1fr)] ${full ? "flex-none lg:flex-1" : "lg:h-[680px]"}`}>
                 {/* Button side */}
-                <div className="relative isolate flex flex-col items-center justify-center gap-3 overflow-hidden px-4 py-3 lg:border-r lg:border-white/10">
+                <div className="relative isolate overflow-hidden lg:min-h-0 lg:border-r lg:border-white/10">
                     <IslandScene key={island.id} island={island} variant="backdrop" className="fi-backdrop absolute inset-0 -z-10 size-full" />
+                    <div className="fi-side relative flex h-full flex-col px-4 py-3 lg:overflow-y-auto">
+                    <div className="my-auto flex w-full flex-col items-center gap-3">
                     <Tip
                         tip={() => (
                             <TipCard
@@ -896,7 +899,7 @@ export function FracturedIdle() {
                         }}
                     />
 
-                    <div className="relative my-6">
+                    <div className="relative my-4">
                         <div className="fi-pulse pointer-events-none absolute -inset-6 rounded-[2.5rem] blur-2xl" style={{ backgroundColor: tint(island.color, 40) }} />
                         <Aura id={s.btn.aura} accent={skinAccent(s.btn.skin, island.color)} />
                         {glintOn && <Glint {...glintOn} />}
@@ -908,7 +911,7 @@ export function FracturedIdle() {
                             glyph={s.btn.glyph}
                             color={island.color}
                             glint={glintOn ?? undefined}
-                            className="relative z-[1] size-48 sm:size-56"
+                            className="relative z-[1] size-44 sm:size-52"
                             btnRef={btnRef}
                             wrapRef={wrapRef}
                             btnProps={{ onPointerDown: onPress, onPointerMove: onMove, onPointerUp: onLift, onPointerCancel: onLift, onContextMenu: (e) => e.preventDefault(), "aria-label": "Click for shards" }}
@@ -926,47 +929,31 @@ export function FracturedIdle() {
                         info={{ max: d.comboMax, gain: d.comboGain, surge: d.surgeChance, cap: holdMax(s), best: s.bestCombo, base: HOLD_BASE }}
                     />
 
-                    <div className="-mt-1 flex items-center justify-center gap-1.5 font-rubik text-[10px]">
-                        <button
-                            type="button"
-                            onClick={() => {
-                                tip.hide();
-                                setTab("button");
-                            }}
-                            className="rounded-full border border-white/15 px-2 py-0.5 text-muted-foreground transition-colors hover:bg-white/10 hover:text-foreground"
-                        >
-                            Customize button
-                        </button>
-                        {s.btn.saved.map(
-                            (L, i) =>
-                                L && (
-                                    <button
-                                        key={i}
-                                        type="button"
-                                        title={`Equip saved loadout ${i + 1}`}
-                                        onClick={() => {
-                                            Object.assign(s.btn, L);
-                                            render();
-                                        }}
-                                        className="grid size-5 place-items-center rounded-full border text-[10px] transition-colors hover:bg-white/10"
-                                        style={{ borderColor: tint("var(--mc-aqua)", 50), color: "var(--mc-aqua)" }}
-                                    >
-                                        {i + 1}
-                                    </button>
-                                ),
-                        )}
-                    </div>
+                    <ButtonDock
+                        s={s}
+                        notes={notes.button ?? []}
+                        onOpen={() => {
+                            tip.hide();
+                            setTab("button");
+                        }}
+                        render={render}
+                        say={say}
+                    />
 
                     <Goals
                         s={s}
                         d={d}
                         F={F}
+                        render={render}
+                        say={say}
                         open={(id) => {
                             tip.hide();
                             setTab(id as TabId);
                         }}
                     />
 
+                    </div>
+                    </div>
                 </div>
 
                 {/* Panels */}

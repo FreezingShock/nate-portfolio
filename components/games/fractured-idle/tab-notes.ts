@@ -23,6 +23,13 @@ const R = "var(--mc-red)";
 
 const plural = (n: number, one: string, many = `${one}s`) => `${n} ${n === 1 ? one : many}`;
 
+/** A notice that starts with a number ("3 minion types you can afford") counts as that many in the tab badge. */
+const withCount = (n: TabNote): TabNote => {
+    if (!n.act || n.n !== undefined || typeof n.text !== "string") return n;
+    const m = /^(\d+)\s/.exec(n.text);
+    return m ? { ...n, n: Number(m[1]) } : n;
+};
+
 export interface NoteCache {
     t: number;
     slow: Record<string, TabNote[]>;
@@ -33,7 +40,7 @@ export const newNoteCache = (): NoteCache => ({ t: 0, slow: {}, seen: {} });
 
 function scan(s: State, since: (tab: string, cur: number) => number): Record<string, TabNote[]> {
     const out: Record<string, TabNote[]> = {};
-    const add = (tab: string, n: TabNote) => (out[tab] ??= []).push(n);
+    const add = (tab: string, n: TabNote) => (out[tab] ??= []).push(withCount(n));
 
     const buyable = MINIONS.filter((m, i) => bulk(minionBase(s, i), MINION_GROWTH, s.minions[i], s.shards, 1).cost <= s.shards && (i === 0 || s.minions[i] > 0 || s.total >= m.cost * 0.25)).length;
     if (buyable) add("minions", { text: `${plural(buyable, "minion type")} you can afford`, color: G, act: true });
@@ -83,7 +90,7 @@ export function buildTabNotes(s: State, current: string, cache: NoteCache, now =
     }
     const out: Record<string, TabNote[]> = {};
     for (const k in cache.slow) out[k] = [...cache.slow[k]];
-    const add = (tab: string, n: TabNote) => (out[tab] ??= []).push(n);
+    const add = (tab: string, n: TabNote) => (out[tab] ??= []).push(withCount(n));
 
     // Cheap and time-critical: read every render.
     const plan = rebirthPlan(s);

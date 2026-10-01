@@ -5,8 +5,11 @@ import {
     CATS,
     STAT_LABEL,
     bonusText,
+    FUNCTIONAL,
+    bestChanges,
     btnBonus,
     critColorOf,
+    valueOf,
     isUnlocked,
     lookKey,
     lookProgress,
@@ -20,6 +23,7 @@ import { kick, spawnBurst, spawnCrit, spawnNumber } from "./button-fx";
 import { Aura, ButtonFace, skinAccent } from "./button-face";
 import { SetupPage, randomLooks } from "./button-setup";
 import { LookGrid } from "./look-grid";
+import { Tip, TipCard } from "./tooltip";
 import { TabBar, type TabGroup, type TabItem, type TabNote } from "./tab-bar";
 import { tint, type Ctx } from "./ui";
 
@@ -137,7 +141,53 @@ export function ButtonTab({ s, render, F }: Ctx) {
     useEffect(() => {
         live.current = { s, render, fire };
     });
-    const onFocusLook = useCallback((cat: Cat, id: string) => setFocus((f) => (f && f.cat === cat && f.id === id ? f : { cat, id })), []);
+    const onFocusLook = useCallback((cat: Cat, id: string) => {
+        // Looking at a new look is enough to read it.
+        const st = live.current.s;
+        const key = lookKey(cat, id);
+        if (!st.btn.seen.includes(key)) st.btn.seen.push(key);
+        setFocus((f) => (f && f.cat === cat && f.id === id ? f : { cat, id }));
+    }, []);
+    /** Mark the new looks of one page (or every page) as read. */
+    const markSeen = useCallback((cat?: Cat) => {
+        const { s: st, render: draw } = live.current;
+        let changed = false;
+        for (const c of CATS) {
+            if (cat && c.id !== cat) continue;
+            for (const l of c.list) {
+                const k = lookKey(c.id, l.id);
+                if (l.need && isUnlocked(st, l) && !st.btn.seen.includes(k)) {
+                    st.btn.seen.push(k);
+                    changed = true;
+                }
+            }
+        }
+        if (changed) draw();
+    }, []);
+
+    // ---- Equip best: wear the best unlocked look in every functional slot, one by one so you can watch it happen ----
+    const [bestLog, setBestLog] = useState<{ cat: Cat; name: string }[]>([]);
+    const equipBest = useCallback(() => {
+        const { s: st, render: draw, fire: play } = live.current;
+        const ch = bestChanges(st);
+        if (!ch.length) return;
+        setBestLog([]);
+        ch.forEach((c, i) => {
+            setTimeout(() => {
+                live.current.s.btn[c.cat] = c.to.id;
+                const k = lookKey(c.cat, c.to.id);
+                if (!live.current.s.btn.seen.includes(k)) live.current.s.btn.seen.push(k);
+                setBestLog((l) => [...l, { cat: c.cat, name: c.to.name }]);
+                setFocus({ cat: c.cat, id: c.to.id });
+                draw();
+                play(c.cat === "crit");
+            }, i * 260);
+        });
+        setTimeout(() => {
+            setBestLog([]);
+            setFocus(null);
+        }, ch.length * 260 + 2800);
+    }, []);
     const onLeave = useCallback(() => setFocus(null), []);
     const onPick = useCallback((cat: Cat, l: LookDef) => {
         const { s, render, fire } = live.current;
@@ -158,22 +208,19 @@ export function ButtonTab({ s, render, F }: Ctx) {
     const randomize = useCallback(() => apply(randomLooks(live.current.s)), [apply]);
 
     // ---- Counts for the pills and the closest unlock (once a second is plenty) ----
-    const { counts, next, names, nextIn } = useMemo(() => {
+    const { counts, next, nextIn } = useMemo(() => {
         const counts = {} as Record<Cat, { got: number; fresh: number }>;
-        const names = {} as Record<Cat, string[]>;
         const nextIn = {} as Record<Cat, { l: LookDef; f: number } | null>;
         let next: { cat: Cat; l: LookDef; f: number } | null = null;
         for (const c of CATS) {
             let got = 0;
             let fresh = 0;
-            names[c.id] = [];
             nextIn[c.id] = null;
             for (const l of c.list) {
                 if (isUnlocked(s, l)) {
                     got++;
                     if (l.need && !s.btn.seen.includes(lookKey(c.id, l.id))) {
                         fresh++;
-                        names[c.id].push(l.name);
                     }
                 } else {
                     const f = lookProgress(s, l);
@@ -183,7 +230,7 @@ export function ButtonTab({ s, render, F }: Ctx) {
             }
             counts[c.id] = { got, fresh };
         }
-        return { counts, next, names, nextIn };
+        return { counts, next, nextIn };
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [tick, b.seen.length, s]);
 
@@ -198,7 +245,7 @@ export function ButtonTab({ s, render, F }: Ctx) {
     // Notes for the switcher: new looks need a click (they badge the tab), the rest is information.
     const notes: Partial<Record<Page, TabNote[]>> = {};
     for (const c of CATS) {
-        const n: TabNote[] = names[c.id].slice(0, 9).map((nm) => ({ text: `${nm} unlocked`, color: "var(--mc-green)", act: true }));
+        const n: TabNote[] = counts[c.id].fresh > 0 ? [{ text: `${counts[c.id].fresh} new ${counts[c.id].fresh === 1 ? "look" : "looks"}`, color: "var(--mc-green)", act: true, n: counts[c.id].fresh }] : [];
         n.push({ text: `${counts[c.id].got} of ${c.list.length} looks unlocked`, color: "var(--mc-aqua)" });
         const ni = nextIn[c.id];
         if (ni) n.push({ text: `Next: ${ni.l.name} ${Math.floor(ni.f * 100)}%${ni.l.need ? ` (${STAT_LABEL[ni.l.need.stat]})` : ""}`, color: "var(--mc-yellow)" });
@@ -298,6 +345,37 @@ export function ButtonTab({ s, render, F }: Ctx) {
                             <div className="truncate" title="Everything your equipped looks and collection give">
                                 Total: <span style={{ color: "var(--mc-green)" }}>{bonusText(total) || "none yet"}</span>
                             </div>
+                            <div className="flex min-w-0 items-center gap-1.5 pt-0.5">
+                                <Tip
+                                    box
+                                    tip={() => {
+                                        const ch = bestChanges(s);
+                                        const gain = ch.reduce((a, c) => a + valueOf(c.to.bonus) - valueOf(c.from.bonus), 0);
+                                        return ch.length ? (
+                                            <TipCard
+                                                title="Equip best looks"
+                                                color="#ffd23a"
+                                                tag={`${ch.length} change${ch.length === 1 ? "" : "s"}`}
+                                                lines={["Wears the best unlocked shape, skin, click FX, crit FX and aura for value. Colors, numbers and symbols stay as they are."]}
+                                                rows={ch.map((c): [string, string, string] => [catOf(c.cat).label, `${c.from.name} → ${c.to.name}`, "var(--mc-green)"])}
+                                                notes={[{ text: `About +${+(gain * 100).toFixed(1)}% click value`, color: "var(--mc-green)" }, ...ch.map((c) => ({ text: `${c.to.name}: ${c.to.bonus ? bonusText(c.to.bonus) : "no bonus"}`, color: "var(--mc-aqua)" }))]}
+                                                cta="Click to equip!"
+                                            />
+                                        ) : (
+                                            <TipCard title="Equip best looks" color="#ffd23a" lines={["You are already wearing the best unlocked look in every slot."]} foot="Unlock more looks to improve it." />
+                                        );
+                                    }}
+                                >
+                                    <button type="button" className="fi-eq" data-on={bestChanges(s).length > 0} disabled={bestChanges(s).length === 0 && bestLog.length === 0} onClick={equipBest}>
+                                        <span>{bestLog.length > 0 ? "…" : bestChanges(s).length > 0 ? "⚡" : "✓"}</span> {bestLog.length > 0 ? "Equipping" : bestChanges(s).length > 0 ? `Equip best (${bestChanges(s).length})` : "Best equipped"}
+                                    </button>
+                                </Tip>
+                                <span className="fi-eq-log" aria-live="polite">
+                                    {bestLog.map((b) => (
+                                        <i key={b.cat}>{b.name}</i>
+                                    ))}
+                                </span>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -308,6 +386,8 @@ export function ButtonTab({ s, render, F }: Ctx) {
                     current={page}
                     notes={notes}
                     keys={false}
+                    onRead={(id) => id !== "setup" && markSeen(id as Cat)}
+                    onReadAll={() => markSeen()}
                     onSelect={(id) => {
                         setPage(id);
                         setFocus(null);
@@ -339,3 +419,17 @@ export function ButtonTab({ s, render, F }: Ctx) {
         </>
     );
 }
+
+export const BUTTON_TAB_CSS = `
+.fi-eq{display:inline-flex;align-items:center;gap:.3rem;flex:none;height:1.6rem;padding:0 .65rem;border-radius:.6rem;border:1px solid rgba(255,255,255,.14);font-family:var(--font-minecraft,inherit);font-weight:700;font-size:.64rem;color:var(--muted-foreground);transition:transform .1s,background .15s,box-shadow .2s;touch-action:manipulation;white-space:nowrap}
+.fi-eq span{font-size:.8rem}
+.fi-eq[data-on="true"]{color:#1b1400;border-color:#ffd23a;background:linear-gradient(180deg,#ffe97a,#ffc21a);box-shadow:0 0 14px -3px #ffd23a;animation:fi-eq-glow 1.8s ease-in-out infinite}
+.fi-eq[data-on="true"]:hover{filter:brightness(1.08)}
+.fi-eq:active:not(:disabled){transform:scale(.94)}
+.fi-eq:disabled{opacity:.6;cursor:default}
+.fi-eq-log{display:flex;flex-wrap:wrap;gap:.2rem;min-width:0;overflow:hidden}
+.fi-eq-log i{font-style:normal;padding:.05rem .4rem;border-radius:999px;border:1px solid color-mix(in oklch,var(--mc-green) 60%,transparent);background:color-mix(in oklch,var(--mc-green) 14%,transparent);font-family:var(--font-rubik,inherit);font-size:.58rem;font-weight:700;color:var(--mc-green);animation:fi-eq-pop .35s cubic-bezier(.2,1.7,.4,1)}
+@keyframes fi-eq-pop{from{transform:scale(0) translateY(6px);opacity:0}}
+@keyframes fi-eq-glow{50%{box-shadow:0 0 20px -1px #ffd23a}}
+@media (prefers-reduced-motion:reduce){.fi-eq,.fi-eq-log i{animation:none!important}}
+`;

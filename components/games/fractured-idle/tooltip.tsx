@@ -201,6 +201,8 @@ export interface TipNote {
     text: ReactNode;
     color: string;
     act?: boolean;
+    /** How many things this notice stands for (the badge adds these up). Defaults to 1. */
+    n?: number;
 }
 
 export function TipCard({ title, color = "var(--mc-aqua)", tag, lines, rows, notes, foot, cta, ctaDim, rawTag }: { title: string; color?: string; tag?: string; rawTag?: boolean; lines?: ReactNode[]; rows?: TipRow[]; notes?: TipNote[]; foot?: ReactNode; cta?: ReactNode; ctaDim?: boolean }) {

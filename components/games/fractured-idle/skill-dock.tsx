@@ -38,16 +38,17 @@ interface BarProps {
     right?: ReactNode;
     dot: number;
     dotColor: string;
+    onRead: () => void;
     tip: () => ReactNode;
     onOpen: () => void;
     aria: string;
 }
 
-function Bar({ k, color, icon, title, lvl, xp, status, statusColor, flash, pct, hot, right, dot, dotColor, tip, onOpen, aria }: BarProps) {
+function Bar({ k, color, icon, title, lvl, xp, status, statusColor, flash, pct, hot, right, dot, dotColor, onRead, tip, onOpen, aria }: BarProps) {
     const live = flash && performance.now() - flash.t < FLASH_MS ? flash : null;
     return (
         <Tip box tip={tip} delay={120}>
-            <button type="button" className="fi-dk" data-k={k} data-hot={hot} data-flash={!!live} onClick={onOpen} aria-label={aria} style={{ ["--c" as string]: color } as CSSProperties}>
+            <button type="button" className="fi-dk" data-k={k} data-hot={hot} data-flash={!!live} onClick={onOpen} onPointerEnter={(e) => e.pointerType === "mouse" && onRead()} onFocus={onRead} aria-label={aria} style={{ ["--c" as string]: color } as CSSProperties}>
                 <span className="fi-dk-i">
                     <McSymbol name={icon} />
                     {dot > 0 && (
@@ -126,12 +127,19 @@ export function SkillDock({ s, d, notes, onOpen }: { s: State; d: Derived; notes
         flash.current.ench = { t: performance.now(), text: `+${+dockBus.dust.n.toFixed(1)} dust`, color: "#d9a8ff" };
     });
 
-    const act = (id: string) => (notes[id] ?? []).filter((n) => n.act).length;
+    // A dot is read once you hover or focus its bar; it comes back when the count changes.
+    const readAt = useRef<Record<string, number>>({});
+    const act = (id: string) => (notes[id] ?? []).filter((n) => n.act).reduce((a, n) => a + (n.n ?? 1), 0);
+    const dotOf = (k: string, n: number) => {
+        if (n === 0) readAt.current[k] = 0;
+        return readAt.current[k] === n ? 0 : n;
+    };
 
     // ---------- Mining ----------
     const mlvl = mineLevel(s);
     const rush = s.mine.rush > 0;
-    const mDot = act("mine");
+    const mDotRaw = act("mine");
+    const mDot = dotOf("mine", mDotRaw);
     const mineTip = () => {
         const pp = pickPower(s);
         const isl = activeIsland(s);
@@ -169,7 +177,8 @@ export function SkillDock({ s, d, notes, onOpen }: { s: State; d: Derived; notes
     const flvl = farmLevel(s);
     const bump = s.farm.bumper > 0;
     const ripe = s.farm.plots.filter((p) => plotReady(s, p)).length;
-    const fDot = act("farm");
+    const fDotRaw = act("farm");
+    const fDot = dotOf("farm", fDotRaw);
     const farmTip = () => {
         const isl = activeIsland(s);
         const dfx = FARM_DIM[isl.dim];
@@ -213,7 +222,8 @@ export function SkillDock({ s, d, notes, onOpen }: { s: State; d: Derived; notes
     const ready = open.some((sl) => canRoll(s, sl.id).ok);
     const pending = SLOTS.some((sl) => s.enc.pend[sl.id]);
     const dm = dustMult(s);
-    const eDot = act("enchant");
+    const eDotRaw = act("enchant");
+    const eDot = dotOf("ench", eDotRaw);
     const enchTip = () => {
         const perSec = DUST_BASE * dm;
         return (
@@ -262,6 +272,7 @@ export function SkillDock({ s, d, notes, onOpen }: { s: State; d: Derived; notes
                 right={<span className="fi-dk-pw">x{pickPower(s).toFixed(pickPower(s) < 10 ? 1 : 0)}</span>}
                 dot={mDot}
                 dotColor="#ff9a4d"
+                onRead={() => (readAt.current.mine = mDotRaw)}
                 tip={mineTip}
                 onOpen={() => onOpen("mine")}
                 aria={`Mining level ${mlvl}. ${rush ? "Ore Rush!" : `Vein ${Math.floor(s.mine.vein * 100)} percent`}. ${mDot ? `${plural(mDot, "thing")} to check. ` : ""}Open the Mine.`}
@@ -281,6 +292,7 @@ export function SkillDock({ s, d, notes, onOpen }: { s: State; d: Derived; notes
                 right={<span className="fi-dk-pw">{s.farm.plots.length} plots</span>}
                 dot={fDot}
                 dotColor="#9be04a"
+                onRead={() => (readAt.current.farm = fDotRaw)}
                 tip={farmTip}
                 onOpen={() => onOpen("farm")}
                 aria={`Farming level ${flvl}. ${ripe} plots ripe. ${bump ? "Bumper Crop!" : `Bloom ${Math.floor(s.farm.bloom * 100)} percent`}. ${fDot ? `${plural(fDot, "thing")} to check. ` : ""}Open the Farm.`}
@@ -313,6 +325,7 @@ export function SkillDock({ s, d, notes, onOpen }: { s: State; d: Derived; notes
                 }
                 dot={eDot}
                 dotColor="#c58bff"
+                onRead={() => (readAt.current.ench = eDotRaw)}
                 tip={enchTip}
                 onOpen={() => onOpen("enchant")}
                 aria={`Enchanting level ${elvl}. ${fmt(s.enc.dust, s.sci)} Arcane Dust. ${pending ? "An enchant is waiting." : ready ? "A roll is ready." : ""} Open the Enchant table.`}
