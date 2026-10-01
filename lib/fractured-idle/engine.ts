@@ -2,7 +2,7 @@ import { DEFAULT_BTN, btnBonus, cleanBtn } from "./button";
 import { COMBO_BASE_MAX, COMBO_CPS_SHARE, SURGE_BASE_CHANCE } from "./combo";
 import { buffFx, newEventStats, tickBuffs } from "./events";
 import { DUST_BASE, addDust, allFx, cleanEnc, newEnc } from "./enchant";
-import { cleanMine, newMine, tickMine } from "./mine";
+import { cleanMine, mineCtx, newMine, tickMine } from "./mine";
 import { activeIsland, islandFx, openIslands, tierMult, visitBonus, type IslandFx } from "./island-logic";
 import type { SkillKey } from "./islands";
 import {
@@ -806,7 +806,6 @@ export function advance(s: State, d: Derived, dt: number) {
     s.shards += gain;
     s.total += gain;
     s.clicks += d.auto * dt;
-    s.mining += d.auto * dt * d.xpMult * d.xpSkill.mining;
     const autoCrits = d.auto * d.critChance * dt;
     s.crits += autoCrits;
     s.combat += autoCrits * 3 * d.xpMult * d.xpSkill.combat;
@@ -814,7 +813,7 @@ export function advance(s: State, d: Derived, dt: number) {
     s.farming += (d.cps > 0 ? 1 + 2 * Math.log10(d.cps + 1) : 0) * dt * d.xpMult * d.xpSkill.farming;
     s.foraging += 0.15 * dt * d.xpMult;
     addDust(s, DUST_BASE * dt * d.dustMult);
-    tickMine(s, dt, d.xpMult * d.xpSkill.mining);
+    tickMine(s, dt, mineCtx(d));
     for (let i = 0; i < MINIONS.length; i++) if (s.minions[i] > 0) s.mcol[i] += s.minions[i] * dt * d.colSpeed[i];
     s.playTime += dt;
     const here = activeIsland(s).id;
@@ -923,7 +922,7 @@ export function loadGame(): { state: State; offline: number } {
                 s.playTime += secs * offlineEff(s);
                 addPetXp(s, secs * offlineEff(s) * d.petXp);
                 addDust(s, DUST_BASE * secs * offlineEff(s) * d.dustMult);
-                tickMine(s, secs * offlineEff(s), d.xpMult * d.xpSkill.mining); // drills keep digging
+                tickMine(s, secs * offlineEff(s), mineCtx(d)); // drills, auto-clicks and the passive trickle keep digging
                 for (let i = 0; i < MINIONS.length; i++) s.mcol[i] += s.minions[i] * secs * offlineEff(s) * d.colSpeed[i];
             }
             return { state: s, offline };

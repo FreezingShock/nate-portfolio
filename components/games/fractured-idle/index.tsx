@@ -54,6 +54,9 @@ import { IslandsTab } from "./tab-islands";
 import { SkillsTab } from "./tab-skills";
 import { ENCH_CSS, EnchantTab } from "./tab-enchant";
 import { MINE_CSS, MineTab } from "./tab-mine";
+import { COL_AT, ORES, colTierOf, jobsReady, mineCtx, mineLevel, oreIslands, swing } from "@/lib/fractured-idle/mine";
+import { oreNote } from "./mine-fx";
+import { MineStrip, STRIP_CSS } from "./mine-strip";
 import { GLINT_CSS, Glint } from "./enchant-glint";
 import { PROC_LABEL, dustPop, procBolt, procEcho, procMidas } from "./enchant-fx";
 import { EnchantGems } from "./enchant-gems";
@@ -129,6 +132,7 @@ export function FracturedIdle() {
     const lastTiers = useRef<number[]>([]);
     const lastLooks = useRef<string[]>([]);
     const lastIslands = useRef<string[]>([]);
+    const lastOre = useRef<{ open: string[]; tiers: Record<string, number> }>({ open: [], tiers: {} });
     const lastSkills = useRef<Partial<Record<SkillId, number>>>({});
     const skillApi = useRef<SkillToastApi>(null);
     const tipHost = useRef<TipHost | null>(null);
@@ -178,6 +182,7 @@ export function FracturedIdle() {
         lastTiers.current = colTiers(state);
         lastLooks.current = unlockedKeys(state);
         lastIslands.current = openIslands(state).map((i) => i.id);
+        lastOre.current = { open: ORES.filter((o) => mineLevel(state) >= o.need).map((o) => o.id), tiers: Object.fromEntries(ORES.map((o) => [o.id, colTierOf(state.mine.mined[o.id] || 0)])) };
         const paid = claimMilestones(state); // milestones already earned are paid quietly
         for (const k of SKILLS) lastSkills.current[k.id] = skillLevel(state[k.id], k.id);
         const loadUps = updateFxp(state, true); // existing progress counts, without flooding the screen
@@ -185,6 +190,8 @@ export function FracturedIdle() {
         if (loadUps.length) say(levelUpText(state.lvl, loadUps));
         else if (paid.length) say(`Skill milestones paid: ${paid.slice(0, 3).map((p) => p.milestone.name).join(", ")}${paid.length > 3 ? ` and ${paid.length - 3} more` : ""}`);
         if (offline > 0) say(`Welcome back! Your minions earned ${fmt(offline, state.sci)} shards while you were away.`);
+        const ready = jobsReady(state);
+        if (ready > 0) setTimeout(() => say(`${ready} ${ready === 1 ? "craft is" : "crafts are"} ready in the Forge.`), 3800);
 
         let last = performance.now();
         let sinceRender = 0;
@@ -226,6 +233,20 @@ export function FracturedIdle() {
                     say(`Island unlocked: ${fresh.join(", ")}. Press I to travel.`);
                 }
                 lastIslands.current = isl;
+                // Mining: a new ore opens at some levels, and every ore collection pays at each tier.
+                const lo = lastOre.current;
+                const nowOpen = ORES.filter((o) => mineLevel(s) >= o.need);
+                const newOre = nowOpen.filter((o) => !lo.open.includes(o.id));
+                if (newOre.length) {
+                    const o = newOre[0];
+                    say(`New ore: ${o.name}! Find it on ${oreIslands(o.id).slice(0, 2).map((id) => ISLAND_BY_ID[id]?.name ?? id).join(" or ")}.`);
+                }
+                lo.open = nowOpen.map((o) => o.id);
+                for (const o of ORES) {
+                    const tier = colTierOf(s.mine.mined[o.id] || 0);
+                    if (tier > (lo.tiers[o.id] ?? 0) && tier <= COL_AT.length) say(`${o.name} collection tier ${tier}: +${+(o.col[1] * 100).toFixed(1)}% ${o.colText}!`);
+                    lo.tiers[o.id] = tier;
+                }
             }
             if (sinceSave >= 10) {
                 sinceSave = 0;
@@ -311,7 +332,8 @@ export function FracturedIdle() {
         s.shards += v;
         s.total += v;
         s.clicks += 1;
-        s.mining += d.xpMult * d.xpSkill.mining;
+        // Every press is a swing of the pickaxe: it hits an ore from this island's table, harder with the combo.
+        const dug = swing(s, mineCtx(d), { combo: s.combo, crit });
         // Button enchant procs: Lightning, Midas Touch and Echo pay a multiple of a plain click.
         let hit: (typeof PROCS)[number] | null = null;
         let procV = 0;
@@ -351,6 +373,7 @@ export function FracturedIdle() {
                 spawnNumber(host, x, y - 36, `${lab.text} +${fmt(procV, s.sci)}`, { crit: true, color: lab.color, accent: lab.color, style: s.btn.nums });
             }
             if (dustHit) dustPop(host, x, y - 4, d.dustMult);
+            oreNote(host, x, y, dug, s.btn.nums);
             kick(btnRef.current, crit, hold.current.heat);
             const w = wrapRef.current;
             if (w) {
@@ -571,7 +594,7 @@ export function FracturedIdle() {
                 backgroundColor: "color-mix(in oklch, var(--background) 92%, black)",
             }}
         >
-            <style>{CSS}{BTN_CSS}{COMBO_CSS}{POPUP_CSS}{ISLAND_CSS}{MENU_CSS}{LEVEL_CSS}{ENCH_CSS}{GLINT_CSS}{SKILL_TOAST_CSS}{TABBAR_CSS}{STATS_CSS}{MINE_CSS}{TIP_CSS}{FONT_CSS}</style>
+            <style>{CSS}{BTN_CSS}{COMBO_CSS}{POPUP_CSS}{ISLAND_CSS}{MENU_CSS}{LEVEL_CSS}{ENCH_CSS}{GLINT_CSS}{SKILL_TOAST_CSS}{TABBAR_CSS}{STATS_CSS}{MINE_CSS}{STRIP_CSS}{TIP_CSS}{FONT_CSS}</style>
             <TipProvider hostRef={tipHost}>
 
             {/* HUD */}
@@ -874,6 +897,14 @@ export function FracturedIdle() {
                         ref={meterApi}
                         enabled={s.btn.hold}
                         info={{ max: d.comboMax, gain: d.comboGain, surge: d.surgeChance, cap: holdMax(s), best: s.bestCombo, base: HOLD_BASE }}
+                    />
+
+                    <MineStrip
+                        s={s}
+                        onOpen={() => {
+                            tip.hide();
+                            setTab("mine");
+                        }}
                     />
 
                     <div className="-mt-1 flex items-center justify-center gap-1.5 font-rubik text-[10px]">

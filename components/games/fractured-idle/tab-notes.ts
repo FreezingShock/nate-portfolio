@@ -4,7 +4,7 @@ import { MILESTONES_BY_SKILL } from "@/lib/fractured-idle/skills";
 import { SLOT_IDS, canRoll, slotOpen } from "@/lib/fractured-idle/enchant";
 import { ascPlan, bulk, eggPrice, minionBase, rebirthPlan, skillLevel, trophyCounts, upAvailable, upCost } from "@/lib/fractured-idle/engine";
 import { openIslands } from "@/lib/fractured-idle/island-logic";
-import { MINE_UPS, canBuyPick, canBuyUp } from "@/lib/fractured-idle/mine";
+import { MINE_UPS, canBuyPick, canBuyUp, geodeCount, jobsReady, mineLevel, slotsFree } from "@/lib/fractured-idle/mine";
 import type { TabNote } from "./tab-bar";
 
 // What each tab's tooltip (and its badge) says. `act` notes need a click and
@@ -48,7 +48,8 @@ function scan(s: State, since: (tab: string, cur: number) => number): Record<str
     if (eggs > 0) add("pets", { text: `${plural(eggs, "free egg")} to hatch`, color: P, act: true });
     if (Object.keys(s.pets).length < PETS.length && s.shards >= eggPrice(s, EGGS[0])) add("pets", { text: "You can afford an egg", color: O, act: true });
 
-    if (s.mine.geodes > 0) add("mine", { text: `${plural(s.mine.geodes, "geode")} to crack`, color: "var(--mc-light-purple)", act: true });
+    const geodes = geodeCount(s);
+    if (geodes > 0) add("mine", { text: `${plural(geodes, "geode")} to crack`, color: "var(--mc-light-purple)", act: true });
     if (canBuyPick(s).ok) add("mine", { text: "A new pickaxe is ready to forge", color: "#e0b070", act: true });
     const mineUps = MINE_UPS.filter((u) => canBuyUp(s, u).ok).length;
     if (mineUps) add("mine", { text: `${plural(mineUps, "mine upgrade")} you can afford`, color: G, act: true });
@@ -87,6 +88,11 @@ export function buildTabNotes(s: State, current: string, cache: NoteCache, now =
     const plan = rebirthPlan(s);
     if (plan.count > 0) add("rebirth", { text: `Rebirth ready: ${plural(plan.tokens, "token")}`, color: R, act: true });
     if (ascPlan(s).can) add("ascension", { text: `Ascension ready: +${ascPlan(s).ap} AP`, color: O, act: true });
+
+    const ready = jobsReady(s, now);
+    if (ready) add("mine", { text: `${plural(ready, "forge craft")} ready to collect`, color: "#ff9a4d", act: true });
+    const free = slotsFree(s);
+    if (free > 0 && s.mine.jobs.length === 0 && mineLevel(s) >= 3) add("mine", { text: "The Forge is idle: start a craft", color: "#e0b070" });
 
     const pend = SLOT_IDS.filter((id) => slotOpen(s, id) && s.enc.pend[id]).length;
     if (pend) add("enchant", { text: `${plural(pend, "new enchant")} waiting: equip or keep`, color: Y, act: true });

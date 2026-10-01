@@ -1,5 +1,5 @@
 import type { McSymbolName } from "@/components/mc-symbol";
-import { COL_AT as ORE_COL_AT } from "./mine";
+import { COL_AT as ORE_COL_AT, MINE_UPS, RELICS } from "./mine";
 import { CATS, isUnlocked as lookUnlocked } from "./button";
 import {
     ASC_UPS,
@@ -177,9 +177,10 @@ export function fxpSources(s: State): FxpSource[] {
 
     // Mining: veins, pickaxes, upgrades, drills, geodes and ore collections.
     const mn = s.mine;
-    add("mine:nodes", "skills", "Mine nodes broken", ladder(mn.nodes, [[25, 8], [250, 15], [1000, 30], [5000, 60], [20000, 120]]), 233);
+    add("mine:nodes", "skills", "Pickaxe swings", ladder(mn.nodes, [[100, 8], [1000, 15], [5000, 30], [25000, 60], [100000, 120]]), 233);
     add("mine:pick", "skills", "Pickaxe tiers", mn.pick * 12, 84);
-    add("mine:ups", "skills", "Mine upgrade levels", Object.values(mn.ups).reduce((a, b) => a + b, 0), 190);
+    add("mine:ups", "skills", "Mine upgrade levels", Object.values(mn.ups).reduce((a, b) => a + b, 0), MINE_UPS.reduce((a, u) => a + u.max, 0));
+    add("mine:forge", "skills", "Forge crafts and relics", ladder(mn.crafted, [[1, 10], [10, 20], [40, 40], [150, 80]]) + mn.relics.length * 20, 150 + RELICS.length * 20);
     add("mine:drills", "skills", "Drills built", ladder(Object.values(mn.drills).reduce((a, b) => a + b, 0), [[1, 10], [10, 20], [50, 40], [200, 80]]), 150);
     add("mine:geodes", "skills", "Geodes cracked", ladder(mn.cracked, [[1, 10], [10, 20], [50, 40], [200, 80]]), 150);
     add("mine:col", "skills", "Ore collection tiers", Object.values(mn.mined).reduce((a, m) => a + ORE_COL_AT.filter((n) => m >= n).length, 0) * 5, 250);

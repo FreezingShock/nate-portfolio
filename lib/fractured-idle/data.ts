@@ -462,7 +462,8 @@ export const TROPHIES: TrophyDef[] = [
     { id: "roster", name: "Full Roster", category: "minions", symbol: "petLuck", stat: "all", unit: "minion types owned (best)", metric: (s) => Math.max(s.peak.types, s.minions.filter((n) => n > 0).length), tiers: tiers([3, 6, 9, 12, 16], [0.01, 0.01, 0.02, 0.02, 0.03]) },
     { id: "reborn", name: "Ever Reborn", category: "rebirth", symbol: "portal", stat: "tokens", unit: "rebirths", metric: (s) => s.rebirths, tiers: tiers([1, 3, 5, 10, 15, 25, 50], [0.05, 0.05, 0.1, 0.1, 0.15, 0.2, 0.25]) },
     { id: "s-mining", name: "Master Miner", category: "skills", symbol: "strength", stat: "click", unit: "Mining level", metric: (s) => skillLevel(s.mining), tiers: tiers([5, 10, 20, 30, 40, 50, 60], [0.01, 0.01, 0.02, 0.02, 0.03, 0.03, 0.05]) },
-    { id: "veins", name: "Vein Breaker", category: "skills", symbol: "pick", stat: "click", unit: "mine nodes broken", metric: (s) => s.mine.nodes, tiers: tiers([50, 500, 2500, 10000, 50000], [0.01, 0.02, 0.03, 0.05, 0.08]) },
+    { id: "veins", name: "Vein Breaker", category: "skills", symbol: "pick", stat: "click", unit: "swings of the pickaxe", metric: (s) => s.mine.nodes, tiers: tiers([200, 2000, 10000, 50000, 250000], [0.01, 0.02, 0.03, 0.05, 0.08]) },
+    { id: "smith", name: "Master Smith", category: "skills", symbol: "forge", stat: "all", unit: "Forge crafts collected", metric: (s) => s.mine.crafted, tiers: tiers([1, 10, 40, 150], [0.005, 0.01, 0.02, 0.03]) },
     { id: "geodes", name: "Geode Hunter", category: "explore", symbol: "gem", stat: "tokens", unit: "geodes cracked", metric: (s) => s.mine.cracked, tiers: tiers([1, 10, 50, 200], [0.05, 0.05, 0.1, 0.15]) },
     { id: "s-farming", name: "Green Thumb", category: "skills", symbol: "fortune", stat: "minion", unit: "Farming level", metric: (s) => skillLevel(s.farming), tiers: tiers([5, 10, 20, 30, 40, 50, 60], [0.01, 0.01, 0.02, 0.02, 0.03, 0.03, 0.05]) },
     { id: "s-combat", name: "Slayer", category: "skills", symbol: "critDamage", stat: "critDmg", unit: "Combat level", metric: (s) => skillLevel(s.combat), tiers: tiers([5, 10, 20, 30, 40, 50, 60], [0.02, 0.02, 0.03, 0.04, 0.05, 0.06, 0.1]) },
@@ -636,7 +637,7 @@ export interface SkillDef {
 }
 
 export const SKILLS: SkillDef[] = [
-    { id: "mining", name: "Mining", symbol: "strength", color: "var(--mc-gold)", earn: "Breaking ore in The Mine, plus every click", perk: "+3% click power per level", bonus: (l) => `+${l * 3}%` },
+    { id: "mining", name: "Mining", symbol: "strength", color: "var(--mc-gold)", earn: "Every swing of the pickaxe: each click mines ore, and drills keep swinging", perk: "+3% click power per level", bonus: (l) => `+${l * 3}%` },
     { id: "farming", name: "Farming", symbol: "fortune", color: "var(--mc-green)", earn: "Minions working", perk: "+3% minion output per level", bonus: (l) => `+${l * 3}%` },
     { id: "combat", name: "Combat", symbol: "critDamage", color: "var(--mc-red)", earn: "Critical hits", perk: "+2% crit damage per level", bonus: (l) => `+${l * 2}%` },
     { id: "fishing", name: "Fishing", symbol: "fishing", color: "var(--mc-aqua)", earn: "Treasure bobbers", perk: "+1% all shards per level, bobbers appear sooner", bonus: (l) => `+${l}%` },

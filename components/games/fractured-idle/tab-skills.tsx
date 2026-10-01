@@ -6,6 +6,7 @@ import { SKILLS, type SkillId } from "@/lib/fractured-idle/data";
 import { fmtStat } from "@/lib/fractured-idle/enchant";
 import { SKILL_CAP, fmt, fmtEta, skillLevel, skillXpFor } from "@/lib/fractured-idle/engine";
 import { MILESTONES_BY_SKILL, nextMilestone, rewardLine } from "@/lib/fractured-idle/skills";
+import { idleXpRate, mineCtx } from "@/lib/fractured-idle/mine";
 import { Tip, TipCard } from "./tooltip";
 import { Badge, Progress, SectionTitle, tint, type Ctx } from "./ui";
 
@@ -22,7 +23,7 @@ export function SkillsTab({ s, d, open }: Props) {
     const [sel, setSel] = useState<SkillId>("mining");
     // Passive xp/sec, the part that keeps ticking without clicks.
     const passive: Record<SkillId, number> = {
-        mining: d.auto * d.xpMult,
+        mining: idleXpRate(s, mineCtx(d)),
         farming: (d.cps > 0 ? 1 + 2 * Math.log10(d.cps + 1) : 0) * d.xpMult,
         combat: d.auto * d.critChance * 3 * d.xpMult,
         fishing: 0.2 * d.xpMult,
@@ -140,6 +141,11 @@ export function SkillsTab({ s, d, open }: Props) {
                     pct={maxed ? 1 : (xp - lo) / (hi - lo)}
                     right={maxed ? "MAX" : `${fmt(xp - lo)} / ${fmt(hi - lo)}${passive[sel] > 0 ? ` · ${fmtEta((hi - xp) / passive[sel])} passive` : ""}`}
                 />
+                {sel === "mining" && open && (
+                    <button type="button" onClick={() => open("mine")} className="mt-2 rounded-lg border px-3 py-1 font-minecraft font-bold text-[11px] transition-colors hover:bg-white/10" style={{ borderColor: tint(k.color, 55), color: k.color }}>
+                        Open the Mine
+                    </button>
+                )}
                 {sel === "enchanting" && open && (
                     <button type="button" onClick={() => open("enchant")} className="mt-2 rounded-lg border px-3 py-1 font-minecraft font-bold text-[11px] transition-colors hover:bg-white/10" style={{ borderColor: tint(k.color, 55), color: k.color }}>
                         Open the Enchant table
