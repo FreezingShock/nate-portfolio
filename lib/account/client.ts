@@ -1,6 +1,7 @@
 "use client";
 
 import { useSyncExternalStore } from "react";
+import type { Equipped, GameSummaries, GameSummary } from "@/lib/account/cosmetics";
 
 // Browser side of the account system. It holds no tokens at all: the session lives in HttpOnly
 // cookies the server manages, so all this ever knows is the signed-in email (kept in memory only).
@@ -11,6 +12,10 @@ export interface Profile {
     name: string;
     provider: "google" | "email";
     createdAt: string;
+    /** What the player has equipped (see lib/account/cosmetics.ts). */
+    cosmetics: Equipped;
+    /** Per-game summary numbers reported with each cloud save (level, rebirths, ...). */
+    games: GameSummaries;
 }
 
 export interface AccountState {
@@ -113,9 +118,9 @@ export async function fetchPrevSave(game: string): Promise<{ data: string; progr
 }
 
 export type PutResult = { ok: true; rev: number; epoch: number } | { ok: false; conflict: "rev" | "lower" | "missing" } | { ok: false; conflict?: undefined; error: string };
-export async function putSave(game: string, data: string, progress: number, savedAt: number, opts: { baseRev: number | null; device: string; force?: boolean }): Promise<PutResult> {
+export async function putSave(game: string, data: string, progress: number, savedAt: number, opts: { baseRev: number | null; device: string; force?: boolean; summary?: GameSummary }): Promise<PutResult> {
     set({ busy: true });
-    const r = await call("/api/account/save", { method: "PUT", body: JSON.stringify({ game, data, progress, savedAt, baseRev: opts.baseRev, device: opts.device, force: opts.force === true }) });
+    const r = await call("/api/account/save", { method: "PUT", body: JSON.stringify({ game, data, progress, savedAt, baseRev: opts.baseRev, device: opts.device, force: opts.force === true, summary: opts.summary }) });
     if (r.ok) {
         set({ busy: false, error: null, lastSync: Date.now() });
         return { ok: true, rev: Number(r.body.rev), epoch: Number(r.body.epoch ?? 0) };
@@ -127,9 +132,19 @@ export async function putSave(game: string, data: string, progress: number, save
     set({ error });
     return { ok: false, error };
 }
-export async function renameProfile(name: string): Promise<{ ok: boolean; error: string | null }> {
-    const r = await call("/api/account/profile", { method: "PUT", body: JSON.stringify({ name }) });
-    if (r.ok && state.user) set({ user: { ...state.user, name: (r.body.name as string) ?? name } });
+export async function updateProfile(patch: { name?: string; cosmetics?: Equipped }): Promise<{ ok: boolean; error: string | null }> {
+    const r = await call("/api/account/profile", { method: "PUT", body: JSON.stringify(patch) });
+    if (r.ok && state.user) {
+        set({ user: { ...state.user, name: (r.body.name as string) ?? state.user.name, cosmetics: (r.body.cosmetics as Equipped | undefined) ?? state.user.cosmetics } });
+    }
+    return { ok: r.ok, error: (r.body.error as string) ?? null };
+}
+export const renameProfile = (name: string) => updateProfile({ name });
+export const equipCosmetics = (cosmetics: Equipped) => updateProfile({ cosmetics });
+
+export async function deleteAccount(confirm: string): Promise<{ ok: boolean; error: string | null }> {
+    const r = await post("/api/account/delete", { confirm });
+    if (r.ok) set({ email: null, user: null, lastSync: null, error: null });
     return { ok: r.ok, error: (r.body.error as string) ?? null };
 }
 

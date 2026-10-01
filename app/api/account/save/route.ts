@@ -1,4 +1,4 @@
-import { currentUser, json, originOk } from "@/lib/account/server";
+import { cleanSummary, currentUser, json, originOk } from "@/lib/account/server";
 
 // One row per (user, game). The game string is just a namespace, so any idle game can reuse this.
 //
@@ -53,6 +53,7 @@ export async function PUT(req: Request) {
     const baseRev = Number.isFinite(b.baseRev) ? Number(b.baseRev) : null;
     const force = b.force === true;
     const device = label(b.device);
+    const reported = cleanSummary(b.summary);
     const now = new Date().toISOString();
 
     const { data: cur, error: readErr } = await a.db.from("idle_saves").select(`data,${SUMMARY}`).eq("user_id", a.user.id).eq("game", g).maybeSingle();
@@ -61,7 +62,7 @@ export async function PUT(req: Request) {
     if (!cur) {
         // Nothing stored. A device that thought something existed was reset elsewhere; let it re-check first.
         if (baseRev !== null && !force) return json({ conflict: "missing" }, 409);
-        const { error } = await a.db.from("idle_saves").insert({ user_id: a.user.id, game: g, data: b.data, progress, saved_at: savedAt, device, rev: 1, updated_at: now });
+        const { error } = await a.db.from("idle_saves").insert({ user_id: a.user.id, game: g, data: b.data, progress, saved_at: savedAt, device, rev: 1, updated_at: now, summary: reported });
         if (error) return json({ conflict: "rev" }, 409); // someone inserted first
         return json({ ok: true, rev: 1, epoch: 0 });
     }
@@ -73,7 +74,7 @@ export async function PUT(req: Request) {
     // Compare-and-set on the revision we just read, so two simultaneous writers cannot both win.
     const { data: won, error } = await a.db
         .from("idle_saves")
-        .update({ data: b.data, progress, saved_at: savedAt, device, rev: cloud.rev + 1, epoch: force ? cloud.epoch + 1 : cloud.epoch, updated_at: now, prev_data: cur.data, prev_progress: cur.progress, prev_saved_at: cur.saved_at })
+        .update({ data: b.data, progress, saved_at: savedAt, device, summary: reported, rev: cloud.rev + 1, epoch: force ? cloud.epoch + 1 : cloud.epoch, updated_at: now, prev_data: cur.data, prev_progress: cur.progress, prev_saved_at: cur.saved_at })
         .eq("user_id", a.user.id)
         .eq("game", g)
         .eq("rev", cloud.rev)

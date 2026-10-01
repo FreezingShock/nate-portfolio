@@ -78,9 +78,29 @@ function defaultName(user: User): string {
     return cleanName(String(m.full_name ?? m.name ?? "")) || cleanName((user.email ?? "").split("@")[0]) || "Player";
 }
 
+/** A game's summary as stored: a flat object of numbers and short ids. Anything else is dropped. */
+export function cleanSummary(v: unknown): Record<string, number | string> {
+    const out: Record<string, number | string> = {};
+    if (!v || typeof v !== "object" || Array.isArray(v)) return out;
+    for (const [k, x] of Object.entries(v as Record<string, unknown>).slice(0, 24)) {
+        if (!/^[a-zA-Z]{1,20}$/.test(k)) continue;
+        if (typeof x === "number" && Number.isFinite(x)) out[k] = Math.max(-1e300, Math.min(1e300, x));
+        else if (typeof x === "string" && /^[a-zA-Z0-9_-]{0,30}$/.test(x)) out[k] = x;
+    }
+    return out;
+}
+
+/** The player's reported summary for every game that has a cloud save. */
+export async function summariesOf(a: { user: User; db: SupabaseClient }): Promise<Record<string, Record<string, number | string>>> {
+    const { data } = await a.db.from("idle_saves").select("game,summary").eq("user_id", a.user.id);
+    const out: Record<string, Record<string, number | string>> = {};
+    for (const r of data ?? []) out[r.game as string] = cleanSummary(r.summary);
+    return out;
+}
+
 /** The signed-in user as the site shows it, creating their profile row on first sight. */
 export async function profileOf(a: { user: User; db: SupabaseClient }) {
-    const { data } = await a.db.from("profiles").select("display_name").eq("user_id", a.user.id).maybeSingle();
+    const { data } = await a.db.from("profiles").select("display_name,cosmetics").eq("user_id", a.user.id).maybeSingle();
     let name = data?.display_name as string | undefined;
     if (!name) {
         name = defaultName(a.user);
@@ -92,5 +112,7 @@ export async function profileOf(a: { user: User; db: SupabaseClient }) {
         name,
         provider: a.user.app_metadata?.provider === "google" ? "google" : "email",
         createdAt: a.user.created_at,
+        cosmetics: (data?.cosmetics as Record<string, string> | undefined) ?? {},
+        games: await summariesOf(a),
     };
 }

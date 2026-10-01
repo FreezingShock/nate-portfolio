@@ -6,6 +6,7 @@ import { Cloud, CloudDownload, CloudUpload, History, RefreshCw, Undo2 } from "lu
 import { fetchPrevSave, fetchSave, putSave, refreshAccount, signOut, useAccount, type CloudSave } from "@/lib/account/client";
 import type { State } from "@/lib/fractured-idle/data";
 import { exportSave, importSave, settleOffline } from "@/lib/fractured-idle/engine";
+import { fiSummary } from "@/lib/fractured-idle/summary";
 import { ActionBtn } from "./ui";
 
 // Cloud save for Fractured Idle, built so several devices can share one account safely.
@@ -132,7 +133,7 @@ export function forceNextPush() {
 /** Hard reset while signed in: overwrite the cloud with the fresh game (a forced upload), so other devices yield to it
  *  instead of bringing their old progress back. Their own state is kept as a local backup on each of them. */
 export async function overwriteCloud(fresh: State): Promise<boolean> {
-    const r = await putSave(GAME, exportSave(fresh), progressOf(fresh), Date.now(), { baseRev, device: deviceLabel(), force: true });
+    const r = await putSave(GAME, exportSave(fresh), progressOf(fresh), Date.now(), { baseRev, device: deviceLabel(), force: true, summary: fiSummary(fresh) });
     if (!r.ok) return false;
     baseRev = r.rev;
     setEpoch(r.epoch);
@@ -161,7 +162,7 @@ const cloudWins = (save: CloudSave, local: State) => {
     return save.progress > progressOf(local) || (mine !== null && save.epoch > mine);
 };
 
-const push = (s: State, force: boolean) => putSave(GAME, exportSave(s), progressOf(s), Date.now(), { baseRev, device: deviceLabel(), force });
+const push = (s: State, force: boolean) => putSave(GAME, exportSave(s), progressOf(s), Date.now(), { baseRev, device: deviceLabel(), force, summary: fiSummary(s) });
 
 export async function syncNow(get: () => State | null, apply: Apply): Promise<Outcome> {
     if (running) return { kind: "busy" };
