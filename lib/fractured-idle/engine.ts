@@ -22,8 +22,14 @@ import {
     PETS,
     PET_MAX,
     PET_PERK_AT,
+    PET_STAR_MAX,
+    EGG_BY_ID,
     RARITIES,
     RARITY_ORDER,
+    PET_DIM_BY_ID,
+    starMult,
+    rarityIdx,
+    type PetDim,
     ascGain,
     ascReq,
     colTier,
@@ -203,20 +209,53 @@ export type PetBonus = Record<PetStat, number>;
 
 const PET_MAP = new Map(PETS.map((p) => [p.id, p]));
 export const petOf = (id: string) => PET_MAP.get(id);
-export const petSlots = (s: State) => 1 + (s.aups.perch2 ? 1 : 0) + (s.aups.perch3 ? 1 : 0);
+export const petSlots = (s: State) => 1 + (s.aups.perch2 ? 1 : 0) + (s.aups.perch3 ? 1 : 0) + (s.aups.perch4 ? 1 : 0);
 export const ascMult = (s: State) => Math.pow(ASC_BASE, s.asc) * (1 + 0.25 * (s.aups.cosmic || 0));
 
-/** Main stat + unlocked perks of the equipped pets, plus +0.5% all shards per species found. */
+/** Collection score: every species you own adds a little, more for rarer ones. It is added to all shards. */
+export function petScore(s: State): number {
+    let t = 0;
+    for (const id of Object.keys(s.pets)) {
+        const p = PET_MAP.get(id);
+        if (p) t += RARITIES[p.rarity].score;
+    }
+    return t;
+}
+
+export interface PetBond {
+    label: string;
+    color: string;
+    n: number;
+    bonus: number;
+}
+const BOND_BY_COUNT = [0, 0, 0.08, 0.2, 0.35];
+/** Equip two or more pets from one dimension for a bond; three different dimensions make a Traveler bond. */
+export function petBonds(s: State): { list: PetBond[]; total: number } {
+    const counts = new Map<string, number>();
+    for (const id of s.equip) {
+        const p = PET_MAP.get(id);
+        if (p && s.pets[id]) counts.set(p.dim, (counts.get(p.dim) ?? 0) + 1);
+    }
+    const list: PetBond[] = [];
+    for (const [dim, n] of counts) {
+        if (n >= 2) list.push({ label: `${PET_DIM_BY_ID[dim as PetDim].name} bond`, color: PET_DIM_BY_ID[dim as PetDim].color, n, bonus: BOND_BY_COUNT[Math.min(4, n)] });
+    }
+    if (counts.size >= 3) list.push({ label: "Traveler bond", color: "var(--mc-yellow)", n: counts.size, bonus: 0.06 });
+    return { list, total: list.reduce((a, x) => a + x.bonus, 0) };
+}
+
+/** Main stat + unlocked perks of the equipped pets (scaled by each pet's stars), plus the collection score and bonds. */
 export function petBonus(s: State): PetBonus {
-    const b: PetBonus = { all: 0, click: 0, minion: 0, critChance: 0, critDmg: 0, tokens: 0, skillXp: 0, offline: 0, bobber: 0, col: 0, cost: 0 };
-    b.all += 0.005 * Object.keys(s.pets).length;
+    const b: PetBonus = { all: 0, click: 0, minion: 0, critChance: 0, critDmg: 0, tokens: 0, skillXp: 0, offline: 0, bobber: 0, col: 0, cost: 0, dust: 0, combo: 0, pxp: 0, popup: 0 };
+    b.all += petScore(s) + petBonds(s).total;
     for (const id of s.equip) {
         const p = PET_MAP.get(id);
         const st = s.pets[id];
         if (!p || !st) continue;
         const lv = petLevel(p, st.xp);
-        b[p.stat] += p.base + p.per * (lv - 1);
-        for (let i = 0; i < p.perks.length; i++) if (lv >= PET_PERK_AT[i]) b[p.perks[i].stat] += p.perks[i].value;
+        const m = starMult(st.n);
+        b[p.stat] += (p.base + p.per * (lv - 1)) * m;
+        for (let i = 0; i < p.perks.length; i++) if (lv >= PET_PERK_AT[i]) b[p.perks[i].stat] += p.perks[i].value * m;
     }
     return b;
 }
@@ -349,7 +388,7 @@ export function derive(s: State): Derived {
     critChance = Math.min(0.75, critChance);
     critDmg += 0.02 * combat * isl.eff.combat;
     // Combo: max and build speed come from upgrades, rebirth / ascension upgrades, skills and button looks.
-    comboMax += 0.5 * (s.rups.mom || 0) + (s.aups.over || 0) + 0.02 * combat + bb.combo + isl.comboMax + X.comboMax;
+    comboMax += 0.5 * (s.rups.mom || 0) + (s.aups.over || 0) + 0.02 * combat + bb.combo + isl.comboMax + X.comboMax + pb.combo;
     comboGain += 0.1 * (s.aups.over || 0) + 0.005 * mining + bb.flow;
     comboGain *= bf.combo * isl.comboGain * (1 + X.comboGain);
     surge += 0.0005 * fishing;
@@ -405,7 +444,7 @@ export function derive(s: State): Derived {
         comboGain,
         surgeChance: surge,
         // Popup events (events.ts)
-        evFreq: ((1 + ev.rate + 0.1 * (s.rups.omen || 0)) * bf.freq * isl.ev.freq * (1 + X.evFreq) * (1 + 0.005 * foraging)) / Math.max(0.4, 1 - 0.01 * fishing),
+        evFreq: ((1 + ev.rate + 0.1 * (s.rups.omen || 0)) * bf.freq * isl.ev.freq * (1 + X.evFreq) * (1 + pb.popup) * (1 + 0.005 * foraging)) / Math.max(0.4, 1 - 0.01 * fishing),
         evBobber: (1 + ev.bobber) * isl.ev.bobber * (1 + X.evBobber),
         evGolden: (1 + ev.golden) * isl.ev.golden * (1 + X.evGolden),
         evLife: (1 + ev.life + 0.1 * (s.aups.horizon || 0) + X.evLife) * isl.ev.life,
@@ -416,7 +455,7 @@ export function derive(s: State): Derived {
         qteTime: ev.qteTime + isl.ev.qte + X.qteTime,
         qteRewardLvl: ev.qteRew,
         xpSkill: isl.xp,
-        petXp: isl.petXp * (1 + X.petXp),
+        petXp: isl.petXp * (1 + X.petXp) * (1 + pb.pxp),
         isl,
         foraging,
         enchanting,
@@ -424,7 +463,7 @@ export function derive(s: State): Derived {
         evDust: X.evDust,
         chain: Math.min(0.4, X.chain),
         luck: (1 + X.luck) * (1 + 0.02 * enchanting) * bf.luck,
-        dustMult: (1 + X.dust) * (1 + 0.03 * enchanting) * bf.dust,
+        dustMult: (1 + X.dust) * (1 + 0.03 * enchanting) * bf.dust * (1 + pb.dust),
         procs: { bolt: Math.min(0.5, X.bolt), midas: Math.min(0.5, X.midas), echo: Math.min(0.5, X.echo) },
     };
 }
@@ -690,54 +729,113 @@ export function checkTrophies(s: State): string[] {
 
 // ---- Pets ----
 
-export const eggPrice = (s: State, egg: EggDef) =>
-    Math.max(egg.min, s.peakInc * egg.secs) * Math.pow(1.05, s.hatched) * (1 - 0.08 * (s.aups.nest || 0));
+/** What an egg costs, in its own currency. Shard prices follow your best income; the rest are flat. Both creep up a little with every egg. */
+export function eggPrice(s: State, egg: EggDef): number {
+    const disc = Math.max(0.2, 1 - 0.08 * (s.aups.nest || 0));
+    if (egg.cur === "shards") return Math.max(egg.min ?? 1, s.peakInc * (egg.secs ?? 300)) * Math.min(25, Math.pow(1.02, s.hatched)) * disc;
+    return Math.max(1, Math.ceil((egg.price ?? 1) * Math.min(6, Math.pow(1.015, s.hatched)) * disc));
+}
+
+export const eggBalance = (s: State, cur: EggDef["cur"]) => (cur === "shards" ? s.shards : cur === "tokens" ? s.tokens : cur === "gems" ? s.ap : s.enc.dust);
+
+/** Why an egg cannot be bought yet, or null when its dimension is open to you. */
+export function eggLocked(s: State, egg: EggDef): string | null {
+    if (egg.dim === "overworld") return null;
+    if (egg.dim === "fractured") return s.rebirths >= 3 || s.asc >= 1 ? null : "Rebirth 3 times to open the Fractured eggs";
+    const seen = ISLANDS.some((i) => i.dim === egg.dim && s.visited.includes(i.id));
+    return seen ? null : `Visit a ${egg.dim === "nether" ? "Nether" : "End"} island to open these eggs`;
+}
+export const eggCan = (s: State, egg: EggDef) => !eggLocked(s, egg) && eggBalance(s, egg.cur) >= eggPrice(s, egg);
 
 export const feedCost = (s: State) => Math.max(1e3, s.peakInc * 120);
 
 export interface HatchResult {
     id: string;
+    egg: string;
     rarity: Rarity;
     isNew: boolean;
     xp: number; // xp a duplicate gave
+    copies: number; // how many of this pet you have now (stars = copies - 1)
+    equipped: boolean; // it went straight into an empty slot
 }
 
-export function hatch(s: State, eggId: string, free = false): HatchResult | null {
-    const egg = EGGS.find((e) => e.id === eggId);
-    if (!egg) return null;
-    if (free) {
-        if (s.freeEggs < 1 || egg.id !== "wood") return null;
-        s.freeEggs--;
-    } else {
-        const cost = eggPrice(s, egg);
-        if (s.shards < cost) return null;
-        s.shards -= cost;
-    }
+function roll(egg: EggDef): { rarity: Rarity; pet: PetDef } {
     const total = RARITY_ORDER.reduce((a, r) => a + (egg.odds[r] || 0), 0);
-    let roll = Math.random() * total;
-    let rarity: Rarity = RARITY_ORDER.find((r) => egg.odds[r]) ?? "common";
-    for (const r of RARITY_ORDER) {
-        const w = egg.odds[r] || 0;
-        if (w && roll < w) {
-            rarity = r;
+    let r = Math.random() * total;
+    let rarity: Rarity = RARITY_ORDER.find((x) => egg.odds[x]) ?? "common";
+    for (const k of RARITY_ORDER) {
+        const w = egg.odds[k] || 0;
+        if (w && r < w) {
+            rarity = k;
             break;
         }
-        roll -= w;
+        r -= w;
     }
-    const pool = PETS.filter((p) => p.rarity === rarity);
-    const pet = pool[Math.floor(Math.random() * pool.length)];
+    let pool = PETS.filter((p) => p.rarity === rarity && p.dim === egg.dim);
+    if (!pool.length) pool = PETS.filter((p) => p.rarity === rarity);
+    return { rarity, pet: pool[Math.floor(Math.random() * pool.length)] };
+}
+
+function giveFrom(s: State, egg: EggDef): HatchResult {
+    const { rarity, pet } = roll(egg);
     const cur = s.pets[pet.id];
     let xp = 0;
+    let equipped = false;
     if (!cur) {
         s.pets[pet.id] = { xp: 0, n: 1 };
-        if (s.equip.length < petSlots(s)) s.equip.push(pet.id);
+        if (s.equip.length < petSlots(s)) {
+            s.equip.push(pet.id);
+            equipped = true;
+        }
     } else {
         cur.n++;
         xp = RARITIES[rarity].dupe * (1 + 0.3 * (s.aups.mentor || 0));
         cur.xp = Math.min(petXpFor(pet, PET_MAX), cur.xp + xp);
     }
     s.hatched++;
-    return { id: pet.id, rarity, isNew: !cur, xp };
+    return { id: pet.id, egg: egg.id, rarity, isNew: !cur, xp, copies: s.pets[pet.id].n, equipped };
+}
+
+/** Hatch a free Wooden Egg (from a treasure bobber) or buy and hatch one egg. */
+export function hatch(s: State, eggId: string, free = false): HatchResult | null {
+    const egg = EGG_BY_ID.get(eggId);
+    if (!egg) return null;
+    if (free) {
+        if (s.freeEggs < 1 || egg.id !== "wood") return null;
+        s.freeEggs--;
+    } else {
+        if (eggLocked(s, egg)) return null;
+        const cost = eggPrice(s, egg);
+        if (eggBalance(s, egg.cur) < cost) return null;
+        spendEgg(s, egg.cur, cost);
+    }
+    return giveFrom(s, egg);
+}
+
+function spendEgg(s: State, cur: EggDef["cur"], n: number) {
+    if (cur === "shards") s.shards -= n;
+    else if (cur === "tokens") s.tokens -= n;
+    else if (cur === "gems") s.ap -= n;
+    else s.enc.dust -= n;
+}
+
+/** Buy and hatch up to `count` eggs at once, stopping when you cannot pay for the next. */
+export function hatchMany(s: State, eggId: string, count: number): HatchResult[] {
+    const out: HatchResult[] = [];
+    for (let i = 0; i < count; i++) {
+        const r = hatch(s, eggId, false);
+        if (!r) break;
+        out.push(r);
+    }
+    return out;
+}
+
+/** How many eggs of a kind you could hatch right now (up to `cap`). */
+export function eggsAffordable(s: State, egg: EggDef, cap = 3): number {
+    if (eggLocked(s, egg)) return 0;
+    const bal = eggBalance(s, egg.cur);
+    const base = eggPrice(s, egg);
+    return Math.max(0, Math.min(cap, Math.floor(bal / base)));
 }
 
 /** Equip a pet; with every slot full the pet in the oldest slot is swapped out. */
@@ -755,7 +853,22 @@ export function unequipPet(s: State, id: string): boolean {
     return true;
 }
 
+/** How strong a pet is for auto-picking: rarity first, then level, then stars. */
+export const petPower = (s: State, p: PetDef) => rarityIdx(p.rarity) * 10000 + petLevel(p, s.pets[p.id]?.xp ?? 0) * 10 + Math.min(PET_STAR_MAX, (s.pets[p.id]?.n ?? 1) - 1);
+
+/** Fill every slot with your strongest pets. */
+export function equipBest(s: State): boolean {
+    const best = PETS.filter((p) => s.pets[p.id])
+        .sort((a, b) => petPower(s, b) - petPower(s, a))
+        .slice(0, petSlots(s))
+        .map((p) => p.id);
+    if (best.length === s.equip.length && best.every((id) => s.equip.includes(id))) return false;
+    s.equip = best;
+    return true;
+}
+
 /** Give experience to every equipped pet (mentor bonus applied). */
+
 export function addPetXp(s: State, amount: number) {
     const m = 1 + 0.3 * (s.aups.mentor || 0);
     for (const id of s.equip) {
@@ -776,6 +889,13 @@ export function feedPet(s: State, id: string): boolean {
     s.shards -= cost;
     st.xp = Math.min(petXpFor(p, PET_MAX), st.xp + 0.3 * (petXpFor(p, lv + 1) - petXpFor(p, lv)) * (1 + 0.3 * (s.aups.mentor || 0)));
     return true;
+}
+
+/** Feed every equipped pet once, as far as your shards go. Returns how many were fed. */
+export function feedEquipped(s: State): number {
+    let n = 0;
+    for (const id of [...s.equip]) if (feedPet(s, id)) n++;
+    return n;
 }
 
 // ---- Ascension ----
@@ -950,7 +1070,7 @@ export function parseSave(raw: string): State | null {
             const r = o.pets?.[p.id];
             if (r) s.pets[p.id] = { xp: Math.max(0, Number(r.xp) || 0), n: Math.max(1, Number(r.n) || 1) };
         }
-        s.equip = (Array.isArray(o.equip) ? (o.equip as string[]) : []).filter((id, i, a) => s.pets[id] && a.indexOf(id) === i).slice(0, 3);
+        s.equip = (Array.isArray(o.equip) ? (o.equip as string[]) : []).filter((id, i, a) => s.pets[id] && a.indexOf(id) === i).slice(0, 4);
         s.peakInc = Math.max(0, Number(o.peakInc) || 0);
         s.btn = cleanBtn(o.btn, s);
         s.combo = 1;

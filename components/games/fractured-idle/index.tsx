@@ -6,7 +6,7 @@ import { McSymbol } from "@/components/mc-symbol";
 import { HOLD_BASE, critColor, holdMax, lookName, unlockedKeys } from "@/lib/fractured-idle/button";
 import { COMBO_TIERS, comboFill, holdRate, newCombo, stepCombo, type ComboCfg } from "@/lib/fractured-idle/combo";
 import { activeIsland } from "@/lib/fractured-idle/island-logic";
-import { EGGS, LEVEL_BONUS, MINIONS, MINION_GROWTH, PETS, PET_LABEL, PET_PERK_AT, RARITIES, SKILLS, UPGRADES, petLevel, rebirthCost, type SkillId } from "@/lib/fractured-idle/data";
+import { LEVEL_BONUS, MINIONS, MINION_GROWTH, SKILLS, UPGRADES, rebirthCost, type EggDef, type SkillId } from "@/lib/fractured-idle/data";
 import { DUST_CLICK, DUST_CRIT, PROCS, addDust, canRoll, fmtStat, glintColor, slotOpen, SLOT_IDS } from "@/lib/fractured-idle/enchant";
 import { claimMilestones, rewardLine } from "@/lib/fractured-idle/skills";
 import {
@@ -28,6 +28,7 @@ import {
     upAvailable,
     upCost,
     writeSave,
+    type HatchResult,
 } from "@/lib/fractured-idle/engine";
 import type { State } from "@/lib/fractured-idle/data";
 import { GOALS_CSS, Goals } from "./goals";
@@ -47,7 +48,9 @@ import { BUTTON_TAB_CSS, ButtonTab } from "./tab-button";
 import { Orbit } from "./orbit";
 import { BUY_OPTIONS, CSS, FONT_CSS, IconBtn, Kbd, Stat, tint, type Ctx, type TipApi } from "./ui";
 import { MinionsTab } from "./tab-minions";
-import { PetsTab } from "./tab-pets";
+import { PET_CSS, PetsTab } from "./tab-pets";
+import { PB_CSS, PetBar } from "./pet-bar";
+import { EGG_CSS, EggReveal } from "./egg-reveal";
 import { AscensionTab } from "./tab-ascension";
 import { UpgradeTip, UpgradesTab } from "./tab-upgrades";
 import { TrophiesTab, TrophyTip } from "./tab-trophies";
@@ -121,6 +124,7 @@ export function FracturedIdle() {
     const [menu, setMenu] = useState<string | null>(null); // travel map: island id to focus, or closed
     const [isFs, setIsFs] = useState(false);
     const [pseudoFs, setPseudoFs] = useState(false);
+    const [reveal, setReveal] = useState<{ egg: EggDef; results: HatchResult[] } | null>(null);
     const rootRef = useRef<HTMLDivElement>(null);
     const floatRef = useRef<HTMLDivElement>(null);
     const btnRef = useRef<HTMLButtonElement>(null);
@@ -603,7 +607,7 @@ export function FracturedIdle() {
     const act = (fn: () => boolean) => {
         if (fn()) render();
     };
-    const ctx: Ctx = { s, d, F, act, render, say, tip };
+    const ctx: Ctx = { s, d, F, act, render, say, tip, eggFx: (egg, results) => setReveal({ egg, results }) };
     const glintOn = s.enc.eq.button && s.enc.opts.glint !== "none" ? { id: s.enc.opts.glint, color: glintColor(s), power: s.enc.eq.button.r } : null;
 
     // Per-tab notices: drive the badges and the tooltip bodies (see tab-notes.ts).
@@ -623,7 +627,7 @@ export function FracturedIdle() {
                 backgroundColor: "color-mix(in oklch, var(--background) 92%, black)",
             }}
         >
-            <style>{CSS}{BTN_CSS}{SKIN_CSS}{BUTTON_TAB_CSS}{COMBO_CSS}{POPUP_CSS}{ISLAND_CSS}{MENU_CSS}{LEVEL_CSS}{ENCH_CSS}{GLINT_CSS}{SKILL_TOAST_CSS}{TABBAR_CSS}{STATS_CSS}{MINE_CSS}{FARM_CSS}{DOCK_CSS}{BUTTON_DOCK_CSS}{GOALS_CSS}{PS_CSS}{TIP_CSS}{FONT_CSS}</style>
+            <style>{CSS}{BTN_CSS}{SKIN_CSS}{BUTTON_TAB_CSS}{COMBO_CSS}{POPUP_CSS}{ISLAND_CSS}{MENU_CSS}{LEVEL_CSS}{ENCH_CSS}{GLINT_CSS}{SKILL_TOAST_CSS}{TABBAR_CSS}{STATS_CSS}{MINE_CSS}{FARM_CSS}{DOCK_CSS}{BUTTON_DOCK_CSS}{GOALS_CSS}{PS_CSS}{PET_CSS}{PB_CSS}{EGG_CSS}{TIP_CSS}{FONT_CSS}</style>
             <TipProvider hostRef={tipHost}>
 
             {/* HUD */}
@@ -850,46 +854,13 @@ export function FracturedIdle() {
                     </button>
                     </Tip>
 
-                    {s.equip.length > 0 && (
-                        <div className="flex flex-wrap items-center justify-center gap-1.5">
-                            {s.equip.map((id) => {
-                                const p = PETS.find((x) => x.id === id);
-                                const st = s.pets[id];
-                                if (!p || !st) return null;
-                                const rc = RARITIES[p.rarity].color;
-                                return (
-                                    <Tip
-                                        key={id}
-                                        tip={() => {
-                                            const lv = petLevel(p, st.xp);
-                                            return (
-                                                <TipCard
-                                                    title={p.name}
-                                                    color={p.color}
-                                                    tag={`${RARITIES[p.rarity].name} · Lv ${lv}`}
-                                                    lines={[p.blurb]}
-                                                    rows={[[PET_LABEL[p.stat], `+${+((p.base + p.per * (lv - 1)) * 100).toFixed(1)}%`], ...p.perks.map((pk, n): [string, string, string?] => [pk.name, lv >= PET_PERK_AT[n] ? "unlocked" : `Lv ${PET_PERK_AT[n]}`, lv >= PET_PERK_AT[n] ? "var(--mc-green)" : undefined])]}
-                                                    foot="Click to open Pets."
-                                                />
-                                            );
-                                        }}
-                                    >
-                                    <button
-                                        type="button"
-                                        onClick={() => {
-                                            tip.hide();
-                                            setTab("pets");
-                                        }}
-                                        className="flex items-center gap-1 rounded-full border px-2 py-0.5 font-rubik text-[10px] transition-colors hover:bg-white/10"
-                                        style={{ borderColor: tint(rc, 55), color: p.color }}
-                                    >
-                                        <McSymbol name={p.symbol} /> {p.name} <span className="text-muted-foreground">Lv {petLevel(p, st.xp)}</span>
-                                    </button>
-                                    </Tip>
-                                );
-                            })}
-                        </div>
-                    )}
+                    <PetBar
+                        s={s}
+                        onOpen={() => {
+                            tip.hide();
+                            setTab("pets");
+                        }}
+                    />
 
                     <BuffBar s={s} />
                     <SkillDock
@@ -1011,6 +982,8 @@ export function FracturedIdle() {
                     }}
                 />
             )}
+
+            {reveal && <EggReveal egg={reveal.egg} results={reveal.results} onClose={() => setReveal(null)} />}
 
             <SkillToasts ref={skillApi} />
 

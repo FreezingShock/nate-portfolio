@@ -3,9 +3,10 @@
 import { useMemo, useState } from "react";
 import { Tip, TipCard } from "./tooltip";
 import { McSymbol } from "@/components/mc-symbol";
-import { ASC_BASE, EGGS, ISLANDS, PETS, REWARD_LABEL, SKILLS, TROPHIES, rebirthCost } from "@/lib/fractured-idle/data";
+import { ASC_BASE, EGGS, EGG_CUR, ISLANDS, PETS, REWARD_LABEL, SKILLS, TROPHIES, rebirthCost } from "@/lib/fractured-idle/data";
 import {
     ascPlan,
+    eggCan,
     eggPrice,
     fmtEta,
     income,
@@ -159,7 +160,7 @@ export function Goals({ s, d, F, open, render, say }: Pick<Ctx, "s" | "d" | "F" 
     }
 
     // ---- A pet egg you can hatch right now ----
-    const egg = [...EGGS].reverse().find((e) => s.shards >= eggPrice(s, e));
+    const egg = [...EGGS].reverse().find((e) => eggCan(s, e));
     if ((s.freeEggs > 0 || egg) && Object.keys(s.pets).length < PETS.length) {
         goals.push({
             key: "egg",
@@ -167,7 +168,7 @@ export function Goals({ s, d, F, open, render, say }: Pick<Ctx, "s" | "d" | "F" 
             symbol: "petLuck",
             color: "var(--mc-dark-aqua)",
             title: s.freeEggs > 0 ? "Free egg to hatch!" : `${egg!.name} ready to hatch`,
-            chip: s.freeEggs > 0 ? `x${s.freeEggs}` : F(eggPrice(s, egg!)),
+            chip: s.freeEggs > 0 ? `x${s.freeEggs}` : `${F(eggPrice(s, egg!))} ${EGG_CUR[egg!.cur].one}s`,
             chipHot: true,
             pct: 1,
             ready: true,

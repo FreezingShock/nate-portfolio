@@ -29,7 +29,7 @@ const CAT_OF: Record<string, PrestigeCat> = {
     cosmic: "power", union: "power", depth: "power", nova: "power",
     echo: "prestige", forge2: "prestige",
     well: "economy", nest: "economy", hoard: "economy",
-    perch2: "utility", perch3: "utility", over: "utility", horizon: "utility", mentor: "utility",
+    perch2: "utility", perch3: "utility", perch4: "utility", over: "utility", horizon: "utility", mentor: "utility",
     auto2: "auto", autoMin: "auto", autoUp: "auto", autoTok: "auto", autoRb: "auto",
 };
 
@@ -37,7 +37,7 @@ const CAT_OF: Record<string, PrestigeCat> = {
 const WORTH: Record<string, number> = {
     stack: 0.12, core: 0.18, magnet: 0.05, might: 0.025, engine: 0.04, luck: 0.008, head: 0.02, kit: 0.015, keep: 0.03, mom: 0.012, omen: 0.006, disc: 0.03, off: 0.008,
     fort: 0.01, surge: 0.012, swarm: 0.016, edge: 0.01, bank: 0.004, heir: 0.008,
-    cosmic: 0.25, echo: 0.1, well: 0.04, union: 0.2, depth: 0.12, auto2: 0.02, perch2: 0.3, perch3: 0.2, nest: 0.02, over: 0.03, horizon: 0.02, mentor: 0.02,
+    cosmic: 0.25, echo: 0.1, well: 0.04, union: 0.2, depth: 0.12, auto2: 0.02, perch2: 0.3, perch3: 0.2, perch4: 0.15, nest: 0.02, over: 0.03, horizon: 0.02, mentor: 0.02,
     nova: 0.03, forge2: 0.08, hoard: 0.03, autoMin: 0.1, autoUp: 0.08, autoTok: 0.06, autoRb: 0.1,
 };
 
@@ -81,6 +81,7 @@ const EFF: Record<string, (l: number, lv: Lv) => string> = {
     auto2: (l) => `${3 * l} Auto-Clicker levels`,
     perch2: (l) => (l ? "2nd pet slot" : "locked"),
     perch3: (l) => (l ? "3rd pet slot" : "locked"),
+    perch4: (l) => (l ? "4th pet slot" : "locked"),
     nest: (l) => `-${8 * l}% egg price`,
     over: (l) => `+${l} max combo, +${10 * l}% build`,
     horizon: (l) => `+${12 * l}% boons, +${10 * l}% popup life`,

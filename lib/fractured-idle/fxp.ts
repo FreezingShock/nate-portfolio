@@ -75,7 +75,7 @@ const ROLLS: [number, number][] = [[1, 6], [10, 10], [50, 16], [200, 28], [1000,
 const CODEX_XP = [1, 2, 3, 6, 10, 18, 32, 56]; // per entry, by rarity
 const EGGS: [number, number][] = [[1, 10], [10, 20], [50, 40], [200, 80], [1000, 160]];
 
-const RARITY_XP: Record<string, number> = { common: 10, uncommon: 18, rare: 32, epic: 55, legendary: 90 };
+const RARITY_XP: Record<string, number> = { common: 10, uncommon: 18, rare: 32, epic: 55, legendary: 90, mythic: 150, divine: 240 };
 const trophyTierXp = (k: number) => 4 + 9 * k * (1 + k / 4); // early tiers are cheap, late tiers pay a lot
 const COL_XP = [6, 10, 18, 30, 50, 80];
 const MILESTONE_XP = [4, 8, 14, 24, 40];

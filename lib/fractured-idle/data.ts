@@ -1,4 +1,5 @@
 import type { McSymbolName } from "@/components/mc-symbol";
+import { PETS, petLevel } from "./pets-data";
 import type { MineState } from "./mine";
 import type { FarmState } from "./farm";
 import type { BtnPrefs } from "./button";
@@ -504,9 +505,9 @@ export const TROPHIES: TrophyDef[] = [
     { id: "perfect", name: "Perfectionist", category: "explore", symbol: "critChance", stat: "critChance", unit: "perfect quick time events", metric: (s) => s.evs.perfect, tiers: tiers([1, 10, 50, 250], [0.005, 0.005, 0.01, 0.01]) },
     { id: "bobbers", name: "Gone Fishing", category: "explore", symbol: "fishing", stat: "bobber", unit: "bobbers caught", metric: (s) => s.bobbers, tiers: tiers([1, 10, 50, 250, 1000], [0.05, 0.1, 0.15, 0.2, 0.25]) },
     { id: "time", name: "Dedicated", category: "explore", symbol: "day", stat: "offline", unit: "hours played", metric: (s) => s.playTime / 3600, tiers: tiers([1, 5, 24, 100], [0.05, 0.05, 0.1, 0.1]) },
-    { id: "menagerie", name: "Menagerie", category: "pets", symbol: "petLuck", stat: "all", unit: "pets found", metric: (s) => Object.keys(s.pets).length, tiers: tiers([1, 4, 8, 12, 15], [0.01, 0.01, 0.02, 0.03, 0.05]) },
-    { id: "hatch", name: "Egg Hunter", category: "pets", symbol: "flower", stat: "skillXp", unit: "eggs hatched", metric: (s) => s.hatched, tiers: tiers([1, 10, 30, 100, 300], [0.05, 0.05, 0.1, 0.1, 0.15]) },
-    { id: "legend", name: "Legendary Luck", category: "pets", symbol: "magicFind", stat: "minion", unit: "legendary pets", metric: (s) => PETS.filter((p) => p.rarity === "legendary" && s.pets[p.id]).length, tiers: tiers([1, 2, 3], [0.05, 0.1, 0.2]) },
+    { id: "menagerie", name: "Menagerie", category: "pets", symbol: "petLuck", stat: "all", unit: "pets found", metric: (s) => Object.keys(s.pets).length, tiers: tiers([1, 4, 8, 12, 15, 25, 40, 55], [0.01, 0.01, 0.02, 0.03, 0.05, 0.05, 0.08, 0.1]) },
+    { id: "hatch", name: "Egg Hunter", category: "pets", symbol: "flower", stat: "skillXp", unit: "eggs hatched", metric: (s) => s.hatched, tiers: tiers([1, 10, 30, 100, 300, 1000], [0.05, 0.05, 0.1, 0.1, 0.15, 0.25]) },
+    { id: "legend", name: "Legendary Luck", category: "pets", symbol: "magicFind", stat: "minion", unit: "legendary or better pets", metric: (s) => PETS.filter((p) => (p.rarity === "legendary" || p.rarity === "mythic" || p.rarity === "divine") && s.pets[p.id]).length, tiers: tiers([1, 2, 3, 6, 10, 14], [0.05, 0.1, 0.2, 0.2, 0.3, 0.5]) },
     { id: "bestfriend", name: "Best Friend", category: "pets", symbol: "regen", stat: "click", unit: "top pet level", metric: (s) => Math.max(0, ...PETS.map((p) => (s.pets[p.id] ? petLevel(p, s.pets[p.id].xp) : 0))), tiers: tiers([10, 25, 50, 75, 100], [0.02, 0.03, 0.05, 0.08, 0.15]) },
     { id: "ascended", name: "Ascended", category: "rebirth", symbol: "comet", stat: "tokens", unit: "ascensions", metric: (s) => s.asc, tiers: tiers([1, 2, 3, 5, 10], [0.1, 0.1, 0.15, 0.2, 0.3]) },
     { id: "u-first", name: "First Click", category: "unique", symbol: "check", stat: "all", unit: "clicks", metric: (s) => s.clicks, tiers: tiers([1], [0.01]) },
@@ -522,95 +523,8 @@ export const COMING_SOON = [
 ];
 
 // ---- Pets ----
-// Hatch eggs for pets, equip up to a few, and they level while equipped.
-// A pet's main stat scales with level; three perks unlock at levels 25 / 60 / 100.
-
-export type Rarity = "common" | "uncommon" | "rare" | "epic" | "legendary";
-export type PetStat = RewardStat | "col" | "cost";
-
-export const RARITIES: Record<Rarity, { name: string; color: string; xp: number; dupe: number }> = {
-    common: { name: "Common", color: "#ffffff", xp: 1, dupe: 600 },
-    uncommon: { name: "Uncommon", color: "var(--mc-green)", xp: 1.5, dupe: 1500 },
-    rare: { name: "Rare", color: "var(--mc-blue)", xp: 2.2, dupe: 4000 },
-    epic: { name: "Epic", color: "var(--mc-light-purple)", xp: 3.2, dupe: 12000 },
-    legendary: { name: "Legendary", color: "var(--mc-gold)", xp: 5, dupe: 40000 },
-};
-export const RARITY_ORDER: Rarity[] = ["common", "uncommon", "rare", "epic", "legendary"];
-
-export const PET_LABEL: Record<PetStat, string> = {
-    ...REWARD_LABEL,
-    col: "collection speed",
-    cost: "minion price",
-};
-
-export const PET_MAX = 100;
-export const PET_PERK_AT = [25, 60, 100];
-
-export interface PetPerk {
-    name: string;
-    stat: PetStat;
-    value: number;
-}
-
-export interface PetDef {
-    id: string;
-    name: string;
-    rarity: Rarity;
-    symbol: McSymbolName;
-    color: string;
-    stat: PetStat;
-    base: number; // main stat at level 1
-    per: number; // added per level
-    blurb: string;
-    perks: [PetPerk, PetPerk, PetPerk];
-}
-
-const P = (name: string, stat: PetStat, value: number): PetPerk => ({ name, stat, value });
-
-export const PETS: PetDef[] = [
-    { id: "silverfish", name: "Silverfish", rarity: "common", symbol: "strength", color: "#d0d0d8", stat: "click", base: 0.02, per: 0.004, blurb: "Gnaws through stone one click at a time.", perks: [P("Tunneler", "click", 0.05), P("Silver Lining", "all", 0.02), P("Swarm", "click", 0.15)] },
-    { id: "rabbit", name: "Rabbit", rarity: "common", symbol: "fortune", color: "var(--mc-yellow)", stat: "minion", base: 0.02, per: 0.004, blurb: "Keeps every minion hopping.", perks: [P("Lucky Foot", "col", 0.05), P("Carrot Patch", "minion", 0.05), P("Warren", "cost", 0.03)] },
-    { id: "bat", name: "Bat", rarity: "common", symbol: "night", color: "var(--mc-dark-purple)", stat: "offline", base: 0.01, per: 0.002, blurb: "Works the night shift while you are away.", perks: [P("Echolocation", "skillXp", 0.05), P("Night Owl", "offline", 0.05), P("Swarm Song", "all", 0.05)] },
-    { id: "ocelot", name: "Ocelot", rarity: "uncommon", symbol: "attackSpeed", color: "var(--mc-green)", stat: "critChance", base: 0.002, per: 0.0006, blurb: "Stalks weak points.", perks: [P("Pounce", "critDmg", 0.05), P("Jungle Reflexes", "click", 0.08), P("Apex", "critChance", 0.02)] },
-    { id: "squid", name: "Squid", rarity: "uncommon", symbol: "fishing", color: "var(--mc-aqua)", stat: "bobber", base: 0.05, per: 0.01, blurb: "Treasure bobbers pay far more.", perks: [P("Ink Trail", "skillXp", 0.1), P("Ink Cloud", "all", 0.02), P("Kraken's Cut", "bobber", 0.5)] },
-    { id: "sheep", name: "Sheep", rarity: "uncommon", symbol: "flower", color: "#ffffff", stat: "col", base: 0.03, per: 0.007, blurb: "Wool for every collection.", perks: [P("Soft Touch", "cost", 0.03), P("Shear Luck", "minion", 0.08), P("Golden Fleece", "col", 0.25)] },
-    { id: "wolf", name: "Wolf", rarity: "rare", symbol: "critDamage", color: "var(--mc-red)", stat: "critDmg", base: 0.03, per: 0.008, blurb: "Hits hardest when it counts.", perks: [P("Pack Hunter", "critChance", 0.01), P("Alpha", "click", 0.1), P("Moonhowl", "critDmg", 0.3)] },
-    { id: "dolphin", name: "Dolphin", rarity: "rare", symbol: "wisdom", color: "var(--mc-aqua)", stat: "skillXp", base: 0.03, per: 0.008, blurb: "Quick learner, quicker skills.", perks: [P("Echo Sense", "bobber", 0.25), P("Pod Leader", "all", 0.03), P("Deep Dive", "skillXp", 0.25)] },
-    { id: "blaze", name: "Blaze", rarity: "rare", symbol: "heat", color: "var(--mc-gold)", stat: "minion", base: 0.03, per: 0.008, blurb: "Runs the furnaces hot.", perks: [P("Ember Bargain", "cost", 0.04), P("Inferno", "minion", 0.12), P("Cinder Wake", "col", 0.2)] },
-    { id: "tiger", name: "Tiger", rarity: "epic", symbol: "critChance", color: "var(--mc-gold)", stat: "critDmg", base: 0.05, per: 0.012, blurb: "Ferocity given a face.", perks: [P("Stalk", "critChance", 0.015), P("Rend", "click", 0.15), P("Apex Predator", "critDmg", 0.5)] },
-    { id: "golem", name: "Golem", rarity: "epic", symbol: "defense", color: "var(--mc-gray, #aaaaaa)", stat: "minion", base: 0.05, per: 0.014, blurb: "A tireless foreman.", perks: [P("Iron Bargain", "cost", 0.05), P("Guardian", "all", 0.04), P("Colossus", "minion", 0.4)] },
-    { id: "phoenix", name: "Phoenix", rarity: "epic", symbol: "regen", color: "var(--mc-red)", stat: "all", base: 0.03, per: 0.008, blurb: "Everything rises again, stronger.", perks: [P("Ashes", "offline", 0.05), P("Rebirth Flame", "tokens", 0.08), P("Eternal Flame", "all", 0.08)] },
-    { id: "dragon", name: "Ender Dragon", rarity: "legendary", symbol: "comet", color: "var(--mc-light-purple)", stat: "all", base: 0.06, per: 0.018, blurb: "Lord of the End. Bends every stat your way.", perks: [P("Dragon Breath", "critDmg", 0.1), P("Wing Beat", "click", 0.25), P("Ender Sovereign", "all", 0.25)] },
-    { id: "griffin", name: "Griffin", rarity: "legendary", symbol: "flag", color: "var(--mc-yellow)", stat: "tokens", base: 0.06, per: 0.012, blurb: "Carries rebirth tokens back from the sky.", perks: [P("Keen Eye", "skillXp", 0.15), P("Sky Hoard", "all", 0.06), P("Myth", "tokens", 0.3)] },
-    { id: "wisp", name: "Fractured Wisp", rarity: "legendary", symbol: "portal", color: "var(--mc-blue)", stat: "col", base: 0.1, per: 0.02, blurb: "A shard of the islands that learned to float.", perks: [P("Refraction", "cost", 0.06), P("Prism", "minion", 0.3), P("Shattered Dawn", "all", 0.12)] },
-];
-
-export const PET_SLOTS_MAX = 3;
-
-/** Level from total xp: cost to reach level L is K * (1.06^(L-1) - 1) / 0.06. */
-const PET_GROWTH = 1.06;
-const PET_K = 40;
-export const petXpFor = (p: PetDef, level: number) =>
-    (PET_K * RARITIES[p.rarity].xp * (Math.pow(PET_GROWTH, level - 1) - 1)) / (PET_GROWTH - 1);
-export const petLevel = (p: PetDef, xp: number) =>
-    Math.min(PET_MAX, 1 + Math.floor(Math.log(1 + (xp * (PET_GROWTH - 1)) / (PET_K * RARITIES[p.rarity].xp)) / Math.log(PET_GROWTH)));
-
-export interface EggDef {
-    id: string;
-    name: string;
-    color: string;
-    symbol: McSymbolName;
-    secs: number; // price = this many seconds of your best income
-    min: number; // price floor
-    odds: Partial<Record<Rarity, number>>;
-    blurb: string;
-}
-
-export const EGGS: EggDef[] = [
-    { id: "wood", name: "Wooden Egg", color: "var(--mc-gold)", symbol: "flower", secs: 900, min: 1e6, odds: { common: 70, uncommon: 26, rare: 4 }, blurb: "Plain, warm and full of surprises." },
-    { id: "gold", name: "Golden Egg", color: "var(--mc-yellow)", symbol: "magicFind", secs: 7200, min: 5e8, odds: { uncommon: 40, rare: 42, epic: 17, legendary: 1 }, blurb: "Heavy. Something big is inside." },
-    { id: "fracture", name: "Fractured Egg", color: "var(--mc-light-purple)", symbol: "portal", secs: 36000, min: 2e12, odds: { rare: 38, epic: 47, legendary: 15 }, blurb: "Cracked already, and humming." },
-];
+// Pet and egg tables live in pets-data.ts (pure content, no cycle); re-exported here so every import path still works.
+export * from "./pets-data";
 
 // ---- Ascension ----
 // The prestige layer above rebirth. Ascending wipes rebirths, tokens and
@@ -644,6 +558,7 @@ export const ASC_UPS: AscUpDef[] = [
     { id: "auto2", name: "Cosmic Reflexes", desc: "Begin each ascension with +3 Auto-Clicker levels", cost: 2, growth: 1.4, max: 8, symbol: "attackSpeed", color: "var(--mc-red)" },
     { id: "perch2", name: "Second Perch", desc: "Unlock a second pet slot", cost: 4, growth: 1, max: 1, symbol: "petLuck", color: "var(--mc-dark-aqua)" },
     { id: "perch3", name: "Third Perch", desc: "Unlock a third pet slot", cost: 25, growth: 1, max: 1, symbol: "petLuck", color: "var(--mc-dark-aqua)", needs: "perch2" },
+    { id: "perch4", name: "Fourth Perch", desc: "Unlock a fourth pet slot", cost: 60, growth: 1, max: 1, symbol: "petLuck", color: "var(--mc-dark-aqua)", needs: "perch3" },
     { id: "nest", name: "Egg Fluency", desc: "-8% egg prices", cost: 2, growth: 1.5, max: 8, symbol: "flower", color: "var(--mc-gold)" },
     { id: "over", name: "Overdrive Core", desc: "+1 max combo multiplier and +10% combo build speed", cost: 2, growth: 1.5, max: 10, symbol: "attackSpeed", color: "var(--mc-red)" },
     { id: "horizon", name: "Event Horizon", desc: "+12% boon strength and duration, and popups last 10% longer", cost: 2, growth: 1.5, max: 10, symbol: "comet", color: "var(--mc-light-purple)" },

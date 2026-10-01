@@ -1,8 +1,8 @@
 import type { ComponentProps, ReactNode } from "react";
 import { Lock } from "lucide-react";
 import { McSymbol } from "@/components/mc-symbol";
-import type { State } from "@/lib/fractured-idle/data";
-import type { Derived } from "@/lib/fractured-idle/engine";
+import type { EggDef, State } from "@/lib/fractured-idle/data";
+import type { Derived, HatchResult } from "@/lib/fractured-idle/engine";
 
 // Shared pieces for every Fractured Idle tab. Tabs receive one Ctx object:
 // the live state (mutate it only through engine functions), derived stats,
@@ -17,6 +17,8 @@ export interface Ctx {
     render: () => void;
     say: (msg: string) => void;
     tip: TipApi;
+    /** Play the egg-opening screen for hatched pets (the hatching itself has already happened). */
+    eggFx?: (egg: EggDef, results: HatchResult[]) => void;
 }
 
 /** Point (client coords) or an element to anchor the tooltip to. */

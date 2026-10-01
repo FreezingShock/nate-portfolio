@@ -2,7 +2,7 @@ import { CATS, isUnlocked, lookKey } from "@/lib/fractured-idle/button";
 import { EGGS, MINIONS, MINION_GROWTH, PETS, SKILLS, UPGRADES, type State } from "@/lib/fractured-idle/data";
 import { MILESTONES_BY_SKILL } from "@/lib/fractured-idle/skills";
 import { SLOT_IDS, canRoll, slotOpen } from "@/lib/fractured-idle/enchant";
-import { ascPlan, bulk, eggPrice, minionBase, rebirthPlan, skillLevel, trophyCounts, upAvailable, upCost } from "@/lib/fractured-idle/engine";
+import { ascPlan, bulk, eggCan, minionBase, rebirthPlan, skillLevel, trophyCounts, upAvailable, upCost } from "@/lib/fractured-idle/engine";
 import { openIslands } from "@/lib/fractured-idle/island-logic";
 import { MINE_UPS, canBuyPick, canBuyUp, featsReady, geodeCount, jobsReady, mineLevel, slotsFree } from "@/lib/fractured-idle/mine";
 import { FARM_UPS, canBuyUp as canBuyFarmUp, canBuyHoe, featsReady as farmFeatsReady, jobsReady as farmJobsReady, plotReady, podCount } from "@/lib/fractured-idle/farm";
@@ -54,7 +54,7 @@ function scan(s: State, since: (tab: string, cur: number) => number): Record<str
 
     const eggs = s.freeEggs;
     if (eggs > 0) add("pets", { text: `${plural(eggs, "free egg")} to hatch`, color: P, act: true });
-    if (Object.keys(s.pets).length < PETS.length && s.shards >= eggPrice(s, EGGS[0])) add("pets", { text: "You can afford an egg", color: O, act: true });
+    if (Object.keys(s.pets).length < PETS.length && EGGS.some((e) => eggCan(s, e))) add("pets", { text: "You can afford an egg", color: O, act: true });
 
     const geodes = geodeCount(s);
     if (geodes > 0) add("mine", { text: `${plural(geodes, "geode")} to crack`, color: "var(--mc-light-purple)", act: true });
