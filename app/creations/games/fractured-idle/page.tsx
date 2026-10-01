@@ -18,8 +18,9 @@ export default function FracturedIdlePage() {
             symbol="wisdom"
             description="Click the button, hire minions, unlock islands and rebirth. A button-simulator incremental with SkyBlock flavor. Saves in your browser and keeps earning while you're away."
             back={{ href: "/creations/games", label: "Back to Games" }}
+            wide
         >
-            <Section id="play" first accent="var(--mc-light-purple)" symbol="wisdom" title="Play">
+            <Section id="play" first bleed accent="var(--mc-light-purple)" symbol="wisdom" title="Play">
                 <FracturedIdle />
             </Section>
             <Section id="profile" accent="var(--mc-aqua)" symbol="wisdom" title="Profile" blurb="Your account, your numbers and a quick run-down.">

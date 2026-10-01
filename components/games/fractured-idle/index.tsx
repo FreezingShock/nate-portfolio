@@ -586,7 +586,7 @@ export function FracturedIdle() {
     const s = ref.current;
     if (!ready || !s) {
         return (
-            <div className="grid min-h-[480px] place-items-center rounded-3xl border border-white/10 font-minecraft font-bold text-sm text-muted-foreground">
+            <div className="grid min-h-[70dvh] place-items-center border-y border-white/10 font-minecraft font-bold text-sm text-muted-foreground">
                 Loading your islands...
             </div>
         );
@@ -616,7 +616,7 @@ export function FracturedIdle() {
             className={
                 full
                     ? "fixed inset-0 z-[100] flex flex-col overflow-y-auto overscroll-contain bg-background lg:overflow-hidden"
-                    : "relative flex flex-col overflow-hidden rounded-3xl border border-white/15"
+                    : "relative flex flex-col overflow-hidden border-y border-white/15 lg:h-[clamp(780px,calc(100dvh-7.5rem),1500px)]"
             }
             style={{
                 backgroundImage: `radial-gradient(ellipse at 25% -10%, ${tint(island.color, 24)}, transparent 60%), radial-gradient(ellipse at 90% 110%, ${tint(island.color, 14)}, transparent 55%)`,
@@ -815,7 +815,7 @@ export function FracturedIdle() {
                 </div>
             </div>
 
-            <div className={`grid min-h-0 grid-cols-[minmax(0,1fr)] gap-0 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.2fr)] lg:grid-rows-[minmax(0,1fr)] ${full ? "flex-none lg:flex-1" : "lg:h-[680px]"}`}>
+            <div className={`grid min-h-0 grid-cols-[minmax(0,1fr)] gap-0 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.2fr)] lg:grid-rows-[minmax(0,1fr)] flex-none lg:flex-1`}>
                 {/* Button side */}
                 <div className="relative isolate overflow-hidden lg:min-h-0 lg:border-r lg:border-white/10">
                     <IslandScene key={island.id} island={island} variant="backdrop" className="fi-backdrop absolute inset-0 -z-10 size-full" />
@@ -972,7 +972,7 @@ export function FracturedIdle() {
                         }}
                     />
 
-                    <div className="min-h-[360px] flex-1 space-y-2 overflow-y-auto p-3 [scrollbar-width:thin]">
+                    <div className="min-h-[75dvh] flex-1 space-y-2 overflow-y-auto p-3 [scrollbar-width:thin] sm:p-4 lg:min-h-0">
                         {tab === "minions" && <MinionsTab {...ctx} />}
                         {tab === "upgrades" && <UpgradesTab {...ctx} />}
                         {tab === "button" && <ButtonTab {...ctx} />}

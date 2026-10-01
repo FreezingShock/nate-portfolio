@@ -83,6 +83,7 @@ export function CreationsShell({
     description,
     symbol,
     back,
+    wide = false,
     children,
 }: {
     bg: string;
@@ -93,6 +94,8 @@ export function CreationsShell({
     description: string;
     symbol: React.ComponentProps<typeof PageHero>["symbol"];
     back?: { href: string; label: string };
+    /** Let a section run edge to edge (see Section's `bleed`); the others keep the 6xl column. */
+    wide?: boolean;
     children: React.ReactNode;
 }) {
     return (
@@ -117,7 +120,7 @@ export function CreationsShell({
                     accent={accent}
                     symbol={symbol}
                 />
-                <div className="mx-auto mt-14 max-w-6xl">{children}</div>
+                <div className={wide ? "mt-14" : "mx-auto mt-14 max-w-6xl"}>{children}</div>
             </section>
         </div>
     );
@@ -131,6 +134,7 @@ export function Section({
     blurb,
     children,
     first = false,
+    bleed = false,
 }: {
     id: string;
     accent: string;
@@ -139,18 +143,22 @@ export function Section({
     blurb?: string;
     children: React.ReactNode;
     first?: boolean;
+    /** Run the content edge to edge of the screen (only inside a `wide` shell). The heading keeps the 6xl column. */
+    bleed?: boolean;
 }) {
     return (
         <section id={id} className={`scroll-mt-24 ${first ? "" : "mt-20"}`}>
-            <SectionLabel accent={accent} symbol={symbol}>
-                {title}
-            </SectionLabel>
-            {blurb && (
-                <p className="mt-3 max-w-2xl text-sm text-muted-foreground sm:text-base">
-                    {blurb}
-                </p>
-            )}
-            <div className="mt-6">{children}</div>
+            <div className="mx-auto max-w-6xl">
+                <SectionLabel accent={accent} symbol={symbol}>
+                    {title}
+                </SectionLabel>
+                {blurb && (
+                    <p className="mt-3 max-w-2xl text-sm text-muted-foreground sm:text-base">
+                        {blurb}
+                    </p>
+                )}
+            </div>
+            <div className={bleed ? "-mx-6 mt-6 sm:-mx-10 lg:-mx-16" : "mx-auto mt-6 max-w-6xl"}>{children}</div>
         </section>
     );
 }
