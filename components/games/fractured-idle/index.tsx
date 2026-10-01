@@ -1,6 +1,6 @@
 "use client";
 
-import { sfx } from "@/lib/sound/sounds";
+import { sfx, type SfxName } from "@/lib/sound/sounds";
 import { useCallback, useEffect, useMemo, useReducer, useRef, useState } from "react";
 import { Expand, Minimize } from "lucide-react";
 import { McSymbol } from "@/components/mc-symbol";
@@ -48,7 +48,7 @@ import { LevelTab } from "./tab-level";
 import { kick, shake, spawnBurst, spawnCrit, spawnNumber } from "./button-fx";
 import { BUTTON_TAB_CSS, ButtonTab } from "./tab-button";
 import { Orbit } from "./orbit";
-import { BUY_OPTIONS, CSS, FONT_CSS, IconBtn, Kbd, Stat, tint, type Ctx, type TipApi } from "./ui";
+import { CSS, FONT_CSS, IconBtn, Kbd, SCROLL_CSS, Stat, tint, type Ctx, type TipApi } from "./ui";
 import { MinionsTab } from "./tab-minions";
 import { PET_CSS, PetsTab } from "./tab-pets";
 import { PB_CSS, PetBar, petBarVisible } from "./pet-bar";
@@ -139,6 +139,7 @@ export function FracturedIdle() {
     // their last position (px, relative to the float layer).
     const held = useRef(new Map<string, { x: number; y: number }>());
     const hold = useRef({ raf: 0, last: 0, acc: 0, heat: 0, shown: 0, tier: -1, flip: false, hit: false });
+    const eggQuiet = useRef(false);
     const clickFn = useRef<(x?: number, y?: number) => void>(() => {});
     const toastTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
     const getCombo = useCallback(() => combo.current.mult, []);
@@ -568,6 +569,7 @@ export function FracturedIdle() {
                 e.preventDefault();
                 if (!e.repeat) press("space", buttonCenter());
             } else if (e.key === "i" || e.key === "I") {
+                sfx("open");
                 setMenu("");
             } else if (e.key === "f" || e.key === "F") {
                 toggleFs();
@@ -580,8 +582,12 @@ export function FracturedIdle() {
                 }
             } else if (/^[0-9]$/.test(e.key)) {
                 const i = (Number(e.key) + 9) % 10;
-                if (TABS[i]) setTab(TABS[i].id);
+                if (TABS[i]) {
+                    sfx("tab");
+                    setTab(TABS[i].id);
+                }
             } else if (e.key === "[" || e.key === "]") {
+                sfx("tab");
                 setTab((cur) => {
                     const i = TABS.findIndex((x) => x.id === cur);
                     return TABS[(i + (e.key === "]" ? 1 : TABS.length - 1)) % TABS.length].id;
@@ -616,15 +622,23 @@ export function FracturedIdle() {
     const full = isFs || pseudoFs;
     const totalMinions = s.minions.reduce((a, b) => a + b, 0);
 
-    const act = (fn: () => boolean) => {
+    const act = (fn: () => boolean, snd?: SfxName) => {
         const rb = s.rebirths;
         const as = s.asc;
+        eggQuiet.current = false;
         if (fn()) {
-            sfx(s.asc > as ? "ascend" : s.rebirths > rb ? "rebirth" : "buy");
+            // One sound per action: resets and hatches (which play their own reveal) outrank the plain chime.
+            if (s.asc > as) sfx("ascend");
+            else if (s.rebirths > rb) sfx("rebirth");
+            else if (!eggQuiet.current) sfx(snd ?? "buy");
             render();
         }
     };
-    const ctx: Ctx = { s, d, F, act, render, say, tip, eggFx: (egg, results) => setReveal({ egg, results }) };
+    const ctx: Ctx = { s, d, F, act, render, say, tip, eggFx: (egg, results) => {
+            eggQuiet.current = true;
+            setReveal({ egg, results });
+        },
+    };
     const glintOn = s.enc.eq.button && s.enc.opts.glint !== "none" ? { id: s.enc.opts.glint, color: glintColor(s), power: s.enc.eq.button.r } : null;
 
     // Per-tab notices: drive the badges and the tooltip bodies (see tab-notes.ts).
@@ -644,7 +658,7 @@ export function FracturedIdle() {
                 backgroundColor: "color-mix(in oklch, var(--background) 92%, black)",
             }}
         >
-            <style>{CSS}{BTN_CSS}{SKIN_CSS}{BUTTON_TAB_CSS}{COMBO_CSS}{POPUP_CSS}{ISLAND_CSS}{MENU_CSS}{LEVEL_CSS}{ENCH_CSS}{GLINT_CSS}{SKILL_TOAST_CSS}{TABBAR_CSS}{STATS_CSS}{MINE_CSS}{FARM_CSS}{DOCK_CSS}{BUTTON_DOCK_CSS}{GOALS_CSS}{PS_CSS}{PET_CSS}{PB_CSS}{EGG_CSS}{TIP_CSS}{FONT_CSS}</style>
+            <style>{CSS}{BTN_CSS}{SKIN_CSS}{BUTTON_TAB_CSS}{COMBO_CSS}{POPUP_CSS}{ISLAND_CSS}{MENU_CSS}{LEVEL_CSS}{ENCH_CSS}{GLINT_CSS}{SKILL_TOAST_CSS}{TABBAR_CSS}{STATS_CSS}{MINE_CSS}{FARM_CSS}{DOCK_CSS}{BUTTON_DOCK_CSS}{GOALS_CSS}{PS_CSS}{PET_CSS}{PB_CSS}{EGG_CSS}{TIP_CSS}{SCROLL_CSS}{FONT_CSS}</style>
             <TipProvider hostRef={tipHost}>
 
             {/* HUD */}
@@ -813,23 +827,46 @@ export function FracturedIdle() {
                     </button>
                     </Tip>
                 )}
+                <Tip
+                    tip={() => (
+                        <TipCard
+                            title="Combo"
+                            color="var(--mc-gold)"
+                            lines={["Hold the button (or Space) to build a combo. It multiplies every click and drains when you let go."]}
+                            rows={[["Now", `x${s.combo.toFixed(2)}`, s.combo > 1.01 ? "var(--mc-gold)" : undefined], ["Max", `x${d.comboMax.toFixed(2)}`], ["Build speed", `x${d.comboGain.toFixed(2)}`], ["Surge chance", `${(d.surgeChance * 100).toFixed(1)}%/s`]]}
+                            cta="Click to see the button tab!"
+                        />
+                    )}
+                >
+                    <button type="button" className="text-left" onClick={() => { tip.hide(); setTab("button"); }}>
+                        <div className="font-minecraft text-[10px] uppercase tracking-widest text-muted-foreground">Combo</div>
+                        <div className="font-minecraft font-bold text-lg leading-none" style={{ color: "var(--mc-gold)" }}>x{s.combo.toFixed(2)}</div>
+                        <div className="mt-1 h-[3px] w-full overflow-hidden rounded-full bg-white/10">
+                            <div className="h-full rounded-full" style={{ width: `${Math.min(100, Math.max(0, ((s.combo - 1) / Math.max(0.01, d.comboMax - 1)) * 100))}%`, backgroundColor: "var(--mc-gold)", boxShadow: "0 0 6px var(--mc-gold)" }} />
+                        </div>
+                    </button>
+                </Tip>
+                <Tip
+                    tip={() => (
+                        <TipCard
+                            title="Wallet"
+                            color="var(--mc-light-purple)"
+                            lines={["What you can spend on permanent upgrades."]}
+                            rows={[["Rebirth tokens", F(s.tokens), "var(--mc-light-purple)"], ["Gems", F(s.ap), "var(--mc-aqua)"], ["Arcane dust", F(s.enc.dust), "#d9a8ff"]]}
+                            cta="Click to open Rebirth!"
+                        />
+                    )}
+                >
+                    <button type="button" className="text-left" onClick={() => { tip.hide(); setTab("rebirth"); }}>
+                        <div className="font-minecraft text-[10px] uppercase tracking-widest text-muted-foreground">Wallet</div>
+                        <div className="flex items-center gap-2 font-minecraft font-bold text-lg leading-none">
+                            <span style={{ color: "var(--mc-light-purple)" }}>{F(s.tokens)}</span>
+                            <span className="text-xs text-muted-foreground">/</span>
+                            <span style={{ color: "var(--mc-aqua)" }}>{F(s.ap)}</span>
+                        </div>
+                    </button>
+                </Tip>
                 <div className="ml-auto flex items-center gap-2">
-                    <div className="flex overflow-hidden rounded-lg border border-white/15">
-                        {BUY_OPTIONS.map((o) => (
-                            <button
-                                key={o.v}
-                                type="button"
-                                onClick={() => {
-                                    s.buy = o.v;
-                                    render();
-                                }}
-                                className="px-2.5 py-1.5 font-rubik text-xs font-semibold transition-colors"
-                                style={s.buy === o.v ? { backgroundColor: tint("var(--mc-aqua)", 25), color: "var(--mc-aqua)" } : { color: "var(--muted-foreground)" }}
-                            >
-                                {o.label}
-                            </button>
-                        ))}
-                    </div>
                     <IconBtn label={full ? "Exit fullscreen (F)" : "Fullscreen (F)"} onClick={toggleFs}>
                         {full ? <Minimize className="size-4" /> : <Expand className="size-4" />}
                     </IconBtn>

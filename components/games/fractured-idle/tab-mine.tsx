@@ -1,5 +1,6 @@
 "use client";
 
+import { sfx } from "@/lib/sound/sounds";
 import { useEffect, useReducer, useRef, useState, type CSSProperties, type ReactNode } from "react";
 import { Lock } from "lucide-react";
 import { McSymbol } from "@/components/mc-symbol";
@@ -519,6 +520,7 @@ function DigView({ s, d, F, render, say }: { s: Ctx["s"]; d: Ctx["d"]; F: (n: nu
         const { n, last: out } = crackAll(s, mineCtx(d), !all);
         if (n && out) {
             say(n === 1 ? `Geode: ${out.title}, ${out.sub}` : `Cracked ${n} geodes. Latest: ${out.title}, ${out.sub}`);
+            sfx(n === 1 ? "collect" : "bulk");
             render();
         }
     };

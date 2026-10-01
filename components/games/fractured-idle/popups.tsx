@@ -1,5 +1,6 @@
 "use client";
 
+import { sfx } from "@/lib/sound/sounds";
 import { useCallback, useEffect, useRef, useState, type MutableRefObject, type ReactNode } from "react";
 import { McSymbol } from "@/components/mc-symbol";
 import { BUFF_BY_ID, CRACKED_WIN, curseOdds, goldenOdds, isQte, nextPopupIn, noteCaught, popupBase, popupLife, resolveBobber, resolveCracked, resolveGolden, resolveQte, rollKind, type Grade, type Outcome, type PopupKind, type PopupSpec } from "@/lib/fractured-idle/events";
@@ -69,6 +70,7 @@ export function Popups({ stateRef, dRef, getCombo, say, enabled }: Props) {
             if (cur.length >= MAX_POPUPS) return;
             const kind = rollKind(d, cur.some((i) => isQte(i.kind)));
             set((c) => [...c, { id: sc.id++, kind, x: 10 + Math.random() * 76, y: 20 + Math.random() * 46, life: popupLife(kind, d) }]);
+            sfx("popup");
         }, 250);
         return () => clearInterval(iv);
     }, [enabled, stateRef, dRef, getCombo, set]);
@@ -108,6 +110,8 @@ export function Popups({ stateRef, dRef, getCombo, say, enabled }: Props) {
             eventBurst(host, x, y, o.color, o.tone);
         }
         if (o.tone === "perm") say(`${o.title}: ${o.sub}`);
+        // one sound for every popup result, by how it turned out
+        sfx(o.tone === "bad" ? "deny" : o.tone === "perm" || o.tone === "loot" ? "tier" : "collect");
     };
 
     // Every caught popup also pays Arcane Dust and Foraging xp, and Chain Reaction may spark another one.

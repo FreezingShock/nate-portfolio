@@ -1,3 +1,4 @@
+import type { SfxName } from "@/lib/sound/sounds";
 import type { ComponentProps, ReactNode } from "react";
 import { Lock } from "lucide-react";
 import { McSymbol } from "@/components/mc-symbol";
@@ -13,7 +14,8 @@ export interface Ctx {
     d: Derived;
     F: (n: number) => string;
     /** Run an engine action; re-renders when it returns true. */
-    act: (fn: () => boolean) => void;
+    /** Run a purchase or action; when it succeeds the game re-renders and plays `snd` (default: the buy chime). */
+    act: (fn: () => boolean, snd?: SfxName) => void;
     render: () => void;
     say: (msg: string) => void;
     tip: TipApi;
@@ -194,4 +196,22 @@ export const FONT_CSS = `
 .fi-mn-stat b,.fi-mn-name,.fi-mn-pop,.fi-mn-geode-n,.fi-mn-crack,.fi-mn-pick-t,.fi-mn-buy,.fi-mn-up-h b,.fi-mn-maxed,.fi-mn-drill-t,.fi-mn-col-h b,.fi-mn-chip b,.fi-mn-seg button[data-on="true"],
 .fi-st-cat-h b,.fi-st-v,.fi-st-chip[data-on="true"],
 .fi-tp-h .tl,.fi-tp-r dd{font-weight:700}
+`;
+
+// Game scrollbars: slim rounded thumbs tinted with the theme's aqua, a faint track, a glow on hover. Chromium and
+// Safari use the ::-webkit-scrollbar pieces (scrollbar-width has to stay auto there or they are ignored); Firefox
+// gets the standard scrollbar-color.
+export const SCROLL_CSS = `
+@supports selector(::-webkit-scrollbar){
+[data-fi-root] *{scrollbar-width:auto!important}
+[data-fi-root] ::-webkit-scrollbar{width:11px;height:11px}
+[data-fi-root] ::-webkit-scrollbar-track{background:rgba(255,255,255,.035);border-radius:999px;margin:4px}
+[data-fi-root] ::-webkit-scrollbar-thumb{border-radius:999px;border:3px solid transparent;background-clip:padding-box;background-color:color-mix(in oklch,var(--mc-aqua) 38%,rgba(255,255,255,.18));min-height:36px;transition:background-color .15s}
+[data-fi-root] ::-webkit-scrollbar-thumb:hover{background-color:color-mix(in oklch,var(--mc-aqua) 75%,#fff)}
+[data-fi-root] ::-webkit-scrollbar-thumb:active{background-color:var(--mc-aqua)}
+[data-fi-root] ::-webkit-scrollbar-corner{background:transparent}
+}
+@supports not selector(::-webkit-scrollbar){
+[data-fi-root] *{scrollbar-width:thin;scrollbar-color:color-mix(in oklch,var(--mc-aqua) 45%,transparent) rgba(255,255,255,.04)}
+}
 `;

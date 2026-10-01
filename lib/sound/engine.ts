@@ -156,6 +156,7 @@ const lastPlay = new Map<string, number>();
 let active = 0;
 let lastTier = 0;
 let lastTierAt = 0;
+let lastBig = -1e9;
 const MAX_VOICES = 24;
 
 /** Whether a sound may start now: sound on, audio unlocked, rate limit, no quieter sound right on top of a louder one. */
@@ -165,8 +166,10 @@ export function gate(id: string, tier: number, minGap: number): boolean {
     const now = performance.now();
     if (now - (lastPlay.get(id) ?? -1e9) < minGap) return false;
     if (tier < lastTier && now - lastTierAt < 90) return false; // a click that also bought something stays one sound
+    if (tier >= 3 && tier < 4 && now - lastBig < 450) return false; // two reward jingles never pile up
     if (active > MAX_VOICES) return false;
     lastPlay.set(id, now);
+    if (tier >= 3) lastBig = now;
     if (tier >= lastTier || now - lastTierAt > 90) {
         lastTier = tier;
         lastTierAt = now;

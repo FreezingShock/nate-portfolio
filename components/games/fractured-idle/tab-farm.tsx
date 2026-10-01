@@ -1,5 +1,6 @@
 "use client";
 
+import { sfx } from "@/lib/sound/sounds";
 import { useEffect, useRef, useState, type CSSProperties, type ReactNode } from "react";
 import { Lock } from "lucide-react";
 import { McSymbol } from "@/components/mc-symbol";
@@ -362,6 +363,7 @@ function Garden({ s, d, F, render, say }: { s: Ctx["s"]; d: Ctx["d"]; F: (n: num
         const c = CROP_BY_ID[out.crop];
         burst(i, c.color, out.lucky ? 14 : 9);
         popAt(i, `+${amt((n) => String(Math.round(n)), out.units)} ${c.name}`, c.color, out.bumper || out.lucky);
+        sfx("collect");
         if (out.lucky) popAt(i, "TRIPLE!", "#ffe29a", true);
         if (out.pod) tell(`A ${PODS[out.pod].name} dropped! Open it below.`);
         live.current.render();
@@ -430,7 +432,7 @@ function Garden({ s, d, F, render, say }: { s: Ctx["s"]; d: Ctx["d"]; F: (n: num
             </p>
 
             <div className="fi-fm-ctl">
-                <button type="button" className="fi-mn-buy small" disabled={ripe === 0} onClick={() => { const n = harvestAll(s, farmCtx(d), true); if (n) { say(`Picked ${n} plot${n > 1 ? "s" : ""}.`); render(); } }}>
+                <button type="button" className="fi-mn-buy small" disabled={ripe === 0} onClick={() => { const n = harvestAll(s, farmCtx(d), true); if (n) { say(`Picked ${n} plot${n > 1 ? "s" : ""}.`); sfx("bulk"); render(); } }}>
                     Harvest {ripe || ""}
                 </button>
                 <button type="button" className="fi-mn-buy small ghost" disabled={empty === 0 || !sow} onClick={() => { const n = plantAll(s); if (n) { say(`Planted ${n} plot${n > 1 ? "s" : ""}.`); render(); } }}>

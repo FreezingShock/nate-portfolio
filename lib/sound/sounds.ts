@@ -13,6 +13,8 @@ const DEFS = {
     // ---- tier 0: ambient
     hover: { tier: 0, bus: "ui", gap: 70, play: () => tone("ui", { f: note(9), dur: 0.05, gain: 0.025, cutoff: 1800, attack: 0.01 }) },
 
+    tip: { tier: 0, bus: "ui", gap: 90, play: () => tone("ui", { f: note(8 + pick("tip", 2)), dur: 0.07, gain: 0.03, glide: 0.96, cutoff: 1800, attack: 0.012 }) },
+
     // ---- tier 1: interface
     tap: {
         tier: 1,

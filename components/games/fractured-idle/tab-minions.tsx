@@ -128,7 +128,7 @@ export function MinionsTab({ s, d, F, act, render }: Ctx) {
                         {top.map((t, r) => {
                             const m = MINIONS[t.i];
                             const c = RANKS[r].color;
-                            const buy = () => t.info.can && act(() => buyMinion(s, t.i));
+                            const buy = () => t.info.can && act(() => buyMinion(s, t.i), s.buy === 1 ? undefined : "bulk");
                             return (
                                 <div
                                     key={t.i}
@@ -257,7 +257,7 @@ export function MinionsTab({ s, d, F, act, render }: Ctx) {
                             <button
                                 type="button"
                                 disabled={!info.can}
-                                onClick={() => act(() => buyMinion(s, i))}
+                                onClick={() => act(() => buyMinion(s, i), s.buy === 1 ? undefined : "bulk")}
                                 className="flex shrink-0 flex-row items-center justify-between gap-2 rounded-lg border px-3 py-1.5 text-center transition-colors sm:min-w-[92px] sm:flex-col sm:justify-center sm:px-2 sm:py-0 enabled:hover:brightness-125 enabled:active:translate-y-px disabled:cursor-not-allowed disabled:opacity-50"
                                 style={{
                                     color: m.color,

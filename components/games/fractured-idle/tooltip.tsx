@@ -2,6 +2,7 @@
 
 import { createContext, useCallback, useContext, useEffect, useLayoutEffect, useMemo, useRef, useState, type MutableRefObject, type ReactNode } from "react";
 import type { TipSource } from "./ui";
+import { sfx } from "@/lib/sound/sounds";
 import { PET_TIP_CSS } from "./pet-tip-css";
 
 // One tooltip system for the whole game.
@@ -70,6 +71,7 @@ export function TipProvider({ hostRef, children }: { hostRef?: MutableRefObject<
                 clearTimeout(timer.current);
                 clearTimeout(auto.current);
                 const open = () => {
+                    sfx("tip");
                     setView({ render, open: true });
                     requestAnimationFrame(place);
                 };

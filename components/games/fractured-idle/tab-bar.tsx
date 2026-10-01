@@ -123,19 +123,38 @@ function Bar<T extends string>({ tabs, groups, current, notes, onSelect, keys = 
                     </div>
                 );
             })}
-            <button
-                type="button"
-                className="fi-tabs-read"
-                data-on={total > 0}
-                disabled={total === 0}
-                onClick={() => {
-                    setRead(Object.fromEntries(tabs.map((t) => [t.id, actSig(notes[t.id])])));
-                    onReadAll?.();
+            <Tip
+                box
+                className="fi-tabs-rw"
+                tip={() => {
+                    const hot = tabs.filter((t) => shown(t.id) > 0);
+                    return (
+                        <TipCard
+                            title="Notifications"
+                            color="var(--mc-green)"
+                            tag={total > 0 ? `${total} new` : "all read"}
+                            lines={[total > 0 ? `${total} thing${total === 1 ? "" : "s"} waiting on ${hot.length} tab${hot.length === 1 ? "" : "s"}.` : "You are all caught up."]}
+                            rows={hot.map((t): [string, string, string] => [t.label, String(shown(t.id)), t.color])}
+                            cta={total > 0 ? "Click to mark all read!" : undefined}
+                        />
+                    );
                 }}
-                aria-label={total > 0 ? `Mark all ${total} notifications as read` : "No notifications"}
             >
-                <span>✓</span> Read all{total > 0 ? ` (${total})` : ""}
-            </button>
+                <button
+                    type="button"
+                    className="fi-tabs-read"
+                    data-on={total > 0}
+                    aria-disabled={total === 0}
+                    onClick={() => {
+                        if (total === 0) return;
+                        setRead(Object.fromEntries(tabs.map((t) => [t.id, actSig(notes[t.id])])));
+                        onReadAll?.();
+                    }}
+                    aria-label={total > 0 ? `Mark all ${total} notifications as read` : "No notifications"}
+                >
+                    <span>✓</span>
+                </button>
+            </Tip>
         </nav>
     );
 }
@@ -161,12 +180,15 @@ export const TABBAR_CSS = `
 .fi-tab-n{position:absolute;right:-.3rem;top:-.35rem;min-width:.95rem;height:.95rem;padding:0 .2rem;display:grid;place-items:center;border-radius:999px;font:700 .58rem/1 var(--font-rubik,inherit);color:#111;background:var(--mc-green);box-shadow:0 0 0 2px color-mix(in oklch,var(--background) 90%,#000),0 0 9px var(--mc-green);animation:fi-tab-ping .5s cubic-bezier(.2,1.8,.4,1)}
 .fi-tab-n::before{content:"";position:absolute;inset:-2px;border-radius:inherit;border:1px solid var(--mc-green);animation:fi-tab-ring 1.8s ease-out infinite}
 .fi-tab:focus-visible{outline:2px solid var(--c);outline-offset:2px}
-.fi-tabs-read{align-self:flex-end;margin-left:auto;display:inline-flex;align-items:center;gap:.3rem;height:2.1rem;padding:0 .7rem;border-radius:.65rem;border:1px solid rgba(255,255,255,.12);font-family:var(--font-minecraft,inherit);font-size:.62rem;color:var(--muted-foreground);transition:background .15s,color .15s,border-color .15s,transform .1s;touch-action:manipulation}
-.fi-tabs-read span{font-size:.8rem}
+.fi-tabs-rw{align-self:flex-end;margin-left:auto}
+.fi-tabs-read{display:grid;place-items:center;width:2.1rem;height:2.1rem;padding:0;border-radius:.65rem;border:1px solid rgba(255,255,255,.12);font-family:var(--font-minecraft,inherit);font-size:.62rem;color:var(--muted-foreground);transition:background .15s,color .15s,border-color .15s,transform .1s;touch-action:manipulation}
+.fi-tabs-read span{font-size:.95rem;line-height:1;transition:transform .2s cubic-bezier(.2,1.7,.4,1)}
+.fi-tabs-read[data-on="true"]:hover span{transform:scale(1.2) rotate(-6deg)}
+.fi-tabs-read[data-on="true"] span{filter:drop-shadow(0 0 5px var(--mc-green))}
 .fi-tabs-read[data-on="true"]{color:var(--mc-green);border-color:color-mix(in oklch,var(--mc-green) 55%,transparent);background:color-mix(in oklch,var(--mc-green) 10%,transparent)}
 .fi-tabs-read[data-on="true"]:hover{background:color-mix(in oklch,var(--mc-green) 22%,transparent)}
-.fi-tabs-read:active:not(:disabled){transform:scale(.95)}
-.fi-tabs-read:disabled{opacity:.45;cursor:default}
+.fi-tabs-read:active:not([aria-disabled="true"]){transform:scale(.93)}
+.fi-tabs-read[aria-disabled="true"]{opacity:.4;cursor:default}
 @keyframes fi-tab-pop{0%{transform:scale(.9)}60%{transform:scale(1.07)}100%{transform:scale(1)}}
 @keyframes fi-tab-ping{0%{transform:scale(0)}100%{transform:scale(1)}}
 @keyframes fi-tab-ring{0%{transform:scale(1);opacity:.8}100%{transform:scale(1.9);opacity:0}}

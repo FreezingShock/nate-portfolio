@@ -101,7 +101,7 @@ export function PetsTab({ s, d, F, act, say, eggFx }: Ctx) {
     const pick = useCallback(
         (id: string) => {
             if (target !== null) {
-                act(() => equipPetAt(s, id, target));
+                act(() => equipPetAt(s, id, target), "equip");
                 say(`${PET_BY_ID.get(id)?.name} equipped to slot ${target + 1}.`);
                 setTarget(null);
             }
@@ -155,7 +155,7 @@ export function PetsTab({ s, d, F, act, say, eggFx }: Ctx) {
                     ))}
                     <span className="flex-1" />
                     <Tip tip={<TipCard title="Equip best" color="var(--mc-green)" lines={["Fills every slot with your strongest pets: rarity first, then level, then stars."]} cta="Click to equip!" />}>
-                        <button type="button" className="pt-btn" onClick={() => act(() => equipBest(s))}>Equip best</button>
+                        <button type="button" className="pt-btn" onClick={() => act(() => equipBest(s), "equip")}>Equip best</button>
                     </Tip>
                     <Tip tip={<TipCard title="Feed equipped" color="var(--mc-yellow)" lines={["Gives every equipped pet 30% of the xp its level needs."]} rows={[["Cost", `${F(feedAllCost)} shards`, s.shards >= feedAllCost ? "var(--mc-yellow)" : "var(--mc-red)"]]} cta={feedAllCost > 0 && s.shards >= feedAllCost ? "Click to feed!" : undefined} ctaDim={s.shards < feedAllCost} />}>
                         <button type="button" className="pt-btn" disabled={feedAllCost <= 0 || s.shards < feedAllCost} onClick={() => act(() => feedEquipped(s) > 0)}>Feed all</button>
@@ -326,7 +326,7 @@ export function PetsTab({ s, d, F, act, say, eggFx }: Ctx) {
                                         const occ = s.equip[i] ? PET_BY_ID.get(s.equip[i]) : undefined;
                                         return (
                                             <Tip key={i} tip={<TipCard title={`Slot ${i + 1}`} color={C} lines={[occ ? (selSlot === i ? `${selP.name} is already here.` : `${occ.name} is here. ${selSlot >= 0 ? "You will swap places." : "It will be replaced."}`) : "Empty."]} cta={selSlot === i ? undefined : "Click to equip here!"} ctaDim={selSlot === i} />}>
-                                                <button type="button" data-cur={selSlot === i} onClick={() => act(() => equipPetAt(s, selP.id, i))} aria-label={`Equip to slot ${i + 1}`}>
+                                                <button type="button" data-cur={selSlot === i} onClick={() => act(() => equipPetAt(s, selP.id, i), "equip")} aria-label={`Equip to slot ${i + 1}`}>
                                                     <b>{i + 1}</b>
                                                     <span style={{ color: occ?.color }}>{occ ? <McSymbol name={occ.symbol} /> : "+"}</span>
                                                 </button>
@@ -335,7 +335,7 @@ export function PetsTab({ s, d, F, act, say, eggFx }: Ctx) {
                                     })}
                                 </div>
                                 {selSlot >= 0 && (
-                                    <button type="button" className="pt-btn" onClick={() => act(() => unequipPet(s, selP.id))}>Unequip</button>
+                                    <button type="button" className="pt-btn" onClick={() => act(() => unequipPet(s, selP.id), "close")}>Unequip</button>
                                 )}
                                 {petLevel(selP, selSt.xp) < PET_MAX && (
                                     <Tip tip={<TipCard title="Feed" color="var(--mc-yellow)" lines={["Spend shards to give this pet 30% of the xp its current level needs."]} rows={[["Cost", `${F(feedCost(s))} shards`]]} />}>
