@@ -48,6 +48,30 @@ export async function signIn(email: string, password: string) {
     if (r.ok) await refreshAccount();
     return { ok: r.ok, error: (r.body.error as string) ?? null };
 }
+/** Ask for the confirmation email again. */
+export async function resendLink(email: string) {
+    const r = await post("/api/account/resend", { email });
+    return { ok: r.ok, error: (r.body.error as string) ?? null };
+}
+/** One poll while waiting for the email link: signs in the moment the address is confirmed. */
+export async function pollConfirmed(email: string, password: string): Promise<{ confirmed: boolean; error: string | null }> {
+    const r = await post("/api/account/poll", { email, password });
+    if (r.ok && r.body.confirmed) {
+        await refreshAccount();
+        return { confirmed: true, error: null };
+    }
+    return { confirmed: false, error: r.ok ? null : ((r.body.error as string) ?? "Could not check") };
+}
+/** Redirects to Google; returns an error string when it could not start. */
+export async function startGoogle(): Promise<string | null> {
+    const r = await post("/api/account/google");
+    if (r.ok && typeof r.body.url === "string") {
+        window.location.assign(r.body.url);
+        return null;
+    }
+    return (r.body.error as string) ?? "Could not start Google sign-in.";
+}
+
 export async function signOut() {
     await post("/api/account/signout");
     set({ email: null, lastSync: null, error: null });

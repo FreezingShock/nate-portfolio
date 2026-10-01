@@ -9,7 +9,10 @@ export async function POST(req: Request) {
 
     const { data, error } = await anon().auth.signUp({ email: b.email.trim().toLowerCase(), password: b.password });
     authLimit.fail(req); // sign-ups count toward the limit too
-    if (error) return json({ error: error.message }, 400);
+    if (error) {
+        const limited = /rate limit/i.test(error.message);
+        return json({ error: limited ? "We have sent a lot of emails in the last hour. Please try again in a bit." : error.message }, limited ? 429 : 400);
+    }
     if (data.session) {
         await setSession(data.session);
         return json({ ok: true, email: data.user?.email });
