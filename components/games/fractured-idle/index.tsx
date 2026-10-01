@@ -58,6 +58,7 @@ import { MINE_CSS, MineTab } from "./tab-mine";
 import { FARM_CSS, FarmTab } from "./tab-farm";
 import { DOCK_CSS, SkillDock } from "./skill-dock";
 import { ButtonDock, BUTTON_DOCK_CSS } from "./button-dock";
+import { useCloudSync } from "./cloud-sync";
 import { dockBus } from "./dock-bus";
 import { farmCtx, water } from "@/lib/fractured-idle/farm";
 import { COL_AT, ORES, colTierOf, jobsReady, mineCtx, mineLevel, oreIslands, swing } from "@/lib/fractured-idle/mine";
@@ -538,6 +539,7 @@ export function FracturedIdle() {
         writeSave(n);
         render();
     };
+    useCloudSync(ref, ready, replaceState, say);
 
     // ---- Keyboard ----
     useEffect(() => {

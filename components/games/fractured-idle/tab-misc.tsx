@@ -5,6 +5,7 @@ import { Copy, Download, RotateCcw, Save, Upload } from "lucide-react";
 import { McSymbol } from "@/components/mc-symbol";
 import { COMING_SOON } from "@/lib/fractured-idle/data";
 import { exportSave, importSave, newState, offlineEff, writeSave } from "@/lib/fractured-idle/engine";
+import { CloudPanel } from "./cloud-sync";
 import { ActionBtn, Badge, SectionTitle, Toggle, tint, type Ctx } from "./ui";
 
 const IDEAS = [
@@ -53,6 +54,8 @@ export function SettingsTab({ s, render, say, replaceState }: Ctx & { replaceSta
                     </button>
                 ))}
             </div>
+            <SectionTitle color="var(--mc-aqua)">Cloud save</SectionTitle>
+            <CloudPanel s={s} say={say} replaceState={replaceState} />
             <SectionTitle color="var(--mc-yellow)">Save data</SectionTitle>
             <p className="font-rubik text-[11px] text-muted-foreground">
                 Offline progress: {Math.round(offlineEff(s) * 100)}% efficiency, up to 8 hours. Saves to this browser every 10 seconds.
