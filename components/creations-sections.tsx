@@ -143,11 +143,11 @@ export function Section({
     blurb?: string;
     children: React.ReactNode;
     first?: boolean;
-    /** Run the content edge to edge of the screen (only inside a `wide` shell). The heading keeps the 6xl column. */
+    /** Let the content run wider than the 6xl column, up to 1800px, keeping the page margins (only inside a `wide` shell). */
     bleed?: boolean;
 }) {
     return (
-        <section id={id} className={`scroll-mt-24 ${first ? "" : "mt-20"}`}>
+        <section id={id} className={`${bleed ? "scroll-mt-[-44px]" : "scroll-mt-24"} ${first ? "" : "mt-20"}`}>
             <div className="mx-auto max-w-6xl">
                 <SectionLabel accent={accent} symbol={symbol}>
                     {title}
@@ -158,7 +158,7 @@ export function Section({
                     </p>
                 )}
             </div>
-            <div className={bleed ? "-mx-6 mt-6 sm:-mx-10 lg:-mx-16" : "mx-auto mt-6 max-w-6xl"}>{children}</div>
+            <div className={bleed ? "mx-auto mt-6 max-w-[1800px]" : "mx-auto mt-6 max-w-6xl"}>{children}</div>
         </section>
     );
 }

@@ -586,7 +586,7 @@ export function FracturedIdle() {
     const s = ref.current;
     if (!ready || !s) {
         return (
-            <div className="grid min-h-[70dvh] place-items-center border-y border-white/10 font-minecraft font-bold text-sm text-muted-foreground">
+            <div className="grid min-h-[70dvh] place-items-center rounded-3xl border border-white/10 font-minecraft font-bold text-sm text-muted-foreground">
                 Loading your islands...
             </div>
         );
@@ -616,7 +616,7 @@ export function FracturedIdle() {
             className={
                 full
                     ? "fixed inset-0 z-[100] flex flex-col overflow-y-auto overscroll-contain bg-background lg:overflow-hidden"
-                    : "relative flex flex-col overflow-hidden border-y border-white/15 lg:h-[clamp(780px,calc(100dvh-7.5rem),1500px)]"
+                    : "relative flex flex-col overflow-hidden rounded-3xl border border-white/15 lg:h-[clamp(600px,calc(100dvh-96px),1400px)]"
             }
             style={{
                 backgroundImage: `radial-gradient(ellipse at 25% -10%, ${tint(island.color, 24)}, transparent 60%), radial-gradient(ellipse at 90% 110%, ${tint(island.color, 14)}, transparent 55%)`,
