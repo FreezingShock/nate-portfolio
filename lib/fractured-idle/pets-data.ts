@@ -195,11 +195,11 @@ export const petLevel = (p: PetDef, xp: number) => Math.min(PET_MAX, 1 + Math.fl
 // Every egg hatches pets of its own dimension, is paid for in its own currency, and has its own odds.
 
 export type EggCur = "shards" | "tokens" | "gems" | "dust";
-export const EGG_CUR: Record<EggCur, { name: string; one: string; symbol: McSymbolName; color: string }> = {
-    shards: { name: "Shards", one: "shard", symbol: "speed", color: "var(--mc-aqua)" },
-    tokens: { name: "Rebirth Tokens", one: "token", symbol: "magicFind", color: "var(--mc-yellow)" },
-    gems: { name: "Gems", one: "gem", symbol: "pristine", color: "var(--mc-aqua)" },
-    dust: { name: "Arcane Dust", one: "dust", symbol: "flask", color: "#e2b8ff" },
+export const EGG_CUR: Record<EggCur, { name: string; one: string; symbol: McSymbolName; color: string; how: string[] }> = {
+    shards: { name: "Shards", one: "shard", symbol: "speed", color: "var(--mc-aqua)", how: ["Your minions and clicks make them all the time.", "Hold the button to build a combo for more."] },
+    tokens: { name: "Rebirth Tokens", one: "token", symbol: "magicFind", color: "var(--mc-yellow)", how: ["Earned every time you rebirth (Rebirth tab).", "Milestone rebirths and some mine and farm rewards pay extra."] },
+    gems: { name: "Gems", one: "gem", symbol: "pristine", color: "var(--mc-aqua)", how: ["Earned when you ascend (Ascension tab).", "Rarely found in mine geodes and farm pods."] },
+    dust: { name: "Arcane Dust", one: "dust", symbol: "flask", color: "#e2b8ff", how: ["Trickles in while you play and drops from clicks.", "Rebirths and ascensions leave some behind. Spent at the Enchant table too."] },
 };
 
 export interface EggDef {

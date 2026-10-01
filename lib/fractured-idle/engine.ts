@@ -736,6 +736,17 @@ export function eggPrice(s: State, egg: EggDef): number {
     return Math.max(1, Math.ceil((egg.price ?? 1) * Math.min(6, Math.pow(1.015, s.hatched)) * disc));
 }
 
+/** Everything that goes into an egg's price, for the cost tooltip. */
+export function eggPriceInfo(s: State, egg: EggDef) {
+    const disc = Math.max(0.2, 1 - 0.08 * (s.aups.nest || 0));
+    const shards = egg.cur === "shards";
+    const growth = shards ? Math.min(25, Math.pow(1.02, s.hatched)) : Math.min(6, Math.pow(1.015, s.hatched));
+    const income = s.peakInc * (egg.secs ?? 300);
+    const floor = egg.min ?? 1;
+    const base = shards ? Math.max(floor, income) : (egg.price ?? 1);
+    return { base, growth, disc, price: eggPrice(s, egg), income, floor, flooredBy: shards && floor > income, secs: egg.secs ?? 0, hatched: s.hatched, nest: s.aups.nest || 0, capped: shards ? growth >= 25 : growth >= 6 };
+}
+
 export const eggBalance = (s: State, cur: EggDef["cur"]) => (cur === "shards" ? s.shards : cur === "tokens" ? s.tokens : cur === "gems" ? s.ap : s.enc.dust);
 
 /** Why an egg cannot be bought yet, or null when its dimension is open to you. */
@@ -853,6 +864,25 @@ export function unequipPet(s: State, id: string): boolean {
     return true;
 }
 
+/** Put a pet in a specific slot (0-based). A pet that is already equipped moves; whoever was there takes its old place. */
+export function equipPetAt(s: State, id: string, slot: number): boolean {
+    if (!s.pets[id]) return false;
+    const max = petSlots(s);
+    if (slot < 0 || slot >= max) return false;
+    const from = s.equip.indexOf(id);
+    if (from === slot) return false;
+    const list = [...s.equip];
+    if (from >= 0) {
+        const there = list[slot];
+        list[from] = there ?? "";
+        list[slot] = id;
+    } else if (slot < list.length) {
+        list[slot] = id; // replaces whoever was there
+    } else list.push(id);
+    s.equip = list.filter(Boolean).slice(0, max);
+    return true;
+}
+
 /** How strong a pet is for auto-picking: rarity first, then level, then stars. */
 export const petPower = (s: State, p: PetDef) => rarityIdx(p.rarity) * 10000 + petLevel(p, s.pets[p.id]?.xp ?? 0) * 10 + Math.min(PET_STAR_MAX, (s.pets[p.id]?.n ?? 1) - 1);
 
@@ -866,6 +896,9 @@ export function equipBest(s: State): boolean {
     s.equip = best;
     return true;
 }
+
+/** Pet experience per second per equipped pet, before multipliers. It grows with your best income so pets keep pace. */
+export const petXpRate = (s: State) => 3 + Math.pow(Math.max(1, s.peakInc), 0.2);
 
 /** Give experience to every equipped pet (mentor bonus applied). */
 
@@ -961,7 +994,7 @@ export function advance(s: State, d: Derived, dt: number) {
     const here = activeIsland(s).id;
     s.isec[here] = (s.isec[here] || 0) + dt; // island mastery
     tickBuffs(s, dt);
-    if (s.equip.length) addPetXp(s, dt * d.petXp);
+    if (s.equip.length) addPetXp(s, dt * d.petXp * petXpRate(s));
     const inc = d.cps + d.auto * d.avgClick;
     if (inc > s.peakInc) s.peakInc = inc;
     tickAuto(s, d, dt);
@@ -1133,7 +1166,7 @@ export function settleOffline(s: State): number {
         s.shards += offline;
         s.total += offline;
         s.playTime += secs * offlineEff(s);
-        addPetXp(s, secs * offlineEff(s) * d.petXp);
+        addPetXp(s, secs * offlineEff(s) * d.petXp * petXpRate(s));
         addDust(s, DUST_BASE * secs * offlineEff(s) * d.dustMult);
         tickMine(s, secs * offlineEff(s), mineCtx(d)); // drills, auto-clicks and the passive trickle keep digging
         tickFarm(s, secs * offlineEff(s), farmCtx(d)); // crops keep growing, and the Auto-Reaper keeps harvesting

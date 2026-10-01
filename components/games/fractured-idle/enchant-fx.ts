@@ -140,14 +140,14 @@ export function revealFx(host: HTMLElement, x: number, y: number, r: number) {
 }
 
 /** Full-width flash over a root element (big pulls only). */
-export function flashScreen(root: HTMLElement | null, r: number) {
+export function flashScreen(root: HTMLElement | null, r: number, absolute = false) {
     if (!root || reduced() || r < 3) return;
     const c = colorAt(r);
     const cosmic = r >= RARITIES.length - 1;
     const strength = [0, 0, 0, 0.3, 0.5, 0.65, 0.8, 0.95][r] ?? 0.5;
     const e = document.createElement("div");
     Object.assign(e.style, {
-        position: "fixed",
+        position: absolute ? "absolute" : "fixed",
         inset: "0",
         pointerEvents: "none",
         zIndex: "60",

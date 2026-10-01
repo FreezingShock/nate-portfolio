@@ -2,6 +2,7 @@
 
 import { createContext, useCallback, useContext, useEffect, useLayoutEffect, useMemo, useRef, useState, type MutableRefObject, type ReactNode } from "react";
 import type { TipSource } from "./ui";
+import { PET_TIP_CSS } from "./pet-tip-css";
 
 // One tooltip system for the whole game.
 //
@@ -269,4 +270,4 @@ export const TIP_CSS = `
 .fi-tp-n li[data-act] i{animation:fi-pulse 1.3s ease-in-out infinite}
 .fi-tp-c{font-weight:700;font-size:11px;letter-spacing:.02em;color:var(--mc-yellow);text-shadow:0 0 8px color-mix(in oklch,var(--mc-yellow) 45%,transparent);border-top:1px solid rgba(255,255,255,.12);padding-top:.3rem}
 .fi-tp-c[data-here]{color:#8f89a3;text-shadow:none;font-weight:600}
-`;
+`+PET_TIP_CSS;

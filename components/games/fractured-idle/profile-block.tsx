@@ -9,6 +9,7 @@ import { FXP_PER_LEVEL, LEVEL_BONUS, fxpTotal, levelColor, prefixOf, prefixStat,
 import { activeIsland, islandOpen, masteryInfo } from "@/lib/fractured-idle/island-logic";
 import { DIMENSIONS, ISLANDS, MASTERY_AT, isSpecial } from "@/lib/fractured-idle/islands";
 import { ISLAND_CSS, IslandScene } from "./island-art";
+import { PetTipBody } from "./pet-tip";
 import { LEVEL_CSS, LevelBadge } from "./level-badge";
 import { TIP_CSS, Tip, TipCard, TipProvider } from "./tooltip";
 
@@ -331,7 +332,7 @@ export function FracturedIdleBlock({ s, owner, footer, live, savedAt }: { s: Sta
                                 const lv = own ? petLevel(p, own.xp) : 0;
                                 const eq = s.equip.includes(p.id);
                                 return (
-                                    <Tip key={p.id} box tip={<TipCard title={own ? p.name : "Undiscovered pet"} color={r.color} tag={cap(p.rarity)} lines={[own ? p.blurb : "Hatch eggs to find it."]} rows={own ? [["Level", String(lv)], ["Copies", String(own.n)]] : undefined} notes={eq ? [{ text: "Equipped", color: "var(--mc-green)" }] : undefined} />}>
+                                    <Tip key={p.id} box tip={() => <PetTipBody p={p} owned={own} equipped={eq} slot={s.equip.indexOf(p.id)} />}>
                                         <div className="fi-pb-pet" tabIndex={0} data-own={!!own} data-eq={eq} style={{ ["--c" as string]: own ? p.color : r.color } as CSSProperties}>
                                             <span className="fi-pb-pet-i"><McSymbol name={own ? p.symbol : "check"} /></span>
                                             <span className="fi-pb-pet-n">{own ? p.name : "?"}</span>

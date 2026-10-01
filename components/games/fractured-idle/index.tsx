@@ -11,6 +11,7 @@ import { DUST_CLICK, DUST_CRIT, PROCS, addDust, canRoll, fmtStat, glintColor, sl
 import { claimMilestones, rewardLine } from "@/lib/fractured-idle/skills";
 import {
     addPetXp,
+    petXpRate,
     advance,
     type Derived,
     ascPlan,
@@ -49,7 +50,7 @@ import { Orbit } from "./orbit";
 import { BUY_OPTIONS, CSS, FONT_CSS, IconBtn, Kbd, Stat, tint, type Ctx, type TipApi } from "./ui";
 import { MinionsTab } from "./tab-minions";
 import { PET_CSS, PetsTab } from "./tab-pets";
-import { PB_CSS, PetBar } from "./pet-bar";
+import { PB_CSS, PetBar, petBarVisible } from "./pet-bar";
 import { EGG_CSS, EggReveal } from "./egg-reveal";
 import { AscensionTab } from "./tab-ascension";
 import { UpgradeTip, UpgradesTab } from "./tab-upgrades";
@@ -381,7 +382,7 @@ export function FracturedIdle() {
             addDust(s, d.dustMult);
             dockBus.dust = { t: Date.now(), n: d.dustMult };
         }
-        if (s.equip.length) addPetXp(s, 0.4 * d.petXp);
+        if (s.equip.length) addPetXp(s, 0.2 * d.petXp * petXpRate(s));
         if (crit) {
             s.crits += 1;
             s.combat += 3 * d.xpMult * d.xpSkill.combat;
@@ -823,7 +824,14 @@ export function FracturedIdle() {
                 {/* Button side */}
                 <div className="relative isolate overflow-hidden lg:min-h-0 lg:border-r lg:border-white/10">
                     <IslandScene key={island.id} island={island} variant="backdrop" className="fi-backdrop absolute inset-0 -z-10 size-full" />
-                    <div className="fi-side relative flex h-full flex-col px-4 py-3 lg:overflow-y-auto">
+                    <PetBar
+                        s={s}
+                        onOpen={() => {
+                            tip.hide();
+                            setTab("pets");
+                        }}
+                    />
+                    <div className={`fi-side relative flex h-full flex-col py-3 pr-4 lg:overflow-y-auto ${petBarVisible(s) ? "pl-[3.9rem]" : "pl-4"}`}>
                     <div className="my-auto flex w-full flex-col items-center gap-3">
                     <Tip
                         tip={() => (
@@ -853,14 +861,6 @@ export function FracturedIdle() {
                         <span className="rounded-full border border-white/15 px-2 py-0.5 font-rubik text-[10px] text-muted-foreground transition-colors group-hover:text-foreground">Travel ▸</span>
                     </button>
                     </Tip>
-
-                    <PetBar
-                        s={s}
-                        onOpen={() => {
-                            tip.hide();
-                            setTab("pets");
-                        }}
-                    />
 
                     <BuffBar s={s} />
                     <SkillDock
@@ -983,7 +983,7 @@ export function FracturedIdle() {
                 />
             )}
 
-            {reveal && <EggReveal egg={reveal.egg} results={reveal.results} onClose={() => setReveal(null)} />}
+            {reveal && <EggReveal egg={reveal.egg} results={reveal.results} fixed={full} onClose={() => setReveal(null)} />}
 
             <SkillToasts ref={skillApi} />
 

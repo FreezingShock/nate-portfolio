@@ -14,7 +14,7 @@ import { chargeFx, flashScreen, revealFx } from "./enchant-fx";
 const reduced = () => typeof matchMedia === "function" && matchMedia("(prefers-reduced-motion: reduce)").matches;
 const shakeMs = (r: HatchResult) => (reduced() ? 350 : 1500 + rarityIdx(r.rarity) * 330);
 
-export function EggReveal({ egg, results, onClose }: { egg: EggDef; results: HatchResult[]; onClose: () => void }) {
+export function EggReveal({ egg, results, onClose, fixed = false }: { egg: EggDef; results: HatchResult[]; onClose: () => void; fixed?: boolean }) {
     const host = useRef<HTMLDivElement>(null);
     const eggs = useRef<(HTMLDivElement | null)[]>([]);
     const timers = useRef<ReturnType<typeof setTimeout>[]>([]);
@@ -31,9 +31,10 @@ export function EggReveal({ egg, results, onClose }: { egg: EggDef; results: Hat
             const e = eggs.current[i];
             if (!h || !e) return;
             const rc = e.getBoundingClientRect();
+            const hr = h.getBoundingClientRect();
             const r = rarityIdx(results[i].rarity);
-            revealFx(h, rc.left + rc.width / 2, rc.top + rc.height / 2, Math.min(7, r + 1));
-            flashScreen(h, Math.min(7, r + 1));
+            revealFx(h, rc.left - hr.left + rc.width / 2, rc.top - hr.top + rc.height / 2, Math.min(7, r + 1));
+            flashScreen(h, Math.min(7, r + 1), true);
         },
         [results],
     );
@@ -54,7 +55,8 @@ export function EggReveal({ egg, results, onClose }: { egg: EggDef; results: Hat
             const ms = shakeMs(r);
             if (h && e) {
                 const rc = e.getBoundingClientRect();
-                chargeFx(h, rc.left + rc.width / 2, rc.top + rc.height / 2, rarityIdx(r.rarity), ms);
+                const hr = h.getBoundingClientRect();
+                chargeFx(h, rc.left - hr.left + rc.width / 2, rc.top - hr.top + rc.height / 2, rarityIdx(r.rarity), ms);
             }
             timers.current.push(setTimeout(() => reveal(i), ms + i * 520));
         });
@@ -82,7 +84,7 @@ export function EggReveal({ egg, results, onClose }: { egg: EggDef; results: Hat
 
     const cur = EGG_CUR[egg.cur];
     return (
-        <div ref={host} role="dialog" aria-modal="true" aria-label={`Hatching ${egg.name}`} className="fi-eg-ov" style={{ ["--gc" as string]: done ? bestColor : egg.color, ["--ec" as string]: egg.color } as CSSProperties} onClick={skip}>
+        <div ref={host} role="dialog" aria-modal="true" aria-label={`Hatching ${egg.name}`} className="fi-eg-ov" data-fixed={fixed} style={{ ["--gc" as string]: done ? bestColor : egg.color, ["--ec" as string]: egg.color } as CSSProperties} onClick={skip}>
             <div className="fi-eg-top">
                 <span className="fi-eg-title" style={{ color: egg.color }}>
                     <McSymbol name={egg.symbol} /> {egg.name}{results.length > 1 ? ` x${results.length}` : ""}
@@ -137,7 +139,8 @@ export function EggReveal({ egg, results, onClose }: { egg: EggDef; results: Hat
 }
 
 export const EGG_CSS = `
-.fi-eg-ov{position:fixed;inset:0;z-index:130;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1.4rem;padding:1rem;background:radial-gradient(ellipse at 50% 42%,color-mix(in oklch,var(--gc) 26%,#06040e) 0%,rgba(5,3,12,.96) 70%);backdrop-filter:blur(6px);cursor:pointer;animation:fi-eg-in .25s ease-out both;transition:background .5s}
+.fi-eg-ov{position:absolute;inset:0;z-index:130;overflow:hidden;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1.4rem;padding:1rem;background:radial-gradient(ellipse at 50% 42%,color-mix(in oklch,var(--gc) 26%,#06040e) 0%,rgba(5,3,12,.96) 70%);backdrop-filter:blur(6px);cursor:pointer;animation:fi-eg-in .25s ease-out both;transition:background .5s}
+.fi-eg-ov[data-fixed="true"]{position:fixed}
 @keyframes fi-eg-in{from{opacity:0}}
 .fi-eg-top{display:flex;flex-direction:column;align-items:center;gap:.2rem;text-align:center}
 .fi-eg-title{font-family:var(--font-minecraft,inherit);font-size:1.4rem;text-shadow:0 0 18px currentColor,0 3px 0 rgba(0,0,0,.6)}
