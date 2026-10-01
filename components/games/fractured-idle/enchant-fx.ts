@@ -3,6 +3,7 @@
 // (Lightning, Midas Touch, Echo). Plain elements driven by the Web Animations
 // API, removed when they end. Coordinates are px inside the host element.
 
+import { sfx } from "@/lib/sound/sounds";
 import { RARITIES } from "@/lib/fractured-idle/enchant";
 
 const rand = (a: number, b: number) => a + Math.random() * (b - a);
@@ -51,6 +52,7 @@ export function ring(host: HTMLElement, x: number, y: number, color: string, siz
 
 /** Motes spiraling in to the center while a roll charges. */
 export function chargeFx(host: HTMLElement, x: number, y: number, r: number, ms: number) {
+    sfx("charge", { r, ms });
     if (reduced()) return;
     const n = Math.min(34, 8 + r * 4 + Math.round(ms / 160));
     for (let i = 0; i < n; i++) {
@@ -74,6 +76,7 @@ export function chargeFx(host: HTMLElement, x: number, y: number, r: number, ms:
 
 /** The pull lands. Bigger rarities add rings, sparks, beams and more. */
 export function revealFx(host: HTMLElement, x: number, y: number, r: number) {
+    sfx("reveal", { r });
     if (reduced()) return;
     const color = colorAt(r);
     const big = r >= 4;

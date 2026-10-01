@@ -10,6 +10,8 @@ import { AccountAvatar } from "@/components/account-avatar";
 import { McSymbol, type McSymbolName } from "@/components/mc-symbol";
 import { NameTag } from "@/components/name-tag";
 import { ThemeToggle } from "@/components/theme-toggle";
+import { SoundToggle } from "@/components/sound-controls";
+import { useSoundPrefs } from "@/lib/sound/use-sound";
 import { TIP_CSS, Tip, TipCard, TipProvider } from "@/components/games/fractured-idle/tooltip";
 import { ensureAccount, signOut, useAccount } from "@/lib/account/client";
 import { equippedOf } from "@/lib/account/cosmetics";
@@ -51,6 +53,7 @@ export function AccountMenu() {
     const a = useAccount();
     const router = useRouter();
     const { resolvedTheme } = useTheme();
+    const [{ on: soundOn }] = useSoundPrefs();
     const [open, setOpen] = useState(false);
     const [copied, setCopied] = useState(false);
     const root = useRef<HTMLDivElement>(null);
@@ -177,6 +180,14 @@ export function AccountMenu() {
                                     <span className="am-i"><McSymbol name={"night" as McSymbolName} /></span>
                                     <span className="am-l flex-1">{resolvedTheme === "light" ? "Light theme" : "Dark theme"}</span>
                                     <ThemeToggle />
+                                </div>
+                            </Tip>
+
+                            <Tip box tip={<TipCard title="Sound" color="var(--mc-green)" lines={["Soft interface sounds across the site and games. Volumes are in Settings."]} />}>
+                                <div className="am-row" style={{ ["--c" as string]: "var(--mc-green)" } as CSSProperties}>
+                                    <span className="am-i"><McSymbol name={"speed" as McSymbolName} /></span>
+                                    <span className="am-l flex-1">{soundOn ? "Sound on" : "Sound off"}</span>
+                                    <SoundToggle />
                                 </div>
                             </Tip>
 

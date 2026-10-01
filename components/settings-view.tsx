@@ -12,6 +12,7 @@ import { deleteAccount, ensureAccount, fetchSave, signOut, useAccount } from "@/
 import { PF_CSS } from "@/components/pf-css";
 import { equippedOf } from "@/lib/account/cosmetics";
 import { profileHref } from "@/lib/account/custom";
+import { SoundPanel } from "@/components/sound-controls";
 
 // Account settings: how you appear, how the site looks, what is stored, and how to leave. Every section is a
 // card; a new game's cloud save shows up in "Your data" automatically (lib/account/games.ts).
@@ -123,6 +124,10 @@ export function SettingsView() {
                         );
                     })}
                 </div>
+            </Card>
+
+            <Card symbol="speed" color="var(--mc-green)" title="Sound" blurb="Soft interface sounds for the site and the games. Saved in this browser.">
+                <SoundPanel />
             </Card>
 
             <Card symbol="trueDefense" color="var(--mc-gold)" title="Sign-in" blurb="The account you sign in with.">

@@ -1,5 +1,6 @@
 "use client";
 
+import { sfx } from "@/lib/sound/sounds";
 import { useCallback, useEffect, useMemo, useReducer, useRef, useState } from "react";
 import { Expand, Minimize } from "lucide-react";
 import { McSymbol } from "@/components/mc-symbol";
@@ -231,14 +232,23 @@ export function FracturedIdle() {
             if (sinceAch >= 1) {
                 sinceAch = 0;
                 const fresh = checkTrophies(s);
-                if (fresh.length) say(`Trophy unlocked: ${fresh.join(", ")}`);
+                if (fresh.length) {
+                    say(`Trophy unlocked: ${fresh.join(", ")}`);
+                    sfx("trophy");
+                }
                 const tiers = colTiers(s);
                 const up = tiers.findIndex((t, i) => t > (lastTiers.current[i] ?? 0));
-                if (up >= 0) say(`${MINIONS[up].name.replace(" Minion", "")} collection tier ${tiers[up]} reached!`);
+                if (up >= 0) {
+                    say(`${MINIONS[up].name.replace(" Minion", "")} collection tier ${tiers[up]} reached!`);
+                    sfx("tier");
+                }
                 lastTiers.current = tiers;
                 if (s.rebirths > s.btn.rb) s.btn.rb = s.rebirths;
                 const lvUps = updateFxp(s);
-                if (lvUps.length) say(levelUpText(s.lvl, lvUps));
+                if (lvUps.length) {
+                    say(levelUpText(s.lvl, lvUps));
+                    sfx("level");
+                }
                 const keys = unlockedKeys(s);
                 if (keys.length > lastLooks.current.length) {
                     const fresh = keys.filter((k) => !lastLooks.current.includes(k));
@@ -383,6 +393,7 @@ export function FracturedIdle() {
             dockBus.dust = { t: Date.now(), n: d.dustMult };
         }
         if (s.equip.length) addPetXp(s, 0.2 * d.petXp * petXpRate(s));
+        sfx("click", { mult: s.combo, crit });
         if (crit) {
             s.crits += 1;
             s.combat += 3 * d.xpMult * d.xpSkill.combat;
@@ -606,7 +617,12 @@ export function FracturedIdle() {
     const totalMinions = s.minions.reduce((a, b) => a + b, 0);
 
     const act = (fn: () => boolean) => {
-        if (fn()) render();
+        const rb = s.rebirths;
+        const as = s.asc;
+        if (fn()) {
+            sfx(s.asc > as ? "ascend" : s.rebirths > rb ? "rebirth" : "buy");
+            render();
+        }
     };
     const ctx: Ctx = { s, d, F, act, render, say, tip, eggFx: (egg, results) => setReveal({ egg, results }) };
     const glintOn = s.enc.eq.button && s.enc.opts.glint !== "none" ? { id: s.enc.opts.glint, color: glintColor(s), power: s.enc.eq.button.r } : null;
@@ -873,7 +889,7 @@ export function FracturedIdle() {
                         }}
                     />
 
-                    <div className="relative my-4">
+                    <div className="relative my-4" data-snd="off">
                         <div className="fi-pulse pointer-events-none absolute -inset-6 rounded-[2.5rem] blur-2xl" style={{ backgroundColor: tint(island.color, 40) }} />
                         <Aura id={s.btn.aura} accent={skinAccent(s.btn.skin, island.color)} />
                         {glintOn && <Glint {...glintOn} />}

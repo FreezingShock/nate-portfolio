@@ -7,6 +7,7 @@ import { SiteFooter } from "@/components/site-footer";
 import { AccountMenu } from "@/components/account-menu";
 import { LiquidGlassFilter } from "@/components/liquid-glass-filter";
 import { PageTransitions } from "@/components/page-transitions";
+import { SoundProvider } from "@/components/sound-provider";
 
 // A deliberately "stacked" type system, five faces each with one job:
 // - Minecraft (fonts.css)     -> page titles, section labels (the signature)
@@ -129,6 +130,7 @@ export default function RootLayout({
                     </div>
                     <SiteDock />
                     <PageTransitions />
+                    <SoundProvider />
                 </ThemeProvider>
             </body>
         </html>
