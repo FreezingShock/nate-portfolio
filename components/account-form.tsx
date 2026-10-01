@@ -78,6 +78,7 @@ export function AccountForm() {
         void refreshAccount();
         const q = new URLSearchParams(window.location.search);
         if (q.get("error") === "google") setErr("Google sign-in did not finish. Try again.");
+        if (q.get("mode") === "up") setMode("up");
     }, []);
 
     const check = useCallback(async () => {
@@ -193,9 +194,10 @@ export function AccountForm() {
                             <h2 className="font-minecraft text-xl text-foreground">You are signed in</h2>
                             <p className="mt-1 break-all font-rubik text-sm text-[var(--mc-green)]">{a.email}</p>
                         </div>
-                        <p className="font-rubik text-xs text-muted-foreground">Fractured Idle now syncs automatically. You can manage it from Settings in the game.</p>
-                        <div className="flex gap-2">
-                            <Link href="/creations/games/fractured-idle" className="flex h-11 flex-1 items-center justify-center rounded-xl bg-[var(--mc-aqua)] font-minecraft text-sm font-bold text-black">Play now</Link>
+                        <p className="font-rubik text-xs text-muted-foreground">Your games sync automatically while you are signed in.</p>
+                        <div className="flex flex-wrap gap-2">
+                            <Link href="/profile" className="flex h-11 flex-1 items-center justify-center rounded-xl bg-[var(--mc-aqua)] px-3 font-minecraft text-sm font-bold text-black">Open profile</Link>
+                            <Link href="/creations/games/fractured-idle" className="flex h-11 items-center justify-center rounded-xl border border-white/15 px-4 font-rubik text-sm hover:bg-white/10">Play</Link>
                             <button type="button" onClick={() => void signOut()} className="h-11 rounded-xl border border-[var(--mc-red)]/60 px-4 font-rubik text-sm text-[var(--mc-red)] hover:bg-[var(--mc-red)]/10">Sign out</button>
                         </div>
                     </div>

@@ -4,7 +4,7 @@ import "./globals.css";
 import { ThemeProvider } from "@/components/theme-provider";
 import { SiteDock } from "@/components/site-dock";
 import { SiteFooter } from "@/components/site-footer";
-import { ThemeToggle } from "@/components/theme-toggle";
+import { AccountMenu } from "@/components/account-menu";
 import { LiquidGlassFilter } from "@/components/liquid-glass-filter";
 import { PageTransitions } from "@/components/page-transitions";
 
@@ -97,12 +97,7 @@ export default function RootLayout({
                     enableSystem
                     disableTransitionOnChange
                 >
-                    <div
-                        className="fixed right-5 top-5 z-50 flex items-center justify-center rounded-full border border-border/50 bg-card/40 backdrop-blur-xl"
-                        style={{ width: 40, height: 40 }}
-                    >
-                        <ThemeToggle />
-                    </div>
+                    <AccountMenu />
                     {/* Bottom padding so page content never sits under the
                         fixed Dock.
                         pointer-events-none: a page can opt into an

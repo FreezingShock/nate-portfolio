@@ -69,3 +69,28 @@ export const validPassword = (p: unknown): p is string => typeof p === "string" 
 
 /** Supabase error text is fine to show for sign-up; for sign-in it stays generic so emails cannot be probed. */
 export const slow = () => new Promise((r) => setTimeout(r, 500));
+
+// ---- Profile: a display name per user (the avatar is generated from the user id, nothing is stored) ----
+export const cleanName = (s: string) => s.replace(/[^\p{L}\p{N} _.'-]/gu, "").replace(/\s+/g, " ").trim().slice(0, 24);
+
+function defaultName(user: User): string {
+    const m = user.user_metadata ?? {};
+    return cleanName(String(m.full_name ?? m.name ?? "")) || cleanName((user.email ?? "").split("@")[0]) || "Player";
+}
+
+/** The signed-in user as the site shows it, creating their profile row on first sight. */
+export async function profileOf(a: { user: User; db: SupabaseClient }) {
+    const { data } = await a.db.from("profiles").select("display_name").eq("user_id", a.user.id).maybeSingle();
+    let name = data?.display_name as string | undefined;
+    if (!name) {
+        name = defaultName(a.user);
+        await a.db.from("profiles").upsert({ user_id: a.user.id, display_name: name });
+    }
+    return {
+        id: a.user.id,
+        email: a.user.email ?? null,
+        name,
+        provider: a.user.app_metadata?.provider === "google" ? "google" : "email",
+        createdAt: a.user.created_at,
+    };
+}

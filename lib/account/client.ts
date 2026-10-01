@@ -5,15 +5,24 @@ import { useSyncExternalStore } from "react";
 // Browser side of the account system. It holds no tokens at all: the session lives in HttpOnly
 // cookies the server manages, so all this ever knows is the signed-in email (kept in memory only).
 
+export interface Profile {
+    id: string;
+    email: string | null;
+    name: string;
+    provider: "google" | "email";
+    createdAt: string;
+}
+
 export interface AccountState {
     /** undefined while checking, null when signed out. */
     email: string | null | undefined;
+    user: Profile | null;
     busy: boolean;
     lastSync: number | null;
     error: string | null;
 }
 
-let state: AccountState = { email: undefined, busy: false, lastSync: null, error: null };
+let state: AccountState = { email: undefined, user: null, busy: false, lastSync: null, error: null };
 const subs = new Set<() => void>();
 const set = (p: Partial<AccountState>) => {
     state = { ...state, ...p };
@@ -33,9 +42,9 @@ const post = (path: string, body?: unknown) => call(path, { method: "POST", body
 
 export async function refreshAccount(): Promise<string | null> {
     const r = await call("/api/account/me");
-    const email = ((r.body.user as { email?: string } | null)?.email ?? null) as string | null;
-    set({ email });
-    return email;
+    const user = (r.body.user as Profile | null) ?? null;
+    set({ email: user?.email ?? null, user });
+    return user?.email ?? null;
 }
 
 export async function signUp(email: string, password: string) {
@@ -74,7 +83,7 @@ export async function startGoogle(): Promise<string | null> {
 
 export async function signOut() {
     await post("/api/account/signout");
-    set({ email: null, lastSync: null, error: null });
+    set({ email: null, user: null, lastSync: null, error: null });
 }
 
 export interface CloudSave {
@@ -86,7 +95,7 @@ export async function fetchSave(game: string): Promise<{ save: CloudSave | null;
     set({ busy: true });
     const r = await call(`/api/account/save?game=${encodeURIComponent(game)}`);
     set({ busy: false });
-    if (r.status === 401) set({ email: null });
+    if (r.status === 401) set({ email: null, user: null });
     if (!r.ok) return { save: null, error: (r.body.error as string) ?? "Could not load" };
     return { save: (r.body.save as CloudSave | null) ?? null, error: null };
 }
@@ -94,6 +103,20 @@ export async function putSave(game: string, data: string, progress: number, save
     set({ busy: true });
     const r = await call("/api/account/save", { method: "PUT", body: JSON.stringify({ game, data, progress, savedAt }) });
     set({ busy: false, error: r.ok ? null : ((r.body.error as string) ?? "Could not save"), lastSync: r.ok ? Date.now() : state.lastSync });
-    if (r.status === 401) set({ email: null });
+    if (r.status === 401) set({ email: null, user: null });
     return r.ok;
+}
+
+export async function renameProfile(name: string): Promise<{ ok: boolean; error: string | null }> {
+    const r = await call("/api/account/profile", { method: "PUT", body: JSON.stringify({ name }) });
+    if (r.ok && state.user) set({ user: { ...state.user, name: (r.body.name as string) ?? name } });
+    return { ok: r.ok, error: (r.body.error as string) ?? null };
+}
+
+let started = false;
+/** Check the session once per page load, whichever component asks first. */
+export function ensureAccount() {
+    if (started) return;
+    started = true;
+    void refreshAccount();
 }

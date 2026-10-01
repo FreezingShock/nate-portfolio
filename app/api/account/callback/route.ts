@@ -9,7 +9,7 @@ export async function GET(req: Request) {
     const url = new URL(req.url);
     const host = req.headers.get("x-forwarded-host") ?? req.headers.get("host") ?? url.host;
     const proto = req.headers.get("x-forwarded-proto") ?? url.protocol.replace(":", "");
-    const back = (q: string) => NextResponse.redirect(new URL(`/account${q}`, `${proto}://${host}`), { headers: { "cache-control": "no-store" } });
+    const back = (path: string) => NextResponse.redirect(new URL(path, `${proto}://${host}`), { headers: { "cache-control": "no-store" } });
 
     const code = url.searchParams.get("code");
     const jar = await cookies();
@@ -21,7 +21,7 @@ export async function GET(req: Request) {
         verifiers = null;
     }
     jar.delete({ name: "acct_cv", path: "/api/account" });
-    if (url.searchParams.get("error") || !code || !verifiers) return back("?error=google");
+    if (url.searchParams.get("error") || !code || !verifiers) return back("/account?error=google");
 
     const sb = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY!, {
         auth: {
@@ -33,7 +33,7 @@ export async function GET(req: Request) {
         },
     });
     const { data, error } = await sb.auth.exchangeCodeForSession(code);
-    if (error || !data.session) return back("?error=google");
+    if (error || !data.session) return back("/account?error=google");
     await setSession(data.session);
-    return back("?welcome=1");
+    return back("/profile?welcome=1");
 }
