@@ -12,7 +12,7 @@ export async function POST(req: Request) {
     const sb = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY!, {
         auth: {
             flowType: "pkce",
-            persistSession: false,
+            persistSession: true,
             autoRefreshToken: false,
             detectSessionInUrl: false,
             storage: { getItem: (k) => store.get(k) ?? null, setItem: (k, v) => void store.set(k, v), removeItem: (k) => void store.delete(k) },
@@ -26,8 +26,9 @@ export async function POST(req: Request) {
     const probe = await fetch(data.url, { redirect: "manual" }).catch(() => null);
     if (!probe || probe.status >= 400) return json({ error: "Google sign-in is not set up yet." }, 503);
 
-    const verifier = [...store.entries()].find(([k]) => k.endsWith("code-verifier"))?.[1];
-    if (!verifier) return json({ error: "Could not start Google sign-in." }, 500);
-    (await cookies()).set(VERIFIER_COOKIE, verifier, { httpOnly: true, secure: process.env.NODE_ENV === "production", sameSite: "lax", path: "/api/account", maxAge: 600 });
+    // Keep every verifier entry (this auth-js version also keys them per flow) so the callback can look each one up by name.
+    const verifiers = Object.fromEntries([...store.entries()].filter(([k]) => k.includes("code-verifier")));
+    if (!Object.keys(verifiers).length) return json({ error: "Could not start Google sign-in." }, 500);
+    (await cookies()).set(VERIFIER_COOKIE, encodeURIComponent(JSON.stringify(verifiers)), { httpOnly: true, secure: process.env.NODE_ENV === "production", sameSite: "lax", path: "/api/account", maxAge: 600 });
     return json({ url: data.url });
 }
