@@ -1,6 +1,7 @@
 import { createClient, type SupabaseClient, type User } from "@supabase/supabase-js";
 import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
+import { cleanCustom } from "@/lib/account/custom";
 import { clientIp, makeLimiter, sameOrigin } from "@/lib/gate/limit";
 
 // Accounts exist only to move idle-game progress between devices. Supabase Auth does the real work
@@ -100,7 +101,7 @@ export async function summariesOf(a: { user: User; db: SupabaseClient }): Promis
 
 /** The signed-in user as the site shows it, creating their profile row on first sight. */
 export async function profileOf(a: { user: User; db: SupabaseClient }) {
-    const { data } = await a.db.from("profiles").select("display_name,cosmetics").eq("user_id", a.user.id).maybeSingle();
+    const { data } = await a.db.from("profiles").select("display_name,cosmetics,handle,bio,is_public,custom").eq("user_id", a.user.id).maybeSingle();
     let name = data?.display_name as string | undefined;
     if (!name) {
         name = defaultName(a.user);
@@ -113,6 +114,10 @@ export async function profileOf(a: { user: User; db: SupabaseClient }) {
         provider: a.user.app_metadata?.provider === "google" ? "google" : "email",
         createdAt: a.user.created_at,
         cosmetics: (data?.cosmetics as Record<string, string> | undefined) ?? {},
+        handle: (data?.handle as string | null | undefined) ?? null,
+        bio: (data?.bio as string | undefined) ?? "",
+        isPublic: data?.is_public === true,
+        custom: cleanCustom(data?.custom),
         games: await summariesOf(a),
     };
 }

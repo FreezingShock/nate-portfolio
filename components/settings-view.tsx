@@ -107,7 +107,7 @@ export function SettingsView() {
     return (
         <div className="space-y-5">
             <header className="flex items-center gap-4">
-                <AccountAvatar id={u.id} name={u.name} size={64} frame={eq.frame} />
+                <AccountAvatar id={u.id} name={u.name} size={64} frame={eq.frame} avatar={u.custom.avatar} />
                 <div className="min-w-0">
                     <h1 className="font-minecraft text-2xl font-bold text-foreground">Settings</h1>
                     <div className="flex items-center gap-2 font-rubik text-xs text-muted-foreground"><NameTag user={u} className="text-sm" /> · <Link href="/profile" className="text-[var(--mc-aqua)] hover:underline">View profile</Link></div>

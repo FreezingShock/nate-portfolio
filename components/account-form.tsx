@@ -288,7 +288,7 @@ export function AccountForm() {
                             ) : a.email && u ? (
                                 <div className="space-y-4">
                                     <div className="flex items-center gap-4">
-                                        <AccountAvatar id={u.id} name={u.name} size={60} />
+                                        <AccountAvatar id={u.id} name={u.name} size={60} avatar={u.custom.avatar} />
                                         <div className="min-w-0">
                                             <div className="font-rubik text-[11px] uppercase tracking-wide text-muted-foreground">Signed in</div>
                                             <h2 className="truncate font-minecraft text-xl font-bold text-foreground">{u.name}</h2>

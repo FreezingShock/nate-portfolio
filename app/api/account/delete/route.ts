@@ -8,6 +8,7 @@ export async function POST(req: Request) {
     if (!a) return json({ error: "Not signed in" }, 401);
     const b = await req.json().catch(() => null);
     if (typeof b?.confirm !== "string" || b.confirm.trim().toLowerCase() !== (a.user.email ?? "").toLowerCase()) return json({ error: "Type your email to confirm." }, 400);
+    await a.db.storage.from("avatars").remove([`${a.user.id}/avatar.webp`]);
     const { error } = await a.db.rpc("delete_my_account");
     if (error) return json({ error: "Could not delete the account." }, 500);
     await clearSession();

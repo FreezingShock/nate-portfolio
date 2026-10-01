@@ -40,7 +40,7 @@ export function FracturedIdleProfile() {
     return (
         <div className="space-y-3">
             <div className="flex items-center gap-3 rounded-2xl border border-white/12 bg-card/40 p-3 backdrop-blur-xl">
-                <AccountAvatar id={u?.id} name={u?.name} size={46} frame={u ? eq.frame : undefined} />
+                <AccountAvatar id={u?.id} name={u?.name} size={46} frame={u ? eq.frame : undefined} avatar={u?.custom.avatar} />
                 <div className="min-w-0 flex-1">
                     {u ? <NameTag user={u} className="text-base" /> : <span className="font-minecraft text-base font-bold text-foreground">Guest</span>}
                     <div className="truncate font-rubik text-[11px] text-muted-foreground">{cloud}</div>

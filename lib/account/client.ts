@@ -2,6 +2,7 @@
 
 import { useSyncExternalStore } from "react";
 import type { Equipped, GameSummaries, GameSummary } from "@/lib/account/cosmetics";
+import type { Custom } from "@/lib/account/custom";
 
 // Browser side of the account system. It holds no tokens at all: the session lives in HttpOnly
 // cookies the server manages, so all this ever knows is the signed-in email (kept in memory only).
@@ -14,6 +15,13 @@ export interface Profile {
     createdAt: string;
     /** What the player has equipped (see lib/account/cosmetics.ts). */
     cosmetics: Equipped;
+    /** Public link name (lowercase letters, digits, underscore), or null. */
+    handle: string | null;
+    bio: string;
+    /** Whether anyone with the link can see this profile. */
+    isPublic: boolean;
+    /** Free customization: avatar, banner colors, accent, card style, layout (see lib/account/custom.ts). */
+    custom: Custom;
     /** Per-game summary numbers reported with each cloud save (level, rebirths, ...). */
     games: GameSummaries;
 }
@@ -132,15 +140,40 @@ export async function putSave(game: string, data: string, progress: number, save
     set({ error });
     return { ok: false, error };
 }
-export async function updateProfile(patch: { name?: string; cosmetics?: Equipped }): Promise<{ ok: boolean; error: string | null }> {
+export interface ProfilePatch {
+    name?: string;
+    handle?: string | null;
+    bio?: string;
+    isPublic?: boolean;
+    custom?: Partial<Custom>;
+    cosmetics?: Equipped;
+}
+export async function updateProfile(patch: ProfilePatch): Promise<{ ok: boolean; error: string | null }> {
     const r = await call("/api/account/profile", { method: "PUT", body: JSON.stringify(patch) });
-    if (r.ok && state.user) {
-        set({ user: { ...state.user, name: (r.body.name as string) ?? state.user.name, cosmetics: (r.body.cosmetics as Equipped | undefined) ?? state.user.cosmetics } });
-    }
+    if (r.ok && state.user && r.body.profile) set({ user: { ...state.user, ...(r.body.profile as Profile) } });
     return { ok: r.ok, error: (r.body.error as string) ?? null };
 }
 export const renameProfile = (name: string) => updateProfile({ name });
 export const equipCosmetics = (cosmetics: Equipped) => updateProfile({ cosmetics });
+
+/** Upload an already-resized WebP as the profile picture. */
+export async function uploadAvatar(file: Blob): Promise<{ ok: boolean; error: string | null }> {
+    const form = new FormData();
+    form.set("file", file, "avatar.webp");
+    try {
+        const r = await fetch("/api/account/avatar", { method: "POST", body: form, credentials: "same-origin" });
+        const body = await r.json().catch(() => ({}));
+        if (r.ok && state.user && body.profile) set({ user: { ...state.user, ...(body.profile as Profile) } });
+        return { ok: r.ok, error: (body.error as string) ?? null };
+    } catch {
+        return { ok: false, error: "Network error" };
+    }
+}
+export async function removeAvatar(): Promise<{ ok: boolean; error: string | null }> {
+    const r = await call("/api/account/avatar", { method: "DELETE" });
+    if (r.ok && state.user && r.body.profile) set({ user: { ...state.user, ...(r.body.profile as Profile) } });
+    return { ok: r.ok, error: (r.body.error as string) ?? null };
+}
 
 export async function deleteAccount(confirm: string): Promise<{ ok: boolean; error: string | null }> {
     const r = await post("/api/account/delete", { confirm });

@@ -242,6 +242,12 @@ export function TipCard({ title, color = "var(--mc-aqua)", tag, lines, rows, not
 }
 
 export const TIP_CSS = `
+.fi-tip{background:#100010f2;box-shadow:0 0 0 2px #100010,0 0 0 4px #2a0a55,inset 0 0 0 2px #5000ff59,0 8px 24px rgba(0,0,0,.55);padding:9px 11px;font-family:var(--font-minecraft,inherit);font-size:13px;line-height:1.35;min-width:190px;max-width:290px;transition:opacity .14s ease,transform .14s ease;transform-origin:0 100%}
+.fi-tip[data-open="false"]{opacity:0;transform:scale(.94) translateY(4px)}
+.fi-tip[data-open="true"]{opacity:1;transform:none}
+.fi-tip .tl{text-shadow:2px 2px 0 color-mix(in srgb,currentColor 25%,black);white-space:normal}
+@keyframes fi-pulse{0%,100%{opacity:.55}50%{opacity:1}}
+@media (prefers-reduced-motion:reduce){.fi-tip{transition:none}}
 .fi-tipbox{position:fixed;left:0;top:0;z-index:90;pointer-events:none;will-change:transform}
 .fi-tw{display:contents}
 .fi-tw-box{display:block;min-width:0}
