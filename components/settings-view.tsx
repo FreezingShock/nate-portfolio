@@ -8,8 +8,10 @@ import { AccountAvatar } from "@/components/account-avatar";
 import { McSymbol, type McSymbolName } from "@/components/mc-symbol";
 import { NameTag } from "@/components/name-tag";
 import { ACCOUNT_GAMES } from "@/lib/account/games";
-import { deleteAccount, ensureAccount, fetchSave, renameProfile, signOut, useAccount } from "@/lib/account/client";
+import { deleteAccount, ensureAccount, fetchSave, signOut, useAccount } from "@/lib/account/client";
+import { PF_CSS } from "@/components/pf-css";
 import { equippedOf } from "@/lib/account/cosmetics";
+import { profileHref } from "@/lib/account/custom";
 
 // Account settings: how you appear, how the site looks, what is stored, and how to leave. Every section is a
 // card; a new game's cloud save shows up in "Your data" automatically (lib/account/games.ts).
@@ -35,9 +37,6 @@ export function SettingsView() {
     const a = useAccount();
     const { theme, setTheme } = useTheme();
     const [mounted, setMounted] = useState(false);
-    const [name, setName] = useState("");
-    const [nameMsg, setNameMsg] = useState<{ ok: boolean; text: string } | null>(null);
-    const [busy, setBusy] = useState(false);
     const [confirm, setConfirm] = useState("");
     const [delErr, setDelErr] = useState<string | null>(null);
     const [deleting, setDeleting] = useState(false);
@@ -48,9 +47,6 @@ export function SettingsView() {
         setMounted(true);
     }, []);
     const u = a.user;
-    useEffect(() => {
-        if (u) setName(u.name);
-    }, [u?.name]); // eslint-disable-line react-hooks/exhaustive-deps
 
     if (a.email === undefined) return <p className="flex items-center gap-2 font-rubik text-sm text-muted-foreground"><LoaderCircle className="size-4 animate-spin" /> Loading…</p>;
     if (!u)
@@ -62,15 +58,6 @@ export function SettingsView() {
         );
 
     const eq = equippedOf(u.cosmetics);
-
-    const saveName = async (e: React.FormEvent) => {
-        e.preventDefault();
-        setBusy(true);
-        setNameMsg(null);
-        const r = await renameProfile(name);
-        setBusy(false);
-        setNameMsg(r.ok ? { ok: true, text: "Saved." } : { ok: false, text: r.error ?? "Could not save." });
-    };
 
     const exportData = async () => {
         setExporting(true);
@@ -105,28 +92,27 @@ export function SettingsView() {
     ];
 
     return (
-        <div className="space-y-5">
+        <div className="pf-root space-y-5">
+            <style>{PF_CSS}</style>
             <header className="flex items-center gap-4">
                 <AccountAvatar id={u.id} name={u.name} size={64} frame={eq.frame} avatar={u.custom.avatar} />
                 <div className="min-w-0">
-                    <h1 className="font-minecraft text-2xl font-bold text-foreground">Settings</h1>
-                    <div className="flex items-center gap-2 font-rubik text-xs text-muted-foreground"><NameTag user={u} className="text-sm" /> · <Link href="/profile" className="text-[var(--mc-aqua)] hover:underline">View profile</Link></div>
+                    <h1 className="font-minecraft text-2xl font-bold text-foreground">Account settings</h1>
+                    <p className="font-rubik text-xs text-muted-foreground">Signed in as <NameTag user={u} className="text-sm" />. Sign-in, theme and your data live here.</p>
                 </div>
             </header>
 
-            <Card symbol="speed" color="var(--mc-aqua)" title="Profile" blurb="How you appear across the site.">
-                <form onSubmit={saveName} className="flex flex-wrap items-center gap-2">
-                    <label className="sr-only" htmlFor="set-name">Display name</label>
-                    <input id="set-name" value={name} maxLength={24} onChange={(e) => setName(e.target.value)} className="h-10 min-w-0 flex-1 rounded-xl border border-white/20 bg-black/30 px-3 font-minecraft text-sm font-bold outline-none focus:border-[var(--mc-aqua)]" />
-                    <button disabled={busy || name.trim() === u.name} className="inline-flex h-10 items-center gap-2 rounded-xl bg-[var(--mc-aqua)] px-4 font-minecraft text-xs font-bold text-black disabled:opacity-50">
-                        {busy ? <LoaderCircle className="size-4 animate-spin" /> : <Check className="size-4" />} Save name
-                    </button>
-                    {nameMsg && <span role="status" className="font-rubik text-xs" style={{ color: nameMsg.ok ? "var(--mc-green)" : "var(--mc-red)" }}>{nameMsg.text}</span>}
-                </form>
-                <Link href="/profile?tab=customize" className="mt-3 inline-flex items-center gap-2 font-minecraft text-xs font-bold text-[var(--mc-aqua)] hover:underline"><Palette className="size-4" /> Change symbols, banners, frames and colors</Link>
-            </Card>
+            <section className="flex flex-wrap items-center gap-3 rounded-2xl border p-4 backdrop-blur-xl" style={{ borderColor: tint("var(--mc-light-purple)", 40), background: tint("var(--mc-light-purple)", 8) }}>
+                <span className="grid size-10 shrink-0 place-items-center rounded-xl text-xl" style={{ color: "var(--mc-light-purple)", backgroundColor: tint("var(--mc-light-purple)", 16) }}><McSymbol name="flower" /></span>
+                <div className="min-w-0 flex-1">
+                    <h2 className="font-minecraft text-sm font-bold text-foreground">Looking for your name, picture, banner or layout?</h2>
+                    <p className="font-rubik text-[11px] text-muted-foreground">All of that is on your profile, under Customize. This page is only for the account itself.</p>
+                </div>
+                <Link href={profileHref(u, "?tab=customize")} className="pf-btn" data-primary=""><Palette className="size-4" /> <span>Customize profile</span></Link>
+                <Link href={profileHref(u)} className="pf-btn"><span>View profile</span></Link>
+            </section>
 
-            <Card symbol="night" color="var(--mc-light-purple)" title="Appearance" blurb="Applies on every page of the site.">
+            <Card symbol="night" color="var(--mc-light-purple)" title="Site theme" blurb="Light or dark for every page of the site. This is not your profile look.">
                 <div className="grid grid-cols-3 gap-2" role="radiogroup" aria-label="Theme">
                     {themes.map((t) => {
                         const on = mounted && theme === t.id;
@@ -139,7 +125,7 @@ export function SettingsView() {
                 </div>
             </Card>
 
-            <Card symbol="trueDefense" color="var(--mc-gold)" title="Account" blurb="How you sign in.">
+            <Card symbol="trueDefense" color="var(--mc-gold)" title="Sign-in" blurb="The account you sign in with.">
                 <dl className="grid gap-x-6 gap-y-2 font-rubik text-sm sm:grid-cols-2">
                     <div><dt className="text-[11px] uppercase tracking-wide text-muted-foreground">Email</dt><dd className="break-all text-foreground">{u.email}</dd></div>
                     <div><dt className="text-[11px] uppercase tracking-wide text-muted-foreground">Sign-in method</dt><dd className="text-foreground">{u.provider === "google" ? "Google" : "Email and password"}</dd></div>
@@ -150,7 +136,8 @@ export function SettingsView() {
 
             <Card symbol="defense" color="var(--mc-green)" title="Your data" blurb="What is stored, and how to take it with you.">
                 <ul className="mb-3 list-disc space-y-1 pl-5 font-rubik text-xs text-muted-foreground">
-                    <li>Your email and display name, and which cosmetics you have equipped.</li>
+                    <li>Your email, display name, handle, bio, profile picture and the look you chose.</li>
+                    <li>If your profile is public, anyone with its link can see your name, picture, bio, look and Fractured Idle stats, never your email.</li>
                     <li>One cloud save per game, plus a short summary of numbers (like your level) used to unlock cosmetics.</li>
                     <li>Your session lives in a secure cookie, never in the page. Nothing else is tracked.</li>
                 </ul>

@@ -1,7 +1,7 @@
 import { createClient, type SupabaseClient, type User } from "@supabase/supabase-js";
 import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
-import { cleanCustom } from "@/lib/account/custom";
+import { cleanCustom, cleanHandle } from "@/lib/account/custom";
 import { clientIp, makeLimiter, sameOrigin } from "@/lib/gate/limit";
 
 // Accounts exist only to move idle-game progress between devices. Supabase Auth does the real work
@@ -99,7 +99,20 @@ export async function summariesOf(a: { user: User; db: SupabaseClient }): Promis
     return out;
 }
 
-/** The signed-in user as the site shows it, creating their profile row on first sight. */
+/** Give a profile its link name: the display name squeezed into handle form, with digits added if it is taken. */
+async function claimHandle(a: { user: User; db: SupabaseClient }, name: string): Promise<string | null> {
+    let base = cleanHandle(name).slice(0, 16);
+    if (base.length < 3) base = "player";
+    for (let i = 0; i < 6; i++) {
+        const h = i === 0 ? base : `${base}${Math.floor(1000 + Math.random() * 9000)}`;
+        const { error } = await a.db.from("profiles").update({ handle: h }).eq("user_id", a.user.id).is("handle", null);
+        if (!error) return h;
+        if (error.code !== "23505") return null;
+    }
+    return null;
+}
+
+/** The signed-in user as the site shows it, creating their profile row (and its link) on first sight. */
 export async function profileOf(a: { user: User; db: SupabaseClient }) {
     const { data } = await a.db.from("profiles").select("display_name,cosmetics,handle,bio,is_public,custom").eq("user_id", a.user.id).maybeSingle();
     let name = data?.display_name as string | undefined;
@@ -107,6 +120,8 @@ export async function profileOf(a: { user: User; db: SupabaseClient }) {
         name = defaultName(a.user);
         await a.db.from("profiles").upsert({ user_id: a.user.id, display_name: name });
     }
+    let handle = (data?.handle as string | null | undefined) ?? null;
+    if (!handle) handle = await claimHandle(a, name);
     return {
         id: a.user.id,
         email: a.user.email ?? null,
@@ -114,7 +129,7 @@ export async function profileOf(a: { user: User; db: SupabaseClient }) {
         provider: a.user.app_metadata?.provider === "google" ? "google" : "email",
         createdAt: a.user.created_at,
         cosmetics: (data?.cosmetics as Record<string, string> | undefined) ?? {},
-        handle: (data?.handle as string | null | undefined) ?? null,
+        handle,
         bio: (data?.bio as string | undefined) ?? "",
         isPublic: data?.is_public === true,
         custom: cleanCustom(data?.custom),

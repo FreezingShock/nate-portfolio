@@ -2,11 +2,13 @@
 
 import { useCallback, useEffect, useRef, useState, type CSSProperties } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { ArrowRight, AtSign, Check, Eye, EyeOff, KeyRound, LoaderCircle, Mail, RefreshCw } from "lucide-react";
 import { AccountAvatar } from "@/components/account-avatar";
 import { McSymbol, type McSymbolName } from "@/components/mc-symbol";
 import { ShineBorder } from "@/components/ui/shine-border";
 import { GAME_MODES } from "@/lib/creations-data";
+import { profileHref } from "@/lib/account/custom";
 import { pollConfirmed, refreshAccount, resendLink, signIn, signOut, signUp, startGoogle, useAccount } from "@/lib/account/client";
 
 // The account screen for the whole site: sign in, create an account, or continue with Google, plus what an
@@ -94,6 +96,7 @@ const COMING = GAME_MODES.flatMap((m) => m.games.filter((g) => g.status !== "pla
 
 export function AccountForm() {
     const a = useAccount();
+    const router = useRouter();
     const [mode, setMode] = useState<"in" | "up">("in");
     const [email, setEmail] = useState("");
     const [pw, setPw] = useState("");
@@ -103,6 +106,11 @@ export function AccountForm() {
     const [gBusy, setGBusy] = useState(false);
     // Waiting on the email link (credentials stay in memory only, for the poll).
     const [wait, setWait] = useState<{ email: string; pw: string; since: number } | null>(null);
+
+    // Signed in (or just confirmed by email): the account page has nothing left to do, so go to the profile.
+    useEffect(() => {
+        if (a.user && !wait) router.replace(profileHref(a.user, a.user.createdAt && Date.now() - Date.parse(a.user.createdAt) < 10 * 60 * 1000 ? "?welcome=1" : ""));
+    }, [a.user, wait, router]);
     const [checking, setChecking] = useState(false);
     const [cool, setCool] = useState(0);
     const [info, setInfo] = useState<string | null>(null);
@@ -286,24 +294,11 @@ export function AccountForm() {
                             {a.email === undefined ? (
                                 <p className="flex items-center gap-2 py-10 font-rubik text-sm text-muted-foreground"><LoaderCircle className="size-4 animate-spin" /> Checking…</p>
                             ) : a.email && u ? (
-                                <div className="space-y-4">
-                                    <div className="flex items-center gap-4">
-                                        <AccountAvatar id={u.id} name={u.name} size={60} avatar={u.custom.avatar} />
-                                        <div className="min-w-0">
-                                            <div className="font-rubik text-[11px] uppercase tracking-wide text-muted-foreground">Signed in</div>
-                                            <h2 className="truncate font-minecraft text-xl font-bold text-foreground">{u.name}</h2>
-                                            <p className="truncate font-rubik text-xs text-[var(--mc-green)]">{u.email}</p>
-                                        </div>
-                                    </div>
-                                    <div className="grid gap-2">
-                                        <Link href="/profile" className="acct-primary">Open profile <ArrowRight className="size-4" /></Link>
-                                        <Link href="/creations/games/fractured-idle" className="flex h-11 items-center justify-center gap-2 rounded-xl border border-white/15 font-rubik text-sm transition-colors hover:bg-white/10">
-                                            <McSymbol name="wisdom" color="var(--mc-light-purple)" /> Play Fractured Idle
-                                        </Link>
-                                        <button type="button" onClick={() => void signOut()} className="h-10 rounded-xl border font-rubik text-sm transition-colors hover:bg-[var(--mc-red)]/10" style={{ color: "var(--mc-red)", borderColor: tint("var(--mc-red)", 55) }}>
-                                            Sign out
-                                        </button>
-                                    </div>
+                                <div className="space-y-4 py-6 text-center">
+                                    <AccountAvatar id={u.id} name={u.name} size={60} avatar={u.custom.avatar} className="mx-auto" />
+                                    <h2 className="font-minecraft text-xl font-bold text-foreground">Welcome back, {u.name}</h2>
+                                    <p className="flex items-center justify-center gap-2 font-rubik text-xs text-muted-foreground"><LoaderCircle className="size-3.5 animate-spin" /> Opening your profile…</p>
+                                    <Link href={profileHref(u)} className="acct-primary">Open it now <ArrowRight className="size-4" /></Link>
                                 </div>
                             ) : wait ? (
                                 <div className="space-y-4">

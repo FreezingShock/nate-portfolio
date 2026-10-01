@@ -13,7 +13,7 @@ import { ThemeToggle } from "@/components/theme-toggle";
 import { TIP_CSS, Tip, TipCard, TipProvider } from "@/components/games/fractured-idle/tooltip";
 import { ensureAccount, signOut, useAccount } from "@/lib/account/client";
 import { equippedOf } from "@/lib/account/cosmetics";
-import { accentOf, customOf } from "@/lib/account/custom";
+import { accentOf, customOf, profileHref } from "@/lib/account/custom";
 
 // The Fractured Level badge pulls in the game's code, so it is fetched only once the menu is open.
 const FiLevelTag = dynamic(() => import("@/components/fi-level-tag"), { ssr: false });
@@ -89,7 +89,7 @@ export function AccountMenu() {
         if (!u) return;
         if (!u.isPublic) {
             close();
-            router.push("/profile?tab=customize");
+            router.push(profileHref(u, "?tab=customize"));
             return;
         }
         void navigator.clipboard.writeText(`${window.location.origin}/u/${u.handle ?? u.id}`).then(() => {
@@ -119,7 +119,7 @@ export function AccountMenu() {
                         <div role="menu" className="am-panel">
                             {u ? (
                                 <Tip box tip={<TipCard title="Your profile" color={accent} lines={["Open your profile: your look, stats and layout."]} cta="Click to open!" />}>
-                                    <Link role="menuitem" href="/profile" onClick={close} className="am-head group">
+                                    <Link role="menuitem" href={profileHref(u)} onClick={close} className="am-head group">
                                         <div className="flex items-center gap-3">
                                             <AccountAvatar id={u.id} name={u.name} size={48} frame={eq.frame} avatar={cu.avatar} />
                                             <div className="min-w-0 flex-1">
@@ -149,7 +149,7 @@ export function AccountMenu() {
 
                             {u ? (
                                 <>
-                                    <Row icon={<Palette className="size-4" />} color="var(--mc-light-purple)" label="Customize profile" hint="Picture, banner, layout" href="/profile?tab=customize" onClick={close} tip={<TipCard title="Customize profile" color="var(--mc-light-purple)" lines={["Change your picture, banner, colors, layout and equipped cosmetics."]} cta="Click to open!" />} />
+                                    <Row icon={<Palette className="size-4" />} color="var(--mc-light-purple)" label="Customize profile" hint="Picture, banner, layout" href={profileHref(u, "?tab=customize")} onClick={close} tip={<TipCard title="Customize profile" color="var(--mc-light-purple)" lines={["Change your picture, banner, colors, layout and equipped cosmetics."]} cta="Click to open!" />} />
                                     <Row
                                         icon={copied ? <Check className="size-4" /> : <Share2 className="size-4" />}
                                         color={u.isPublic ? "var(--mc-green)" : "var(--mc-gold)"}

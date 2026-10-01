@@ -8,8 +8,18 @@ import { equippedOf, type Equipped } from "@/lib/account/cosmetics";
 
 export type AvatarKind = "generated" | "glyph" | "upload";
 export type AvatarTone = "vivid" | "deep" | "pastel" | "mono";
+export type AvatarFx = "none" | "float" | "spin" | "pulse" | "glow";
+export const AVATAR_FX: { id: AvatarFx; label: string }[] = [
+    { id: "none", label: "Still" },
+    { id: "float", label: "Float" },
+    { id: "pulse", label: "Pulse" },
+    { id: "spin", label: "Spin" },
+    { id: "glow", label: "Glow" },
+];
 export interface AvatarSpec {
     kind: AvatarKind;
+    /** glyph: how the symbol moves. */
+    fx?: AvatarFx;
     /** glyph: which symbol is drawn. */
     glyph?: McSymbolName;
     /** generated + glyph: base hue 0-359. Missing means "from the user id". */
@@ -30,6 +40,8 @@ export const CARD_STYLES: { id: CardStyle; label: string; blurb: string }[] = [
 export interface BannerSpec {
     /** cosmetic: the equipped banner. custom: your own two-color gradient. */
     mode: "cosmetic" | "custom";
+    /** custom only: a free animated overlay. (Earned banner effects come with the banner cosmetics.) */
+    fx: "none" | "stars" | "blobs" | "waves";
     a: string;
     b: string;
     angle: number;
@@ -76,7 +88,7 @@ export interface Custom {
 
 export const DEFAULT_CUSTOM: Custom = {
     avatar: { kind: "generated" },
-    banner: { mode: "cosmetic", a: "#3b1d6e", b: "#1b3a6e", angle: 135 },
+    banner: { mode: "cosmetic", fx: "none", a: "#3b1d6e", b: "#1b3a6e", angle: 135 },
     accent: null,
     card: "glass",
     layout: DEFAULT_LAYOUT,
@@ -115,6 +127,7 @@ export function cleanCustom(v: unknown): Custom {
     const bn = o.banner && typeof o.banner === "object" ? (o.banner as Record<string, unknown>) : {};
     const kind: AvatarKind = av.kind === "glyph" || av.kind === "upload" ? av.kind : "generated";
     const avatar: AvatarSpec = { kind };
+    if (kind === "glyph" && AVATAR_FX.some((f) => f.id === av.fx)) avatar.fx = av.fx as AvatarFx;
     if (kind === "glyph") avatar.glyph = GLYPHS.includes(av.glyph as McSymbolName) ? (av.glyph as McSymbolName) : "wisdom";
     if (kind !== "upload" && typeof av.hue === "number") avatar.hue = int(av.hue, 0, 359, 0);
     if (kind !== "upload" && TONES.includes(av.tone as AvatarTone)) avatar.tone = av.tone as AvatarTone;
@@ -123,6 +136,7 @@ export function cleanCustom(v: unknown): Custom {
         avatar,
         banner: {
             mode: bn.mode === "custom" ? "custom" : "cosmetic",
+            fx: bn.fx === "stars" || bn.fx === "blobs" || bn.fx === "waves" ? bn.fx : "none",
             a: HEX.test(String(bn.a)) ? String(bn.a).toLowerCase() : DEFAULT_CUSTOM.banner.a,
             b: HEX.test(String(bn.b)) ? String(bn.b).toLowerCase() : DEFAULT_CUSTOM.banner.b,
             angle: int(bn.angle, 0, 360, 135),
@@ -147,6 +161,12 @@ export function bannerBg(u: Styled): string {
     const c = customOf(u.custom).banner;
     if (c.mode === "custom") return `linear-gradient(${c.angle}deg, ${c.a}, ${c.b})`;
     return equippedOf(u.cosmetics).banner.bg ?? "#0b0820";
+}
+
+/** The animated effect behind a profile's banner, or "none". */
+export function bannerFx(u: Styled): string {
+    const c = customOf(u.custom).banner;
+    return c.mode === "custom" ? c.fx : (equippedOf(u.cosmetics).banner.fx ?? "none");
 }
 
 export const AVATAR_BUCKET = "avatars";
@@ -175,3 +195,6 @@ export const hueOfId = (seed: string) => {
 /** Handles are lowercase letters, digits and underscore, 3 to 20 long. */
 export const cleanHandle = (s: string) => s.toLowerCase().replace(/[^a-z0-9_]/g, "").slice(0, 20);
 export const validHandle = (s: string) => /^[a-z0-9_]{3,20}$/.test(s);
+
+/** Where a profile lives. Everyone has a handle (one is claimed on first sight); the id is only a fallback. */
+export const profileHref = (u: { id: string; handle?: string | null }, query = "") => `/u/${u.handle ?? u.id}${query}`;

@@ -6,6 +6,7 @@ import { AccountAvatar } from "@/components/account-avatar";
 import { NameTag } from "@/components/name-tag";
 import { ensureAccount, useAccount } from "@/lib/account/client";
 import { equippedOf } from "@/lib/account/cosmetics";
+import { profileHref } from "@/lib/account/custom";
 import type { State } from "@/lib/fractured-idle/data";
 import { SAVE_KEY, newState, parseSave } from "@/lib/fractured-idle/engine";
 import { FracturedIdleBlock } from "./profile-block";
@@ -46,12 +47,12 @@ export function FracturedIdleProfile() {
                     <div className="truncate font-rubik text-[11px] text-muted-foreground">{cloud}</div>
                 </div>
                 {u ? (
-                    <Link href="/profile" className="shrink-0 rounded-lg border border-white/15 px-3 py-1.5 font-minecraft text-xs font-bold hover:bg-white/10">Profile</Link>
+                    <Link href={profileHref(u)} className="shrink-0 rounded-lg border border-white/15 px-3 py-1.5 font-minecraft text-xs font-bold hover:bg-white/10">Profile</Link>
                 ) : (
                     <Link href="/account" className="shrink-0 rounded-lg border border-[var(--mc-aqua)]/60 px-3 py-1.5 font-minecraft text-xs font-bold text-[var(--mc-aqua)] hover:bg-[var(--mc-aqua)]/10">{a.email === undefined ? "…" : "Sign in"}</Link>
                 )}
             </div>
-            {s && <FracturedIdleBlock s={s} owner={u ? `${u.name}'s run` : "This browser's save"} />}
+            {s && <FracturedIdleBlock s={s} owner={u ? `${u.name}'s run` : "This browser's save"} live savedAt={s.savedAt || undefined} />}
         </div>
     );
 }

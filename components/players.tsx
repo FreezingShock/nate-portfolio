@@ -7,10 +7,11 @@ import { ArrowRight, Search } from "lucide-react";
 import { AccountAvatar } from "@/components/account-avatar";
 import FiLevelTag from "@/components/fi-level-tag";
 import { NameTag } from "@/components/name-tag";
+import { BannerFx } from "@/components/profile-fx";
 import { ProfileShell, tint } from "@/components/profile-canvas";
 import { Tip, TipCard } from "@/components/games/fractured-idle/tooltip";
 import { equippedOf, type GameSummaries } from "@/lib/account/cosmetics";
-import { accentOf, bannerBg, cleanHandle, cleanCustom } from "@/lib/account/custom";
+import { accentOf, bannerBg, bannerFx, cleanHandle, cleanCustom } from "@/lib/account/custom";
 
 export interface PlayerRow {
     id: string;
@@ -59,7 +60,7 @@ export function Players({ rows }: { rows: PlayerRow[] }) {
                         return (
                             <Tip key={p.id} box tip={<TipCard title={p.name} color={accent} lines={[p.bio || "No bio yet."]} cta="Click to visit!" />}>
                                 <Link href={`/u/${p.handle ?? p.id}`} className="pl-card group" style={{ ["--c" as string]: accent } as CSSProperties}>
-                                    <span className="pl-banner" style={{ background: bannerBg(u) }} />
+                                    <span className="pl-banner" style={{ background: bannerBg(u) }}><BannerFx fx={bannerFx(u)} /></span>
                                     <span className="pl-body">
                                         <span className="pl-av"><AccountAvatar id={p.id} name={p.name} size={52} frame={eq.frame} avatar={u.custom.avatar} /></span>
                                         <span className="min-w-0 flex-1">
@@ -77,7 +78,7 @@ export function Players({ rows }: { rows: PlayerRow[] }) {
             )}
             <style>{`.pl-card{display:block;overflow:hidden;border-radius:1rem;border:1px solid ${tint("var(--c)", 28)};background:color-mix(in oklch,var(--card) 50%,transparent);backdrop-filter:blur(12px);transition:transform .16s cubic-bezier(.2,1.5,.4,1),border-color .15s,box-shadow .2s;outline:none}
 .pl-card:hover,.pl-card:focus-visible{transform:translateY(-3px);border-color:${tint("var(--c)", 65)};box-shadow:0 14px 30px -16px var(--c)}
-.pl-banner{display:block;height:3.4rem;opacity:.9}
+.pl-banner{position:relative;display:block;height:3.4rem;overflow:hidden}
 .pl-body{display:flex;align-items:center;gap:.7rem;padding:0 .8rem .7rem}
 .pl-av{margin-top:-1.4rem;border-radius:9999px;background:var(--background);padding:.2rem;flex:none}
 .pl-lvl{flex:none;padding:.25rem .45rem;border-radius:.6rem;background:#100010d9;box-shadow:inset 0 0 0 1px rgba(255,255,255,.12)}

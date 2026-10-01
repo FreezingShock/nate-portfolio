@@ -22,7 +22,16 @@ type Cloud = { s: State | null; savedAt: number; device: string } | "loading" | 
 
 export function ProfileView() {
     const a = useAccount();
-    const [tab, setTab] = useState<Tab>("overview");
+    const [tab, setTabState] = useState<Tab>("overview");
+    // The tab is kept in the address (?tab=customize) so a reload or a shared edit link lands where you were.
+    const setTab = (t: Tab) => {
+        setTabState(t);
+        const q = new URLSearchParams(window.location.search);
+        if (t === "overview") q.delete("tab");
+        else q.set("tab", t);
+        q.delete("welcome");
+        window.history.replaceState(null, "", `${window.location.pathname}${q.size ? `?${q}` : ""}`);
+    };
     const [cloud, setCloud] = useState<Cloud>("loading");
     const [welcome, setWelcome] = useState(false);
     const uid = a.user?.id;
@@ -31,20 +40,25 @@ export function ProfileView() {
         ensureAccount();
         const q = new URLSearchParams(window.location.search);
         setWelcome(q.has("welcome"));
-        if (q.get("tab") === "customize") setTab("customize");
+        if (q.get("tab") === "customize") setTabState("customize");
     }, []);
 
     useEffect(() => {
         if (!uid) return;
         let dead = false;
-        fetchSave("fractured-idle").then(({ save, error }) => {
-            if (dead) return;
-            if (error) setCloud("error");
-            else if (!save) setCloud("none");
-            else setCloud({ s: importSave(save.data), savedAt: save.savedAt, device: save.device });
-        });
+        const load = () =>
+            fetchSave("fractured-idle").then(({ save, error }) => {
+                if (dead) return;
+                if (error) setCloud((c) => (typeof c === "object" ? c : "error"));
+                else if (!save) setCloud("none");
+                else setCloud({ s: importSave(save.data), savedAt: save.savedAt, device: save.device });
+            });
+        void load();
+        // Live: while the page is open and visible, pick up whatever the game has saved since.
+        const iv = setInterval(() => document.visibilityState === "visible" && void load(), 30_000);
         return () => {
             dead = true;
+            clearInterval(iv);
         };
     }, [uid]);
 
@@ -68,6 +82,8 @@ export function ProfileView() {
             ? {
                   state: cloud.s,
                   status: "ok",
+                  live: true,
+                  savedAt: cloud.savedAt,
                   footer: (
                       <span className="flex items-center gap-3">
                           <span>Saved {new Date(cloud.savedAt).toLocaleString()} from {cloud.device}</span>

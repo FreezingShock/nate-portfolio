@@ -4,11 +4,12 @@ import { useEffect, useMemo, useRef, useState, type CSSProperties, type ReactNod
 import { ArrowDown, ArrowUp, Check, Copy, Eye, EyeOff, ImageUp, LoaderCircle, Lock, RotateCcw, Trash2, Upload } from "lucide-react";
 import { AccountAvatar } from "@/components/account-avatar";
 import { McSymbol, MC_SYMBOLS, type McSymbolName } from "@/components/mc-symbol";
+import { BannerFx } from "@/components/profile-fx";
 import { HeroLevel, Panel, ProfileHero, ProfileShell, tint, type ViewProfile } from "@/components/profile-canvas";
 import { Tip, TipCard } from "@/components/games/fractured-idle/tooltip";
 import { equipCosmetics, removeAvatar, updateProfile, uploadAvatar, type Profile } from "@/lib/account/client";
 import { COS_KINDS, equippedOf, isUnlocked, ofKind, progressFor, type CosKind, type Cosmetic } from "@/lib/account/cosmetics";
-import { CARD_STYLES, DEFAULT_LAYOUT, SIZE_LABEL, WIDGETS, accentOf, avatarColors, bannerBg, cleanHandle, customOf, hueOfId, type AvatarKind, type AvatarTone, type Custom, type WidgetSize } from "@/lib/account/custom";
+import { AVATAR_FX, CARD_STYLES, DEFAULT_LAYOUT, SIZE_LABEL, WIDGETS, accentOf, avatarColors, bannerBg, bannerFx, cleanHandle, customOf, hueOfId, type AvatarFx, type AvatarKind, type AvatarTone, type Custom, type WidgetSize } from "@/lib/account/custom";
 import type { State } from "@/lib/fractured-idle/data";
 
 // The Customize tab. Everything here edits a draft that the live preview (the real profile hero) shows at
@@ -26,6 +27,21 @@ interface Draft {
     custom: Custom;
 }
 const draftOf = (u: Profile): Draft => ({ name: u.name, handle: u.handle ?? "", bio: u.bio, pronouns: u.custom.pronouns, status: u.custom.status, isPublic: u.isPublic, custom: u.custom });
+
+type Sec = "profile" | "picture" | "look" | "layout" | "cosmetics";
+const SECS: { id: Sec; label: string; symbol: McSymbolName; color: string; blurb: string }[] = [
+    { id: "profile", label: "Profile", symbol: "flower", color: "var(--mc-light-purple)", blurb: "Your name, link, bio and who can see your profile." },
+    { id: "picture", label: "Picture", symbol: "magicFind", color: "var(--mc-aqua)", blurb: "Upload a photo, or build one from a symbol and a color." },
+    { id: "look", label: "Look", symbol: "defense", color: "var(--mc-gold)", blurb: "Banner, accent color and the style of your cards." },
+    { id: "layout", label: "Layout", symbol: "arrow", color: "var(--mc-green)", blurb: "Choose which sections your page shows, and in what order and size." },
+    { id: "cosmetics", label: "Cosmetics", symbol: "pristine", color: "var(--mc-yellow)", blurb: "Symbols, banners, frames and accents your games unlocked. Click one to wear it." },
+];
+const FX_LABEL: { id: "none" | "stars" | "blobs" | "waves"; label: string }[] = [
+    { id: "none", label: "None" },
+    { id: "stars", label: "Stars" },
+    { id: "blobs", label: "Lava lamp" },
+    { id: "waves", label: "Waves" },
+];
 
 const SWATCHES = ["#55ffff", "#55ff55", "#ffff55", "#ffaa00", "#ff5555", "#ff55ff", "#c084fc", "#5555ff", "#ffffff", "#00aaaa"];
 const TONES: { id: AvatarTone; label: string }[] = [
@@ -181,7 +197,7 @@ function PictureUpload({ onDone }: { onDone: (msg: { ok: boolean; text: string }
 // ---------- the locker ----------
 function Preview({ c, u }: { c: Cosmetic; u: ViewProfile }) {
     if (c.kind === "symbol") return <span className="text-2xl" style={{ color: "var(--mc-aqua)" }}>{c.symbol ? <McSymbol name={c.symbol} /> : <span className="text-base text-muted-foreground">none</span>}</span>;
-    if (c.kind === "banner") return <span className="block h-9 w-full rounded-lg border border-white/15" style={{ background: c.bg }} />;
+    if (c.kind === "banner") return <span className="relative block h-9 w-full overflow-hidden rounded-lg border border-white/15" style={{ background: c.bg }}><BannerFx fx={c.fx} /></span>;
     if (c.kind === "frame") return <AccountAvatar id={u.id} name={u.name} size={34} frame={c} avatar={customOf(u.custom).avatar} />;
     return <span className="size-8 rounded-full border-2 border-white/30" style={{ background: c.color, boxShadow: `0 0 14px ${c.color}` }} />;
 }
@@ -259,6 +275,7 @@ export function Customizer({ u, fiState }: { u: Profile; fiState: State | null }
     const [saving, setSaving] = useState(false);
     const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
     const [copied, setCopied] = useState(false);
+    const [sec, setSec] = useState<Sec>("profile");
     const base = useMemo(() => draftOf(u), [u]);
     const dirty = JSON.stringify(d) !== JSON.stringify(base);
     const set = (p: Partial<Draft>) => setD((x) => ({ ...x, ...p }));
@@ -320,9 +337,21 @@ export function Customizer({ u, fiState }: { u: Profile; fiState: State | null }
 
             {msg && <p role={msg.ok ? "status" : "alert"} className="rounded-xl border px-3 py-2 font-rubik text-xs" style={{ color: msg.ok ? "var(--mc-green)" : "var(--mc-red)", borderColor: tint(msg.ok ? "var(--mc-green)" : "var(--mc-red)", 40), background: tint(msg.ok ? "var(--mc-green)" : "var(--mc-red)", 10) }}>{msg.text}</p>}
 
+            <nav className="pf-tabs cz-secnav" aria-label="Customize sections">
+                {SECS.map((t) => (
+                    <Tip key={t.id} tip={<TipCard title={t.label} color={t.color} lines={[t.blurb]} cta={sec === t.id ? "You are here" : "Click to open!"} ctaDim={sec === t.id} />}>
+                        <button type="button" onClick={() => setSec(t.id)} aria-pressed={sec === t.id} className="pf-tab" data-on={sec === t.id}>
+                            <McSymbol name={t.symbol} /> <span>{t.label}</span>
+                        </button>
+                    </Tip>
+                ))}
+            </nav>
+            <p className="-mt-1 font-rubik text-xs text-muted-foreground">{SECS.find((t) => t.id === sec)?.blurb}</p>
+
             <div className="grid gap-4 lg:grid-cols-2">
+                {sec === "profile" && (<>
                 {/* ---- identity ---- */}
-                <Panel id="custom" title="Identity">
+                <Panel id="custom" title="Name and bio">
                     <div className="space-y-3">
                         <Field label="Display name" right={`${d.name.length}/24`}>
                             <input value={d.name} maxLength={24} onChange={(e) => set({ name: e.target.value })} className="cz-input" />
@@ -370,6 +399,7 @@ export function Customizer({ u, fiState }: { u: Profile; fiState: State | null }
                     </div>
                 </Panel>
 
+                </>)}{sec === "picture" && (<>
                 {/* ---- avatar ---- */}
                 <Panel id="custom" title="Profile picture" className="lg:col-span-2">
                     <div className="grid gap-5 lg:grid-cols-[auto_1fr]">
@@ -398,6 +428,13 @@ export function Customizer({ u, fiState }: { u: Profile; fiState: State | null }
                                             </Tip>
                                         ))}
                                     </div>
+                                </div>
+                            )}
+
+                            {av.kind === "glyph" && (
+                                <div>
+                                    <div className="mb-1 font-minecraft text-[11px] font-bold">Animation</div>
+                                    <Seg<AvatarFx> value={av.fx ?? "none"} onChange={(f) => setC({ avatar: { ...av, fx: f } })} options={AVATAR_FX.map((f) => ({ id: f.id, label: f.label }))} />
                                 </div>
                             )}
 
@@ -430,8 +467,9 @@ export function Customizer({ u, fiState }: { u: Profile; fiState: State | null }
                     </div>
                 </Panel>
 
+                </>)}{sec === "look" && (<>
                 {/* ---- banner + accent + card style ---- */}
-                <Panel id="custom" title="Banner and colors">
+                <Panel id="custom" title="Banner and accent">
                     <div className="space-y-4">
                         <div>
                             <div className="mb-1 font-minecraft text-[11px] font-bold">Banner</div>
@@ -443,7 +481,10 @@ export function Customizer({ u, fiState }: { u: Profile; fiState: State | null }
                                     { id: "custom", label: "Custom gradient", tip: <TipCard title="Custom gradient" color="var(--mc-light-purple)" lines={["Mix any two colors you like."]} /> },
                                 ]}
                             />
-                            <span className="mt-2 block h-12 rounded-xl border border-white/15" style={{ background: bannerBg(preview) }} />
+                            <span className="relative mt-2 block h-12 overflow-hidden rounded-xl border border-white/15" style={{ background: bannerBg(preview) }}><BannerFx fx={bannerFx(preview)} /></span>
+                            {d.custom.banner.mode === "custom" && (
+                                <div className="mt-2"><Seg value={d.custom.banner.fx} onChange={(f) => setC({ banner: { ...d.custom.banner, fx: f } })} options={FX_LABEL} /></div>
+                            )}
                             {d.custom.banner.mode === "custom" && (
                                 <div className="mt-2 grid grid-cols-[auto_auto_1fr] items-center gap-3">
                                     <input type="color" aria-label="Banner color one" value={d.custom.banner.a} onChange={(e) => setC({ banner: { ...d.custom.banner, a: e.target.value } })} className="cz-color" />
@@ -481,6 +522,7 @@ export function Customizer({ u, fiState }: { u: Profile; fiState: State | null }
                     </div>
                 </Panel>
 
+                </>)}{sec === "layout" && (<>
                 {/* ---- layout ---- */}
                 <Panel id="custom" title="Page layout" meta={<button type="button" onClick={() => setC({ layout: DEFAULT_LAYOUT.map((w) => ({ ...w })) })} className="hover:text-foreground">Reset</button>} className="lg:col-span-2">
                     <p className="-mt-1 mb-3 font-rubik text-[11px] text-muted-foreground">Reorder, resize or hide the sections of your profile. Visitors see the same arrangement (minus the ones marked only you).</p>
@@ -522,9 +564,10 @@ export function Customizer({ u, fiState }: { u: Profile; fiState: State | null }
                         </div>
                     </div>
                 </Panel>
+                </>)}
             </div>
 
-            <Locker u={u} onMsg={setMsg} />
+            {sec === "cosmetics" && <Locker u={u} onMsg={setMsg} />}
 
             {/* save bar */}
             <div className="cz-save" data-dirty={dirty}>

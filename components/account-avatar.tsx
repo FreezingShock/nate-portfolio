@@ -3,9 +3,10 @@ import { McSymbol } from "@/components/mc-symbol";
 import type { Cosmetic } from "@/lib/account/cosmetics";
 import { avatarColors, avatarUrl, hueOfId, type AvatarSpec } from "@/lib/account/custom";
 
-// A profile picture: an uploaded image, a symbol on a gradient, or the default (the user's initial on a
-// gradient picked from their id), optionally wrapped in an unlocked frame (a cosmetic from
-// lib/account/cosmetics.ts). Pass `avatar` (the profile's custom.avatar) to show their chosen picture.
+// A profile picture: an uploaded image, a symbol on a gradient (optionally moving), or the default (the user's
+// initial on a gradient picked from their id), optionally wrapped in an unlocked frame (a cosmetic from
+// lib/account/cosmetics.ts: plain rings, the spinning rainbow, or one of the animated .pfr frames whose motion
+// lives in globals.css). Pass `avatar` (the profile's custom.avatar) to show their chosen picture.
 export function AccountAvatar({ id, name, size = 32, className = "", frame, avatar }: { id?: string | null; name?: string | null; size?: number; className?: string; frame?: Cosmetic; avatar?: AvatarSpec }) {
     if (!id || !name) {
         return (
@@ -22,11 +23,23 @@ export function AccountAvatar({ id, name, size = 32, className = "", frame, avat
             // eslint-disable-next-line @next/next/no-img-element
             <img alt="" aria-hidden draggable={false} src={avatarUrl(id, spec.v)} width={size} height={size} className="size-full select-none rounded-full object-cover" style={{ background: "rgba(255,255,255,.08)" }} />
         ) : (
-            <span aria-hidden className="grid size-full select-none place-items-center rounded-full font-minecraft font-bold" style={{ fontSize: size * (spec.kind === "glyph" ? 0.52 : 0.46), color: ink, background: `linear-gradient(135deg, ${c1}, ${c2})` }}>
-                {spec.kind === "glyph" && spec.glyph ? <McSymbol name={spec.glyph} /> : (name.trim()[0] ?? "?").toUpperCase()}
+            <span aria-hidden className="grid size-full select-none place-items-center overflow-hidden rounded-full font-minecraft font-bold" style={{ fontSize: size * (spec.kind === "glyph" ? 0.52 : 0.46), color: ink, background: `linear-gradient(135deg, ${c1}, ${c2})` }}>
+                {spec.kind === "glyph" && spec.glyph ? <McSymbol name={spec.glyph} className={spec.fx && spec.fx !== "none" ? `pfa pfa-${spec.fx}` : ""} /> : (name.trim()[0] ?? "?").toUpperCase()}
             </span>
         );
     if (!frame) return <span className={`inline-block shrink-0 ${className}`} style={{ width: size, height: size }}>{face}</span>;
+
+    if (frame.fx) {
+        const rw = Math.max(2, Math.round(size * 0.05));
+        return (
+            <span className={`pfr shrink-0 ${className}`} data-fx={frame.fx} style={{ width: size, height: size, ["--fc" as string]: frame.color ?? "#fff", ["--rw" as string]: `${rw}px` }}>
+                <span className="pfr-a" aria-hidden />
+                <span className="pfr-b" aria-hidden />
+                <span className="pfr-gap" aria-hidden />
+                <span className="relative block size-full">{face}</span>
+            </span>
+        );
+    }
     return (
         <span className={`relative inline-block shrink-0 rounded-full ${className}`} style={{ width: size, height: size, boxShadow: frame.spin ? undefined : frame.ring }}>
             {frame.spin && (
