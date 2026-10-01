@@ -37,6 +37,8 @@ interface Props<T extends string> {
     current: T;
     notes: Partial<Record<T, TipNote[]>>;
     onSelect: (id: T) => void;
+    /** Show "key N" in the tooltips (only the main switcher has number keys). */
+    keys?: boolean;
 }
 
 const sigOf = (notes: Partial<Record<string, TipNote[]>>) =>
@@ -44,7 +46,7 @@ const sigOf = (notes: Partial<Record<string, TipNote[]>>) =>
         .map(([k, v]) => `${k}:${(v ?? []).map((n) => `${n.act ? "!" : ""}${typeof n.text === "string" ? n.text : ""}${n.color}`).join("|")}`)
         .join(";");
 
-function Bar<T extends string>({ tabs, groups, current, notes, onSelect }: Props<T>) {
+function Bar<T extends string>({ tabs, groups, current, notes, onSelect, keys = true }: Props<T>) {
     const pick = useRef(onSelect);
     pick.current = onSelect;
     return (
@@ -68,7 +70,7 @@ function Bar<T extends string>({ tabs, groups, current, notes, onSelect }: Props
                                             <TipCard
                                                 title={t.label}
                                                 color={t.color}
-                                                tag={n <= 10 ? `key ${n % 10}` : undefined}
+                                                tag={keys && n <= 10 ? `key ${n % 10}` : undefined}
                                                 lines={t.blurb ? [t.blurb] : undefined}
                                                 notes={tn}
                                                 cta={on ? "You are here" : "Click to switch!"}

@@ -32,6 +32,7 @@ import {
 import type { State } from "@/lib/fractured-idle/data";
 import { Goals } from "./goals";
 import { Aura, BTN_CSS, ButtonFace, skinAccent } from "./button-face";
+import { SKIN_CSS } from "./button-skins";
 import { COMBO_CSS, ComboMeter, type ComboApi } from "./combo-meter";
 import { BuffBar, POPUP_CSS, Popups } from "./popups";
 import { ISLAND_CSS, IslandScene } from "./island-art";
@@ -55,15 +56,14 @@ import { SkillsTab } from "./tab-skills";
 import { ENCH_CSS, EnchantTab } from "./tab-enchant";
 import { MINE_CSS, MineTab } from "./tab-mine";
 import { FARM_CSS, FarmTab } from "./tab-farm";
-import { FARM_STRIP_CSS, FarmStrip } from "./farm-strip";
+import { DOCK_CSS, SkillDock } from "./skill-dock";
+import { dockBus } from "./dock-bus";
 import { farmCtx, water } from "@/lib/fractured-idle/farm";
 import { COL_AT, ORES, colTierOf, jobsReady, mineCtx, mineLevel, oreIslands, swing } from "@/lib/fractured-idle/mine";
 import { oreNote } from "./mine-fx";
 import { CROPS, CROP_BY_ID, COL_AT as CROP_COL_AT, colTierOf as cropTierOf, cropIslands, farmLevel, jobsReady as farmJobsReady, plotReady } from "@/lib/fractured-idle/farm";
-import { MineStrip, STRIP_CSS } from "./mine-strip";
 import { GLINT_CSS, Glint } from "./enchant-glint";
 import { PROC_LABEL, dustPop, procBolt, procEcho, procMidas } from "./enchant-fx";
-import { EnchantGems } from "./enchant-gems";
 import { TIP_CSS, Tip, TipCard, TipProvider, type TipHost } from "./tooltip";
 import { TABBAR_CSS, TabBar, type TabGroup, type TabItem } from "./tab-bar";
 import { buildTabNotes, newNoteCache } from "./tab-notes";
@@ -370,7 +370,10 @@ export function FracturedIdle() {
             s.total += procV;
         }
         const dustHit = Math.random() < (crit ? DUST_CRIT : DUST_CLICK);
-        if (dustHit) addDust(s, d.dustMult);
+        if (dustHit) {
+            addDust(s, d.dustMult);
+            dockBus.dust = { t: Date.now(), n: d.dustMult };
+        }
         if (s.equip.length) addPetXp(s, 0.4 * d.petXp);
         if (crit) {
             s.crits += 1;
@@ -608,7 +611,7 @@ export function FracturedIdle() {
             data-fi-root=""
             className={
                 full
-                    ? "fixed inset-0 z-[100] flex flex-col overflow-hidden bg-background"
+                    ? "fixed inset-0 z-[100] flex flex-col overflow-y-auto overscroll-contain bg-background lg:overflow-hidden"
                     : "relative flex flex-col overflow-hidden rounded-3xl border border-white/15"
             }
             style={{
@@ -616,7 +619,7 @@ export function FracturedIdle() {
                 backgroundColor: "color-mix(in oklch, var(--background) 92%, black)",
             }}
         >
-            <style>{CSS}{BTN_CSS}{COMBO_CSS}{POPUP_CSS}{ISLAND_CSS}{MENU_CSS}{LEVEL_CSS}{ENCH_CSS}{GLINT_CSS}{SKILL_TOAST_CSS}{TABBAR_CSS}{STATS_CSS}{MINE_CSS}{STRIP_CSS}{FARM_CSS}{FARM_STRIP_CSS}{TIP_CSS}{FONT_CSS}</style>
+            <style>{CSS}{BTN_CSS}{SKIN_CSS}{COMBO_CSS}{POPUP_CSS}{ISLAND_CSS}{MENU_CSS}{LEVEL_CSS}{ENCH_CSS}{GLINT_CSS}{SKILL_TOAST_CSS}{TABBAR_CSS}{STATS_CSS}{MINE_CSS}{FARM_CSS}{DOCK_CSS}{TIP_CSS}{FONT_CSS}</style>
             <TipProvider hostRef={tipHost}>
 
             {/* HUD */}
@@ -808,7 +811,7 @@ export function FracturedIdle() {
                 </div>
             </div>
 
-            <div className={`grid min-h-0 grid-cols-[minmax(0,1fr)] gap-0 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.2fr)] lg:grid-rows-[minmax(0,1fr)] ${full ? "flex-1 grid-rows-[auto_minmax(0,1fr)]" : "lg:h-[680px]"}`}>
+            <div className={`grid min-h-0 grid-cols-[minmax(0,1fr)] gap-0 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.2fr)] lg:grid-rows-[minmax(0,1fr)] ${full ? "flex-none lg:flex-1" : "lg:h-[680px]"}`}>
                 {/* Button side */}
                 <div className="relative isolate flex flex-col items-center justify-center gap-3 overflow-hidden px-4 py-3 lg:border-r lg:border-white/10">
                     <IslandScene key={island.id} island={island} variant="backdrop" className="fi-backdrop absolute inset-0 -z-10 size-full" />
@@ -883,11 +886,13 @@ export function FracturedIdle() {
                     )}
 
                     <BuffBar s={s} />
-                    <EnchantGems
+                    <SkillDock
                         s={s}
-                        onOpen={() => {
+                        d={d}
+                        notes={notes}
+                        onOpen={(id) => {
                             tip.hide();
-                            setTab("enchant");
+                            setTab(id);
                         }}
                     />
 
@@ -919,21 +924,6 @@ export function FracturedIdle() {
                         ref={meterApi}
                         enabled={s.btn.hold}
                         info={{ max: d.comboMax, gain: d.comboGain, surge: d.surgeChance, cap: holdMax(s), best: s.bestCombo, base: HOLD_BASE }}
-                    />
-
-                    <MineStrip
-                        s={s}
-                        onOpen={() => {
-                            tip.hide();
-                            setTab("mine");
-                        }}
-                    />
-                    <FarmStrip
-                        s={s}
-                        onOpen={() => {
-                            tip.hide();
-                            setTab("farm");
-                        }}
                     />
 
                     <div className="-mt-1 flex items-center justify-center gap-1.5 font-rubik text-[10px]">

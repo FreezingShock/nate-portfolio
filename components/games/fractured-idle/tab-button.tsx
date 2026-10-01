@@ -20,6 +20,7 @@ import { kick, spawnBurst, spawnCrit, spawnNumber } from "./button-fx";
 import { Aura, ButtonFace, skinAccent } from "./button-face";
 import { SetupPage, randomLooks } from "./button-setup";
 import { LookGrid } from "./look-grid";
+import { TabBar, type TabGroup, type TabItem, type TabNote } from "./tab-bar";
 import { tint, type Ctx } from "./ui";
 
 // Button tab: the wardrobe for the click button. A sticky stage on top shows
@@ -35,6 +36,26 @@ type Page = Cat | "setup";
 type Focus = { cat: Cat; id: string } | null;
 
 const catOf = (c: Cat) => CATS.find((x) => x.id === c)!;
+
+// The wardrobe switcher is the same component as the main tab bar: grouped,
+// every page colored, a badge for new looks, and a tooltip with what is inside.
+const PAGES: TabItem<Page>[] = [
+    { id: "shape", label: "Shape", symbol: "hex", group: "form", color: "#6fd0ff", blurb: "The outline of your button." },
+    { id: "skin", label: "Skin", symbol: "gem", group: "form", color: "#c58bff", blurb: "What the button is made of. The grand skins animate." },
+    { id: "glyph", label: "Symbol", symbol: "star", group: "form", color: "#ffd23a", blurb: "The icon on the button." },
+    { id: "burst", label: "Click FX", symbol: "spark8", group: "fx", color: "#ff9a4d", blurb: "What bursts out of every click." },
+    { id: "crit", label: "Crit FX", symbol: "bolt", group: "fx", color: "#ffe14d", blurb: "What happens when you crit." },
+    { id: "aura", label: "Aura", symbol: "sunburst", group: "fx", color: "#7fd0ff", blurb: "A constant glow around the button." },
+    { id: "color", label: "Color", symbol: "daisy", group: "style", color: "#ff7ad9", blurb: "The color of crit numbers and blasts." },
+    { id: "nums", label: "Numbers", symbol: "pencil", group: "style", color: "#5dffb0", blurb: "How the flying numbers look." },
+    { id: "setup", label: "Setup", symbol: "cog", group: "set", color: "#9a94b0", blurb: "Loadouts, randomize and the full bonus breakdown." },
+];
+const PAGE_GROUPS: TabGroup[] = [
+    { id: "form", label: "Form", color: "#6fd0ff" },
+    { id: "fx", label: "Effects", color: "#ff9a4d" },
+    { id: "style", label: "Style", color: "#ff7ad9" },
+    { id: "set", label: "Loadout", color: "#ffd23a" },
+];
 
 export function ButtonTab({ s, render, F }: Ctx) {
     const b = s.btn;
@@ -137,24 +158,32 @@ export function ButtonTab({ s, render, F }: Ctx) {
     const randomize = useCallback(() => apply(randomLooks(live.current.s)), [apply]);
 
     // ---- Counts for the pills and the closest unlock (once a second is plenty) ----
-    const { counts, next } = useMemo(() => {
+    const { counts, next, names, nextIn } = useMemo(() => {
         const counts = {} as Record<Cat, { got: number; fresh: number }>;
+        const names = {} as Record<Cat, string[]>;
+        const nextIn = {} as Record<Cat, { l: LookDef; f: number } | null>;
         let next: { cat: Cat; l: LookDef; f: number } | null = null;
         for (const c of CATS) {
             let got = 0;
             let fresh = 0;
+            names[c.id] = [];
+            nextIn[c.id] = null;
             for (const l of c.list) {
                 if (isUnlocked(s, l)) {
                     got++;
-                    if (l.need && !s.btn.seen.includes(lookKey(c.id, l.id))) fresh++;
+                    if (l.need && !s.btn.seen.includes(lookKey(c.id, l.id))) {
+                        fresh++;
+                        names[c.id].push(l.name);
+                    }
                 } else {
                     const f = lookProgress(s, l);
+                    if (!nextIn[c.id] || f > nextIn[c.id]!.f) nextIn[c.id] = { l, f };
                     if (!next || f > next.f) next = { cat: c.id, l, f };
                 }
             }
             counts[c.id] = { got, fresh };
         }
-        return { counts, next };
+        return { counts, next, names, nextIn };
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [tick, b.seen.length, s]);
 
@@ -165,6 +194,20 @@ export function ButtonTab({ s, render, F }: Ctx) {
     const infoLocked = !isUnlocked(s, info);
     const infoOn = b[infoCat] === info.id;
     const total = btnBonus(s);
+
+    // Notes for the switcher: new looks need a click (they badge the tab), the rest is information.
+    const notes: Partial<Record<Page, TabNote[]>> = {};
+    for (const c of CATS) {
+        const n: TabNote[] = names[c.id].slice(0, 9).map((nm) => ({ text: `${nm} unlocked`, color: "var(--mc-green)", act: true }));
+        n.push({ text: `${counts[c.id].got} of ${c.list.length} looks unlocked`, color: "var(--mc-aqua)" });
+        const ni = nextIn[c.id];
+        if (ni) n.push({ text: `Next: ${ni.l.name} ${Math.floor(ni.f * 100)}%${ni.l.need ? ` (${STAT_LABEL[ni.l.need.stat]})` : ""}`, color: "var(--mc-yellow)" });
+        notes[c.id] = n;
+    }
+    notes.setup = [
+        { text: `Total: ${bonusText(total) || "none yet"}`, color: "var(--mc-green)" },
+        ...(next ? [{ text: `Closest unlock: ${next.l.name} ${Math.floor(next.f * 100)}%`, color: "var(--mc-yellow)" }] : []),
+    ];
 
     return (
         <>
@@ -259,47 +302,17 @@ export function ButtonTab({ s, render, F }: Ctx) {
                     </div>
                 </div>
 
-                {/* Category pills */}
-                <div className="mt-2 flex gap-1 overflow-x-auto pb-0.5 pt-1 [scrollbar-width:none]" role="tablist">
-                    {CATS.map((c) => {
-                        const on = page === c.id;
-                        const n = counts[c.id];
-                        return (
-                            <button
-                                key={c.id}
-                                type="button"
-                                role="tab"
-                                aria-selected={on}
-                                onClick={() => {
-                                    setPage(c.id);
-                                    setFocus(null);
-                                }}
-                                className="relative shrink-0 rounded-lg px-2.5 py-1 font-minecraft font-bold text-[11px] transition-colors hover:text-foreground"
-                                style={on ? { backgroundColor: tint(C, 18), color: C, boxShadow: `inset 0 0 0 1px ${tint(C, 45)}` } : { color: "var(--muted-foreground)" }}
-                            >
-                                {c.label} <span className="font-rubik text-[9px] opacity-70">{n.got}/{c.list.length}</span>
-                                {n.fresh > 0 && (
-                                    <span className="absolute -right-0.5 -top-1 grid size-3.5 place-items-center rounded-full font-rubik text-[8px] font-bold text-black" style={{ backgroundColor: "var(--mc-green)" }}>
-                                        {n.fresh}
-                                    </span>
-                                )}
-                            </button>
-                        );
-                    })}
-                    <button
-                        type="button"
-                        role="tab"
-                        aria-selected={page === "setup"}
-                        onClick={() => {
-                            setPage("setup");
-                            setFocus(null);
-                        }}
-                        className="shrink-0 rounded-lg px-2.5 py-1 font-minecraft font-bold text-[11px] transition-colors hover:text-foreground"
-                        style={page === "setup" ? { backgroundColor: tint(Y, 18), color: Y, boxShadow: `inset 0 0 0 1px ${tint(Y, 45)}` } : { color: "var(--muted-foreground)" }}
-                    >
-                        Setup
-                    </button>
-                </div>
+                <TabBar
+                    tabs={PAGES}
+                    groups={PAGE_GROUPS}
+                    current={page}
+                    notes={notes}
+                    keys={false}
+                    onSelect={(id) => {
+                        setPage(id);
+                        setFocus(null);
+                    }}
+                />
             </div>
 
             {page === "setup" ? (

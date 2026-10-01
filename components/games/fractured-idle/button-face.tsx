@@ -36,6 +36,30 @@ const GEAR = (() => {
     }
     return poly(pts);
 })();
+const STAR5 = radial(10, (t) => (Math.round((t / (Math.PI * 2)) * 10) % 2 === 0 ? 1 : 0.42));
+const OCTAGRAM = radial(16, (t) => (Math.round((t / (Math.PI * 2)) * 16) % 2 === 0 ? 1 : 0.64));
+const CLOVER = radial(120, (t) => 0.7 + 0.3 * Math.cos(4 * t));
+const DAISY = radial(160, (t) => 0.72 + 0.28 * Math.cos(8 * t));
+const PUFF = radial(120, (t) => 0.8 + 0.2 * Math.abs(Math.sin(3 * t)));
+const PENT = radial(5, () => 1);
+const DROPLET = (() => {
+    const pts = Array.from({ length: 64 }, (_, i) => {
+        const t = (i / 64) * Math.PI * 2;
+        return [Math.sin(t) * Math.sin(t / 2), -Math.cos(t)] as [number, number];
+    });
+    const w = Math.max(...pts.map((p) => Math.abs(p[0])));
+    return poly(pts.map(([x, y]) => [50 + (x / w) * 46, 50 + y * 48] as [number, number]));
+})();
+const GHOST = (() => {
+    const pts: [number, number][] = [];
+    for (let i = 0; i <= 24; i++) {
+        const a = Math.PI + (i / 24) * Math.PI;
+        pts.push([50 + 46 * Math.cos(a), 50 + 46 * Math.sin(a) * 1.0]);
+    }
+    for (let k = 0; k < 4; k++) pts.push([96 - k * 23, 96], [96 - k * 23 - 11.5, 80]);
+    pts.push([4, 96]);
+    return poly(pts);
+})();
 const HEART = poly(Array.from({ length: 64 }, (_, i) => {
     const t = (i / 64) * Math.PI * 2;
     const x = 16 * Math.sin(t) ** 3;
@@ -60,6 +84,22 @@ const CLIP: Record<string, { rim: string; face: string; glyph: number; gy: numbe
     nova: SAME(STAR, 0.6),
     sunburst: SAME(SUNBURST, 0.8),
     crown: SAME("polygon(0 92%,0 26%,24% 55%,50% 6%,76% 55%,100% 26%,100% 92%)", 0.7, 8),
+    star: SAME(STAR5, 0.55, 2),
+    delta: SAME("polygon(50% 0,100% 100%,50% 76%,0 100%)", 0.6, 6),
+    kite: SAME("polygon(50% 0,94% 38%,50% 100%,6% 38%)", 0.7, -2),
+    clover: SAME(CLOVER, 0.8),
+    pent: SAME(PENT, 0.85, 2),
+    droplet: SAME(DROPLET, 0.7, 6),
+    puff: SAME(PUFF, 0.85),
+    daisy: SAME(DAISY, 0.75),
+    ingot: SAME("polygon(16% 16%,84% 16%,100% 84%,0 84%)", 0.65),
+    aegis: SAME("polygon(8% 6%,50% 0,92% 6%,92% 52%,50% 100%,8% 52%)", 0.8, -4),
+    bolt: SAME("polygon(58% 0,10% 56%,44% 56%,34% 100%,90% 38%,56% 38%)", 0.6),
+    ghost: SAME(GHOST, 0.7, -4),
+    obelisk: SAME("polygon(50% 0,80% 14%,80% 100%,20% 100%,20% 14%)", 0.7, 6),
+    warden: SAME("polygon(12% 0,30% 22%,70% 22%,88% 0,100% 40%,84% 100%,16% 100%,0 40%)", 0.8, 4),
+    eternity: SAME(OCTAGRAM, 0.75),
+    fractal: SAME("polygon(50% 0,63% 28%,100% 22%,74% 52%,92% 90%,56% 72%,36% 100%,30% 66%,0 60%,26% 38%)", 0.7),
 };
 
 const SKIN_ACCENT: Record<string, string> = {
@@ -67,6 +107,9 @@ const SKIN_ACCENT: Record<string, string> = {
     ocean: "#35b8ff", obsidian: "#8a4dff", circuit: "#39ff88", neon: "#ff3df0", sunset: "#ff8a4a", void: "#9a4dff",
     magma: "#ff6a1a", chrome: "#c9d6e6", gold: "#ffd23a", plasma: "#ff55e0", prism: "#ff5fd2", aurora: "#5dffb0",
     chroma: "#ff4da6", galaxy: "#7a5cff", holo: "#ffd0f4",
+    creeper: "#5cd65c", slime: "#7dff5c", honey: "#ffb81f", redstone: "#ff2a2a", deepslate: "#6f7f9a", prismarine: "#5dffc0",
+    rune: "#5dffd6", amethyst: "#b366ff", bedrock: "#8a8a96", diamondore: "#4df0ff", abyss: "#1fe0c0", ender: "#d44dff",
+    storm: "#9fb8ff", inferno: "#ff5a1a", supernova: "#ffc23a", fractured: "#7df0ff", celestial: "#fff2b0",
 };
 
 export const skinAccent = (skin: string, island: string) => SKIN_ACCENT[skin] ?? island;

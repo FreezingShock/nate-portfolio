@@ -351,7 +351,8 @@ export function IslandsMenu({ s, d, F, startId, onClose, onTravel }: Props) {
             {warp && <div className="fi-warp" style={{ ["--wc" as string]: focus.color }} />}
         </div>
     );
-    return createPortal(node, document.body);
+    // In real fullscreen only the fullscreen element is drawn, so the map has to live inside it.
+    return createPortal(node, document.fullscreenElement ?? document.body);
 }
 
 function Thumb({ island, s, on, here, best, onPick }: { island: IslandDef; s: State; on: boolean; here: boolean; best: boolean; onPick: () => void }) {

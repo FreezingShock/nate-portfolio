@@ -1,9 +1,9 @@
 "use client";
 
-import { forwardRef, useImperativeHandle, useRef, useState } from "react";
+import { forwardRef, useImperativeHandle, useRef } from "react";
 import { COMBO_MILESTONES, COMBO_TIERS, SURGE_GAIN, comboFill } from "@/lib/fractured-idle/combo";
 import { comboBurst, comboPop, comboSpark, comboSurge } from "./button-fx";
-import { tint } from "./ui";
+import { Tip, TipCard } from "./tooltip";
 
 // The combo meter under the button. The game loop pushes a frame into it every
 // animation frame through the imperative API (no React re-render per frame);
@@ -48,8 +48,7 @@ export const ComboMeter = forwardRef<ComboApi, { info: ComboInfo; enabled: boole
     const fill = useRef<HTMLDivElement>(null);
     const head = useRef<HTMLDivElement>(null);
     const fx = useRef<HTMLDivElement>(null);
-    const last = useRef({ active: false, surge: false, atMax: false, tier: -1, fill: 0, sparkAt: 0 });
-    const [open, setOpen] = useState(false);
+    const last = useRef({ active: false, surge: false, atMax: false, tier: -1, fill: 0, sparkAt: 0, mult: 1, rate: 0, holding: false });
 
     const geom = () => {
         const r = root.current;
@@ -80,6 +79,9 @@ export const ComboMeter = forwardRef<ComboApi, { info: ComboInfo; enabled: boole
             L.atMax = f.atMax;
             L.tier = f.tier;
             L.fill = f.fill;
+            L.mult = f.mult;
+            L.rate = f.rate;
+            L.holding = f.holding;
             const pct = `${(f.fill * 100).toFixed(2)}%`;
             if (fill.current) fill.current.style.width = pct;
             if (head.current) head.current.style.left = pct;
@@ -123,11 +125,9 @@ export const ComboMeter = forwardRef<ComboApi, { info: ComboInfo; enabled: boole
             data-surge="false"
             data-max="false"
             style={{ ["--cs" as string]: c0 }}
-            onPointerEnter={(e) => e.pointerType === "mouse" && setOpen(true)}
-            onPointerLeave={(e) => e.pointerType === "mouse" && setOpen(false)}
         >
-            {open && <ComboCard info={info} />}
-            <button type="button" className="fi-combo-hit" aria-expanded={open} aria-label="Combo details" onClick={() => setOpen((o) => !o)}>
+            <Tip box tip={() => <ComboCard info={info} live={last.current} />}>
+            <button type="button" className="fi-combo-hit" aria-label="Combo details">
                 <span className="fi-combo-top">
                     <span ref={nameEl} className="fi-combo-name">{COMBO_TIERS[0].name}</span>
                     <span className="fi-combo-surge">⚡ SURGE x{SURGE_GAIN}</span>
@@ -146,37 +146,33 @@ export const ComboMeter = forwardRef<ComboApi, { info: ComboInfo; enabled: boole
                     <span>max x{fmtMult(info.max)}</span>
                 </span>
             </button>
+            </Tip>
             <div ref={fx} className="pointer-events-none absolute inset-0 z-[3]" aria-hidden="true" />
         </div>
     );
 });
 
-function ComboCard({ info }: { info: ComboInfo }) {
-    const rows: [string, string][] = [
-        ["Max multiplier", `x${fmtMult(info.max)}`],
+function ComboCard({ info, live }: { info: ComboInfo; live: { mult: number; tier: number; rate: number; holding: boolean; fill: number } }) {
+    const tier = COMBO_TIERS[Math.max(0, live.tier)];
+    const rows: [string, string, string?][] = [
+        ["Now", `x${fmtMult(live.mult)} (${tier.name})${live.holding ? `, ${live.rate.toFixed(1)} clicks/s` : ""}`, tier.color],
+        ["Max multiplier", `x${fmtMult(info.max)}`, "var(--mc-green)"],
+        ["Fill", `${Math.round(live.fill * 100)}% of the bar`],
         ["Build speed", `x${info.gain.toFixed(2)}`],
-        ["Surge chance", `${(info.surge * 100).toFixed(1)}% per second`],
+        ["Surge chance", `${(info.surge * 100).toFixed(1)}% per second, x${SURGE_GAIN} build speed`],
         ["Held clicks", `${info.base}/s x combo, up to ${info.cap}/s`],
-        ["Best ever", `x${fmtMult(info.best)}`],
+        ["Best ever", `x${fmtMult(info.best)}`, "var(--mc-yellow)"],
     ];
     return (
-        <div className="fi-combo-card" role="tooltip">
-            <div className="font-minecraft font-bold text-xs" style={{ color: "var(--mc-yellow)" }}>Combo</div>
-            <p className="mt-0.5 text-[10px] leading-snug text-muted-foreground">
-                Hold the button or Space. The multiplier doubles every few seconds up to your max. It multiplies click value, speeds up held clicks, gives minions a small boost and brings treasure bobbers sooner.
-            </p>
-            <div className="mt-1.5 space-y-0.5">
-                {rows.map(([k, v]) => (
-                    <div key={k} className="flex justify-between gap-2 text-[10px]">
-                        <span className="text-muted-foreground">{k}</span>
-                        <span style={{ color: "var(--mc-green)" }}>{v}</span>
-                    </div>
-                ))}
-            </div>
-            <p className="mt-1.5 text-[10px] leading-snug" style={{ color: tint("var(--mc-aqua)", 90) }}>
-                Raise it with Training upgrades, rebirth and ascension upgrades, Combat and Mining levels, and button looks. A rare surge builds the combo {SURGE_GAIN}x faster.
-            </p>
-        </div>
+        <TipCard
+            title="Combo"
+            color={tier.color}
+            tag={tier.name}
+            lines={["Hold the button or Space. The multiplier climbs toward your max, multiplies click value and pickaxe swings, speeds up held clicks, gives minions a small boost and brings treasure bobbers sooner."]}
+            rows={rows}
+            notes={COMBO_TIERS.filter((t) => t.at < info.max + 0.01).map((t, i) => ({ text: `${t.name} at x${t.at}${live.mult >= t.at ? " (reached)" : ""}`, color: live.mult >= t.at ? t.color : "var(--muted-foreground)", act: i === live.tier && live.holding }))}
+            foot="Raise it with Training upgrades, rebirth and ascension upgrades, Combat levels, button looks and enchants."
+        />
     );
 }
 

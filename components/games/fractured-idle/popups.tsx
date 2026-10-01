@@ -255,7 +255,7 @@ function Orb({ spec, onCatch, onExpire, tipOf }: { spec: PopupSpec; onCatch: (s:
     }, [spec.id, spec.life, onExpire]);
     const o = ORB[spec.kind];
     return (
-        <Tip tip={() => tipOf(spec, spec.life - (performance.now() - born.current) / 1000)} delay={0}>
+        <Tip tip={() => tipOf(spec, spec.life - (performance.now() - born.current) / 1000)} delay={0} closeOnPress>
         <button
             type="button"
             className="fi-orb"

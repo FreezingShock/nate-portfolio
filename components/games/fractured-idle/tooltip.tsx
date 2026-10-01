@@ -147,10 +147,12 @@ interface TipProps {
     box?: boolean;
     className?: string;
     delay?: number;
+    /** Hide the tooltip the moment the element is pressed (for things that disappear when clicked). */
+    closeOnPress?: boolean;
 }
 
 /** Wrap anything to give it a tooltip. Content of `null` / `false` shows nothing. */
-export function Tip({ tip, children, box, className = "", delay = 140 }: TipProps) {
+export function Tip({ tip, children, box, className = "", delay = 140, closeOnPress }: TipProps) {
     const host = useContext(HostCtx);
     const latest = useRef(tip);
     useEffect(() => {
@@ -174,6 +176,10 @@ export function Tip({ tip, children, box, className = "", delay = 140 }: TipProp
                 host.hide();
             }}
             onPointerDown={(e) => {
+                if (closeOnPress) {
+                    host.hide();
+                    return;
+                }
                 if (e.pointerType !== "mouse") host.show(render, anchorOf(e.currentTarget), 0);
             }}
             onFocus={(e) => {
