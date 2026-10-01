@@ -4,10 +4,12 @@ import { buffFx, newEventStats, tickBuffs } from "./events";
 import { DUST_BASE, addDust, allFx, cleanEnc, newEnc } from "./enchant";
 import { cleanMine, mineCtx, newMine, tickMine } from "./mine";
 import { cleanFarm, farmCtx, newFarm, tickFarm } from "./farm";
+import { GEM_UPS, TOKEN_UPS, autoEvery, bulkBuy, lockedBy, priceAt, valueOf } from "./prestige";
 import { activeIsland, islandFx, openIslands, tierMult, visitBonus, type IslandFx } from "./island-logic";
 import type { SkillKey } from "./islands";
 import {
     ASC_BASE,
+    DEFAULT_AUTO,
     ASC_UPS,
     EGGS,
     ISLANDS,
@@ -91,6 +93,8 @@ export function newState(): State {
         asc: 0,
         ap: 0,
         aups: {},
+        auto: { ...DEFAULT_AUTO },
+        autoT: {},
         pets: {},
         equip: [],
         hatched: 0,
@@ -328,10 +332,10 @@ export function derive(s: State): Derived {
     const X = allFx(s); // worn enchants, the Codex and skill milestone perks (enchant.ts)
     const foraging = skillLevel(s.foraging, "foraging");
     const enchanting = skillLevel(s.enchanting, "enchanting");
-    clickMult *= (1 + bonus.click) * (1 + ce.click) * (1 + pb.click) * (1 + bb.click) * (1 + 0.05 * (s.rups.might || 0)) * bf.click * isl.click * isl.affinity;
-    minionMult *= (1 + bonus.minion) * (1 + pb.minion) * (1 + 0.05 * (s.rups.engine || 0)) * (1 + 0.25 * (s.aups.union || 0)) * bf.minion * isl.minionAll;
+    clickMult *= (1 + bonus.click) * (1 + ce.click) * (1 + pb.click) * (1 + bb.click) * (1 + 0.05 * (s.rups.might || 0)) * (1 + 0.02 * (s.rups.surge || 0)) * bf.click * isl.click * isl.affinity;
+    minionMult *= (1 + bonus.minion) * (1 + pb.minion) * (1 + 0.05 * (s.rups.engine || 0)) * (1 + 0.25 * (s.aups.union || 0)) * (1 + 0.02 * (s.rups.swarm || 0)) * bf.minion * isl.minionAll;
     critChance += bonus.critChance + ce.crit + pb.critChance + bb.crit + bf.crit + isl.crit + 0.01 * (s.rups.luck || 0);
-    critDmg += bonus.critDmg + ce.critDmg + pb.critDmg + bb.critDmg + bf.critDmg + isl.critDmg;
+    critDmg += bonus.critDmg + ce.critDmg + pb.critDmg + bb.critDmg + bf.critDmg + isl.critDmg + 0.03 * (s.rups.edge || 0);
     clickMult *= 1 + X.click;
     minionMult *= 1 + X.minion;
     critChance += X.crit;
@@ -350,12 +354,11 @@ export function derive(s: State): Derived {
     comboGain *= bf.combo * isl.comboGain * (1 + X.comboGain);
     surge += 0.0005 * fishing;
 
-    const core = s.rups.core || 0;
-    const rMult = Math.pow(1.42 + 0.03 * core, s.rebirths);
+    const rMult = Math.pow(rebirthBase(s), s.rebirths);
     const islandMult = tierMult(s);
     const achMult = 1 + bonus.all;
     const am = ascMult(s);
-    const all = rMult * islandMult * achMult * allUp * bf.all * (1 + ce.all + pb.all) * (1 + 0.01 * fishing * isl.eff.fishing) * am * isl.all * (1 + visitBonus(s)) * (1 + LEVEL_BONUS * s.lvl) * (1 + X.all);
+    const all = rMult * islandMult * achMult * allUp * bf.all * (1 + ce.all + pb.all) * (1 + 0.01 * fishing * isl.eff.fishing) * am * isl.all * (1 + visitBonus(s)) * (1 + LEVEL_BONUS * s.lvl) * (1 + X.all) * (1 + 0.01 * (s.rups.fort || 0)) * (1 + 0.03 * (s.aups.nova || 0));
 
     const shared = minionMult * (1 + 0.03 * farming * isl.eff.farming) * all;
     let cps = 0;
@@ -519,17 +522,40 @@ export function buyUpgrade(s: State, id: string): boolean {
 }
 
 export function buyRebirthUp(s: State, id: string): boolean {
-    const u = REBIRTH_UPS.find((x) => x.id === id)!;
-    const lvl = s.rups[id] || 0;
-    if (lvl >= u.max) return false;
-    const cost = Math.ceil(u.cost * Math.pow(u.growth, lvl));
-    if (s.tokens < cost) return false;
-    s.tokens -= cost;
-    s.rups[id] = lvl + 1;
-    return true;
+    return buyPrestige(s, "tokens", id, 1) > 0;
 }
 
-export const rebirthBase = (s: State) => 1.42 + 0.03 * (s.rups.core || 0);
+/** Buy up to `want` levels (-1 = as many as you can afford) of a token or gem upgrade. Returns how many were bought. */
+export function buyPrestige(s: State, cur: "tokens" | "gems", id: string, want: number): number {
+    const u = (cur === "tokens" ? TOKEN_UPS : GEM_UPS).find((x) => x.id === id);
+    if (!u) return 0;
+    const levels = cur === "tokens" ? s.rups : s.aups;
+    const l = levels[id] || 0;
+    if (lockedBy(u, levels)) return 0;
+    const { n, cost } = bulkBuy(u, l, cur === "tokens" ? s.tokens : s.ap, want);
+    if (n < 1) return 0;
+    if (cur === "tokens") s.tokens -= cost;
+    else s.ap -= cost;
+    levels[id] = l + n;
+    return n;
+}
+
+/** The affordable upgrade with the best value rating, or null. */
+export function bestPrestige(s: State, cur: "tokens" | "gems"): { id: string; value: number } | null {
+    const list = cur === "tokens" ? TOKEN_UPS : GEM_UPS;
+    const levels = cur === "tokens" ? s.rups : s.aups;
+    const bal = cur === "tokens" ? s.tokens : s.ap;
+    let best: { id: string; value: number } | null = null;
+    for (const u of list) {
+        const l = levels[u.id] || 0;
+        if (l >= u.max || lockedBy(u, levels) || priceAt(u, l) > bal) continue;
+        const v = valueOf(u, l);
+        if (!best || v > best.value) best = { id: u.id, value: v };
+    }
+    return best;
+}
+
+export const rebirthBase = (s: State) => 1.42 + 0.03 * (s.rups.core || 0) + 0.01 * (s.aups.forge2 || 0);
 export const rebirthMultAt = (s: State, r: number) => Math.pow(rebirthBase(s), r);
 
 /** Base tokens for clearing rebirth cost index `r` while holding `shards`. */
@@ -537,7 +563,7 @@ export const tokensFor = (shards: number, r: number, asc = 0) =>
     Math.max(2, Math.floor(2 + Math.log10(shards / rebirthCost(r, asc)) * 2.5));
 
 export const rebirthCap = (s: State) => 1 + (s.rups.stack || 0);
-export const tokenMult = (s: State) => 1 + trophyBonus(s).tokens + collectionEffects(s).tokens + petBonus(s).tokens + 0.25 * (s.aups.well || 0) + 0.25 * (s.rups.magnet || 0) + allFx(s).tokens;
+export const tokenMult = (s: State) => 1 + trophyBonus(s).tokens + collectionEffects(s).tokens + petBonus(s).tokens + 0.25 * (s.aups.well || 0) + 0.25 * (s.rups.magnet || 0) + 0.1 * (s.rups.bank || 0) + allFx(s).tokens;
 export const milestoneTokens = (level: number) => REBIRTH_MILESTONES[level] || 0;
 
 /** Tokens for taking rebirth number `level` (1-based) while holding `shards`. */
@@ -566,7 +592,7 @@ const TRAINING = ["auto", "critc", "critd", "syn"];
 export function rebirth(s: State, take?: number): boolean {
     const plan = rebirthPlan(s, take);
     if (plan.count < 1) return false;
-    const keep = 0.2 * (s.rups.keep || 0);
+    const keep = Math.min(1, 0.2 * (s.rups.keep || 0) + 0.02 * (s.rups.heir || 0));
     const kept = TRAINING.map((id) => [id, Math.floor((s.ups[id] || 0) * keep)] as const);
     s.tokens += plan.tokens;
     addDust(s, 12 * plan.count * derive(s).dustMult); // each rebirth leaves some dust behind
@@ -757,21 +783,14 @@ export function feedPet(s: State, id: string): boolean {
 export function ascPlan(s: State) {
     const req = ascReq(s.asc);
     const can = s.rebirths >= req;
-    return { req, can, ap: can ? ascGain(s.rebirths, s.asc) : 0, next: ascGain(Math.max(s.rebirths, req), s.asc) };
+    const hoard = 1 + 0.05 * (s.aups.hoard || 0);
+    return { req, can, ap: can ? Math.floor(ascGain(s.rebirths, s.asc) * hoard) : 0, next: Math.floor(ascGain(Math.max(s.rebirths, req), s.asc) * hoard) };
 }
 
 export const aupCost = (u: AscUpDef, lvl: number) => Math.ceil(u.cost * Math.pow(u.growth, lvl));
 
 export function buyAscUp(s: State, id: string): boolean {
-    const u = ASC_UPS.find((x) => x.id === id);
-    if (!u) return false;
-    const lvl = s.aups[id] || 0;
-    if (lvl >= u.max || (u.needs && !s.aups[u.needs])) return false;
-    const cost = aupCost(u, lvl);
-    if (s.ap < cost) return false;
-    s.ap -= cost;
-    s.aups[id] = lvl + 1;
-    return true;
+    return buyPrestige(s, "gems", id, 1) > 0;
 }
 
 export function ascend(s: State): boolean {
@@ -825,6 +844,77 @@ export function advance(s: State, d: Derived, dt: number) {
     if (s.equip.length) addPetXp(s, dt * d.petXp);
     const inc = d.cps + d.auto * d.avgClick;
     if (inc > s.peakInc) s.peakInc = inc;
+    tickAuto(s, d, dt);
+}
+
+// ---- Auto-buyers (unlocked with gems, switched on in the Ascension shop) ----
+
+function autoMinion(s: State, d: Derived): boolean {
+    let best = -1;
+    let bestPay = Infinity;
+    let bestCost = 0;
+    for (let i = 0; i < MINIONS.length; i++) {
+        if (!(i === 0 || s.minions[i] > 0 || s.total >= MINIONS[i].cost * 0.25)) continue;
+        const cost = minionBase(s, i) * Math.pow(MINION_GROWTH, s.minions[i]);
+        if (cost > s.shards) continue;
+        const o = s.minions[i];
+        const gain = MINIONS[i].cps * d.mult[i] * ((o + 1) * milestoneMult(o + 1) - o * milestoneMult(o));
+        const pay = gain > 0 ? cost / gain : Infinity;
+        if (pay < bestPay) {
+            best = i;
+            bestPay = pay;
+            bestCost = cost;
+        }
+    }
+    if (best < 0) return false;
+    // Rich players buy a batch: as many as fit in a tenth of their shards (at least one, at most 50).
+    let { n, cost } = bulk(minionBase(s, best), MINION_GROWTH, s.minions[best], Math.max(bestCost, s.shards * 0.1), -1);
+    if (n < 1) ({ n, cost } = { n: 1, cost: bestCost });
+    n = Math.min(n, 50);
+    if (n < 1) return false;
+    if (n > 1) cost = bulk(minionBase(s, best), MINION_GROWTH, s.minions[best], Infinity, n).cost;
+    if (cost > s.shards) return false;
+    s.shards -= cost;
+    s.minions[best] += n;
+    return true;
+}
+
+function autoUpgrade(s: State): boolean {
+    let best: string | null = null;
+    let bestCost = Infinity;
+    for (const u of UPGRADES) {
+        const l = s.ups[u.id] || 0;
+        if (l >= u.max || !upAvailable(s, u)) continue;
+        const c = upCost(s, u.id, l);
+        if (c <= s.shards && c < bestCost) {
+            best = u.id;
+            bestCost = c;
+        }
+    }
+    return best ? buyUpgrade(s, best) : false;
+}
+
+/** Runs each switched-on auto-buyer on its own timer. Only ever spends what the player already has. */
+function tickAuto(s: State, d: Derived, dt: number) {
+    const lv = { min: s.aups.autoMin || 0, up: s.aups.autoUp || 0, tok: s.aups.autoTok || 0, rb: s.aups.autoRb || 0 };
+    for (const k of ["min", "up", "tok", "rb"] as const) {
+        if (!s.auto[k] || lv[k] < 1) continue;
+        const t = (s.autoT[k] || 0) + dt;
+        if (t < autoEvery(k, lv[k])) {
+            s.autoT[k] = t;
+            continue;
+        }
+        s.autoT[k] = 0;
+        if (k === "min") autoMinion(s, d);
+        else if (k === "up") autoUpgrade(s);
+        else if (k === "tok") {
+            const b = bestPrestige(s, "tokens");
+            if (b) buyPrestige(s, "tokens", b.id, 1);
+        } else {
+            const plan = rebirthPlan(s);
+            if (plan.count >= Math.max(1, Math.min(s.auto.rbN, rebirthCap(s)))) rebirth(s, plan.count);
+        }
+    }
 }
 
 const ISLAND_IDS = new Set(ISLANDS.map((i) => i.id));
@@ -853,6 +943,8 @@ export function parseSave(raw: string): State | null {
         s.tro = { ...(o.tro ?? {}) };
         s.peak = { minions: Number(o.peak?.minions) || 0, types: Number(o.peak?.types) || 0 };
         s.aups = { ...(o.aups ?? {}) };
+        s.auto = { ...DEFAULT_AUTO, min: o.auto?.min === true, up: o.auto?.up === true, tok: o.auto?.tok === true, rb: o.auto?.rb === true, rbN: Math.max(1, Math.min(15, Math.floor(Number(o.auto?.rbN) || 1))) };
+        s.autoT = {};
         s.pets = {};
         for (const p of PETS) {
             const r = o.pets?.[p.id];

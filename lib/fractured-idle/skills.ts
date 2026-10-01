@@ -118,7 +118,7 @@ export const GRANT_LABEL: Record<GrantKind, string> = {
     dust: "Arcane Dust",
     tokens: "rebirth tokens",
     eggs: "free eggs",
-    ap: "ascension point",
+    ap: "gem",
     frag: "Fracture Fragment",
 };
 

@@ -60,8 +60,10 @@ export interface State {
     toasts: boolean; // popup messages
     // Ascension: the prestige layer above rebirth.
     asc: number; // ascensions taken
-    ap: number; // unspent ascension points
+    ap: number; // unspent gems (named ascension points in the code)
     aups: Record<string, number>;
+    auto: AutoPrefs; // which auto-buyers are switched on (they must be unlocked with gems first)
+    autoT: Record<string, number>; // seconds since each auto-buyer last fired; transient
     // Pets: survive rebirth and ascension.
     pets: Record<string, { xp: number; n: number }>; // n = copies found
     equip: string[]; // equipped pet ids, one per slot used
@@ -355,6 +357,16 @@ export const MINION_UPS_BY: UpgradeDef[][] = MINIONS.map((_, i) => MINION_UPS.fi
 
 export const UPGRADES: UpgradeDef[] = [...BASE_UPGRADES, ...MINION_UPS];
 
+export interface AutoPrefs {
+    min: boolean;
+    up: boolean;
+    tok: boolean;
+    rb: boolean;
+    /** Auto-rebirth waits until this many rebirth levels are ready at once. */
+    rbN: number;
+}
+export const DEFAULT_AUTO: AutoPrefs = { min: false, up: false, tok: false, rb: false, rbN: 1 };
+
 export interface RebirthUpDef {
     id: string;
     name: string;
@@ -364,6 +376,9 @@ export interface RebirthUpDef {
     max: number;
     symbol: McSymbolName;
     color: string;
+    /** Another token upgrade that must reach `needsLvl` (default 1) before this one can be bought. */
+    needs?: string;
+    needsLvl?: number;
 }
 
 export const REBIRTH_UPS: RebirthUpDef[] = [
@@ -380,6 +395,13 @@ export const REBIRTH_UPS: RebirthUpDef[] = [
     { id: "omen", name: "Good Omens", desc: "+10% more popups of every kind, permanently", cost: 2, growth: 1.6, max: 10, symbol: "flag", color: "var(--mc-yellow)" },
     { id: "disc", name: "Bulk Discount", desc: "-5% minion cost", cost: 2, growth: 2, max: 10, symbol: "petLuck", color: "var(--mc-green)" },
     { id: "off", name: "Night Owl", desc: "+10% offline efficiency", cost: 1, growth: 2, max: 5, symbol: "night", color: "var(--mc-blue)" },
+    // Deep upgrades: tiny steps, many levels, steep prices. Each opens once its first-tier cousin reaches level 5.
+    { id: "fort", name: "Fractured Fortune", desc: "+1% to all shards, per level", cost: 6, growth: 1.15, max: 50, symbol: "magicFind", color: "var(--mc-light-purple)" },
+    { id: "surge", name: "Click Surge", desc: "+2% click power, per level", cost: 5, growth: 1.2, max: 30, symbol: "strength", color: "var(--mc-gold)", needs: "might", needsLvl: 5 },
+    { id: "swarm", name: "Minion Swarm", desc: "+2% minion output, per level", cost: 5, growth: 1.2, max: 30, symbol: "forge", color: "var(--mc-green)", needs: "engine", needsLvl: 5 },
+    { id: "edge", name: "Keen Edge", desc: "+3% crit damage, per level", cost: 4, growth: 1.2, max: 25, symbol: "critDamage", color: "var(--mc-red)", needs: "luck", needsLvl: 5 },
+    { id: "bank", name: "Token Bank", desc: "+10% rebirth tokens, per level", cost: 8, growth: 1.3, max: 15, symbol: "pristine", color: "var(--mc-yellow)", needs: "magnet", needsLvl: 5 },
+    { id: "heir", name: "Heirloom", desc: "Keep 2% more of your training upgrade levels through rebirth, per level", cost: 8, growth: 1.5, max: 10, symbol: "check", color: "var(--mc-gold)", needs: "keep", needsLvl: 3 },
 ];
 
 /** Bonus tokens for reaching a rebirth level (level -> tokens). */
@@ -603,12 +625,13 @@ export interface AscUpDef {
     id: string;
     name: string;
     desc: string;
-    cost: number; // ascension points
+    cost: number; // gems
     growth: number;
     max: number;
     symbol: McSymbolName;
     color: string;
     needs?: string; // another upgrade that must be bought first
+    needsLvl?: number; // ...to at least this level (default 1)
 }
 
 export const ASC_UPS: AscUpDef[] = [
@@ -625,6 +648,14 @@ export const ASC_UPS: AscUpDef[] = [
     { id: "over", name: "Overdrive Core", desc: "+1 max combo multiplier and +10% combo build speed", cost: 2, growth: 1.5, max: 10, symbol: "attackSpeed", color: "var(--mc-red)" },
     { id: "horizon", name: "Event Horizon", desc: "+12% boon strength and duration, and popups last 10% longer", cost: 2, growth: 1.5, max: 10, symbol: "comet", color: "var(--mc-light-purple)" },
     { id: "mentor", name: "Pet Mentor", desc: "+30% pet experience", cost: 1, growth: 1.4, max: 10, symbol: "wisdom", color: "var(--mc-light-purple)" },
+    // Deep gem upgrades, and the auto-buyers (they only ever spend what you already have).
+    { id: "nova", name: "Nova Core", desc: "+3% to all shards, per level", cost: 3, growth: 1.28, max: 30, symbol: "comet", color: "var(--mc-aqua)", needs: "cosmic", needsLvl: 5 },
+    { id: "forge2", name: "Rebirth Forge", desc: "+0.01 to the rebirth multiplier base, per level", cost: 6, growth: 1.4, max: 15, symbol: "portal", color: "var(--mc-light-purple)", needs: "echo", needsLvl: 1 },
+    { id: "hoard", name: "Gem Hoard", desc: "+5% gems from every ascension, per level", cost: 8, growth: 1.5, max: 10, symbol: "pristine", color: "var(--mc-gold)", needs: "keep", needsLvl: 1 },
+    { id: "autoMin", name: "Minion Foreman", desc: "Automatically buys the best-value minion; each level is faster", cost: 6, growth: 2.1, max: 5, symbol: "defense", color: "var(--mc-green)" },
+    { id: "autoUp", name: "Upgrade Foreman", desc: "Automatically buys the cheapest shard upgrade; each level is faster", cost: 8, growth: 2.1, max: 4, symbol: "speed", color: "var(--mc-yellow)" },
+    { id: "autoTok", name: "Token Steward", desc: "Automatically spends tokens on the best-value upgrade; each level is faster", cost: 12, growth: 2, max: 3, symbol: "magicFind", color: "var(--mc-light-purple)" },
+    { id: "autoRb", name: "Rebirth Cycle", desc: "Automatically rebirths once the number of levels you set is ready", cost: 20, growth: 1, max: 1, symbol: "portal", color: "var(--mc-red)", needs: "autoTok", needsLvl: 1 },
 ];
 
 export type SkillId = "mining" | "farming" | "combat" | "fishing" | "foraging" | "enchanting";

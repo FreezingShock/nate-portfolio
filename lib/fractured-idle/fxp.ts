@@ -32,7 +32,7 @@ import { ISLANDS, MASTERY_AT, isSpecial } from "./islands";
 // Level 400 needs nearly everything; ascending keeps paying forever.
 //
 // Every level gives +0.15% to all shards (LEVEL_BONUS); milestone levels also
-// pay tokens, eggs and ascension points, and unlock badge symbols and
+// pay tokens, eggs and gems, and unlock badge symbols and
 // prefixes to wear next to your level.
 
 export const FXP_PER_LEVEL = 100;
@@ -230,7 +230,7 @@ export function rewardFor(level: number): LevelReward {
 export const hasReward = (r: LevelReward) => r.tokens > 0 || r.eggs > 0 || r.ap > 0 || r.unlocks.length > 0;
 
 export const rewardText = (r: LevelReward) =>
-    [r.tokens && `${r.tokens} rebirth tokens`, r.eggs && `${r.eggs} Wooden Egg`, r.ap && `${r.ap} ascension point${r.ap > 1 ? "s" : ""}`, ...r.unlocks].filter(Boolean).join(", ");
+    [r.tokens && `${r.tokens} rebirth tokens`, r.eggs && `${r.eggs} Wooden Egg`, r.ap && `${r.ap} gem${r.ap > 1 ? "s" : ""}`, ...r.unlocks].filter(Boolean).join(", ");
 
 // ---- Claiming ----
 

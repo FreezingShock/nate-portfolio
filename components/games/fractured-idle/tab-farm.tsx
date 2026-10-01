@@ -502,7 +502,7 @@ function Garden({ s, d, F, render, say }: { s: Ctx["s"]; d: Ctx["d"]; F: (n: num
                             <span className="fi-mn-geode-n">
                                 <McSymbol name="gem" /> {dimWithPods.map((x, i) => <span key={x} style={{ color: PODS[x].color }}>{i ? " · " : ""}<b>{f.pods[x]}</b> {PODS[x].name}{f.pods[x] === 1 ? "" : "s"}</span>)}
                             </span>
-                            <Tip box tip={<TipCard title="Open a pod" color="var(--mc-light-purple)" lines={["A random reward: dust, tokens, an egg, shards, a Fragment or an ascension point. Nether and End pods pay more."]} foot="Click to open!" />}>
+                            <Tip box tip={<TipCard title="Open a pod" color="var(--mc-light-purple)" lines={["A random reward: dust, tokens, an egg, shards, a Fragment or a gem. Nether and End pods pay more."]} foot="Click to open!" />}>
                                 <button type="button" onClick={() => openPods(false)} className="fi-mn-crack" data-ready>
                                     Open
                                 </button>
@@ -1090,7 +1090,7 @@ function CropCard({ s, c, F }: { s: Ctx["s"]; c: CropDef; F: (n: number) => stri
 
 // ---- Biomes: the dimensions ----
 
-const POD_ROWS = ["Arcane Dust", "Rebirth Tokens", "Free egg", "Heap of shards", "Fracture Fragment", "Ascension point"];
+const POD_ROWS = ["Arcane Dust", "Rebirth Tokens", "Free egg", "Heap of shards", "Fracture Fragment", "Gem"];
 
 function Biomes({ s, F }: { s: Ctx["s"]; F: (n: number) => string }) {
     const here = activeIsland(s).dim;
@@ -1188,7 +1188,7 @@ function Feats({ s, F, render, say }: { s: Ctx["s"]; F: (n: number) => string; r
                 <div>
                     <b>{s.farm.claimed.length}</b> of {FEATS.length} feats claimed <span>{ready.length ? `${ready.length} ready` : "keep farming"}</span>
                 </div>
-                <small>Every kind of thing you do on the farm has a ladder of feats. Each one pays tokens, eggs, dust or a permanent stat, and some pay an ascension point.</small>
+                <small>Every kind of thing you do on the farm has a ladder of feats. Each one pays tokens, eggs, dust or a permanent stat, and some pay a gem.</small>
             </div>
             <button
                 type="button"

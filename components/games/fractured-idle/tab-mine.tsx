@@ -645,7 +645,7 @@ function DigView({ s, d, F, render, say }: { s: Ctx["s"]; d: Ctx["d"]; F: (n: nu
                             <span className="fi-mn-geode-n">
                                 <McSymbol name="gem" /> {dimWithGeodes.map((x, i) => <span key={x} style={{ color: GEODES[x].color }}>{i ? " · " : ""}<b>{m.geodes[x]}</b> {GEODES[x].name}{m.geodes[x] === 1 ? "" : "s"}</span>)}
                             </span>
-                            <Tip box tip={<TipCard title="Crack a geode" color="var(--mc-light-purple)" lines={["A random reward: dust, tokens, an egg, shards, a Fragment or an ascension point. Nether and End geodes pay more."]} foot="Click to crack!" />}>
+                            <Tip box tip={<TipCard title="Crack a geode" color="var(--mc-light-purple)" lines={["A random reward: dust, tokens, an egg, shards, a Fragment or a gem. Nether and End geodes pay more."]} foot="Click to crack!" />}>
                                 <button type="button" onClick={() => crackOne(false)} className="fi-mn-crack" data-ready>
                                     Crack
                                 </button>
@@ -1281,7 +1281,7 @@ function Loadout({ s, render, say }: { s: Ctx["s"]; render: () => void; say: (m:
 
 // ---- Worlds: the dimensions ----
 
-const GEODE_ROWS = ["Arcane Dust", "Rebirth Tokens", "Free egg", "Shard Vein", "Fracture Fragment", "Ascension point"];
+const GEODE_ROWS = ["Arcane Dust", "Rebirth Tokens", "Free egg", "Shard Vein", "Fracture Fragment", "Gem"];
 
 function Worlds({ s, F }: { s: Ctx["s"]; F: (n: number) => string }) {
     const here = activeIsland(s).dim;
@@ -1385,7 +1385,7 @@ function Feats({ s, F, render, say }: { s: Ctx["s"]; F: (n: number) => string; r
                 <div>
                     <b>{done}</b> of {FEATS.length} feats claimed <span>{ready.length ? `${ready.length} ready` : "keep mining"}</span>
                 </div>
-                <small>Every kind of thing you do in the mine has a ladder of feats. Each one pays tokens, eggs, dust or a permanent stat, and some pay an ascension point.</small>
+                <small>Every kind of thing you do in the mine has a ladder of feats. Each one pays tokens, eggs, dust or a permanent stat, and some pay a gem.</small>
             </div>
             <button
                 type="button"

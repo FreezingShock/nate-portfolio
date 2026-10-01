@@ -178,7 +178,7 @@ export function StatsTab({ s, d, F }: Ctx) {
                 { id: "tok", label: "Tokens", value: String(s.tokens), icon: "pristine", color: PURPLE },
                 { id: "isl2", label: "Islands", value: `${unlocked}/${ISLANDS.length}`, icon: "location", color: BLUE, bar: unlocked / ISLANDS.length },
                 { id: "tro2", label: "Trophy tiers", value: `${tro.got}/${tro.all}`, icon: "pristine", color: YELLOW, bar: tro.got / Math.max(1, tro.all) },
-                { id: "as", label: "Ascensions", value: String(s.asc), icon: "comet", color: PURPLE, hint: `${s.ap} points unspent` },
+                { id: "as", label: "Ascensions", value: String(s.asc), icon: "comet", color: PURPLE, hint: `${s.ap} gems unspent` },
                 { id: "stack", label: "Rebirth stack", value: `${rebirthCap(s)}/15`, icon: "portal", color: RED, hint: "levels per rebirth", bar: rebirthCap(s) / 15 },
                 { id: "peak", label: "Best income", value: `${F(s.peakInc)}/s`, icon: "speed", color: GREEN, hint: "prices your eggs" },
                 { id: "tm", label: "Token bonus", value: `x${tokenMult(s).toFixed(2)}`, icon: "pristine", color: PURPLE, hint: "trophies + Token Magnet" },

@@ -2,9 +2,8 @@
 
 import { useState } from "react";
 import { McSymbol } from "@/components/mc-symbol";
-import { REBIRTH_UPS, rebirthCost } from "@/lib/fractured-idle/data";
+import { rebirthCost } from "@/lib/fractured-idle/data";
 import {
-    buyRebirthUp,
     fmtEta,
     income,
     milestoneTokens,
@@ -17,7 +16,8 @@ import {
     tokenMult,
     tokensAt,
 } from "@/lib/fractured-idle/engine";
-import { SectionTitle, ShopRow, tint, type Ctx } from "./ui";
+import { AutoPanel, PrestigeShop } from "./prestige-shop";
+import { SectionTitle, tint, type Ctx } from "./ui";
 
 // Rebirth view. The path previews the next max(5, stack cap) rebirth levels
 // (15 at full Rebirth Stack). Nodes glow when you can take them right now,
@@ -268,25 +268,8 @@ export function RebirthTab({ s, d, F, act, say }: Ctx) {
             </div>
 
             <SectionTitle color="var(--mc-yellow)">Token upgrades</SectionTitle>
-            {REBIRTH_UPS.map((u) => {
-                const lvl = s.rups[u.id] || 0;
-                const maxed = lvl >= u.max;
-                const cost = Math.ceil(u.cost * Math.pow(u.growth, lvl));
-                return (
-                    <ShopRow
-                        key={u.id}
-                        color={u.color}
-                        symbol={u.symbol}
-                        title={u.name}
-                        badge={`${lvl}/${u.max}`}
-                        sub={u.desc}
-                        price={maxed ? "MAX" : `${cost} tokens`}
-                        buyLabel="Buy"
-                        can={!maxed && s.tokens >= cost}
-                        onClick={() => act(() => buyRebirthUp(s, u.id))}
-                    />
-                );
-            })}
+            <PrestigeShop cur="tokens" s={s} F={F} act={act} say={say} />
+            <AutoPanel s={s} act={act} />
         </>
     );
 }

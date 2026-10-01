@@ -66,6 +66,7 @@ import { oreNote } from "./mine-fx";
 import { CROPS, CROP_BY_ID, COL_AT as CROP_COL_AT, colTierOf as cropTierOf, cropIslands, farmLevel, jobsReady as farmJobsReady, plotReady } from "@/lib/fractured-idle/farm";
 import { GLINT_CSS, Glint } from "./enchant-glint";
 import { PROC_LABEL, dustPop, procBolt, procEcho, procMidas } from "./enchant-fx";
+import { PS_CSS } from "./prestige-shop";
 import { TIP_CSS, Tip, TipCard, TipProvider, type TipHost } from "./tooltip";
 import { TABBAR_CSS, TabBar, type TabGroup, type TabItem } from "./tab-bar";
 import { buildTabNotes, newNoteCache } from "./tab-notes";
@@ -622,7 +623,7 @@ export function FracturedIdle() {
                 backgroundColor: "color-mix(in oklch, var(--background) 92%, black)",
             }}
         >
-            <style>{CSS}{BTN_CSS}{SKIN_CSS}{BUTTON_TAB_CSS}{COMBO_CSS}{POPUP_CSS}{ISLAND_CSS}{MENU_CSS}{LEVEL_CSS}{ENCH_CSS}{GLINT_CSS}{SKILL_TOAST_CSS}{TABBAR_CSS}{STATS_CSS}{MINE_CSS}{FARM_CSS}{DOCK_CSS}{BUTTON_DOCK_CSS}{GOALS_CSS}{TIP_CSS}{FONT_CSS}</style>
+            <style>{CSS}{BTN_CSS}{SKIN_CSS}{BUTTON_TAB_CSS}{COMBO_CSS}{POPUP_CSS}{ISLAND_CSS}{MENU_CSS}{LEVEL_CSS}{ENCH_CSS}{GLINT_CSS}{SKILL_TOAST_CSS}{TABBAR_CSS}{STATS_CSS}{MINE_CSS}{FARM_CSS}{DOCK_CSS}{BUTTON_DOCK_CSS}{GOALS_CSS}{PS_CSS}{TIP_CSS}{FONT_CSS}</style>
             <TipProvider hostRef={tipHost}>
 
             {/* HUD */}
@@ -766,8 +767,8 @@ export function FracturedIdle() {
                             <TipCard
                                 title="Ascension"
                                 color="var(--mc-aqua)"
-                                lines={["The prestige above rebirth: reset almost everything for ascension points and permanent upgrades."]}
-                                rows={[["Ascensions", String(s.asc)], ["Points", String(s.ap)], asc.can ? ["Ready", `+${asc.ap} points`, "var(--mc-green)"] : ["Needs", `${asc.req} rebirths`]]}
+                                lines={["The prestige above rebirth: reset almost everything for gems and permanent upgrades."]}
+                                rows={[["Ascensions", String(s.asc)], ["Gems", String(s.ap)], asc.can ? ["Ready", `+${asc.ap} gems`, "var(--mc-green)"] : ["Needs", `${asc.req} rebirths`]]}
                             />
                         )}
                     >

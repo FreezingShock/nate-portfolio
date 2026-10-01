@@ -14,7 +14,7 @@ import type { GrantKind } from "./skills";
 // are named for, the Cookhouse turns crops into goods, consumables and permanent
 // scarecrows on real-time timers, every crop fills a collection that pays
 // permanent bonuses, and harvests sometimes drop seed pods that pay tokens, eggs,
-// dust, fragments and even ascension points. The UI is in
+// dust, fragments and even gems. The UI is in
 // components/games/fractured-idle/tab-farm.tsx; permanent bonuses reach the rest
 // of the game through farmFx() (added to enchant.allFx).
 
@@ -981,7 +981,7 @@ export const PODS: Record<Dim, { name: string; color: string }> = {
     nether: { name: "Ember Pod", color: "#ff7a3d" },
     end: { name: "Void Pod", color: "#e0a0ff" },
 };
-// [dust, tokens, egg, shards, fragment, ascension point] weights per dimension.
+// [dust, tokens, egg, shards, fragment, gem] weights per dimension.
 export const POD_W: Record<Dim, number[]> = {
     overworld: [30, 28, 16, 18, 7, 1],
     nether: [22, 30, 14, 18, 13, 3],
@@ -989,7 +989,7 @@ export const POD_W: Record<Dim, number[]> = {
 };
 export const POD_TOKENS: Record<Dim, number> = { overworld: 1, nether: 1.6, end: 2.4 };
 
-/** Open one seed pod of a dimension: dust, tokens, eggs, shards, fragments or (rarely) an ascension point. */
+/** Open one seed pod of a dimension: dust, tokens, eggs, shards, fragments or (rarely) a gem. */
 export function openPod(s: State, d: { avgClick: number; cps: number; dust: number }, dim: Dim, rng: Rng = Math.random): PodOut | null {
     if ((s.farm.pods[dim] || 0) < 1) return null;
     s.farm.pods[dim] -= 1;
@@ -1028,7 +1028,7 @@ export function openPod(s: State, d: { avgClick: number; cps: number; dust: numb
         return { title: "Fracture Fragment", sub: "+0.2% all shards, forever", color: "var(--mc-light-purple)" };
     }
     s.ap += 1;
-    return { title: "Ascension Seed", sub: "+1 ascension point", color: "var(--mc-red)" };
+    return { title: "Ascension Seed", sub: "+1 gem", color: "var(--mc-red)" };
 }
 
 // ---- Feats ----

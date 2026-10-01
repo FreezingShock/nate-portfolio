@@ -12,7 +12,7 @@ import type { GrantKind } from "./skills";
 // ingots, consumables and permanent relics on real-time timers, so there is
 // always something to come back to; every ore fills a collection that pays
 // permanent bonuses; and swings sometimes drop geodes that pay tokens, eggs,
-// dust, fragments and even ascension points. The UI is in
+// dust, fragments and even gems. The UI is in
 // components/games/fractured-idle/tab-mine.tsx; the permanent bonuses reach the
 // rest of the game through mineFx() (added to enchant.allFx).
 
@@ -896,7 +896,7 @@ export const GEODES: Record<Dim, { name: string; color: string }> = {
     end: { name: "Chorus Geode", color: "#e0a0ff" },
 };
 
-// [dust, tokens, egg, shards, fragment, ascension point] weights per dimension.
+// [dust, tokens, egg, shards, fragment, gem] weights per dimension.
 export const GEODE_W: Record<Dim, number[]> = {
     overworld: [30, 28, 16, 18, 7, 1],
     nether: [22, 30, 14, 18, 13, 3],
@@ -904,7 +904,7 @@ export const GEODE_W: Record<Dim, number[]> = {
 };
 export const GEODE_TOKENS: Record<Dim, number> = { overworld: 1, nether: 1.6, end: 2.4 };
 
-/** Crack one geode of a dimension: dust, tokens, eggs, shards, fragments or (rarely) an ascension point. */
+/** Crack one geode of a dimension: dust, tokens, eggs, shards, fragments or (rarely) a gem. */
 export function crackGeode(s: State, d: { avgClick: number; cps: number; dust: number }, dim: Dim, rng: Rng = Math.random): GeodeOut | null {
     if ((s.mine.geodes[dim] || 0) < 1) return null;
     s.mine.geodes[dim] -= 1;
@@ -943,7 +943,7 @@ export function crackGeode(s: State, d: { avgClick: number; cps: number; dust: n
         return { title: "Fracture Fragment", sub: "+0.2% all shards, forever", color: "var(--mc-light-purple)" };
     }
     s.ap += 1;
-    return { title: "Ascension Shard", sub: "+1 ascension point", color: "var(--mc-red)" };
+    return { title: "Ascension Shard", sub: "+1 gem", color: "var(--mc-red)" };
 }
 
 

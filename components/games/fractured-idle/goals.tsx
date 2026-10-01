@@ -148,7 +148,7 @@ export function Goals({ s, d, F, open, render, say }: Pick<Ctx, "s" | "d" | "F" 
             symbol: "comet",
             color: "var(--mc-aqua)",
             title: ap.can ? "Ascension ready!" : `Ascension #${s.asc + 1}`,
-            chip: ap.can ? `+${ap.ap} points` : `${ap.req - s.rebirths} rebirths`,
+            chip: ap.can ? `+${ap.ap} gems` : `${ap.req - s.rebirths} rebirths`,
             chipHot: ap.can,
             pct: Math.min(1, s.rebirths / ap.req),
             ready: ap.can,
