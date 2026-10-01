@@ -1,5 +1,6 @@
 import type { McSymbolName } from "@/components/mc-symbol";
 import { COL_AT as ORE_COL_AT, FEATS, MINE_UPS, RELICS } from "./mine";
+import { COL_AT as CROP_COL_AT, FARM_UPS, FEATS as FARM_FEATS, RELICS as CROW_RELICS } from "./farm";
 import { CATS, isUnlocked as lookUnlocked } from "./button";
 import {
     ASC_UPS,
@@ -180,6 +181,15 @@ export function fxpSources(s: State): FxpSource[] {
     add("mine:nodes", "skills", "Pickaxe swings", ladder(mn.nodes, [[100, 8], [1000, 15], [5000, 30], [25000, 60], [100000, 120]]), 233);
     add("mine:pick", "skills", "Pickaxe tiers", mn.pick * 12, 84);
     add("mine:ups", "skills", "Mine upgrade levels", Object.values(mn.ups).reduce((a, b) => a + b, 0), MINE_UPS.reduce((a, u) => a + u.max, 0));
+    const fm = s.farm;
+    add("farm:harvest", "skills", "Harvests", ladder(fm.harvests, [[50, 8], [500, 15], [5000, 30], [25000, 60], [100000, 120]]), 233);
+    add("farm:hoe", "skills", "Hoe tiers", fm.hoe * 12, 108);
+    add("farm:ups", "skills", "Farm upgrade levels", Object.values(fm.ups).reduce((a, b) => a + b, 0), FARM_UPS.reduce((a, u) => a + u.max, 0));
+    add("farm:hands", "skills", "Farmhands hired", ladder(Object.values(fm.hands).reduce((a, b) => a + b, 0), [[1, 10], [10, 20], [50, 40], [200, 80]]), 150);
+    add("farm:pods", "skills", "Seed pods opened", ladder(fm.opened, [[1, 10], [10, 20], [50, 40], [200, 80]]), 150);
+    add("farm:col", "skills", "Crop collection tiers", Object.values(fm.grown).reduce((a, m) => a + CROP_COL_AT.filter((n) => m >= n).length, 0) * 5, 450);
+    add("farm:feats", "skills", "Farming feats", fm.claimed.length * 6, FARM_FEATS.length * 6);
+    add("farm:kitchen", "skills", "Kitchen crafts and scarecrows", ladder(fm.crafted, [[1, 10], [10, 20], [40, 40], [150, 80]]) + fm.relics.length * 20, 150 + CROW_RELICS.length * 20);
     add("mine:feats", "skills", "Mining feats", mn.claimed.length * 6, FEATS.length * 6);
     add("mine:forge", "skills", "Forge crafts and relics", ladder(mn.crafted, [[1, 10], [10, 20], [40, 40], [150, 80]]) + mn.relics.length * 20, 150 + RELICS.length * 20);
     add("mine:drills", "skills", "Drills built", ladder(Object.values(mn.drills).reduce((a, b) => a + b, 0), [[1, 10], [10, 20], [50, 40], [200, 80]]), 150);

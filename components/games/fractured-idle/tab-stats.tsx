@@ -7,6 +7,7 @@ import { COL_AT, ISLANDS, MINIONS, PETS, PET_LABEL, REWARD_LABEL, SKILLS, type P
 import { colTiers, fmtTime, income, offlineEff, petSlots, rebirthCap, tokenMult, trophyCounts } from "@/lib/fractured-idle/engine";
 import { CODEX_TOTAL, RARITIES, SLOTS, codexCount, enchLevel } from "@/lib/fractured-idle/enchant";
 import { idleSwings, pickOf, pickPower, totalDrills } from "@/lib/fractured-idle/mine";
+import { CROPS, cropRate, hoeOf, hoePower } from "@/lib/fractured-idle/farm";
 import { makeSources, type SourceFn } from "./stats-sources";
 import { Tip, TipCard } from "./tooltip";
 import type { Ctx } from "./ui";
@@ -114,7 +115,7 @@ export function StatsTab({ s, d, F }: Ctx) {
             blurb: "Six skills, each with a perk",
             color: GREEN,
             icon: "wisdom",
-            stats: [...skillRows, { id: "pick", label: "Pick power", value: `x${pickPower(s).toFixed(2)}`, icon: "pick", color: "#e0b070", hint: pickOf(s).name }, { id: "ore", label: "Ore mined", value: F(Math.floor(Object.values(s.mine.mined).reduce((a, n) => a + n, 0))), icon: "gem", color: "#e0b070", hint: `${F(Math.floor(s.mine.nodes))} swings, ${F(s.mine.cracked)} geodes` }, { id: "drill", label: "Swings per second", value: `${idleSwings(s, d.auto).toFixed(1)}/s`, icon: "forge", color: AQUA, hint: `${F(totalDrills(s))} drills, always on` }, { id: "bob", label: "Bobbers caught", value: F(s.bobbers), icon: "fishing", color: AQUA }, { id: "xp", label: "Skill XP gain", value: `x${d.xpMult.toFixed(2)}`, icon: "wisdom", color: GREEN, hint: "all skills", src: "xp" }],
+            stats: [...skillRows, { id: "pick", label: "Pick power", value: `x${pickPower(s).toFixed(2)}`, icon: "pick", color: "#e0b070", hint: pickOf(s).name }, { id: "ore", label: "Ore mined", value: F(Math.floor(Object.values(s.mine.mined).reduce((a, n) => a + n, 0))), icon: "gem", color: "#e0b070", hint: `${F(Math.floor(s.mine.nodes))} swings, ${F(s.mine.cracked)} geodes` }, { id: "drill", label: "Swings per second", value: `${idleSwings(s, d.auto).toFixed(1)}/s`, icon: "forge", color: AQUA, hint: `${F(totalDrills(s))} drills, always on` }, { id: "hoe", label: "Hoe power", value: `x${hoePower(s).toFixed(2)}`, icon: "fortune", color: "#9be04a", hint: hoeOf(s).name }, { id: "crops", label: "Crops harvested", value: F(Math.floor(CROPS.reduce((a, c) => a + (s.farm.grown[c.id] || 0), 0))), icon: "fortune", color: "#9be04a", hint: `${F(s.farm.harvests)} harvests, ${F(Math.round(cropRate(s) * 60))}/min` }, { id: "bob", label: "Bobbers caught", value: F(s.bobbers), icon: "fishing", color: AQUA }, { id: "xp", label: "Skill XP gain", value: `x${d.xpMult.toFixed(2)}`, icon: "wisdom", color: GREEN, hint: "all skills", src: "xp" }],
         },
         {
             id: "enchant",

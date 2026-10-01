@@ -3,6 +3,7 @@ import { COMBO_BASE_MAX, COMBO_CPS_SHARE, SURGE_BASE_CHANCE } from "./combo";
 import { buffFx, newEventStats, tickBuffs } from "./events";
 import { DUST_BASE, addDust, allFx, cleanEnc, newEnc } from "./enchant";
 import { cleanMine, mineCtx, newMine, tickMine } from "./mine";
+import { cleanFarm, farmCtx, newFarm, tickFarm } from "./farm";
 import { activeIsland, islandFx, openIslands, tierMult, visitBonus, type IslandFx } from "./island-logic";
 import type { SkillKey } from "./islands";
 import {
@@ -108,6 +109,7 @@ export function newState(): State {
         frag: 0,
         evs: newEventStats(),
         mine: newMine(),
+        farm: newFarm(),
     };
 }
 
@@ -810,10 +812,11 @@ export function advance(s: State, d: Derived, dt: number) {
     s.crits += autoCrits;
     s.combat += autoCrits * 3 * d.xpMult * d.xpSkill.combat;
     s.fishing += 0.2 * dt * d.xpMult * d.xpSkill.fishing;
-    s.farming += (d.cps > 0 ? 1 + 2 * Math.log10(d.cps + 1) : 0) * dt * d.xpMult * d.xpSkill.farming;
     s.foraging += 0.15 * dt * d.xpMult;
     addDust(s, DUST_BASE * dt * d.dustMult);
+    s.farming += (d.cps > 0 ? 1 + 2 * Math.log10(d.cps + 1) : 0) * dt * d.xpMult * d.xpSkill.farming; // the minions still work the land a little
     tickMine(s, dt, mineCtx(d));
+    tickFarm(s, dt, farmCtx(d));
     for (let i = 0; i < MINIONS.length; i++) if (s.minions[i] > 0) s.mcol[i] += s.minions[i] * dt * d.colSpeed[i];
     s.playTime += dt;
     const here = activeIsland(s).id;
@@ -874,6 +877,7 @@ export function parseSave(raw: string): State | null {
         for (const [k, v] of Object.entries(o.skm && typeof o.skm === "object" ? o.skm : {})) if (Number(v) > 0) s.skm[k] = Math.floor(Number(v));
         s.enc = cleanEnc(o.enc);
         s.mine = cleanMine(o.mine);
+        s.farm = cleanFarm(o.farm);
         if (!o.enc) {
             // A save from before Enchanting: welcome gift scaled to how far you are.
             const gift = Math.min(400, 40 + 15 * Math.min(25, s.rebirths));
@@ -923,6 +927,7 @@ export function loadGame(): { state: State; offline: number } {
                 addPetXp(s, secs * offlineEff(s) * d.petXp);
                 addDust(s, DUST_BASE * secs * offlineEff(s) * d.dustMult);
                 tickMine(s, secs * offlineEff(s), mineCtx(d)); // drills, auto-clicks and the passive trickle keep digging
+                tickFarm(s, secs * offlineEff(s), farmCtx(d)); // crops keep growing, and the Auto-Reaper keeps harvesting
                 for (let i = 0; i < MINIONS.length; i++) s.mcol[i] += s.minions[i] * secs * offlineEff(s) * d.colSpeed[i];
             }
             return { state: s, offline };

@@ -54,8 +54,12 @@ import { IslandsTab } from "./tab-islands";
 import { SkillsTab } from "./tab-skills";
 import { ENCH_CSS, EnchantTab } from "./tab-enchant";
 import { MINE_CSS, MineTab } from "./tab-mine";
+import { FARM_CSS, FarmTab } from "./tab-farm";
+import { FARM_STRIP_CSS, FarmStrip } from "./farm-strip";
+import { farmCtx, water } from "@/lib/fractured-idle/farm";
 import { COL_AT, ORES, colTierOf, jobsReady, mineCtx, mineLevel, oreIslands, swing } from "@/lib/fractured-idle/mine";
 import { oreNote } from "./mine-fx";
+import { CROPS, CROP_BY_ID, COL_AT as CROP_COL_AT, colTierOf as cropTierOf, cropIslands, farmLevel, jobsReady as farmJobsReady, plotReady } from "@/lib/fractured-idle/farm";
 import { MineStrip, STRIP_CSS } from "./mine-strip";
 import { GLINT_CSS, Glint } from "./enchant-glint";
 import { PROC_LABEL, dustPop, procBolt, procEcho, procMidas } from "./enchant-fx";
@@ -74,7 +78,7 @@ import { SettingsTab, SoonTab } from "./tab-misc";
 // 100ms re-render keeps the UI live, so clicking never waits on React.
 // To add a tab: write a component that takes Ctx and register it in TABS.
 
-type TabId = "minions" | "upgrades" | "button" | "pets" | "islands" | "skills" | "mine" | "enchant" | "stats" | "rebirth" | "ascension" | "trophies" | "level" | "soon" | "settings";
+type TabId = "minions" | "upgrades" | "button" | "pets" | "islands" | "skills" | "mine" | "farm" | "enchant" | "stats" | "rebirth" | "ascension" | "trophies" | "level" | "soon" | "settings";
 
 const GROUPS: TabGroup[] = [
     { id: "play", label: "Play", color: "var(--mc-aqua)" },
@@ -91,6 +95,7 @@ const TABS: TabItem<TabId>[] = [
     { id: "islands", label: "Islands", symbol: "location", group: "world", color: "#6fb4ff", blurb: "Travel between islands and master their perks." },
     { id: "skills", label: "Skills", symbol: "wisdom", group: "world", color: "var(--mc-yellow)", blurb: "Six skills with milestone rewards." },
     { id: "mine", label: "Mine", symbol: "pick", group: "world", color: "#e0b070", blurb: "Break ore, forge pickaxes, build drills and crack geodes. The Mining skill lives here." },
+    { id: "farm", label: "Farm", symbol: "fortune", group: "world", color: "#9be04a", blurb: "Grow crops on real timers, cook them, hire farmhands and open seed pods. The Farming skill lives here." },
     { id: "enchant", label: "Enchant", symbol: "intelligence", group: "world", color: "#c58bff", blurb: "Roll enchants for your button, minions, popups and more." },
     { id: "rebirth", label: "Rebirth", symbol: "portal", group: "prog", color: "var(--mc-red)", blurb: "Reset for tokens and a permanent multiplier." },
     { id: "ascension", label: "Ascension", symbol: "comet", group: "prog", color: "var(--mc-light-purple)", blurb: "The prestige above rebirth." },
@@ -133,6 +138,7 @@ export function FracturedIdle() {
     const lastLooks = useRef<string[]>([]);
     const lastIslands = useRef<string[]>([]);
     const lastOre = useRef<{ open: string[]; tiers: Record<string, number> }>({ open: [], tiers: {} });
+    const lastCrop = useRef<{ open: string[]; tiers: Record<string, number> }>({ open: [], tiers: {} });
     const lastSkills = useRef<Partial<Record<SkillId, number>>>({});
     const skillApi = useRef<SkillToastApi>(null);
     const tipHost = useRef<TipHost | null>(null);
@@ -183,6 +189,7 @@ export function FracturedIdle() {
         lastLooks.current = unlockedKeys(state);
         lastIslands.current = openIslands(state).map((i) => i.id);
         lastOre.current = { open: ORES.filter((o) => mineLevel(state) >= o.need).map((o) => o.id), tiers: Object.fromEntries(ORES.map((o) => [o.id, colTierOf(state.mine.mined[o.id] || 0)])) };
+        lastCrop.current = { open: CROPS.filter((c) => farmLevel(state) >= c.need).map((c) => c.id), tiers: Object.fromEntries(CROPS.map((c) => [c.id, cropTierOf(state.farm.grown[c.id] || 0)])) };
         const paid = claimMilestones(state); // milestones already earned are paid quietly
         for (const k of SKILLS) lastSkills.current[k.id] = skillLevel(state[k.id], k.id);
         const loadUps = updateFxp(state, true); // existing progress counts, without flooding the screen
@@ -192,6 +199,9 @@ export function FracturedIdle() {
         if (offline > 0) say(`Welcome back! Your minions earned ${fmt(offline, state.sci)} shards while you were away.`);
         const ready = jobsReady(state);
         if (ready > 0) setTimeout(() => say(`${ready} ${ready === 1 ? "craft is" : "crafts are"} ready in the Forge.`), 3800);
+        const ripe = state.farm.plots.filter((p) => plotReady(state, p)).length;
+        const oven = farmJobsReady(state);
+        if (ripe > 0 || oven > 0) setTimeout(() => say(`${ripe ? `${ripe} ${ripe === 1 ? "plot is" : "plots are"} ripe in the Garden` : ""}${ripe && oven ? " and " : ""}${oven ? `${oven} ${oven === 1 ? "craft is" : "crafts are"} ready in the Kitchen` : ""}.`), 7600);
 
         let last = performance.now();
         let sinceRender = 0;
@@ -242,6 +252,17 @@ export function FracturedIdle() {
                     say(`New ore: ${o.name}! Find it on ${oreIslands(o.id).slice(0, 2).map((id) => ISLAND_BY_ID[id]?.name ?? id).join(" or ")}.`);
                 }
                 lo.open = nowOpen.map((o) => o.id);
+                // Farming: a new crop opens at some levels, and every crop collection pays at each tier.
+                const lc = lastCrop.current;
+                const nowCrops = CROPS.filter((c) => farmLevel(s) >= c.need);
+                const newCrop = nowCrops.filter((c) => !lc.open.includes(c.id));
+                if (newCrop.length) say(`New crop: ${newCrop[0].name}! It grows on ${cropIslands(newCrop[0].id).slice(0, 2).map((id) => ISLAND_BY_ID[id]?.name ?? id).join(" or ")}.`);
+                lc.open = nowCrops.map((c) => c.id);
+                for (const c of CROPS) {
+                    const tier = cropTierOf(s.farm.grown[c.id] || 0);
+                    if (tier > (lc.tiers[c.id] ?? 0) && tier <= CROP_COL_AT.length) say(`${CROP_BY_ID[c.id].name} collection tier ${tier}: +${+(c.col[1] * 100).toFixed(1)}% ${c.colText}!`);
+                    lc.tiers[c.id] = tier;
+                }
                 for (const o of ORES) {
                     const tier = colTierOf(s.mine.mined[o.id] || 0);
                     if (tier > (lo.tiers[o.id] ?? 0) && tier <= COL_AT.length) say(`${o.name} collection tier ${tier}: +${+(o.col[1] * 100).toFixed(1)}% ${o.colText}!`);
@@ -334,6 +355,7 @@ export function FracturedIdle() {
         s.clicks += 1;
         // Every press is a swing of the pickaxe: it hits an ore from this island's table, harder with the combo.
         const dug = swing(s, mineCtx(d), { combo: s.combo, crit });
+        water(s, { combo: s.combo }); // ...and a drop of water on the garden
         // Button enchant procs: Lightning, Midas Touch and Echo pay a multiple of a plain click.
         let hit: (typeof PROCS)[number] | null = null;
         let procV = 0;
@@ -594,7 +616,7 @@ export function FracturedIdle() {
                 backgroundColor: "color-mix(in oklch, var(--background) 92%, black)",
             }}
         >
-            <style>{CSS}{BTN_CSS}{COMBO_CSS}{POPUP_CSS}{ISLAND_CSS}{MENU_CSS}{LEVEL_CSS}{ENCH_CSS}{GLINT_CSS}{SKILL_TOAST_CSS}{TABBAR_CSS}{STATS_CSS}{MINE_CSS}{STRIP_CSS}{TIP_CSS}{FONT_CSS}</style>
+            <style>{CSS}{BTN_CSS}{COMBO_CSS}{POPUP_CSS}{ISLAND_CSS}{MENU_CSS}{LEVEL_CSS}{ENCH_CSS}{GLINT_CSS}{SKILL_TOAST_CSS}{TABBAR_CSS}{STATS_CSS}{MINE_CSS}{STRIP_CSS}{FARM_CSS}{FARM_STRIP_CSS}{TIP_CSS}{FONT_CSS}</style>
             <TipProvider hostRef={tipHost}>
 
             {/* HUD */}
@@ -906,6 +928,13 @@ export function FracturedIdle() {
                             setTab("mine");
                         }}
                     />
+                    <FarmStrip
+                        s={s}
+                        onOpen={() => {
+                            tip.hide();
+                            setTab("farm");
+                        }}
+                    />
 
                     <div className="-mt-1 flex items-center justify-center gap-1.5 font-rubik text-[10px]">
                         <button
@@ -971,6 +1000,7 @@ export function FracturedIdle() {
                         {tab === "islands" && <IslandsTab {...ctx} openMenu={(id) => setMenu(id)} />}
                         {tab === "skills" && <SkillsTab {...ctx} open={(id) => setTab(id as TabId)} />}
                         {tab === "mine" && <MineTab {...ctx} />}
+                        {tab === "farm" && <FarmTab {...ctx} />}
                         {tab === "enchant" && <EnchantTab {...ctx} />}
                         {tab === "stats" && <StatsTab {...ctx} />}
                         {tab === "rebirth" && <RebirthTab {...ctx} />}

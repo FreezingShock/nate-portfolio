@@ -15,6 +15,7 @@ import { updateFxp } from "../lib/fractured-idle/fxp";
 import { DUST_CLICK, RARITIES, SLOT_IDS, addDust, canRoll, discardCand, enchScore, enchLevel, equipCand, rollSlot } from "../lib/fractured-idle/enchant";
 import { claimMilestones } from "../lib/fractured-idle/skills";
 import * as MN from "../lib/fractured-idle/mine";
+import * as FM from "../lib/fractured-idle/farm";
 void 0;
 
 const CPS_IN = Number(process.argv[2] ?? 4);
@@ -28,6 +29,8 @@ function click(s: State, d: Derived, n: number) {
     s.shards += v; s.total += v; s.clicks += n;
     // Every click is a swing (expected value at a typical held combo of x2.2).
     if (!process.env.NOMINE) MN.bulkSwings(s, MN.mineCtx(d), n, MN.pickPower(s) * MN.comboFactor(2.2), 1);
+    // ...and every click waters the garden (about 4 clicks a second).
+    if (!process.env.NOFARM) for (let i = 0; i < Math.min(n, 60); i++) FM.water(s, { combo: 2.2 });
     const c = d.critChance * n; s.crits += c; s.combat += 3 * d.xpMult * c;
     addDust(s, n * DUST_CLICK * d.dustMult + (1.3 * d.dustMult * n) / (CPS_IN * 40)); // click motes + roughly one popup per 40s
 }
@@ -65,6 +68,26 @@ function mineBot(s: State, d: Derived, now: number) {
     MN.queueGoal(s, now);
     for (const r of s.mine.relics) MN.equipRelic(s, r);
     for (const id of ["dynamite", "rushPotion", "geodeCache"] as const) while ((s.mine.items[id] || 0) > 0) MN.consumeItem(s, id, ctx);
+}
+
+// A player who tends the garden without living in it: the quick actions every few seconds.
+function farmBot(s: State, d: Derived, now: number) {
+    if (process.env.NOFARM || process.env.NOFARMBOT) return;
+    const ctx = FM.farmCtx(d);
+    FM.collectAll(s, now);
+    FM.harvestAll(s, ctx, true);
+    const goal = FM.goalOf(s);
+    const need = goal ? FM.bottleneck(s, goal) : null;
+    FM.setSow(s, need && FM.cropTable(s).some((r) => r.open && r.crop.id === need) ? need : "");
+    FM.plantAll(s);
+    if (!process.env.NOFARMGRANTS) { FM.openAll(s, ctx); FM.claimAllFeats(s); }
+    if (FM.canBuyHoe(s).ok) FM.buyHoe(s);
+    FM.upgradeAll(s);
+    FM.hireAll(s);
+    for (const r of FM.RECIPES) if (r.kind === "relic" && FM.canCraft(s, r, 1).ok) FM.startCraft(s, r.id, 1, now);
+    FM.queueGoal(s, now);
+    for (const r of s.farm.relics) FM.equipRelic(s, r);
+    for (const id of ["fertilizer", "tonic", "basket"] as const) while ((s.farm.items[id] || 0) > 0) FM.consumeItem(s, id);
 }
 
 type Cand = { cost: number; payback: number; buy: () => void; name?: string };
@@ -128,6 +151,8 @@ while (t < HOURS * 3600) {
     }
     if (t % 30 === 0) enchantStep(s, derive(s));
     if (t % 5 === 0) mineBot(s, derive(s), Date.now() + t * 1000);
+    if (t % 5 === 0) farmBot(s, derive(s), Date.now() + t * 1000);
+    if (t % 1800 === 0 && !process.env.NOFARM) console.log(`FARM t=${(t / 3600).toFixed(1)}h lvl ${FM.farmLevel(s)} hoe ${FM.hoeOf(s).name} plots ${s.farm.plots.length} hands ${FM.totalHands(s)} reaper ${FM.upLevel(s, "reaper")} crows ${s.farm.relics.length} feats ${s.farm.claimed.length}/${FM.FEATS.length} harvests ${s.farm.harvests} pods ${s.farm.opened} island ${s.island}`);
     if (t % 1800 === 0 && !process.env.NOMINE) console.log(`MINE t=${(t / 3600).toFixed(1)}h lvl ${MN.mineLevel(s)} pick ${MN.pickOf(s).name} drills ${MN.totalDrills(s)} idle ${MN.idleSwings(s, derive(s).auto).toFixed(1)}/s relics ${s.mine.relics.length} feats ${s.mine.claimed.length}/${MN.FEATS.length} crafts ${s.mine.crafted} geodes ${s.mine.cracked} income ${inc(derive(s), CPS_IN).toExponential(2)}`);
     if (t % 10 === 0) claimMilestones(s);
     const fresh = checkTrophies(s);

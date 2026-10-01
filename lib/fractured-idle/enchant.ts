@@ -3,6 +3,7 @@ import { buffFx } from "./events";
 import { skillLevel, type State } from "./data";
 import { skillPerks } from "./skills";
 import { mineFx } from "./mine";
+import { farmFx } from "./farm";
 
 // Enchanting: roll random enchants onto four things (the button, your minions,
 // popup events and a universal tome), Terraria-reforge and Sol's-RNG style.
@@ -447,6 +448,8 @@ export function allFx(s: State): EnchFx {
     for (const k of STAT_IDS) fx[k] += pk[k] ?? 0;
     const mf = mineFx(s); // Mining: pickaxe tiers, ore collections and Deep Core / Ancient Power
     for (const k of STAT_IDS) fx[k] += mf[k] ?? 0;
+    const ff = farmFx(s); // Farming: hoe tiers, crop collections, scarecrows and feats
+    for (const k of STAT_IDS) fx[k] += ff[k] ?? 0;
     return fx;
 }
 

@@ -1,5 +1,6 @@
 import type { McSymbolName } from "@/components/mc-symbol";
 import type { MineState } from "./mine";
+import type { FarmState } from "./farm";
 import type { BtnPrefs } from "./button";
 import { ISLANDS } from "./islands";
 import type { ActiveBuff, EventStats } from "./events";
@@ -80,6 +81,7 @@ export interface State {
     frag: number; // Fracture Fragments: permanent +0.2% all shards each
     evs: EventStats; // popup event counters
     mine: MineState; // Mining: ore, pickaxe, upgrades, drills, collections (see mine.ts)
+    farm: FarmState; // Farming: plots, crops, hoe, farmhands, cookhouse, collections (see farm.ts)
 }
 
 export interface MinionDef {
@@ -464,6 +466,8 @@ export const TROPHIES: TrophyDef[] = [
     { id: "s-mining", name: "Master Miner", category: "skills", symbol: "strength", stat: "click", unit: "Mining level", metric: (s) => skillLevel(s.mining), tiers: tiers([5, 10, 20, 30, 40, 50, 60], [0.01, 0.01, 0.02, 0.02, 0.03, 0.03, 0.05]) },
     { id: "veins", name: "Vein Breaker", category: "skills", symbol: "pick", stat: "click", unit: "swings of the pickaxe", metric: (s) => s.mine.nodes, tiers: tiers([200, 2000, 10000, 50000, 250000], [0.01, 0.02, 0.03, 0.05, 0.08]) },
     { id: "smith", name: "Master Smith", category: "skills", symbol: "forge", stat: "all", unit: "Forge crafts collected", metric: (s) => s.mine.crafted, tiers: tiers([1, 10, 40, 150], [0.005, 0.01, 0.02, 0.03]) },
+    { id: "harvester", name: "Harvest Moon", category: "skills", symbol: "fortune", stat: "minion", unit: "harvests", metric: (s) => s.farm.harvests, tiers: tiers([50, 500, 5000, 50000], [0.01, 0.02, 0.03, 0.05]) },
+    { id: "baker", name: "Master Baker", category: "skills", symbol: "forge", stat: "all", unit: "Cookhouse crafts collected", metric: (s) => s.farm.crafted, tiers: tiers([1, 10, 40, 150], [0.005, 0.01, 0.02, 0.03]) },
     { id: "geodes", name: "Geode Hunter", category: "explore", symbol: "gem", stat: "tokens", unit: "geodes cracked", metric: (s) => s.mine.cracked, tiers: tiers([1, 10, 50, 200], [0.05, 0.05, 0.1, 0.15]) },
     { id: "s-farming", name: "Green Thumb", category: "skills", symbol: "fortune", stat: "minion", unit: "Farming level", metric: (s) => skillLevel(s.farming), tiers: tiers([5, 10, 20, 30, 40, 50, 60], [0.01, 0.01, 0.02, 0.02, 0.03, 0.03, 0.05]) },
     { id: "s-combat", name: "Slayer", category: "skills", symbol: "critDamage", stat: "critDmg", unit: "Combat level", metric: (s) => skillLevel(s.combat), tiers: tiers([5, 10, 20, 30, 40, 50, 60], [0.02, 0.02, 0.03, 0.04, 0.05, 0.06, 0.1]) },
@@ -638,7 +642,7 @@ export interface SkillDef {
 
 export const SKILLS: SkillDef[] = [
     { id: "mining", name: "Mining", symbol: "strength", color: "var(--mc-gold)", earn: "Every swing of the pickaxe: each click mines ore, and drills keep swinging", perk: "+3% click power per level", bonus: (l) => `+${l * 3}%` },
-    { id: "farming", name: "Farming", symbol: "fortune", color: "var(--mc-green)", earn: "Minions working", perk: "+3% minion output per level", bonus: (l) => `+${l * 3}%` },
+    { id: "farming", name: "Farming", symbol: "fortune", color: "var(--mc-green)", earn: "Every harvest in the Garden: crops grow over time, and each click waters a plot", perk: "+3% minion output per level", bonus: (l) => `+${l * 3}%` },
     { id: "combat", name: "Combat", symbol: "critDamage", color: "var(--mc-red)", earn: "Critical hits", perk: "+2% crit damage per level", bonus: (l) => `+${l * 2}%` },
     { id: "fishing", name: "Fishing", symbol: "fishing", color: "var(--mc-aqua)", earn: "Treasure bobbers", perk: "+1% all shards per level, bobbers appear sooner", bonus: (l) => `+${l}%` },
     { id: "foraging", name: "Foraging", symbol: "flower", color: "#8be35a", earn: "Catching popups and a slow passive trickle", perk: "+0.5% popup frequency and +1.5% popup payouts per level", bonus: (l) => `+${(l * 0.5).toFixed(1).replace(".0", "")}% / +${(l * 1.5).toFixed(1).replace(".0", "")}%` },
