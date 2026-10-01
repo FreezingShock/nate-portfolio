@@ -94,7 +94,7 @@ export function buildTabNotes(s: State, current: string, cache: NoteCache, now =
 
     // Cheap and time-critical: read every render.
     const plan = rebirthPlan(s);
-    if (plan.count > 0) add("rebirth", { text: `Rebirth ready: ${plural(plan.tokens, "token")}`, color: R, act: true });
+    if (plan.count > 0) add("rebirth", { text: `${plan.count} rebirth${plan.count === 1 ? "" : "s"} ready: ${plural(plan.tokens, "token")}`, color: R, act: true, n: plan.count });
     if (ascPlan(s).can) add("ascension", { text: `Ascension ready: +${ascPlan(s).ap} AP`, color: O, act: true });
 
     const ready = jobsReady(s, now);

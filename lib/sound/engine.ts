@@ -14,15 +14,16 @@
 // hidden, and a rate limiter plus a voice cap keep auto-buyers and held clicks from stacking into noise.
 
 export type Bus = "ui" | "game";
-export type Prefs = { on: boolean; master: number; ui: number; game: number };
+export type Prefs = { on: boolean; master: number; ui: number; game: number; clickMute: number };
 
 const KEY = "fi-sound-v1";
-const DEFAULTS: Prefs = { on: true, master: 0.8, ui: 1, game: 1 };
+const DEFAULTS: Prefs = { on: true, master: 0.8, ui: 1, game: 1, clickMute: 4 };
 
 let prefs: Prefs = { ...DEFAULTS };
 let loaded = false;
 const subs = new Set<() => void>();
 
+const clampSec = (n: unknown, d: number) => (typeof n === "number" && Number.isFinite(n) ? Math.min(30, Math.max(0, Math.round(n))) : d);
 const clamp01 = (n: unknown, d: number) => (typeof n === "number" && Number.isFinite(n) ? Math.min(1, Math.max(0, n)) : d);
 
 function load() {
@@ -31,7 +32,7 @@ function load() {
     try {
         const raw = JSON.parse(localStorage.getItem(KEY) ?? "null");
         if (raw && typeof raw === "object") {
-            prefs = { on: raw.on !== false, master: clamp01(raw.master, DEFAULTS.master), ui: clamp01(raw.ui, 1), game: clamp01(raw.game, 1) };
+            prefs = { on: raw.on !== false, master: clamp01(raw.master, DEFAULTS.master), ui: clamp01(raw.ui, 1), game: clamp01(raw.game, 1), clickMute: clampSec(raw.clickMute, DEFAULTS.clickMute) };
         }
     } catch {
         /* private mode: keep defaults */
@@ -48,7 +49,7 @@ export function subscribePrefs(fn: () => void) {
 }
 export function setPrefs(p: Partial<Prefs>) {
     load();
-    prefs = { ...prefs, ...p, master: clamp01(p.master ?? prefs.master, prefs.master), ui: clamp01(p.ui ?? prefs.ui, prefs.ui), game: clamp01(p.game ?? prefs.game, prefs.game) };
+    prefs = { ...prefs, ...p, master: clamp01(p.master ?? prefs.master, prefs.master), ui: clamp01(p.ui ?? prefs.ui, prefs.ui), game: clamp01(p.game ?? prefs.game, prefs.game), clickMute: clampSec(p.clickMute ?? prefs.clickMute, prefs.clickMute) };
     try {
         localStorage.setItem(KEY, JSON.stringify(prefs));
     } catch {

@@ -1,6 +1,7 @@
 "use client";
 
 import { sfx } from "@/lib/sound/sounds";
+import { QUICK_CSS, QuickPanel, type QuickAct } from "./quick-actions";
 import { useEffect, useRef, useState, type CSSProperties, type ReactNode } from "react";
 import { Lock } from "lucide-react";
 import { McSymbol } from "@/components/mc-symbol";
@@ -679,30 +680,33 @@ function QuickBar({ s, d, render, say }: { s: Ctx["s"]; d: Ctx["d"]; render: () 
         }
     };
     const all = ripe + ready + pods + feats + ups + hands + (hoe ? 1 : 0) + (cook ? 1 : 0) + (empty && sow ? 1 : 0) > 0;
-    const B = (k: keyof typeof run, label: string, tip: string, on: boolean, n?: number) => (
-        <Tip key={k} box tip={<TipCard title={label} color={C} lines={[tip]} foot={on ? "Click!" : "Nothing to do right now"} />}>
-            <button type="button" className="fi-mn-q" data-on={on} disabled={!on} onClick={() => go([k])}>
-                {label}
-                {on && n ? <i>{n}</i> : null}
-            </button>
-        </Tip>
-    );
+    const acts: QuickAct[] = [
+        { k: "harvest", label: "Harvest", icon: "scissors", tip: "Pick every ripe plot by hand (hand-picked crops pay 25% more).", on: ripe > 0, n: ripe },
+        { k: "plant", label: "Plant", icon: "spade", tip: "Plant every empty plot with your chosen crop, or the best one here.", on: empty > 0 && !!sow, n: empty },
+        { k: "collect", label: "Collect", icon: "check", tip: "Collect every finished Cookhouse craft.", on: ready > 0, n: ready },
+        { k: "open", label: "Open", icon: "bloom", tip: "Open every seed pod you are holding.", on: pods > 0, n: pods },
+        { k: "claim", label: "Claim", icon: "crown", tip: "Claim every feat you have earned.", on: feats > 0, n: feats },
+        { k: "hoe", label: "Hoe", icon: "flower", tip: "Make the next hoe, if you have everything for it.", on: hoe },
+        { k: "ups", label: "Upgrade", icon: "plus", tip: "Buy every crop-priced upgrade you can afford, cheapest first.", on: ups > 0, n: ups },
+        { k: "hands", label: "Hands", icon: "smile", tip: "Hire farmhands while they cost under 60% of that crop's stock.", on: hands > 0, n: hands },
+        { k: "cook", label: "Cook", icon: "heat", tip: "Start crafts for the goods your next goal is short of.", on: cook },
+        { k: "tonic", label: "Tonic", icon: "flask", tip: "Drink a Harvest Tonic to start a Bumper Crop now.", on: tonic },
+    ];
     return (
-        <div className="fi-mn-quick" role="group" aria-label="Quick actions">
-            {B("harvest", "Harvest", "Pick every ripe plot by hand (hand-picked crops pay 25% more).", ripe > 0, ripe)}
-            {B("plant", "Plant", "Plant every empty plot with your chosen crop, or the best one here.", empty > 0 && !!sow, empty)}
-            {B("collect", "Collect", "Collect every finished Cookhouse craft.", ready > 0, ready)}
-            {B("open", "Open", "Open every seed pod you are holding.", pods > 0, pods)}
-            {B("claim", "Claim", "Claim every feat you have earned.", feats > 0, feats)}
-            {B("hoe", "Hoe", "Make the next hoe, if you have everything for it.", hoe)}
-            {B("ups", "Upgrade", "Buy every crop-priced upgrade you can afford, cheapest first.", ups > 0, ups)}
-            {B("hands", "Hands", "Hire farmhands while they cost under 60% of that crop's stock.", hands > 0, hands)}
-            {B("cook", "Cook", "Start crafts for the goods your next goal is short of.", cook)}
-            {B("tonic", "Tonic", "Drink a Harvest Tonic to start a Bumper Crop now.", tonic)}
-            <button type="button" className="fi-mn-q all" data-on={all} disabled={!all} onClick={() => go(["harvest", "plant", "collect", "open", "claim", "hoe", "ups", "hands", "cook"])}>
-                Do everything
-            </button>
-        </div>
+        <>
+            <style>{QUICK_CSS}</style>
+            <QuickPanel
+                actions={acts}
+                color={C}
+                allIcon="sunburst"
+                allTip="Harvest, plant, collect, open pods, claim, upgrade, hire hands and cook for your goal, all in one press."
+                onRun={(k) => {
+                    sfx("collect");
+                    go([k as keyof typeof run]);
+                }}
+                onAll={() => go(["harvest", "plant", "collect", "open", "claim", "hoe", "ups", "hands", "cook"])}
+            />
+        </>
     );
 }
 

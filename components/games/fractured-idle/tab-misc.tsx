@@ -47,7 +47,7 @@ export function SettingsTab({ s, render, say, replaceState }: Ctx & { replaceSta
             <Toggle label="Floating click numbers" on={s.fx} onChange={(v) => { s.fx = v; render(); }} />
             <Toggle label="Orbiting minions (turn off to save battery)" on={s.orbit} onChange={(v) => { s.orbit = v; render(); }} />
             <SectionTitle color="var(--mc-green)">Sound</SectionTitle>
-            <SoundPanel />
+            <SoundPanel game />
             <SectionTitle color="var(--mc-green)">Gameplay</SectionTitle>
             <Toggle label="Popup events (bobbers, golden shards, quick time events)" on={s.popups} onChange={(v) => { s.popups = v; render(); }} />
             <Toggle label="Popup messages" on={s.toasts} onChange={(v) => { s.toasts = v; render(); }} />

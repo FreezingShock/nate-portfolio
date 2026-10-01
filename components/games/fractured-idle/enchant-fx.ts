@@ -75,8 +75,8 @@ export function chargeFx(host: HTMLElement, x: number, y: number, r: number, ms:
 }
 
 /** The pull lands. Bigger rarities add rings, sparks, beams and more. */
-export function revealFx(host: HTMLElement, x: number, y: number, r: number) {
-    sfx("reveal", { r });
+export function revealFx(host: HTMLElement, x: number, y: number, r: number, quiet = false) {
+    if (!quiet) sfx("reveal", { r });
     if (reduced()) return;
     const color = colorAt(r);
     const big = r >= 4;

@@ -1,13 +1,15 @@
-import { gate, note, pick, tone, whoosh, type Bus } from "./engine";
+import { gate, getPrefs, note, pick, tone, whoosh, type Bus } from "./engine";
 
 // The sound catalogue. Every entry is a tier (see engine.ts), a bus (site interface vs game), a minimum gap between
 // plays, and a small recipe made from the engine's soft voices. Notes are scale degrees of one pentatonic scale
 // (0 = C4, 5 = C5), so everything agrees with everything else.
 
-type Def = { tier: number; bus: Bus; gap: number; play: (a: any) => void };
+type Def = { tier: number | ((a: any) => number); bus: Bus; gap: number; play: (a: any) => void };
 
 const seq = (bus: Bus, degs: number[], step: number, o: { dur: number; gain: number; harm?: number; type?: OscillatorType; cutoff?: number; at?: number }) =>
     degs.forEach((d, i) => tone(bus, { f: note(d), at: (o.at ?? 0) + i * step, dur: o.dur, gain: o.gain, harm: o.harm, type: o.type, cutoff: o.cutoff ?? 3200, attack: 0.012 }));
+
+const streak = { start: 0, last: -1e9 };
 
 const DEFS = {
     // ---- tier 0: ambient
@@ -60,11 +62,24 @@ const DEFS = {
         bus: "game",
         gap: 42,
         play: (a: { mult?: number; crit?: boolean } | undefined) => {
+            // Continuous clicking (no pause longer than 1.2 s) counts as one streak. After `clickMute` seconds of it the
+            // button goes quiet, fading over the last stretch; a short pause brings it back. 0 means never mute.
+            const now = performance.now();
+            if (now - streak.last > 1200) streak.start = now;
+            streak.last = now;
+            const limit = getPrefs().clickMute * 1000;
+            let vol = 1;
+            if (limit > 0) {
+                const t = now - streak.start;
+                if (t >= limit) return;
+                const fadeFrom = limit * 0.6;
+                if (t > fadeFrom) vol = 1 - (t - fadeFrom) / (limit - fadeFrom);
+            }
             const m = Math.max(1, a?.mult ?? 1);
             const deg = Math.max(0, Math.min(9, Math.round(Math.log2(m) * 2.2))) + pick("click", 2) - 1;
-            tone("game", { f: note(deg - 1), dur: 0.1, gain: 0.13, glide: 0.8, attack: 0.005, cutoff: 2000, harm: 0.18 });
-            tone("game", { f: note(deg - 6), dur: 0.09, gain: 0.09, attack: 0.004, cutoff: 800 });
-            if (a?.crit) seq("game", [deg + 4, deg + 7], 0.05, { dur: 0.2, gain: 0.08, harm: 0.35, at: 0.02 });
+            tone("game", { f: note(deg - 1), dur: 0.1, gain: 0.13 * vol, glide: 0.8, attack: 0.005, cutoff: 2000, harm: 0.18 });
+            tone("game", { f: note(deg - 6), dur: 0.09, gain: 0.09 * vol, attack: 0.004, cutoff: 800 });
+            if (a?.crit && vol > 0.3) seq("game", [deg + 4, deg + 7], 0.05, { dur: 0.2, gain: 0.08 * vol, harm: 0.35, at: 0.02 });
         },
     },
 
@@ -109,24 +124,23 @@ const DEFS = {
         bus: "game",
         gap: 80,
         play: (a: { r: number; ms: number }) => {
-            const d = Math.max(0.3, a.ms / 1000);
-            whoosh("game", { from: 220, to: 700 + a.r * 260, dur: d, gain: 0.035 + a.r * 0.008, q: 1.4 });
-            if (a.r >= 3) tone("game", { f: note(-8 + a.r), dur: d, gain: 0.05, attack: d * 0.8, cutoff: 600 });
+            // one soft rising breath, only ever the last second and a half of the charge
+            const d = Math.min(1.5, Math.max(0.3, a.ms / 1000));
+            whoosh("game", { from: 260, to: 800 + a.r * 220, dur: d, gain: 0.018 + a.r * 0.003, q: 1.2, at: Math.max(0, a.ms / 1000 - d) });
         },
     },
     reveal: {
-        tier: 3,
+        tier: (a: { r: number }) => (a.r >= 5 ? 3 : 2),
         bus: "game",
         gap: 80,
         play: (a: { r: number }) => {
+            // a small soft chord that grows a little with rarity, never longer than about 0.8 s and never a drone
             const r = Math.max(0, Math.min(7, a.r));
-            const n = Math.min(5, 2 + Math.floor(r / 1.5));
-            const degs = Array.from({ length: n }, (_, i) => [4, 6, 7, 9, 11][i] + (r >= 5 ? 0 : 0));
-            seq("game", degs, 0.055, { dur: 0.45 + r * 0.1, gain: 0.11 + r * 0.008, harm: 0.25 + r * 0.03, type: r >= 4 ? "triangle" : "sine" });
-            if (r >= 4) whoosh("game", { from: 500, to: 3500, dur: 0.5, gain: 0.04 + (r - 4) * 0.012 });
-            if (r >= 5) seq("game", [12, 14, 16], 0.07, { dur: 0.7, gain: 0.07, harm: 0.5, at: 0.25 });
-            if (r >= 6) tone("game", { f: note(-6), dur: 1.3, gain: 0.13, attack: 0.04, cutoff: 600 });
-            if (r >= 7) seq("game", [9, 11, 14, 16], 0, { dur: 1.6, gain: 0.07, harm: 0.3, at: 0.4 });
+            const n = Math.min(4, 2 + (r >= 3 ? 1 : 0) + (r >= 6 ? 1 : 0));
+            seq("game", [4, 6, 7, 9].slice(0, n), 0.07, { dur: 0.3 + r * 0.03, gain: 0.07 + r * 0.004, harm: 0.15, cutoff: 2400 });
+            if (r >= 4) whoosh("game", { from: 500, to: 2200, dur: 0.35, gain: 0.018 + (r - 4) * 0.005 });
+            if (r >= 5) tone("game", { f: note(12), at: 0.16, dur: 0.45, gain: 0.04, harm: 0.3, cutoff: 3000, attack: 0.02 });
+            if (r >= 7) tone("game", { f: note(-5), at: 0.05, dur: 0.7, gain: 0.05, attack: 0.12, cutoff: 500 });
         },
     },
 } satisfies Record<string, Def>;
@@ -136,6 +150,6 @@ export type SfxName = keyof typeof DEFS;
 /** Play a named sound if sound is on, unlocked, and the rate limit allows it. Safe on the server (does nothing). */
 export function sfx(name: SfxName, arg?: unknown) {
     const d: Def = DEFS[name];
-    if (!gate(name, d.tier, d.gap)) return;
+    if (!gate(name, typeof d.tier === "function" ? d.tier(arg) : d.tier, d.gap)) return;
     d.play(arg);
 }

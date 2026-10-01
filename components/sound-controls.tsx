@@ -31,7 +31,7 @@ const rows = [
 ] as const;
 
 /** On/off plus master, interface and game volume. Shared by the account settings and the game's settings tab. */
-export function SoundPanel() {
+export function SoundPanel({ game = false }: { game?: boolean }) {
     const [p, set] = useSoundPrefs();
     return (
         <div className="space-y-2">
@@ -69,6 +69,30 @@ export function SoundPanel() {
                     <span className="w-9 shrink-0 text-right tabular-nums text-muted-foreground">{Math.round(p[r.k] * 100)}%</span>
                 </label>
             ))}
+            {game && (
+                <div className="rounded-lg border border-white/10 p-3" style={{ opacity: p.on ? 1 : 0.45 }}>
+                    <label className="flex items-center gap-3 font-rubik text-xs">
+                        <span className="w-28 shrink-0 text-foreground">Big button</span>
+                        <input
+                            type="range"
+                            min={0}
+                            max={30}
+                            value={p.clickMute}
+                            disabled={!p.on}
+                            data-snd="off"
+                            aria-label="Mute the big button sound after this many seconds of continuous clicking"
+                            onChange={(e) => set({ clickMute: Number(e.target.value) })}
+                            className="h-1.5 min-w-0 flex-1 cursor-pointer accent-[var(--mc-aqua)]"
+                        />
+                        <span className="w-14 shrink-0 text-right tabular-nums text-muted-foreground">{p.clickMute === 0 ? "Never" : `${p.clickMute}s`}</span>
+                    </label>
+                    <p className="mt-1.5 font-rubik text-[10px] leading-snug text-muted-foreground">
+                        {p.clickMute === 0
+                            ? "The button always makes its sound."
+                            : `After ${p.clickMute} second${p.clickMute === 1 ? "" : "s"} of non-stop clicking the button fades to silent. Pause for a moment and it comes back.`}
+                    </p>
+                </div>
+            )}
         </div>
     );
 }

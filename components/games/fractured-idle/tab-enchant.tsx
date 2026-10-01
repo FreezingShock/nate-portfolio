@@ -244,7 +244,7 @@ export function EnchantTab({ s, d, F, render, say }: Ctx) {
             setBusy(false);
             if (eff === "full" || (eff === "quick" && r >= 5)) {
                 const root = host?.closest("[data-fi-root]") as HTMLElement | null;
-                flashScreen(root, r);
+                flashScreen(root, r, true);
                 if (r >= 4) setCut({ r, id: out.cand.id, odds: out.odds, key: Date.now() });
             }
             if (out.firstRarity && r >= 2) live.current.say(`First ${rar(r).name} enchant discovered: ${ENCH_BY_ID[out.cand.id].name}!`);
@@ -757,14 +757,24 @@ function EnchCard({ e, tag, vs, glow }: { e: Ench | undefined; tag: string; vs?:
 
 function Cutscene({ cut, onDone }: { cut: Cut; onDone: () => void }) {
     const host = useRef<HTMLDivElement>(null);
+    const [out, setOut] = useState(false);
+    // The parent re-renders ten times a second with a fresh onDone; keep the latest one in a ref so the timers below
+    // are set once per cutscene (they used to restart on every render, so it never closed and replayed its sound).
+    const done = useRef(onDone);
+    done.current = onDone;
     useEffect(() => {
         const h = host.current;
-        if (h) revealFx(h, h.clientWidth / 2, h.clientHeight * 0.42, cut.r);
-        const t = setTimeout(onDone, 2300 + cut.r * 200);
-        return () => clearTimeout(t);
-    }, [cut.r, onDone]);
+        if (h) revealFx(h, h.clientWidth / 2, h.clientHeight * 0.42, cut.r, true); // the landing already played its sound
+        const life = 1700 + cut.r * 110;
+        const t1 = setTimeout(() => setOut(true), life);
+        const t2 = setTimeout(() => done.current(), life + 700);
+        return () => {
+            clearTimeout(t1);
+            clearTimeout(t2);
+        };
+    }, [cut.r]);
     return (
-        <div ref={host} className="fi-en-cut" data-r={cut.r} onClick={onDone} role="presentation">
+        <div ref={host} className="fi-en-cut" data-r={cut.r} data-out={out} onClick={() => done.current()} role="presentation">
             <div className="fi-en-cut-veil" />
             <div className="fi-en-cut-body">
                 <div className="fi-en-cut-title">{rar(cut.r).name}</div>
@@ -1056,7 +1066,7 @@ export const ENCH_CSS = `
 .fi-en-pip-rainbow{background:conic-gradient(#ff5f5f,#ffd95f,#6fff5f,#5fe6ff,#b05fff,#ff5f5f)!important;animation:fi-hue 3s linear infinite}
 .fi-en-preview{display:flex;align-items:center;gap:1rem;padding:.75rem;border-radius:1rem;border:1px solid rgba(255,255,255,.12);background:radial-gradient(circle at 20% 50%,rgba(150,90,255,.12),transparent 60%)}
 
-.fi-en-cut{position:fixed;inset:0;z-index:70;display:grid;place-items:center;overflow:hidden;cursor:pointer;animation:fi-en-cut 1s ease-out both}
+.fi-en-cut{position:absolute;inset:0;z-index:70;display:grid;place-items:center;overflow:hidden;cursor:pointer;animation:fi-en-cut 1s ease-out both}
 .fi-en-cut[data-r="4"]{--cc:#ffb21f}.fi-en-cut[data-r="5"]{--cc:#ff55e6}.fi-en-cut[data-r="6"]{--cc:#5ff6ff}.fi-en-cut[data-r="7"]{--cc:#ffffff}
 .fi-en-cut-veil{position:absolute;inset:0;background:radial-gradient(circle at 50% 42%,color-mix(in oklch,var(--cc) 30%,transparent),rgba(0,0,0,.86) 70%);animation:fi-en-veil 2.4s ease-in-out both}
 .fi-en-cut-body{position:relative;text-align:center;animation:fi-en-cutbody .9s cubic-bezier(.2,1.4,.4,1) both;pointer-events:none}
@@ -1065,6 +1075,8 @@ export const ENCH_CSS = `
 .fi-en-cut-sub{font-family:var(--font-minecraft,inherit);font-size:clamp(1rem,3.4vw,1.6rem);color:#fff;text-shadow:0 3px 0 #000;margin-top:.3rem}
 .fi-en-cut-odds{font-family:var(--font-rubik,inherit);font-size:.85rem;color:var(--muted-foreground);margin-top:.35rem;letter-spacing:.2em}
 @keyframes fi-en-cut{from{opacity:0}}
+.fi-en-cut[data-out="true"]{animation:fi-en-out .7s ease-in forwards;pointer-events:none}
+@keyframes fi-en-out{to{opacity:0}}
 @keyframes fi-en-veil{0%{opacity:0}15%{opacity:1}80%{opacity:1}100%{opacity:0}}
 @keyframes fi-en-cutbody{from{transform:scale(.3);opacity:0;filter:blur(10px)}}
 @media (prefers-reduced-motion:reduce){.fi-en-glyph-in,.fi-en-slot,.fi-en-roll,.fi-en-banner,.fi-en-card,.fi-en-li,.fi-en-bar,.fi-en-cut,.fi-en-cut-body,.fi-en-pip-rainbow,.fi-en-rune{animation:none!important}}

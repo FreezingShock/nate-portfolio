@@ -1,6 +1,7 @@
 "use client";
 
 import { sfx } from "@/lib/sound/sounds";
+import { QUICK_CSS, QuickPanel, type QuickAct } from "./quick-actions";
 import { useEffect, useReducer, useRef, useState, type CSSProperties, type ReactNode } from "react";
 import { Lock } from "lucide-react";
 import { McSymbol } from "@/components/mc-symbol";
@@ -790,28 +791,31 @@ function QuickBar({ s, d, render, say }: { s: Ctx["s"]; d: Ctx["d"]; render: () 
         }
     };
     const all = ready + geodes + feats + ups + dr + (pick ? 1 : 0) + (smelt ? 1 : 0) > 0;
-    const B = (k: keyof typeof run, label: string, tip: string, on: boolean, n?: number) => (
-        <Tip key={k} box tip={<TipCard title={label} color={C} lines={[tip]} foot={on ? "Click!" : "Nothing to do right now"} />}>
-            <button type="button" className="fi-mn-q" data-on={on} disabled={!on} onClick={() => go([k])}>
-                {label}
-                {on && n ? <i>{n}</i> : null}
-            </button>
-        </Tip>
-    );
+    const acts: QuickAct[] = [
+        { k: "collect", label: "Collect", icon: "forge", tip: "Collect every finished Forge craft.", on: ready > 0, n: ready },
+        { k: "crack", label: "Crack", icon: "gem", tip: "Crack every geode you are holding.", on: geodes > 0, n: geodes },
+        { k: "claim", label: "Claim", icon: "crown", tip: "Claim every feat you have earned.", on: feats > 0, n: feats },
+        { k: "pick", label: "Pickaxe", icon: "pick", tip: "Make the next pickaxe, if you have everything for it.", on: pick },
+        { k: "ups", label: "Upgrade", icon: "plus", tip: "Buy every ore-priced upgrade you can afford, cheapest first.", on: ups > 0, n: ups },
+        { k: "drills", label: "Drills", icon: "cog", tip: "Build drills while they cost under 60% of that ore's stock.", on: dr > 0, n: dr },
+        { k: "smelt", label: "Smelt", icon: "heat", tip: "Start crafts for the ingots your next goal is short of.", on: smelt },
+        { k: "rush", label: "Rush", icon: "bolt", tip: "Drink a Rush Potion to start an Ore Rush now.", on: rushPot },
+    ];
     return (
-        <div className="fi-mn-quick" role="group" aria-label="Quick actions">
-            {B("collect", "Collect", "Collect every finished Forge craft.", ready > 0, ready)}
-            {B("crack", "Crack", "Crack every geode you are holding.", geodes > 0, geodes)}
-            {B("claim", "Claim", "Claim every feat you have earned.", feats > 0, feats)}
-            {B("pick", "Pickaxe", "Make the next pickaxe, if you have everything for it.", pick)}
-            {B("ups", "Upgrade", "Buy every ore-priced upgrade you can afford, cheapest first.", ups > 0, ups)}
-            {B("drills", "Drills", "Build drills while they cost under 60% of that ore's stock.", dr > 0, dr)}
-            {B("smelt", "Smelt", "Start crafts for the ingots your next goal is short of.", smelt)}
-            {B("rush", "Rush", "Drink a Rush Potion to start an Ore Rush now.", rushPot)}
-            <button type="button" className="fi-mn-q all" data-on={all} disabled={!all} onClick={() => go(["collect", "crack", "claim", "pick", "ups", "drills", "smelt"])}>
-                Do everything
-            </button>
-        </div>
+        <>
+            <style>{QUICK_CSS}</style>
+            <QuickPanel
+                actions={acts}
+                color={C}
+                allIcon="sunburst"
+                allTip="Collect, crack, claim, upgrade, build drills and smelt for your goal, all in one press."
+                onRun={(k) => {
+                    sfx("collect");
+                    go([k as keyof typeof run]);
+                }}
+                onAll={() => go(["collect", "crack", "claim", "pick", "ups", "drills", "smelt"])}
+            />
+        </>
     );
 }
 

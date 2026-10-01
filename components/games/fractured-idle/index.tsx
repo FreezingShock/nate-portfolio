@@ -827,25 +827,7 @@ export function FracturedIdle() {
                     </button>
                     </Tip>
                 )}
-                <Tip
-                    tip={() => (
-                        <TipCard
-                            title="Combo"
-                            color="var(--mc-gold)"
-                            lines={["Hold the button (or Space) to build a combo. It multiplies every click and drains when you let go."]}
-                            rows={[["Now", `x${s.combo.toFixed(2)}`, s.combo > 1.01 ? "var(--mc-gold)" : undefined], ["Max", `x${d.comboMax.toFixed(2)}`], ["Build speed", `x${d.comboGain.toFixed(2)}`], ["Surge chance", `${(d.surgeChance * 100).toFixed(1)}%/s`]]}
-                            cta="Click to see the button tab!"
-                        />
-                    )}
-                >
-                    <button type="button" className="text-left" onClick={() => { tip.hide(); setTab("button"); }}>
-                        <div className="font-minecraft text-[10px] uppercase tracking-widest text-muted-foreground">Combo</div>
-                        <div className="font-minecraft font-bold text-lg leading-none" style={{ color: "var(--mc-gold)" }}>x{s.combo.toFixed(2)}</div>
-                        <div className="mt-1 h-[3px] w-full overflow-hidden rounded-full bg-white/10">
-                            <div className="h-full rounded-full" style={{ width: `${Math.min(100, Math.max(0, ((s.combo - 1) / Math.max(0.01, d.comboMax - 1)) * 100))}%`, backgroundColor: "var(--mc-gold)", boxShadow: "0 0 6px var(--mc-gold)" }} />
-                        </div>
-                    </button>
-                </Tip>
+                <div className="ml-auto flex items-center gap-2">
                 <Tip
                     tip={() => (
                         <TipCard
@@ -866,7 +848,6 @@ export function FracturedIdle() {
                         </div>
                     </button>
                 </Tip>
-                <div className="ml-auto flex items-center gap-2">
                     <IconBtn label={full ? "Exit fullscreen (F)" : "Fullscreen (F)"} onClick={toggleFs}>
                         {full ? <Minimize className="size-4" /> : <Expand className="size-4" />}
                     </IconBtn>
