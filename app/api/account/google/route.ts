@@ -1,6 +1,7 @@
 import { createClient } from "@supabase/supabase-js";
 import { cookies } from "next/headers";
 import { json, originOk } from "@/lib/account/server";
+import { STATE_COOKIE, googleAuthUrl, ownFlowEnabled, randomState } from "@/lib/account/google";
 
 // Starts "Continue with Google": PKCE flow handled on the server. The one-time code verifier goes into
 // a short-lived HttpOnly cookie that only /api/account/callback reads, so no token ever touches the page.
@@ -8,6 +9,15 @@ const VERIFIER_COOKIE = "acct_cv";
 
 export async function POST(req: Request) {
     if (!originOk(req)) return json({ error: "Bad origin" }, 403);
+
+    // Preferred: our own redirect on this domain, so Google shows nateanderson.dev instead of the Supabase address.
+    // Active once GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET are set; otherwise the Supabase-hosted flow below is used.
+    if (ownFlowEnabled()) {
+        const state = randomState();
+        (await cookies()).set(STATE_COOKIE, state, { httpOnly: true, secure: process.env.NODE_ENV === "production", sameSite: "lax", path: "/api/account/google", maxAge: 600 });
+        return json({ url: googleAuthUrl(new URL(req.headers.get("origin")!).origin, state) });
+    }
+
     const store = new Map<string, string>();
     const sb = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY!, {
         auth: {
