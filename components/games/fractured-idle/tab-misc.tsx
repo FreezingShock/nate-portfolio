@@ -5,7 +5,8 @@ import { Copy, Download, RotateCcw, Save, Upload } from "lucide-react";
 import { McSymbol } from "@/components/mc-symbol";
 import { COMING_SOON } from "@/lib/fractured-idle/data";
 import { exportSave, importSave, newState, offlineEff, writeSave } from "@/lib/fractured-idle/engine";
-import { CloudPanel } from "./cloud-sync";
+import { useAccount } from "@/lib/account/client";
+import { CloudPanel, forceNextPush, keepBackup, overwriteCloud } from "./cloud-sync";
 import { ActionBtn, Badge, SectionTitle, Toggle, tint, type Ctx } from "./ui";
 
 const IDEAS = [
@@ -37,6 +38,7 @@ export function SoonTab(_: Ctx) {
 
 export function SettingsTab({ s, render, say, replaceState }: Ctx & { replaceState: (n: ReturnType<typeof newState>) => void }) {
     const [text, setText] = useState("");
+    const acct = useAccount();
     return (
         <>
             <SectionTitle color="var(--mc-aqua)">Display</SectionTitle>
@@ -78,6 +80,7 @@ export function SettingsTab({ s, render, say, replaceState }: Ctx & { replaceSta
                     onClick={() => {
                         const n = importSave(text);
                         if (!n) return say("That save code isn't valid.");
+                        forceNextPush(); // a deliberate import must not be undone by the cloud copy being "further along"
                         replaceState(n);
                         say("Save imported.");
                     }}
@@ -88,8 +91,15 @@ export function SettingsTab({ s, render, say, replaceState }: Ctx & { replaceSta
                     icon={<RotateCcw className="size-4" />}
                     danger
                     onClick={() => {
-                        if (!window.confirm("Delete your Fractured Idle save? This cannot be undone.")) return;
-                        replaceState(newState());
+                        const signedIn = !!acct.email;
+                        const msg = signedIn
+                            ? "Delete your Fractured Idle save everywhere? Your cloud save is reset too, and your other devices will switch to the fresh game. Each device keeps a local backup you can restore from Settings."
+                            : "Delete your Fractured Idle save? A local backup is kept in Settings.";
+                        if (!window.confirm(msg)) return;
+                        const fresh = newState();
+                        keepBackup(s); // a mis-click is recoverable from Settings > Cloud save > Backup
+                        replaceState(fresh);
+                        if (signedIn) void overwriteCloud(fresh);
                     }}
                 >
                     Hard reset

@@ -90,6 +90,13 @@ export interface CloudSave {
     data: string;
     progress: number;
     savedAt: number;
+    /** Revision of the stored save; send it back as baseRev so a stale device cannot overwrite a newer one. */
+    rev: number;
+    /** Bumped by every deliberate overwrite (import, restore, reset); devices on an older epoch must yield to the cloud. */
+    epoch: number;
+    /** Which device wrote it last (a readable label). */
+    device: string;
+    updatedAt: string;
 }
 export async function fetchSave(game: string): Promise<{ save: CloudSave | null; error: string | null }> {
     set({ busy: true });
@@ -99,14 +106,27 @@ export async function fetchSave(game: string): Promise<{ save: CloudSave | null;
     if (!r.ok) return { save: null, error: (r.body.error as string) ?? "Could not load" };
     return { save: (r.body.save as CloudSave | null) ?? null, error: null };
 }
-export async function putSave(game: string, data: string, progress: number, savedAt: number): Promise<boolean> {
-    set({ busy: true });
-    const r = await call("/api/account/save", { method: "PUT", body: JSON.stringify({ game, data, progress, savedAt }) });
-    set({ busy: false, error: r.ok ? null : ((r.body.error as string) ?? "Could not save"), lastSync: r.ok ? Date.now() : state.lastSync });
-    if (r.status === 401) set({ email: null, user: null });
-    return r.ok;
+/** The version the latest save replaced (one step of history). */
+export async function fetchPrevSave(game: string): Promise<{ data: string; progress: number; savedAt: number } | null> {
+    const r = await call(`/api/account/save?game=${encodeURIComponent(game)}&prev=1`);
+    return r.ok ? ((r.body.save as { data: string; progress: number; savedAt: number } | null) ?? null) : null;
 }
 
+export type PutResult = { ok: true; rev: number; epoch: number } | { ok: false; conflict: "rev" | "lower" | "missing" } | { ok: false; conflict?: undefined; error: string };
+export async function putSave(game: string, data: string, progress: number, savedAt: number, opts: { baseRev: number | null; device: string; force?: boolean }): Promise<PutResult> {
+    set({ busy: true });
+    const r = await call("/api/account/save", { method: "PUT", body: JSON.stringify({ game, data, progress, savedAt, baseRev: opts.baseRev, device: opts.device, force: opts.force === true }) });
+    if (r.ok) {
+        set({ busy: false, error: null, lastSync: Date.now() });
+        return { ok: true, rev: Number(r.body.rev), epoch: Number(r.body.epoch ?? 0) };
+    }
+    set({ busy: false });
+    if (r.status === 401) set({ email: null, user: null });
+    if (r.status === 409) return { ok: false, conflict: (r.body.conflict as "rev" | "lower" | "missing") ?? "rev" };
+    const error = (r.body.error as string) ?? "Could not save";
+    set({ error });
+    return { ok: false, error };
+}
 export async function renameProfile(name: string): Promise<{ ok: boolean; error: string | null }> {
     const r = await call("/api/account/profile", { method: "PUT", body: JSON.stringify({ name }) });
     if (r.ok && state.user) set({ user: { ...state.user, name: (r.body.name as string) ?? name } });

@@ -909,29 +909,32 @@ export function importSave(text: string): State | null {
     }
 }
 
+/** Credit a freshly loaded save for the time since it was saved (shards, buffs, drills, crops...). Returns the shards earned. */
+export function settleOffline(s: State): number {
+    const elapsed = Math.max(0, (Date.now() - s.savedAt) / 1000);
+    let offline = 0;
+    if (elapsed > 60) {
+        tickBuffs(s, elapsed); // timed buffs keep running while you are away (and do not inflate offline income)
+        const d = derive(s);
+        const secs = Math.min(elapsed, MAX_OFFLINE_S);
+        offline = (d.cps + d.auto * d.avgClick) * secs * offlineEff(s);
+        s.shards += offline;
+        s.total += offline;
+        s.playTime += secs * offlineEff(s);
+        addPetXp(s, secs * offlineEff(s) * d.petXp);
+        addDust(s, DUST_BASE * secs * offlineEff(s) * d.dustMult);
+        tickMine(s, secs * offlineEff(s), mineCtx(d)); // drills, auto-clicks and the passive trickle keep digging
+        tickFarm(s, secs * offlineEff(s), farmCtx(d)); // crops keep growing, and the Auto-Reaper keeps harvesting
+        for (let i = 0; i < MINIONS.length; i++) s.mcol[i] += s.minions[i] * secs * offlineEff(s) * d.colSpeed[i];
+    }
+    return offline;
+}
+
 export function loadGame(): { state: State; offline: number } {
     try {
         const raw = localStorage.getItem(SAVE_KEY);
         const s = raw ? parseSave(raw) : null;
-        if (s) {
-            const elapsed = Math.max(0, (Date.now() - s.savedAt) / 1000);
-            let offline = 0;
-            if (elapsed > 60) {
-                tickBuffs(s, elapsed); // timed buffs keep running while you are away (and do not inflate offline income)
-                const d = derive(s);
-                const secs = Math.min(elapsed, MAX_OFFLINE_S);
-                offline = (d.cps + d.auto * d.avgClick) * secs * offlineEff(s);
-                s.shards += offline;
-                s.total += offline;
-                s.playTime += secs * offlineEff(s);
-                addPetXp(s, secs * offlineEff(s) * d.petXp);
-                addDust(s, DUST_BASE * secs * offlineEff(s) * d.dustMult);
-                tickMine(s, secs * offlineEff(s), mineCtx(d)); // drills, auto-clicks and the passive trickle keep digging
-                tickFarm(s, secs * offlineEff(s), farmCtx(d)); // crops keep growing, and the Auto-Reaper keeps harvesting
-                for (let i = 0; i < MINIONS.length; i++) s.mcol[i] += s.minions[i] * secs * offlineEff(s) * d.colSpeed[i];
-            }
-            return { state: s, offline };
-        }
+        if (s) return { state: s, offline: settleOffline(s) };
     } catch {
         /* storage blocked: fall through to a fresh game */
     }
