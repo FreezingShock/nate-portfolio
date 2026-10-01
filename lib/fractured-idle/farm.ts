@@ -1,6 +1,6 @@
 import { skillLevel, skillXpFor, type State } from "./data";
 import type { EStat } from "./enchant";
-import { activeIsland } from "./island-logic";
+import { activeIsland, openIslands } from "./island-logic";
 import type { Dim } from "./islands";
 import type { GrantKind } from "./skills";
 
@@ -24,11 +24,16 @@ export type CropId =
     | "chorus" | "voidlily" | "starfruit" | "fracflower";
 
 export type GoodId = "flour" | "stew" | "jam" | "cake" | "pie" | "feast" | "emberTart" | "voidTea" | "starCake";
-export type ResId = CropId | GoodId;
+export type EnchId = `e_${CropId}`;
+export type ResId = CropId | GoodId | EnchId;
 export type Cost = Partial<Record<ResId, number>>;
+
+/** What a crop is, for tools: every tool is made for one kind of crop. */
+export type CropKind = "stalk" | "root" | "fruit" | "fungus" | "bloom";
 
 export interface CropDef {
     id: CropId;
+    kind: CropKind;
     name: string;
     color: string;
     dim: Dim;
@@ -42,7 +47,7 @@ export interface CropDef {
     colText: string;
 }
 
-export const CROPS: CropDef[] = [
+const RAW_CROPS: Omit<CropDef, "kind">[] = [
     // Overworld
     { id: "wheat", name: "Wheat", color: "#e6c85a", dim: "overworld", need: 0, time: 20, yield: 6, vm: 0.6, handCost: 30, reach: 0, col: ["minion", 0.02], colText: "minion output" },
     { id: "carrot", name: "Carrot", color: "#ff9a3d", dim: "overworld", need: 3, time: 30, yield: 6, vm: 0.8, handCost: 40, reach: 0, col: ["click", 0.02], colText: "click power" },
@@ -65,6 +70,22 @@ export const CROPS: CropDef[] = [
     { id: "starfruit", name: "Starfruit", color: "#fff27a", dim: "end", need: 52, time: 560, yield: 13, vm: 6.5, handCost: 120, reach: 1, col: ["luck", 0.03], colText: "enchant luck" },
     { id: "fracflower", name: "Fracture Flower", color: "#ff6fe0", dim: "end", need: 60, time: 800, yield: 15, vm: 12, handCost: 150, reach: 2, col: ["all", 0.03], colText: "all shards" },
 ];
+const KIND_OF: Record<CropId, CropKind> = {
+    wheat: "stalk", sugarcane: "stalk", cocoa: "stalk",
+    carrot: "root", potato: "root", beetroot: "root",
+    melon: "fruit", pumpkin: "fruit", sweetberry: "fruit", glowberry: "fruit", chorus: "fruit", starfruit: "fruit",
+    netherwart: "fungus", crimsonfungus: "fungus", warpedfungus: "fungus",
+    emberbloom: "bloom", voidlily: "bloom", fracflower: "bloom",
+};
+export const CROPS: CropDef[] = RAW_CROPS.map((c) => ({ ...c, kind: KIND_OF[c.id] }));
+export const KIND_INFO: Record<CropKind, { name: string; tool: string; color: string; special: string; unit: string }> = {
+    stalk: { name: "Stalks", tool: "Scythe", color: "#e6c85a", special: "Shards from every harvest", unit: "%" },
+    root: { name: "Roots", tool: "Trowel", color: "#ff9a3d", special: "Farming XP from every harvest", unit: "%" },
+    fruit: { name: "Fruits", tool: "Pruners", color: "#5fd06a", special: "Chance of a triple harvest", unit: "pts" },
+    fungus: { name: "Fungi", tool: "Spore Knife", color: "#3fe0c0", special: "Seed pod chance", unit: "%" },
+    bloom: { name: "Blooms", tool: "Petal Shears", color: "#ff6fe0", special: "Sale price of Enchanted crops", unit: "%" },
+};
+export const KINDS: CropKind[] = ["stalk", "root", "fruit", "fungus", "bloom"];
 export const CROP_BY_ID = Object.fromEntries(CROPS.map((c) => [c.id, c])) as Record<CropId, CropDef>;
 const CROP_IDS = new Set<string>(CROPS.map((c) => c.id));
 export const DIM_CROPS: Record<Dim, CropDef[]> = {
@@ -99,7 +120,16 @@ export const GOOD_BY_ID = Object.fromEntries(GOODS.map((g) => [g.id, g])) as Rec
 const GOOD_IDS = new Set<string>(GOODS.map((g) => g.id));
 
 export const isCrop = (id: string): id is CropId => CROP_IDS.has(id);
-export const resInfo = (id: ResId): { name: string; color: string } => (isCrop(id) ? CROP_BY_ID[id] : GOOD_BY_ID[id]);
+export const isEnch = (id: string): id is EnchId => id.startsWith("e_") && CROP_IDS.has(id.slice(2));
+export const enchId = (id: CropId): EnchId => `e_${id}`;
+export const resInfo = (id: ResId): { name: string; color: string } => {
+    if (isCrop(id)) return CROP_BY_ID[id];
+    if (isEnch(id)) {
+        const c = CROP_BY_ID[id.slice(2) as CropId];
+        return { name: `Enchanted ${c.name}`, color: c.color };
+    }
+    return GOOD_BY_ID[id as GoodId];
+};
 
 // ---- Island crop tables: what can be planted where, and how often a mixed planting picks it ----
 
@@ -162,7 +192,7 @@ export const HOES: HoeDef[] = [
 /** Click power every hoe tier adds for the rest of the game. */
 export const HOE_CLICK = 0.008;
 
-export type UpCat = "hand" | "rig" | "kitchen";
+export type UpCat = "hand" | "rig" | "kitchen" | "market";
 
 export interface FarmUpDef {
     id: string;
@@ -192,11 +222,16 @@ export const FARM_UPS: FarmUpDef[] = [
     { id: "compost", name: "Compost Heap", desc: "+5% crops from auto-harvests per level", cat: "rig", cost: { beetroot: 10 }, growth: 1.45, max: 25, need: 14 },
     { id: "sifter", name: "Pod Sifter", desc: "Auto-harvests find 12% more pods per level", cat: "rig", cost: { melon: 6 }, growth: 1.45, max: 15, need: 24 },
     { id: "cracker", name: "Pod Opener", desc: "Opens seed pods for you, faster every level", cat: "rig", cost: { stew: 2 }, growth: 1.8, max: 5, need: 22 },
-    { id: "plots", name: "Extra Plot", desc: "One more plot in the garden", cat: "rig", cost: { potato: 40 }, growth: 2.4, max: 4, need: 6 },
+    { id: "plots", name: "Extra Plot", desc: "One more plot in every garden", cat: "rig", cost: { potato: 40 }, growth: 2.4, max: 4, need: 6 },
     // Cookhouse parts
     { id: "oven", name: "Extra Oven", desc: "One more crafting slot", cat: "kitchen", cost: { flour: 6 }, growth: 2.2, max: 3, need: 10 },
     { id: "stoker", name: "Stoker", desc: "Crafts finish 8% sooner per level", cat: "kitchen", cost: { potato: 20 }, growth: 1.35, max: 20, need: 8 },
     { id: "ladle", name: "Auto-Ladle", desc: "Ovens empty themselves, and a craft can repeat on its own", cat: "kitchen", cost: { jam: 4 }, growth: 1, max: 1, need: 18 },
+    { id: "tend", name: "Green Thumb", desc: "+10% growth from every tap on a growing plot per level", cat: "hand", cost: { potato: 14 }, growth: 1.4, max: 20, need: 6 },
+    { id: "rhythm", name: "Harvest Rhythm", desc: "Hand-picks chain into a streak: +0.5s window and +5% streak cap per level", cat: "hand", cost: { carrot: 30 }, growth: 1.42, max: 15, need: 8 },
+    { id: "golden", name: "Golden Seeds", desc: "+1% chance that a planted crop turns golden (5x crops) per level", cat: "hand", cost: { melon: 10 }, growth: 1.5, max: 15, need: 26 },
+    { id: "table", name: "Enchanting Table", desc: "Each Enchanted crop needs 6 fewer raw crops per level", cat: "market", cost: { wheat: 200 }, growth: 1.5, max: 10, need: 4 },
+    { id: "market", name: "Market Stall", desc: "+6% shards from every Enchanted crop you sell per level", cat: "market", cost: { e_wheat: 2 }, growth: 1.55, max: 20, need: 8 },
     { id: "chef", name: "Master Chef", desc: "8% chance per level to cook a double batch", cat: "kitchen", cost: { cake: 3 }, growth: 1.6, max: 10, need: 26 },
 ];
 export const FARM_UP_BY_ID = Object.fromEntries(FARM_UPS.map((u) => [u.id, u])) as Record<string, FarmUpDef>;
@@ -260,6 +295,66 @@ export const RELICS = RECIPES.filter((r) => r.kind === "relic");
 const RELIC_IDS = new Set<string>(RELICS.map((r) => r.id));
 const RECIPE_IDS = new Set<string>(RECIPES.map((r) => r.id));
 
+
+// ---- Tools: one line per kind of crop, five tiers each, worn on the tool belt ----
+
+export interface ToolDef {
+    id: string;
+    kind: CropKind;
+    tier: number;
+    name: string;
+    need: number;
+    cost: Cost;
+    yield: number; // +crops from harvests of this kind
+    speed: number; // +growth speed of this kind
+    special: number; // see KIND_INFO.special
+}
+const TOOL_YIELD = [0.08, 0.18, 0.32, 0.5, 0.8];
+const TOOL_SPEED = [0, 0.04, 0.08, 0.14, 0.22];
+const TOOL_SPECIAL: Record<CropKind, number[]> = {
+    stalk: [0.1, 0.2, 0.35, 0.55, 0.9],
+    root: [0.1, 0.2, 0.35, 0.55, 0.9],
+    fruit: [0.01, 0.02, 0.035, 0.05, 0.08],
+    fungus: [0.1, 0.2, 0.35, 0.55, 0.9],
+    bloom: [0.1, 0.2, 0.35, 0.55, 0.9],
+};
+/** The stat a worn tool of each kind adds to the whole game, per tier. */
+export const TOOL_FX: Record<CropKind, [EStat, number]> = { stalk: ["minion", 0.006], root: ["click", 0.006], fruit: ["luck", 0.01], fungus: ["dust", 0.012], bloom: ["all", 0.004] };
+const TOOL_LINES: Record<CropKind, { names: string[]; need: number[]; cost: Cost[] }> = {
+    stalk: {
+        names: ["Bronze Scythe", "Iron Scythe", "Golden Scythe", "Diamond Scythe", "Cosmic Scythe"],
+        need: [5, 12, 24, 42, 54],
+        cost: [{ e_wheat: 2, flour: 2 }, { e_wheat: 6, stew: 2 }, { e_wheat: 10, e_sugarcane: 4, cake: 2 }, { e_sugarcane: 10, e_cocoa: 4, pie: 3 }, { e_cocoa: 10, e_wheat: 30, feast: 3 }],
+    },
+    root: {
+        names: ["Stone Trowel", "Iron Trowel", "Golden Trowel", "Diamond Trowel", "Cosmic Trowel"],
+        need: [6, 12, 20, 34, 50],
+        cost: [{ e_carrot: 2, flour: 2 }, { e_carrot: 4, e_potato: 3, stew: 2 }, { e_potato: 6, e_beetroot: 4, jam: 2 }, { e_beetroot: 10, e_potato: 12, cake: 3 }, { e_beetroot: 25, e_carrot: 25, pie: 4 }],
+    },
+    fruit: {
+        names: ["Fruit Pruners", "Iron Pruners", "Golden Pruners", "Diamond Pruners", "Cosmic Pruners"],
+        need: [12, 28, 36, 52, 60],
+        cost: [{ e_chorus: 4, flour: 2 }, { e_melon: 6, e_chorus: 8, cake: 2 }, { e_pumpkin: 6, e_melon: 8, pie: 2 }, { e_sweetberry: 8, e_starfruit: 6, voidTea: 2 }, { e_starfruit: 12, e_glowberry: 12, starCake: 2 }],
+    },
+    fungus: {
+        names: ["Bone Spore Knife", "Iron Spore Knife", "Golden Spore Knife", "Diamond Spore Knife", "Cosmic Spore Knife"],
+        need: [6, 26, 32, 44, 56],
+        cost: [{ e_netherwart: 3, flour: 2 }, { e_netherwart: 6, e_crimsonfungus: 3, stew: 2 }, { e_crimsonfungus: 6, e_warpedfungus: 4, jam: 3 }, { e_warpedfungus: 8, e_crimsonfungus: 10, emberTart: 2 }, { e_warpedfungus: 20, e_crimsonfungus: 20, emberTart: 5 }],
+    },
+    bloom: {
+        names: ["Petal Shears", "Iron Petal Shears", "Golden Petal Shears", "Diamond Petal Shears", "Cosmic Petal Shears"],
+        need: [36, 44, 56, 58, 60],
+        cost: [{ e_voidlily: 3, cake: 2 }, { e_voidlily: 8, emberTart: 2 }, { e_emberbloom: 4, e_voidlily: 10, voidTea: 2 }, { e_emberbloom: 8, e_voidlily: 15, voidTea: 3 }, { e_fracflower: 5, e_emberbloom: 12, starCake: 2 }],
+    },
+};
+export const TOOLS: ToolDef[] = KINDS.flatMap((kind) =>
+    TOOL_LINES[kind].names.map((name, i) => ({ id: `${kind}${i + 1}`, kind, tier: i + 1, name, need: TOOL_LINES[kind].need[i], cost: TOOL_LINES[kind].cost[i], yield: TOOL_YIELD[i], speed: TOOL_SPEED[i], special: TOOL_SPECIAL[kind][i] })),
+);
+export const TOOL_BY_ID = Object.fromEntries(TOOLS.map((t) => [t.id, t])) as Record<string, ToolDef>;
+export const toolsOf = (kind: CropKind) => TOOLS.filter((t) => t.kind === kind);
+
+export const BASE_PLOTS: Record<Dim, number> = { overworld: 6, nether: 4, end: 4 };
+
 export interface Job {
     r: string;
     n: number;
@@ -274,6 +369,8 @@ export interface LogEntry {
 export interface Plot {
     c: string; // crop id, "" = empty
     p: number; // growth in effective seconds, 0..time
+    t?: number; // when it was last tended (ms)
+    g?: boolean; // golden: pays 5x crops
 }
 
 export interface FarmState {
@@ -287,8 +384,20 @@ export interface FarmState {
     hoe: number;
     ups: Record<string, number>;
     hands: Record<string, number>;
-    plots: Plot[];
-    sow: string; // crop to plant by hand ("" = best on this island)
+    gardens: Record<Dim, Plot[]>; // one garden per dimension, every open one grows at once
+    sow: Record<Dim, string>; // crop to plant by hand in each garden ("" = the best one open)
+    ench: Record<string, number>; // Enchanted crops in stock
+    enchanted: number; // Enchanted crops made, ever
+    soldN: number; // Enchanted crops sold, ever
+    sold: number; // shards earned from sales
+    tools: string[]; // tools made
+    belt: string[]; // tools worn (one per kind)
+    streak: number; // hand-picks in a row
+    streakAt: number;
+    bestStreak: number;
+    tends: number; // taps on growing plots
+    goldens: number; // golden crops harvested
+    guide: number; // guide steps claimed
     waters: number; // presses of the big button that watered a plot
     harvests: number; // harvests (by hand, by Reaper, offline)
     picked: number; // harvested by hand
@@ -307,7 +416,13 @@ export interface FarmState {
 
 export const newFarm = (): FarmState => ({
     crop: {}, grown: {}, goods: {}, items: {}, relics: [], equipped: [], claimed: [], hoe: 0, ups: {}, hands: {},
-    plots: Array.from({ length: 6 }, () => ({ c: "", p: 0 })), sow: "", waters: 0, harvests: 0, picked: 0, bumpers: 0,
+    gardens: {
+        overworld: Array.from({ length: BASE_PLOTS.overworld }, () => ({ c: "", p: 0 })),
+        nether: Array.from({ length: BASE_PLOTS.nether }, () => ({ c: "", p: 0 })),
+        end: Array.from({ length: BASE_PLOTS.end }, () => ({ c: "", p: 0 })),
+    },
+    sow: { overworld: "", nether: "", end: "" }, ench: {}, enchanted: 0, soldN: 0, sold: 0, tools: [], belt: [],
+    streak: 0, streakAt: 0, bestStreak: 0, tends: 0, goldens: 0, guide: 0, waters: 0, harvests: 0, picked: 0, bumpers: 0,
     pods: {}, opened: 0, podFrac: {}, openT: 0, bloom: 0, bumper: 0, focus: "", jobs: [], crafted: 0, log: [],
 });
 
@@ -332,13 +447,47 @@ export function cleanFarm(raw: unknown): FarmState {
     out.ups = rec(o.ups, (k) => !!FARM_UP_BY_ID[k], true);
     for (const u of FARM_UPS) if (out.ups[u.id]) out.ups[u.id] = Math.min(u.max, out.ups[u.id]);
     out.hands = rec(o.hands, (k) => CROP_IDS.has(k), true);
-    const plots = (Array.isArray(o.plots) ? (o.plots as Record<string, unknown>[]) : []).slice(0, 16).map((p) => {
-        const c = typeof p?.c === "string" && CROP_IDS.has(p.c) ? p.c : "";
-        return { c, p: c ? Math.max(0, Math.min(CROP_BY_ID[c as CropId].time * 4, num(p?.p))) : 0 };
-    });
-    while (plots.length < 6) plots.push({ c: "", p: 0 });
-    out.plots = plots;
-    out.sow = typeof o.sow === "string" && CROP_IDS.has(o.sow) ? o.sow : "";
+    const parsePlots = (src: unknown): Plot[] =>
+        (Array.isArray(src) ? (src as Record<string, unknown>[]) : []).slice(0, 20).map((p) => {
+            const c = typeof p?.c === "string" && CROP_IDS.has(p.c) ? p.c : "";
+            const pl: Plot = { c, p: c ? Math.max(0, Math.min(CROP_BY_ID[c as CropId].time * 4, num(p?.p))) : 0 };
+            if (c && p?.g === true) pl.g = true;
+            return pl;
+        });
+    const rawG = (o.gardens && typeof o.gardens === "object" ? o.gardens : {}) as Record<string, unknown>;
+    for (const dm of DIMS) out.gardens[dm] = parsePlots(rawG[dm]);
+    if (Array.isArray(o.plots) && o.plots.length) {
+        // an older save kept a single garden: it moves to the dimension of what is growing in it
+        const old = parsePlots(o.plots);
+        const first = old.find((p) => p.c);
+        const dm: Dim = first ? CROP_BY_ID[first.c as CropId].dim : "overworld";
+        if (!out.gardens[dm].some((p) => p.c)) out.gardens[dm] = old;
+    }
+    for (const dm of DIMS) while (out.gardens[dm].length < BASE_PLOTS[dm]) out.gardens[dm].push({ c: "", p: 0 });
+    out.sow = { overworld: "", nether: "", end: "" };
+    const rs = o.sow;
+    if (typeof rs === "string" && CROP_IDS.has(rs)) out.sow[CROP_BY_ID[rs as CropId].dim] = rs;
+    else if (rs && typeof rs === "object") for (const dm of DIMS) {
+        const v = (rs as Record<string, unknown>)[dm];
+        if (typeof v === "string" && CROP_IDS.has(v) && CROP_BY_ID[v as CropId].dim === dm) out.sow[dm] = v;
+    }
+    out.ench = rec(o.ench, (k) => CROP_IDS.has(k), true);
+    out.enchanted = Math.max(0, Math.floor(num(o.enchanted)));
+    out.soldN = Math.max(0, Math.floor(num(o.soldN)));
+    out.sold = Math.max(0, num(o.sold));
+    out.tools = (Array.isArray(o.tools) ? o.tools : []).filter((x, i, a2): x is string => typeof x === "string" && !!TOOL_BY_ID[x] && a2.indexOf(x) === i);
+    const seenKinds = new Set<string>();
+    out.belt = (Array.isArray(o.belt) ? o.belt : []).filter((x): x is string => {
+        if (typeof x !== "string" || !out.tools.includes(x) || seenKinds.has(TOOL_BY_ID[x].kind)) return false;
+        seenKinds.add(TOOL_BY_ID[x].kind);
+        return true;
+    }).slice(0, 5);
+    out.streak = Math.max(0, Math.floor(num(o.streak)));
+    out.streakAt = Math.max(0, num(o.streakAt));
+    out.bestStreak = Math.max(0, Math.floor(num(o.bestStreak)));
+    out.tends = Math.max(0, Math.floor(num(o.tends)));
+    out.goldens = Math.max(0, Math.floor(num(o.goldens)));
+    out.guide = Math.max(0, Math.min(GUIDE.length, Math.floor(num(o.guide))));
     out.waters = Math.max(0, Math.floor(num(o.waters)));
     out.harvests = Math.max(0, Math.floor(num(o.harvests)));
     out.picked = Math.max(0, Math.floor(num(o.picked)));
@@ -388,6 +537,7 @@ export const DIM_FX: Record<Dim, DimFxDef> = {
 };
 /** The farming effects of the dimension you are standing in. */
 export const dimFx = (s: State): DimFxDef => DIM_FX[activeIsland(s).dim];
+export const dimFxOf = (dim: Dim): DimFxDef => DIM_FX[dim];
 
 // ---- Numbers ----
 
@@ -395,7 +545,7 @@ export const farmLevel = (s: State) => skillLevel(s.farming);
 export const cropOpen = (s: State, c: CropDef) => farmLevel(s) >= c.need;
 export const upLevel = (s: State, id: string) => s.farm.ups[id] || 0;
 export const haveCrop = (s: State, id: CropId) => s.farm.crop[id] || 0;
-export const have = (s: State, id: ResId) => (isCrop(id) ? s.farm.crop[id] || 0 : s.farm.goods[id] || 0);
+export const have = (s: State, id: ResId) => (isCrop(id) ? s.farm.crop[id] || 0 : isEnch(id) ? s.farm.ench[id.slice(2)] || 0 : s.farm.goods[id] || 0);
 export const hoeOf = (s: State) => HOES[s.farm.hoe];
 
 export const hasRelic = (s: State, id: string) => s.farm.equipped.includes(id);
@@ -412,17 +562,39 @@ export function unequipRelic(s: State, id: string): boolean {
     return true;
 }
 
-export const plotCount = (s: State) => 6 + (farmLevel(s) >= 10 ? 2 : 0) + (farmLevel(s) >= 25 ? 2 : 0) + (farmLevel(s) >= 40 ? 2 : 0) + upLevel(s, "plots");
+/** A garden is open once you can reach its dimension (or you already farmed there). The Overworld is always open. */
+export const gardenOpen = (s: State, dim: Dim) =>
+    dim === "overworld" || openIslands(s).some((i) => i.dim === dim) || s.farm.gardens[dim].some((p) => p.c) || DIM_CROPS[dim].some((c) => (s.farm.grown[c.id] || 0) > 0);
+export const openDims = (s: State): Dim[] => DIMS.filter((d) => gardenOpen(s, d));
+export const plotCount = (s: State, dim: Dim) => BASE_PLOTS[dim] + (farmLevel(s) >= 10 ? 2 : 0) + (farmLevel(s) >= 25 ? 2 : 0) + (farmLevel(s) >= 40 ? 2 : 0) + upLevel(s, "plots");
+export interface PlotRef {
+    dim: Dim;
+    i: number;
+    pl: Plot;
+}
+/** Every plot of every open garden. */
+export const allPlots = (s: State): PlotRef[] => openDims(s).flatMap((dim) => s.farm.gardens[dim].map((pl, i) => ({ dim, i, pl })));
+
+// tools worn on the belt
+export const toolSlots = (s: State) => 2 + (farmLevel(s) >= 18 ? 1 : 0) + (farmLevel(s) >= 34 ? 1 : 0) + (farmLevel(s) >= 50 ? 1 : 0);
+export const ownsTool = (s: State, id: string) => s.farm.tools.includes(id);
+export const toolWorn = (s: State, id: string) => s.farm.belt.includes(id);
+export const beltTool = (s: State, kind: CropKind): ToolDef | undefined => TOOL_BY_ID[s.farm.belt.find((id) => TOOL_BY_ID[id]?.kind === kind) ?? ""];
+export const toolYield = (s: State, kind: CropKind) => beltTool(s, kind)?.yield ?? 0;
+export const toolSpeed = (s: State, kind: CropKind) => beltTool(s, kind)?.speed ?? 0;
+export const toolSpecial = (s: State, kind: CropKind) => beltTool(s, kind)?.special ?? 0;
+
 export const hoePower = (s: State) => hoeOf(s).power * (1 + 0.06 * upLevel(s, "till") + (hasRelic(s, "gloves") ? 0.1 : 0) + (hasRelic(s, "lantern") ? 0.15 : 0));
 /** Hoe power helps crops, but with a softening curve. */
 export const hoeFactor = (s: State) => Math.pow(hoePower(s), 0.55);
-export const yieldMult = (s: State) => dimFx(s).yield * (1 + 0.08 * upLevel(s, "fert")) * (hasRelic(s, "straw") ? 1.06 : 1) * (hasRelic(s, "lens") ? 1.1 : 1);
-export const luckyChance = (s: State) => 0.015 * upLevel(s, "lucky") + (hasRelic(s, "clover") ? 0.06 : 0);
-export const podChance = (s: State) => dimFx(s).pod * 0.003 * (1 + 0.1 * upLevel(s, "seeker") + (hasRelic(s, "shears") ? 0.2 : 0));
+export const yieldMult = (s: State, dim: Dim = activeIsland(s).dim) => DIM_FX[dim].yield * (1 + 0.08 * upLevel(s, "fert")) * (hasRelic(s, "straw") ? 1.06 : 1) * (hasRelic(s, "lens") ? 1.1 : 1);
+export const luckyChance = (s: State, kind?: CropKind) => 0.015 * upLevel(s, "lucky") + (hasRelic(s, "clover") ? 0.06 : 0) + (kind === "fruit" ? toolSpecial(s, "fruit") : 0);
+export const goldenChance = (s: State) => 0.01 + 0.01 * upLevel(s, "golden") + (hasRelic(s, "clover") ? 0.01 : 0);
+export const podChance = (s: State, dim: Dim = activeIsland(s).dim, kind?: CropKind) => DIM_FX[dim].pod * 0.003 * (1 + 0.1 * upLevel(s, "seeker") + (hasRelic(s, "shears") ? 0.2 : 0) + (kind === "fungus" ? toolSpecial(s, "fungus") : 0));
 export const bloomNeed = (s: State) => 90;
 export const bumperLen = (s: State) => 6 + 2 * upLevel(s, "bumper") + (hasRelic(s, "lantern") ? 5 : 0) + (hasRelic(s, "totem") ? 6 : 0) + dimFx(s).bumper;
 export const bumperMult = (s: State) => 3 * (1 + 0.1 * upLevel(s, "bumper"));
-export const farmXpMult = (s: State) => (1 + 0.06 * upLevel(s, "scholar")) * dimFx(s).xp;
+export const farmXpMult = (s: State, dim: Dim = activeIsland(s).dim, kind?: CropKind) => (1 + 0.06 * upLevel(s, "scholar")) * DIM_FX[dim].xp * (kind === "root" ? 1 + toolSpecial(s, "root") : 1);
 export const hasReaper = (s: State) => upLevel(s, "reaper") > 0;
 export const ovenSlots = (s: State) => 1 + upLevel(s, "oven");
 export const cookSpeed = (s: State) => 1 + 0.08 * upLevel(s, "stoker") + (hasRelic(s, "hearth") ? 0.1 : 0);
@@ -446,7 +618,14 @@ export function handBoost(s: State, c: CropDef): number {
     return 0.06 * eff(n) * (hasRelic(s, "hearth") ? 1.25 : 1) * (hasRelic(s, "sundial") ? 1.2 : 1);
 }
 /** Growth speed of a crop right now. */
-export const growSpeed = (s: State, c: CropDef) => dimFx(s).speed * (1 + 0.05 * upLevel(s, "sprinkler")) * (1 + handBoost(s, c)) * (hasRelic(s, "sundial") ? 1.1 : 1);
+export const growSpeed = (s: State, c: CropDef) => DIM_FX[c.dim].speed * (1 + 0.05 * upLevel(s, "sprinkler")) * (1 + handBoost(s, c)) * (hasRelic(s, "sundial") ? 1.1 : 1) * (1 + toolSpeed(s, c.kind));
+/** Crops one harvest gives before bumper, luck, streak and gold. */
+export const cropUnits = (s: State, c: CropDef) => c.yield * hoeFactor(s) * yieldMult(s, c.dim) * (1 + toolYield(s, c.kind));
+/** The hand-pick streak: picks in a row, each inside the window of the last. */
+export const streakWindow = (s: State) => 4 + 0.5 * upLevel(s, "rhythm");
+export const streakCap = (s: State) => 0.5 + 0.05 * upLevel(s, "rhythm");
+export const streakNow = (s: State, now = Date.now()) => (s.farm.streak > 0 && now - s.farm.streakAt <= streakWindow(s) * 1000 ? s.farm.streak : 0);
+export const streakBonus = (s: State, n = s.farm.streak) => Math.min(streakCap(s), 0.03 * Math.max(0, n - 1));
 
 /** Farming XP for one harvest: a slice of the level the crop opens at, bigger for crops that take longer. */
 export const cropXp = (c: CropDef) => 1 + (0.004 * skillXpFor(c.need + 1) * (c.time / 60)) / (1 + c.need / 8);
@@ -470,6 +649,7 @@ const afford = (s: State, cost: Cost): Blocker => {
 const spend = (s: State, cost: Cost) => {
     for (const [id, n] of Object.entries(cost)) {
         if (isCrop(id)) s.farm.crop[id] = haveCrop(s, id) - (n ?? 0);
+        else if (isEnch(id)) s.farm.ench[id.slice(2)] = (s.farm.ench[id.slice(2)] || 0) - (n ?? 0);
         else s.farm.goods[id] = (s.farm.goods[id] || 0) - (n ?? 0);
     }
 };
@@ -515,9 +695,11 @@ export function buyHand(s: State, id: CropId, count = 1): number {
     }
     return n;
 }
-export function setSow(s: State, id: string): boolean {
+export function setSow(s: State, id: string, dim?: Dim): boolean {
     if (id && !CROP_IDS.has(id)) return false;
-    s.farm.sow = id;
+    const dm = dim ?? (id ? CROP_BY_ID[id as CropId].dim : undefined);
+    if (!dm) return false;
+    s.farm.sow[dm] = id;
     return true;
 }
 export function setFocus(s: State, id: string): boolean {
@@ -528,8 +710,11 @@ export function setFocus(s: State, id: string): boolean {
 
 /** Garden size follows your level and the Extra Plot upgrade. */
 export function syncPlots(s: State) {
-    const want = plotCount(s);
-    while (s.farm.plots.length < want) s.farm.plots.push({ c: "", p: 0 });
+    for (const dim of DIMS) {
+        const g = s.farm.gardens[dim];
+        const want = plotCount(s, dim);
+        while (g.length < want) g.push({ c: "", p: 0 });
+    }
 }
 
 // ---- Permanent bonuses ----
@@ -561,6 +746,11 @@ export function farmFx(s: State): Partial<Record<EStat, number>> {
     add("all", 0.01 * upLevel(s, "deep") + 0.015 * upLevel(s, "ancient") + (hasRelic(s, "almanac") ? 0.025 : 0) + (hasRelic(s, "plenty") ? 0.06 : 0));
     add("tokens", 0.02 * upLevel(s, "ancient") + (hasRelic(s, "plenty") ? 0.08 : 0));
     for (const dim of DIMS) add("all", dimSet(s, dim).bonus);
+    for (const id of s.farm.belt) {
+        const t = TOOL_BY_ID[id];
+        if (t) add(TOOL_FX[t.kind][0], TOOL_FX[t.kind][1] * t.tier);
+    }
+    add("all", 0.003 * (openDims(s).length - 1));
     for (const [k, v] of Object.entries(featStats(s))) add(k as EStat, v);
     return fx;
 }
@@ -574,27 +764,30 @@ export interface TableRow {
     p: number;
 }
 
-/** Odds of every crop on this island for a mixed planting. Crops above your Farming level are locked; Seed Selector and a focus shift the odds. */
-export function cropTable(s: State, islandId = activeIsland(s).id, dim: Dim = activeIsland(s).dim): TableRow[] {
-    const base = ISLAND_CROPS[islandId] ?? DIM_DEFAULT[dim];
+/**
+ * Odds of every crop in a garden for a mixed planting. The mix follows the furthest island you can reach in that
+ * dimension; every crop you have the level for can still be planted by choice. Seed Selector and a focus shift the odds.
+ */
+export function cropTable(s: State, dim: Dim = activeIsland(s).dim): TableRow[] {
+    const here = openIslands(s).filter((i) => i.dim === dim);
+    const base = (here.length ? ISLAND_CROPS[here[here.length - 1].id] : undefined) ?? DIM_DEFAULT[dim];
     const lvl = farmLevel(s);
     const pros = 0.05 * upLevel(s, "prosp") + (hasRelic(s, "shears") ? 0.1 : 0);
-    const rows: TableRow[] = base.map(([id, w]) => {
-        const crop = CROP_BY_ID[id];
-        return { crop, w: w * (1 + pros * (crop.need / 10)), open: lvl >= crop.need, p: 0 };
+    const rows: TableRow[] = DIM_CROPS[dim].map((crop) => {
+        const w0 = base.find(([id]) => id === crop.id)?.[1] ?? 0;
+        return { crop, w: w0 * (1 + pros * (crop.need / 10)), open: lvl >= crop.need, p: 0 };
     });
     const total = rows.reduce((a, r) => a + (r.open ? r.w : 0), 0);
     for (const r of rows) r.p = r.open && total > 0 ? r.w / total : 0;
     return rows;
 }
 
-/** The crop a hand planting uses: your choice if this island grows it, else the best open crop here. */
-export function sowCrop(s: State): CropDef | null {
-    const rows = cropTable(s).filter((r) => r.open);
-    if (!rows.length) return null;
-    const pick = rows.find((r) => r.crop.id === s.farm.sow);
-    if (pick) return pick.crop;
-    return rows.slice().sort((a, b) => b.crop.vm - a.crop.vm)[0].crop;
+/** The crop a hand planting uses: your choice for this garden, else the most valuable crop open. */
+export function sowCrop(s: State, dim: Dim = activeIsland(s).dim): CropDef | null {
+    const open = DIM_CROPS[dim].filter((c) => farmLevel(s) >= c.need);
+    if (!open.length) return null;
+    const pick = open.find((c) => c.id === s.farm.sow[dim]);
+    return pick ?? open.slice().sort((a, b) => b.vm - a.vm)[0];
 }
 
 type Rng = () => number;
@@ -618,22 +811,30 @@ export const farmCtx = (d: { avgClick: number; cps: number; auto: number; xpMult
 });
 
 export interface WaterOut {
-    plot: number; // plot index, -1 if nothing was growing
+    dim: Dim | ""; // which garden the drop fell in
+    plot: number; // plot index in that garden, -1 if nothing was growing
     crop: CropId | "";
     boost: number;
     ready: boolean; // that press finished the crop
     bumperStart: boolean;
 }
 export interface HarvestOut {
+    dim: Dim;
     plot: number;
     crop: CropId;
     units: number;
     lucky: boolean;
+    golden: boolean;
     bumper: boolean;
+    streak: number;
     pod: Dim | null;
     xp: number;
     shards: number;
     hand: boolean;
+}
+export interface TendOut {
+    boost: number;
+    ready: boolean;
 }
 
 const subs = new Set<(e: WaterOut) => void>();
@@ -656,22 +857,21 @@ const addCrop = (s: State, id: CropId, units: number) => {
 };
 
 export const plotReady = (s: State, pl: Plot) => !!pl.c && pl.p >= CROP_BY_ID[pl.c as CropId].time;
-export const readyCount = (s: State) => s.farm.plots.filter((p) => plotReady(s, p)).length;
+export const readyCount = (s: State, dim?: Dim) => (dim ? s.farm.gardens[dim].filter((p) => plotReady(s, p)).length : allPlots(s).filter((r) => plotReady(s, r.pl)).length);
 
-/** One press of the big button: waters a random growing plot (speeds it up) and fills the Bloom meter. */
+/** One press of the big button: waters a random growing plot in any open garden (speeds it up) and fills the Bloom meter. */
 export function water(s: State, inp: { combo: number }, rng: Rng = Math.random): WaterOut {
     const f = s.farm;
-    const growing = f.plots.map((p, i) => (p.c && !plotReady(s, p) ? i : -1)).filter((i) => i >= 0);
+    const growing = allPlots(s).filter((r) => r.pl.c && !plotReady(s, r.pl));
     const boost = waterBoost(s, inp.combo);
     f.waters += 1;
-    let plot = -1;
+    let hit: PlotRef | null = null;
     let ready = false;
     if (growing.length) {
-        plot = growing[Math.floor(rng() * growing.length)];
-        const pl = f.plots[plot];
-        const t = CROP_BY_ID[pl.c as CropId].time;
-        pl.p = Math.min(t, pl.p + boost);
-        ready = pl.p >= t;
+        hit = growing[Math.floor(rng() * growing.length)];
+        const t = CROP_BY_ID[hit.pl.c as CropId].time;
+        hit.pl.p = Math.min(t, hit.pl.p + boost);
+        ready = hit.pl.p >= t;
     }
     let bumperStart = false;
     if (f.bumper <= 0) {
@@ -683,87 +883,126 @@ export function water(s: State, inp: { combo: number }, rng: Rng = Math.random):
             bumperStart = true;
         }
     }
-    const out: WaterOut = { plot, crop: plot >= 0 ? (f.plots[plot].c as CropId) : "", boost, ready, bumperStart };
+    const out: WaterOut = { dim: hit ? hit.dim : "", plot: hit ? hit.i : -1, crop: hit ? (hit.pl.c as CropId) : "", boost, ready, bumperStart };
     subs.forEach((fn) => fn(out));
     return out;
 }
 
+/** Tap a growing plot to tend it: a burst of growth, with a short cooldown per plot. */
+export function tend(s: State, dim: Dim, i: number, now = Date.now()): TendOut | null {
+    const pl = s.farm.gardens[dim][i];
+    if (!pl || !pl.c || plotReady(s, pl) || now - (pl.t ?? 0) < 450) return null;
+    const c = CROP_BY_ID[pl.c as CropId];
+    const boost = Math.max(waterBoost(s, 1) * 3, c.time * 0.015) * (1 + 0.1 * upLevel(s, "tend"));
+    pl.p = Math.min(c.time, pl.p + boost);
+    pl.t = now;
+    s.farm.tends += 1;
+    return { boost, ready: pl.p >= c.time };
+}
+
 // ---- Planting and harvesting ----
 
-export function plant(s: State, i: number, id?: CropId): boolean {
-    const pl = s.farm.plots[i];
+export function plant(s: State, dim: Dim, i: number, id?: CropId, rng: Rng = Math.random): boolean {
+    const pl = s.farm.gardens[dim][i];
     if (!pl || pl.c) return false;
-    const c = id ? CROP_BY_ID[id] : sowCrop(s);
-    if (!c || !cropOpen(s, c)) return false;
+    const c = id ? CROP_BY_ID[id] : sowCrop(s, dim);
+    if (!c || c.dim !== dim || !cropOpen(s, c)) return false;
     pl.c = c.id;
     pl.p = 0;
+    pl.t = undefined;
+    pl.g = rng() < goldenChance(s) || undefined;
     return true;
 }
 
-/** Plant every empty plot: a mixed planting follows the island's odds when you have not picked a crop. */
-export function plantAll(s: State, rng: Rng = Math.random): number {
+/** Plant every empty plot of a garden (or of every open garden): a mixed planting follows the odds when you have not picked a crop. */
+export function plantAll(s: State, rng: Rng = Math.random, only?: Dim): number {
     let n = 0;
-    const rows = cropTable(s).filter((r) => r.open);
-    if (!rows.length) return 0;
-    for (let i = 0; i < s.farm.plots.length; i++) {
-        if (s.farm.plots[i].c) continue;
-        let c = rows.find((r) => r.crop.id === s.farm.sow)?.crop;
-        if (!c) {
-            let r = rng();
-            c = rows[rows.length - 1].crop;
-            for (const row of rows) {
-                if (r < row.p) {
-                    c = row.crop;
-                    break;
+    for (const dim of only ? [only] : openDims(s)) {
+        const rows = cropTable(s, dim).filter((r) => r.open);
+        if (!rows.length) continue;
+        const chosen = DIM_CROPS[dim].find((c) => c.id === s.farm.sow[dim] && farmLevel(s) >= c.need);
+        const mix = rows.filter((r) => r.p > 0);
+        for (let i = 0; i < s.farm.gardens[dim].length; i++) {
+            if (s.farm.gardens[dim][i].c) continue;
+            let c: CropDef | undefined = chosen;
+            if (!c) {
+                if (!mix.length) c = sowCrop(s, dim) ?? undefined;
+                else {
+                    let r = rng();
+                    c = mix[mix.length - 1].crop;
+                    for (const row of mix) {
+                        if (r < row.p) {
+                            c = row.crop;
+                            break;
+                        }
+                        r -= row.p;
+                    }
                 }
-                r -= row.p;
             }
+            if (c && plant(s, dim, i, c.id, rng)) n++;
         }
-        if (plant(s, i, c.id)) n++;
     }
     return n;
 }
 
 export const cropShards = (ctx: FarmCtx, c: CropDef) => ctx.cps * c.time * FARM_VALUE * c.vm;
+const shardMult = (s: State, c: CropDef) => (c.kind === "stalk" ? 1 + toolSpecial(s, "stalk") : 1);
 
-/** Harvest one ripe plot. Hand-picked crops pay 25% more. The plot is empty afterwards, unless the Auto-Reaper replants it. */
-export function harvest(s: State, ctx: FarmCtx, i: number, hand: boolean, rng: Rng = Math.random): HarvestOut | null {
+/** Harvest one ripe plot. Hand-picked crops pay 25% more and chain into a streak. The plot is empty afterwards, unless the Auto-Reaper replants it. */
+export function harvest(s: State, ctx: FarmCtx, dim: Dim, i: number, hand: boolean, rng: Rng = Math.random): HarvestOut | null {
     const f = s.farm;
-    const pl = f.plots[i];
+    const pl = f.gardens[dim][i];
     if (!pl || !plotReady(s, pl)) return null;
     const c = CROP_BY_ID[pl.c as CropId];
     const bumper = f.bumper > 0;
-    const lucky = rng() < luckyChance(s);
-    let units = c.yield * hoeFactor(s) * yieldMult(s) * (1 + 0.05 * upLevel(s, "compost") * (hand ? 0 : 1)) * (hand ? 1.25 : 1);
+    const lucky = rng() < luckyChance(s, c.kind);
+    const golden = !!pl.g;
+    let streak = 0;
+    let sb = 0;
+    if (hand) {
+        const now = Date.now();
+        f.streak = now - f.streakAt <= streakWindow(s) * 1000 ? f.streak + 1 : 1;
+        f.streakAt = now;
+        f.bestStreak = Math.max(f.bestStreak, f.streak);
+        streak = f.streak;
+        sb = streakBonus(s);
+    }
+    let units = cropUnits(s, c) * (1 + 0.05 * upLevel(s, "compost") * (hand ? 0 : 1)) * (hand ? 1.25 * (1 + sb) : 1);
     if (bumper) {
         units *= bumperMult(s);
         f.bumper -= 1;
     }
     if (lucky) units *= 3;
+    if (golden) {
+        units *= 5;
+        f.goldens += 1;
+    }
     addCrop(s, c.id, units);
-    const xp = cropXp(c) * ctx.xp * farmXpMult(s);
-    const shards = cropShards(ctx, c);
+    const xp = cropXp(c) * ctx.xp * farmXpMult(s, c.dim, c.kind);
+    const shards = cropShards(ctx, c) * shardMult(s, c) * (golden ? 3 : 1);
     s.farming += xp;
     s.shards += shards;
     s.total += shards;
     f.harvests += 1;
     if (hand) f.picked += 1;
     let pod: Dim | null = null;
-    if (rng() < podChance(s) * (hand ? 2 : 1)) {
-        pod = activeIsland(s).dim;
+    if (rng() < podChance(s, c.dim, c.kind) * (hand ? 2 : 1)) {
+        pod = c.dim;
         f.pods[pod] = (f.pods[pod] || 0) + 1;
     }
     pl.p = Math.max(0, pl.p - c.time);
+    pl.t = undefined;
     if (!hasReaper(s)) {
         pl.c = "";
         pl.p = 0;
-    }
-    return { plot: i, crop: c.id, units, lucky, bumper, pod, xp, shards, hand };
+        pl.g = undefined;
+    } else pl.g = rng() < goldenChance(s) || undefined;
+    return { dim, plot: i, crop: c.id, units, lucky, golden, bumper, streak, pod, xp, shards, hand };
 }
 
-export function harvestAll(s: State, ctx: FarmCtx, hand = true): number {
+export function harvestAll(s: State, ctx: FarmCtx, hand = true, only?: Dim): number {
     let n = 0;
-    for (let i = 0; i < s.farm.plots.length; i++) if (harvest(s, ctx, i, hand)) n++;
+    for (const dim of only ? [only] : openDims(s)) for (let i = 0; i < s.farm.gardens[dim].length; i++) if (harvest(s, ctx, dim, i, hand)) n++;
     return n;
 }
 
@@ -779,7 +1018,7 @@ export function tickFarm(s: State, dt: number, ctx: FarmCtx, now = Date.now()) {
     syncPlots(s);
     if (dt <= 0) return;
     const f = s.farm;
-    for (const pl of f.plots) {
+    for (const { pl } of allPlots(s)) {
         if (!pl.c) continue;
         const c = CROP_BY_ID[pl.c as CropId];
         pl.p += dt * growSpeed(s, c);
@@ -810,18 +1049,19 @@ export function tickFarm(s: State, dt: number, ctx: FarmCtx, now = Date.now()) {
 /** The expected result of `n` automatic harvests of a crop. A Bumper Crop covers the first ones. */
 function bulkHarvest(s: State, ctx: FarmCtx, c: CropDef, n: number) {
     const f = s.farm;
-    const base = c.yield * hoeFactor(s) * yieldMult(s) * (1 + 0.05 * upLevel(s, "compost")) * (1 + 2 * luckyChance(s));
+    const gc = goldenChance(s);
+    const base = cropUnits(s, c) * (1 + 0.05 * upLevel(s, "compost")) * (1 + 2 * luckyChance(s, c.kind)) * (1 + 4 * gc);
     const boosted = Math.min(n, f.bumper);
     f.bumper -= boosted;
     const units = base * (n + boosted * (bumperMult(s) - 1));
     addCrop(s, c.id, units);
-    s.farming += n * cropXp(c) * ctx.xp * farmXpMult(s);
-    const sh = n * cropShards(ctx, c);
+    s.farming += n * cropXp(c) * ctx.xp * farmXpMult(s, c.dim, c.kind);
+    const sh = n * cropShards(ctx, c) * shardMult(s, c) * (1 + 2 * gc);
     s.shards += sh;
     s.total += sh;
     f.harvests += n;
-    const dim = activeIsland(s).dim;
-    const fr = (f.podFrac[dim] || 0) + n * podChance(s) * 0.6 * (1 + 0.12 * upLevel(s, "sifter"));
+    const dim = c.dim;
+    const fr = (f.podFrac[dim] || 0) + n * podChance(s, dim, c.kind) * 0.6 * (1 + 0.12 * upLevel(s, "sifter"));
     const whole = Math.floor(fr);
     f.podFrac[dim] = fr - whole;
     if (whole > 0) f.pods[dim] = (f.pods[dim] || 0) + whole;
@@ -831,21 +1071,21 @@ function bulkHarvest(s: State, ctx: FarmCtx, c: CropDef, n: number) {
 export function idleXpRate(s: State, ctx: FarmCtx): number {
     if (!hasReaper(s)) return 0;
     let r = 0;
-    for (const pl of s.farm.plots) {
+    for (const { pl } of allPlots(s)) {
         if (!pl.c) continue;
         const c = CROP_BY_ID[pl.c as CropId];
-        r += (growSpeed(s, c) / c.time) * cropXp(c);
+        r += (growSpeed(s, c) / c.time) * cropXp(c) * farmXpMult(s, c.dim, c.kind);
     }
-    return r * ctx.xp * farmXpMult(s);
+    return r * ctx.xp;
 }
 
 /** Crops per second, per plot, summed (for the readout). */
 export function cropRate(s: State): number {
     let r = 0;
-    for (const pl of s.farm.plots) {
+    for (const { pl } of allPlots(s)) {
         if (!pl.c) continue;
         const c = CROP_BY_ID[pl.c as CropId];
-        r += (growSpeed(s, c) / c.time) * c.yield * hoeFactor(s) * yieldMult(s);
+        r += (growSpeed(s, c) / c.time) * cropUnits(s, c);
     }
     return r;
 }
@@ -859,7 +1099,7 @@ export function consumeItem(s: State, id: ItemId): string | null {
     if ((s.farm.items[id] || 0) < 1) return null;
     s.farm.items[id] -= 1;
     if (id === "fertilizer") {
-        for (const pl of s.farm.plots) if (pl.c) pl.p = Math.min(CROP_BY_ID[pl.c as CropId].time * (hasReaper(s) ? 3 : 1), pl.p + 600);
+        for (const { pl } of allPlots(s)) if (pl.c) pl.p = Math.min(CROP_BY_ID[pl.c as CropId].time * (hasReaper(s) ? 3 : 1), pl.p + 600);
         pushLog(s, "Fertilizer: the whole garden jumped ahead", "#9be08a");
         return "The whole garden grew by 10 minutes.";
     }
@@ -1060,6 +1300,13 @@ export const FEAT_LADDERS: FeatLadder[] = [
     { key: "hands", name: "Foreman", unit: "farmhands hired", color: "#7fd0ff", metric: (s) => totalHands(s), at: [10, 50, 150, 400], rewards: [[g("dust", 30)], [g("tokens", 1)], [st("auto", 0.2)], [g("tokens", 2)]] },
     { key: "crow", name: "Scarecrow Maker", unit: "scarecrows made", color: "#ffe29a", metric: (s) => s.farm.relics.length, at: [1, 4, 8, 12], rewards: [[g("dust", 40)], [g("tokens", 1)], [g("eggs", 1)], [g("frag", 2)]] },
     { key: "disc", name: "Botanist", unit: "different crops grown", color: "#55ff77", metric: (s) => CROPS.filter((c) => (s.farm.grown[c.id] || 0) > 0).length, at: [6, 12, 18], rewards: [[g("dust", 40)], [g("tokens", 1)], [st("all", 0.02)]] },
+    { key: "ench", name: "Enchanter", unit: "Enchanted crops made", color: "#d9a8ff", metric: (s) => s.farm.enchanted, at: [5, 50, 250, 1000, 5000], rewards: [[g("dust", 30)], [g("tokens", 1)], [st("click", 0.02)], [g("eggs", 1)], [st("all", 0.02)]] },
+    { key: "sold", name: "Merchant", unit: "Enchanted crops sold", color: "#ffd23a", metric: (s) => s.farm.soldN, at: [10, 100, 500, 2500], rewards: [[g("dust", 30)], [g("tokens", 1)], [st("minion", 0.02)], [g("ap", 1)]] },
+    { key: "streak", name: "Rhythm", unit: "best hand-pick streak", color: "#ff9a4d", metric: (s) => s.farm.bestStreak, at: [10, 25, 50, 100], rewards: [[g("dust", 30)], [g("tokens", 1)], [st("click", 0.02)], [g("frag", 1)]] },
+    { key: "tend", name: "Green Thumb", unit: "plots tended", color: "#6fb4ff", metric: (s) => s.farm.tends, at: [100, 1000, 10000, 50000], rewards: [[g("dust", 25)], [g("tokens", 1)], [st("minion", 0.02)], [g("eggs", 1)]] },
+    { key: "gold", name: "Gilder", unit: "golden crops harvested", color: "#ffcc33", metric: (s) => s.farm.goldens, at: [1, 10, 50, 250], rewards: [[g("dust", 30)], [g("tokens", 1)], [st("all", 0.01)], [g("frag", 1)]] },
+    { key: "tool", name: "Smith", unit: "farm tools made", color: "#c8d0e0", metric: (s) => s.farm.tools.length, at: [1, 5, 12, 25], rewards: [[g("dust", 30)], [g("tokens", 1)], [g("eggs", 1)], [g("ap", 1)]] },
+    { key: "gard", name: "Landowner", unit: "gardens open", color: "#55ff77", metric: (s) => openDims(s).length, at: [2, 3], rewards: [[g("tokens", 2)], [st("all", 0.02)]] },
     { key: "hoe", name: "Toolmaker", unit: "hoe tiers", color: "#55ffff", metric: (s) => s.farm.hoe, at: [3, 6, 9], rewards: [[g("dust", 40)], [g("eggs", 1)], [g("tokens", 3)]] },
 ];
 
@@ -1196,4 +1443,155 @@ export function openAll(s: State, d: { avgClick: number; cps: number; dust: numb
         }
     }
     return { n, last };
+}
+
+
+// ---- Enchanted crops and the market ----
+
+export const ENCH_BASE = 160;
+export const ENCH_SELL = 0.04; // shards an Enchanted crop is worth: this share of the minions' output over its growing time
+export const enchNeed = (s: State) => Math.max(100, ENCH_BASE - 6 * upLevel(s, "table"));
+export const sellMult = (s: State, c?: CropDef) => (1 + 0.06 * upLevel(s, "market")) * (c?.kind === "bloom" ? 1 + toolSpecial(s, "bloom") : 1);
+export const enchStock = (s: State, id: CropId) => s.farm.ench[id] || 0;
+export const sellValue = (s: State, ctx: FarmCtx, c: CropDef) => Math.max(ctx.cps, ctx.avgClick) * c.time * ENCH_SELL * c.vm * sellMult(s, c);
+
+export function canEnchant(s: State, c: CropDef, n = 1): Blocker {
+    if (!cropOpen(s, c) && !(s.farm.grown[c.id] > 0)) return { ok: false, why: `Farming ${c.need}` };
+    if (haveCrop(s, c.id) < enchNeed(s) * n) return { ok: false, why: `Needs ${enchNeed(s) * n} ${c.name}` };
+    return { ok: true };
+}
+/** How many Enchanted crops you could make from the stock of one crop. */
+export const enchantable = (s: State, c: CropDef) => Math.floor(haveCrop(s, c.id) / enchNeed(s));
+export function enchantCrop(s: State, id: CropId, n = 1): number {
+    const c = CROP_BY_ID[id];
+    const k = Math.min(n, c ? enchantable(s, c) : 0);
+    if (!c || k < 1) return 0;
+    s.farm.crop[id] = haveCrop(s, id) - enchNeed(s) * k;
+    s.farm.ench[id] = enchStock(s, id) + k;
+    s.farm.enchanted += k;
+    return k;
+}
+export function sellEnchanted(s: State, ctx: FarmCtx, id: CropId, n = Infinity, keep = 0): { n: number; shards: number } {
+    const c = CROP_BY_ID[id];
+    const k = Math.min(n, Math.max(0, enchStock(s, id) - keep));
+    if (!c || k < 1) return { n: 0, shards: 0 };
+    const shards = sellValue(s, ctx, c) * k;
+    s.farm.ench[id] = enchStock(s, id) - k;
+    s.farm.soldN += k;
+    s.farm.sold += shards;
+    s.shards += shards;
+    s.total += shards;
+    return { n: k, shards };
+}
+/** Enchanted crops the next unmade tool of every kind still needs (so "sell extra" leaves them). */
+export function reservedEnch(s: State): Record<string, number> {
+    const out: Record<string, number> = {};
+    for (const kind of KINDS) {
+        const next = toolsOf(kind).find((t) => !ownsTool(s, t.id));
+        if (!next) continue;
+        for (const [k, v] of Object.entries(next.cost)) if (isEnch(k)) out[k.slice(2)] = Math.max(out[k.slice(2)] || 0, v ?? 0);
+    }
+    return out;
+}
+export function sellAllEnchanted(s: State, ctx: FarmCtx, surplusOnly = true): { n: number; shards: number } {
+    const keep = surplusOnly ? reservedEnch(s) : {};
+    let n = 0;
+    let shards = 0;
+    for (const c of CROPS) {
+        const r = sellEnchanted(s, ctx, c.id, Infinity, keep[c.id] || 0);
+        n += r.n;
+        shards += r.shards;
+    }
+    return { n, shards };
+}
+export function enchantAll(s: State): number {
+    let n = 0;
+    for (const c of CROPS) n += enchantCrop(s, c.id, Infinity);
+    return n;
+}
+
+// ---- Tool belt ----
+
+export function canBuyTool(s: State, t: ToolDef): Blocker {
+    if (ownsTool(s, t.id)) return { ok: false, why: "Already made" };
+    const prev = TOOL_BY_ID[`${t.kind}${t.tier - 1}`];
+    if (prev && !ownsTool(s, prev.id)) return { ok: false, why: `Needs the ${prev.name}` };
+    if (farmLevel(s) < t.need) return { ok: false, why: `Farming ${t.need}` };
+    return afford(s, t.cost);
+}
+export function equipTool(s: State, id: string): boolean {
+    const t = TOOL_BY_ID[id];
+    if (!t || !ownsTool(s, id) || toolWorn(s, id)) return false;
+    const same = s.farm.belt.findIndex((x) => TOOL_BY_ID[x]?.kind === t.kind);
+    if (same >= 0) s.farm.belt[same] = id;
+    else if (s.farm.belt.length < toolSlots(s)) s.farm.belt.push(id);
+    else return false;
+    return true;
+}
+export function unequipTool(s: State, id: string): boolean {
+    if (!toolWorn(s, id)) return false;
+    s.farm.belt = s.farm.belt.filter((x) => x !== id);
+    return true;
+}
+export function buyTool(s: State, id: string): boolean {
+    const t = TOOL_BY_ID[id];
+    if (!t || !canBuyTool(s, t).ok) return false;
+    spend(s, t.cost);
+    s.farm.tools.push(id);
+    equipTool(s, id);
+    return true;
+}
+
+// ---- The guide: what to do next, with a reward for every step ----
+
+export type FarmView = "garden" | "tools" | "market" | "hands" | "kitchen" | "crops" | "biomes" | "feats";
+export interface GuideStep {
+    id: string;
+    title: string;
+    hint: string;
+    view: FarmView;
+    done: (s: State) => boolean;
+    prog?: (s: State) => [number, number];
+    reward: [GrantKind, number];
+}
+const anyPlanted = (s: State) => allPlots(s).some((r) => r.pl.c) || s.farm.harvests > 0;
+export const GUIDE: GuideStep[] = [
+    { id: "plant", title: "Plant your first crop", hint: "Tap an empty plot in the Garden to plant the best crop you have open.", view: "garden", done: anyPlanted, reward: ["dust", 20] },
+    { id: "pick", title: "Pick 10 plots by hand", hint: "Tap ripe plots. Hand-picked crops pay 25% more, and picking back to back builds a streak.", view: "garden", done: (s) => s.farm.picked >= 10, prog: (s) => [s.farm.picked, 10], reward: ["dust", 30] },
+    { id: "tend", title: "Tend 25 growing plots", hint: "Tap a growing plot to give it a burst of growth. Every press of the big button waters one too.", view: "garden", done: (s) => s.farm.tends >= 25, prog: (s) => [s.farm.tends, 25], reward: ["dust", 30] },
+    { id: "flour", title: "Mill some flour", hint: "Kitchen tab: cook 25 wheat into Flour. Hoes and early tools are made from it.", view: "kitchen", done: (s) => (s.farm.goods.flour || 0) > 0 || s.farm.crafted > 0, reward: ["dust", 30] },
+    { id: "stone", title: "Make a Stone Hoe", hint: "Tools tab: a better hoe means bigger harvests from every plot.", view: "tools", done: (s) => s.farm.hoe >= 1, reward: ["tokens", 1] },
+    { id: "reaper", title: "Build the Auto-Reaper", hint: "Hands tab, Garden rig: ripe crops then harvest and replant themselves, even while you are away.", view: "hands", done: (s) => upLevel(s, "reaper") > 0, reward: ["dust", 40] },
+    { id: "hands", title: "Hire 5 farmhands", hint: "Hands tab: each farmhand speeds up the crop it is hired for, in every garden at once.", view: "hands", done: (s) => totalHands(s) >= 5, prog: (s) => [totalHands(s), 5], reward: ["tokens", 1] },
+    { id: "ench", title: "Enchant your first crop", hint: "Market tab: 160 raw crops become one Enchanted crop. They sell for shards and build tools.", view: "market", done: (s) => s.farm.enchanted >= 1, reward: ["dust", 50] },
+    { id: "sell", title: "Sell an Enchanted crop", hint: "Market tab: every sale pays shards for your whole game, not just the farm.", view: "market", done: (s) => s.farm.soldN >= 1, reward: ["tokens", 1] },
+    { id: "tool", title: "Make your first tool", hint: "Tools tab: every kind of crop has its own tool line. A new tool wears itself if there is room on the belt.", view: "tools", done: (s) => s.farm.tools.length >= 1, reward: ["eggs", 1] },
+    { id: "plots", title: "Grow to 10 plots", hint: "Hands tab, Extra Plot, and more plots open at Farming 10, 25 and 40.", view: "hands", done: (s) => allPlots(s).length >= 10, prog: (s) => [allPlots(s).length, 10], reward: ["dust", 40] },
+    { id: "belt2", title: "Wear two tools at once", hint: "Tools tab: the belt holds one tool per kind. Wear the ones for the crops you grow most.", view: "tools", done: (s) => s.farm.belt.length >= 2, reward: ["tokens", 1] },
+    { id: "nether", title: "Open the Nether garden", hint: "Travel to a Nether island (press I). Its garden then grows beside the Overworld one, both at once.", view: "biomes", done: (s) => gardenOpen(s, "nether"), reward: ["tokens", 2] },
+    { id: "streak", title: "Chain a 25 hand-pick streak", hint: "Pick ripe plots back to back, each within a few seconds of the last. Harvest Rhythm stretches the window.", view: "garden", done: (s) => s.farm.bestStreak >= 25, prog: (s) => [s.farm.bestStreak, 25], reward: ["dust", 80] },
+    { id: "gold", title: "Harvest a golden crop", hint: "Some crops turn golden when planted and pay 5x. Golden Seeds in the Hands tab makes them common.", view: "garden", done: (s) => s.farm.goldens >= 1, reward: ["frag", 1] },
+    { id: "end", title: "Open the End garden", hint: "Travel to an End island (press I). The End grows the rarest crops and drops the most pods.", view: "biomes", done: (s) => gardenOpen(s, "end"), reward: ["eggs", 1] },
+    { id: "tier3", title: "Make a tier 3 tool", hint: "Each tool needs the one before it, plus Enchanted crops and goods. Check the Market for what you are short of.", view: "tools", done: (s) => s.farm.tools.some((id) => (TOOL_BY_ID[id]?.tier ?? 0) >= 3), reward: ["tokens", 2] },
+    { id: "set", title: "Finish a dimension's collection tier 1", hint: "Crops tab: harvest 100 of every crop of one dimension for a permanent set bonus.", view: "crops", done: (s) => DIMS.some((dm) => dimSet(s, dm).tier >= 1), reward: ["tokens", 2] },
+    { id: "kinds", title: "Own a tool of every kind", hint: "Five tool lines cover every crop in every dimension. Each wears on the belt for permanent bonuses to the whole game.", view: "tools", done: (s) => KINDS.every((k) => s.farm.tools.some((id) => TOOL_BY_ID[id]?.kind === k)), reward: ["ap", 1] },
+    { id: "cosmic", title: "Make the Cosmic Hoe", hint: "The best hoe: Void Tea and Ember Tarts from the Kitchen, and a lot of patience.", view: "tools", done: (s) => s.farm.hoe >= HOES.length - 1, reward: ["ap", 1] },
+];
+export const guideStep = (s: State): GuideStep | null => GUIDE[s.farm.guide] ?? null;
+export const guideReady = (s: State) => !!guideStep(s) && guideStep(s)!.done(s);
+export function claimGuide(s: State): GuideStep | null {
+    const st = guideStep(s);
+    if (!st || !st.done(s)) return null;
+    pay(s, st.reward[0], st.reward[1]);
+    s.farm.guide += 1;
+    return st;
+}
+export function claimAllGuide(s: State): GuideStep[] {
+    const out: GuideStep[] = [];
+    for (let i = 0; i < GUIDE.length; i++) {
+        const c = claimGuide(s);
+        if (!c) break;
+        out.push(c);
+    }
+    return out;
 }

@@ -68,7 +68,7 @@ import { dockBus } from "./dock-bus";
 import { farmCtx, water } from "@/lib/fractured-idle/farm";
 import { COL_AT, ORES, colTierOf, jobsReady, mineCtx, mineLevel, oreIslands, swing } from "@/lib/fractured-idle/mine";
 import { oreNote } from "./mine-fx";
-import { CROPS, CROP_BY_ID, COL_AT as CROP_COL_AT, colTierOf as cropTierOf, cropIslands, farmLevel, jobsReady as farmJobsReady, plotReady } from "@/lib/fractured-idle/farm";
+import { CROPS, CROP_BY_ID, COL_AT as CROP_COL_AT, colTierOf as cropTierOf, cropIslands, farmLevel, jobsReady as farmJobsReady, readyCount } from "@/lib/fractured-idle/farm";
 import { GLINT_CSS, Glint } from "./enchant-glint";
 import { PROC_LABEL, dustPop, procBolt, procEcho, procMidas } from "./enchant-fx";
 import { PS_CSS } from "./prestige-shop";
@@ -209,7 +209,7 @@ export function FracturedIdle() {
         if (offline > 0) say(`Welcome back! Your minions earned ${fmt(offline, state.sci)} shards while you were away.`);
         const ready = jobsReady(state);
         if (ready > 0) setTimeout(() => say(`${ready} ${ready === 1 ? "craft is" : "crafts are"} ready in the Forge.`), 3800);
-        const ripe = state.farm.plots.filter((p) => plotReady(state, p)).length;
+        const ripe = readyCount(state);
         const oven = farmJobsReady(state);
         if (ripe > 0 || oven > 0) setTimeout(() => say(`${ripe ? `${ripe} ${ripe === 1 ? "plot is" : "plots are"} ripe in the Garden` : ""}${ripe && oven ? " and " : ""}${oven ? `${oven} ${oven === 1 ? "craft is" : "crafts are"} ready in the Kitchen` : ""}.`), 7600);
 

@@ -34,7 +34,8 @@ import {
     have as farmHave,
     jobsReady as farmJobs,
     openAll,
-    plotReady,
+    allPlots,
+    readyCount,
     podCount,
     type ResId as FarmRes,
 } from "@/lib/fractured-idle/farm";
@@ -283,7 +284,7 @@ export function Goals({ s, d, F, open, render, say }: Pick<Ctx, "s" | "d" | "F" 
 
     // ---- Mining ----
     const mctx = mineCtx(d);
-    const ripeCount = s.farm.plots.filter((p) => plotReady(s, p)).length;
+    const ripeCount = readyCount(s);
     const geodes = geodeCount(s);
     const forgeReady = mineJobs(s);
     const mfeats = mineFeats(s).length;
@@ -307,7 +308,7 @@ export function Goals({ s, d, F, open, render, say }: Pick<Ctx, "s" | "d" | "F" 
     const ffeats = farmFeats(s).length;
     const fg = farmGoal(s);
     if (ripeCount > 0)
-        goals.push({ key: "harvest", tab: "farm", symbol: "fortune", color: "#9be04a", title: `${ripeCount} plot${ripeCount === 1 ? "" : "s"} ripe`, chip: "Harvest", chipHot: true, pct: 1, ready: true, prio: 0, left: `${s.farm.plots.length} plots, ${hasReaper(s) ? "Reaper on" : "no Reaper yet"}`, right: "Hand-picked pays 25% more", act: { label: `Harvest ${ripeCount}`, run: () => { const n = harvestAll(s, fctx, true); return n ? `Picked ${n} plot${n > 1 ? "s" : ""}.` : ""; } } });
+        goals.push({ key: "harvest", tab: "farm", symbol: "fortune", color: "#9be04a", title: `${ripeCount} plot${ripeCount === 1 ? "" : "s"} ripe`, chip: "Harvest", chipHot: true, pct: 1, ready: true, prio: 0, left: `${allPlots(s).length} plots, ${hasReaper(s) ? "Reaper on" : "no Reaper yet"}`, right: "Hand-picked pays 25% more", act: { label: `Harvest ${ripeCount}`, run: () => { const n = harvestAll(s, fctx, true); return n ? `Picked ${n} plot${n > 1 ? "s" : ""}.` : ""; } } });
     if (pods > 0)
         goals.push({ key: "pods", tab: "farm", symbol: "gem", color: "var(--mc-light-purple)", title: `${pods} seed pod${pods === 1 ? "" : "s"} to open`, chip: "Open", chipHot: true, pct: 1, ready: true, prio: 0, left: "dust, tokens, eggs, shards", right: "Click to open the Farm", act: { label: `Open ${pods}`, run: () => { const { n, last } = openAll(s, fctx); return n && last ? `Opened ${n}. Latest: ${last.title}, ${last.sub}` : ""; } } });
     if (ovenReady > 0)

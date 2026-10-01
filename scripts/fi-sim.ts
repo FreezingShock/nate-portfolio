@@ -152,7 +152,7 @@ while (t < HOURS * 3600) {
     if (t % 30 === 0) enchantStep(s, derive(s));
     if (t % 5 === 0) mineBot(s, derive(s), Date.now() + t * 1000);
     if (t % 5 === 0) farmBot(s, derive(s), Date.now() + t * 1000);
-    if (t % 1800 === 0 && !process.env.NOFARM) console.log(`FARM t=${(t / 3600).toFixed(1)}h lvl ${FM.farmLevel(s)} hoe ${FM.hoeOf(s).name} plots ${s.farm.plots.length} hands ${FM.totalHands(s)} reaper ${FM.upLevel(s, "reaper")} crows ${s.farm.relics.length} feats ${s.farm.claimed.length}/${FM.FEATS.length} harvests ${s.farm.harvests} pods ${s.farm.opened} island ${s.island}`);
+    if (t % 1800 === 0 && !process.env.NOFARM) console.log(`FARM t=${(t / 3600).toFixed(1)}h lvl ${FM.farmLevel(s)} hoe ${FM.hoeOf(s).name} plots ${FM.allPlots(s).length} hands ${FM.totalHands(s)} reaper ${FM.upLevel(s, "reaper")} crows ${s.farm.relics.length} feats ${s.farm.claimed.length}/${FM.FEATS.length} harvests ${s.farm.harvests} pods ${s.farm.opened} island ${s.island}`);
     if (t % 1800 === 0 && !process.env.NOMINE) console.log(`MINE t=${(t / 3600).toFixed(1)}h lvl ${MN.mineLevel(s)} pick ${MN.pickOf(s).name} drills ${MN.totalDrills(s)} idle ${MN.idleSwings(s, derive(s).auto).toFixed(1)}/s relics ${s.mine.relics.length} feats ${s.mine.claimed.length}/${MN.FEATS.length} crafts ${s.mine.crafted} geodes ${s.mine.cracked} income ${inc(derive(s), CPS_IN).toExponential(2)}`);
     if (t % 10 === 0) claimMilestones(s);
     const fresh = checkTrophies(s);

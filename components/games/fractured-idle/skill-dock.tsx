@@ -6,7 +6,7 @@ import { skillLevel, skillXpFor, type State } from "@/lib/fractured-idle/data";
 import { CODEX_TOTAL, DUST_BASE, DUST_CLICK, DUST_CRIT, ENCH_BY_ID, PITY_EPIC, PITY_LEGEND, RARITIES, SLOTS, canRoll, codexCount, dustMult, enchLevel, luckOf, rarityColor, rollCost, slotOpen } from "@/lib/fractured-idle/enchant";
 import { SKILL_CAP, fmt, fmtTime } from "@/lib/fractured-idle/engine";
 import { activeIsland } from "@/lib/fractured-idle/island-logic";
-import { CROP_BY_ID, DIM_FX as FARM_DIM, FEATS as FARM_FEATS, bumperLen, bumperMult, cropRate, cropTable, farmLevel, goalOf as farmGoal, growSpeed, hasReaper, hoeOf, hoePower, onWater, ovenSlots, plotReady, podCount, relicSlots as farmSlots, totalHands, type WaterOut } from "@/lib/fractured-idle/farm";
+import { allPlots, openDims, readyCount, CROP_BY_ID, DIM_FX as FARM_DIM, FEATS as FARM_FEATS, bumperLen, bumperMult, cropRate, cropTable, farmLevel, goalOf as farmGoal, growSpeed, hasReaper, hoeOf, hoePower, onWater, ovenSlots, plotReady, podCount, relicSlots as farmSlots, totalHands, type WaterOut } from "@/lib/fractured-idle/farm";
 import { DIM_FX as MINE_DIM, FEATS as MINE_FEATS, comboFactor, drillSwings, forgeSlots, geodeCount, goalOf as mineGoal, idleSwings, mineLevel, onSwing, oreTable, passiveSwings, pickOf, pickPower, relicSlots as mineSlots, rushLen, rushMult, totalDrills, veinNeed, type SwingOut } from "@/lib/fractured-idle/mine";
 import { ORE_BY_ID } from "@/lib/fractured-idle/mine";
 import { dockBus } from "./dock-bus";
@@ -176,7 +176,7 @@ export function SkillDock({ s, d, notes, onOpen }: { s: State; d: Derived; notes
     // ---------- Farming ----------
     const flvl = farmLevel(s);
     const bump = s.farm.bumper > 0;
-    const ripe = s.farm.plots.filter((p) => plotReady(s, p)).length;
+    const ripe = readyCount(s);
     const fDotRaw = act("farm");
     const fDot = dotOf("farm", fDotRaw);
     const farmTip = () => {
@@ -184,8 +184,8 @@ export function SkillDock({ s, d, notes, onOpen }: { s: State; d: Derived; notes
         const dfx = FARM_DIM[isl.dim];
         const rows = cropTable(s).filter((r) => r.open).sort((a, b) => b.p - a.p);
         const goal = farmGoal(s);
-        const growing = s.farm.plots.filter((p) => p.c && !plotReady(s, p)).length;
-        const speeds = s.farm.plots.filter((p) => p.c).map((p) => growSpeed(s, CROP_BY_ID[p.c as keyof typeof CROP_BY_ID]));
+        const growing = allPlots(s).filter((r) => r.pl.c && !plotReady(s, r.pl)).length;
+        const speeds = allPlots(s).filter((r) => r.pl.c).map((r) => growSpeed(s, CROP_BY_ID[r.pl.c as keyof typeof CROP_BY_ID]));
         const avg = speeds.length ? speeds.reduce((a, b) => a + b, 0) / speeds.length : 1;
         return (
             <TipCard
@@ -195,7 +195,7 @@ export function SkillDock({ s, d, notes, onOpen }: { s: State; d: Derived; notes
                 lines={["Crops grow on real timers in the Garden, also while you are away. Every press of the big button waters a random plot and fills the Bloom meter."]}
                 rows={[
                     ["Hoe", `${hoeOf(s).name} x${hoePower(s).toFixed(hoePower(s) < 10 ? 2 : 1)}`, hoeOf(s).color],
-                    ["Plots", `${s.farm.plots.length}: ${ripe} ripe, ${growing} growing, ${s.farm.plots.length - ripe - growing} empty`],
+                    ["Plots", `${allPlots(s).length} in ${openDims(s).length} garden${openDims(s).length === 1 ? "" : "s"}: ${ripe} ripe, ${growing} growing, ${allPlots(s).length - ripe - growing} empty`],
                     ["Auto-Reaper", hasReaper(s) ? "on: harvests and replants itself" : "not built: ripe crops wait for you"],
                     ["Growth speed", `x${avg.toFixed(2)} on average`],
                     ["Crops a minute", `${Math.round(cropRate(s) * 60)}`],
@@ -289,7 +289,7 @@ export function SkillDock({ s, d, notes, onOpen }: { s: State; d: Derived; notes
                 status={bump ? <b>BUMPER x{bumperMult(s).toFixed(1)} · {s.farm.bumper}</b> : ripe > 0 ? <b>{ripe} ripe</b> : `${Math.floor(s.farm.bloom * 100)}% to Bumper`}
                 statusColor={bump ? "#ffd23a" : ripe > 0 ? "#9be04a" : undefined}
                 flash={flash.current.farm}
-                right={<span className="fi-dk-pw">{s.farm.plots.length} plots</span>}
+                right={<span className="fi-dk-pw">{allPlots(s).length} plots</span>}
                 dot={fDot}
                 dotColor="#9be04a"
                 onRead={() => (readAt.current.farm = fDotRaw)}

@@ -5,7 +5,7 @@ import { SLOT_IDS, canRoll, slotOpen } from "@/lib/fractured-idle/enchant";
 import { ascPlan, bulk, eggCan, minionBase, rebirthPlan, skillLevel, trophyCounts, upAvailable, upCost } from "@/lib/fractured-idle/engine";
 import { openIslands } from "@/lib/fractured-idle/island-logic";
 import { MINE_UPS, canBuyPick, canBuyUp, featsReady, geodeCount, jobsReady, mineLevel, slotsFree } from "@/lib/fractured-idle/mine";
-import { FARM_UPS, canBuyUp as canBuyFarmUp, canBuyHoe, featsReady as farmFeatsReady, jobsReady as farmJobsReady, plotReady, podCount } from "@/lib/fractured-idle/farm";
+import { FARM_UPS, canBuyUp as canBuyFarmUp, canBuyHoe, featsReady as farmFeatsReady, jobsReady as farmJobsReady, readyCount, podCount, guideReady, guideStep } from "@/lib/fractured-idle/farm";
 import type { TabNote } from "./tab-bar";
 
 // What each tab's tooltip (and its badge) says. `act` notes need a click and
@@ -101,7 +101,7 @@ export function buildTabNotes(s: State, current: string, cache: NoteCache, now =
     if (ready) add("mine", { text: `${plural(ready, "forge craft")} ready to collect`, color: "#ff9a4d", act: true });
     const feats = featsReady(s).length;
     if (feats) add("mine", { text: `${plural(feats, "mining feat")} to claim`, color: "#ffd23a", act: true });
-    const ripe = s.farm.plots.filter((p) => plotReady(s, p)).length;
+    const ripe = readyCount(s);
     if (ripe) add("farm", { text: `${plural(ripe, "plot")} ripe to harvest`, color: "#9be04a", act: true });
     const oven = farmJobsReady(s, now);
     if (oven) add("farm", { text: `${plural(oven, "kitchen craft")} ready to collect`, color: "#ff9a4d", act: true });
@@ -109,6 +109,7 @@ export function buildTabNotes(s: State, current: string, cache: NoteCache, now =
     if (pods) add("farm", { text: `${plural(pods, "seed pod")} to open`, color: "var(--mc-light-purple)", act: true });
     const ff = farmFeatsReady(s).length;
     if (ff) add("farm", { text: `${plural(ff, "farming feat")} to claim`, color: "#ffd23a", act: true });
+    if (guideReady(s)) add("farm", { text: `Farming guide: ${guideStep(s)!.title}`, color: "#ffd23a", act: true });
     if (canBuyHoe(s).ok) add("farm", { text: "A new hoe is ready to make", color: "#9be04a", act: true });
     const fups = FARM_UPS.filter((u) => canBuyFarmUp(s, u).ok).length;
     if (fups) add("farm", { text: `${plural(fups, "farm upgrade")} you can afford`, color: G, act: true });

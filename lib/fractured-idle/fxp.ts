@@ -1,6 +1,6 @@
 import type { McSymbolName } from "@/components/mc-symbol";
 import { COL_AT as ORE_COL_AT, FEATS, MINE_UPS, RELICS } from "./mine";
-import { COL_AT as CROP_COL_AT, FARM_UPS, FEATS as FARM_FEATS, RELICS as CROW_RELICS } from "./farm";
+import { COL_AT as CROP_COL_AT, FARM_UPS, FEATS as FARM_FEATS, RELICS as CROW_RELICS, TOOLS as FARM_TOOLS } from "./farm";
 import { CATS, isUnlocked as lookUnlocked } from "./button";
 import {
     ASC_UPS,
@@ -189,6 +189,8 @@ export function fxpSources(s: State): FxpSource[] {
     add("farm:pods", "skills", "Seed pods opened", ladder(fm.opened, [[1, 10], [10, 20], [50, 40], [200, 80]]), 150);
     add("farm:col", "skills", "Crop collection tiers", Object.values(fm.grown).reduce((a, m) => a + CROP_COL_AT.filter((n) => m >= n).length, 0) * 5, 450);
     add("farm:feats", "skills", "Farming feats", fm.claimed.length * 6, FARM_FEATS.length * 6);
+    add("farm:tools", "skills", "Farm tools made", fm.tools.length * 12, FARM_TOOLS.length * 12);
+    add("farm:ench", "skills", "Enchanted crops made", ladder(fm.enchanted, [[1, 10], [25, 20], [250, 40], [2000, 80]]), 150);
     add("farm:kitchen", "skills", "Kitchen crafts and scarecrows", ladder(fm.crafted, [[1, 10], [10, 20], [40, 40], [150, 80]]) + fm.relics.length * 20, 150 + CROW_RELICS.length * 20);
     add("mine:feats", "skills", "Mining feats", mn.claimed.length * 6, FEATS.length * 6);
     add("mine:forge", "skills", "Forge crafts and relics", ladder(mn.crafted, [[1, 10], [10, 20], [40, 40], [150, 80]]) + mn.relics.length * 20, 150 + RELICS.length * 20);
