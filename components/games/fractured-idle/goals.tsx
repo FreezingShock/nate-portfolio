@@ -172,7 +172,7 @@ export function Goals({ s, d, F, open, render, say }: Pick<Ctx, "s" | "d" | "F" 
     if ((held > 0 || egg) && Object.keys(s.pets).length < PETS.length) {
         goals.push({
             key: "egg",
-            tab: held > 0 ? "pets" : "shop",
+            tab: held > 0 ? "inventory" : "shop",
             symbol: "petLuck",
             color: "var(--mc-dark-aqua)",
             title: held > 0 ? (held === 1 ? "An egg to hatch!" : `${fmtInt(held)} eggs to hatch!`) : `${egg!.name} ready to buy`,
@@ -182,7 +182,7 @@ export function Goals({ s, d, F, open, render, say }: Pick<Ctx, "s" | "d" | "F" 
             ready: true,
             prio: 0,
             left: `${Object.keys(s.pets).length}/${PETS.length} pets found`,
-            right: held > 0 ? "Click to open Pets" : "Click to open the Shop",
+            right: held > 0 ? "Click to open the Inventory" : "Click to open the Shop",
         });
     }
 

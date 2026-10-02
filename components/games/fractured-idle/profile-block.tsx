@@ -13,6 +13,7 @@ import { DIMENSIONS, ISLANDS, MASTERY_AT, isSpecial } from "@/lib/fractured-idle
 import { ISLAND_CSS, IslandScene } from "./island-art";
 import { PetTipBody } from "./pet-tip";
 import { LEVEL_CSS, LevelBadge } from "./level-badge";
+import { TABBAR_CSS, TabBar, type TabItem } from "./tab-bar";
 import { TIP_CSS, Tip, TipCard, TipProvider } from "./tooltip";
 
 // THE Fractured Idle profile block. The strip under the game and the card on every profile page render this one
@@ -106,12 +107,12 @@ function Tile({ symbol, label, value, color, tip }: { symbol: McSymbolName; labe
 }
 
 type TabId = "overview" | "skills" | "islands" | "pets" | "records";
-const TABS: { id: TabId; label: string; symbol: McSymbolName; color: string; blurb: string }[] = [
-    { id: "overview", label: "Overview", symbol: "wisdom", color: "var(--mc-aqua)", blurb: "The headline numbers." },
-    { id: "skills", label: "Skills", symbol: "strength", color: "var(--mc-green)", blurb: "Every skill level and how close the next one is." },
-    { id: "islands", label: "Islands", symbol: "location", color: "var(--mc-gold)", blurb: "Where you have been, and your mastery of each." },
-    { id: "pets", label: "Pets", symbol: "petLuck", color: "var(--mc-light-purple)", blurb: "Your collection and what is equipped." },
-    { id: "records", label: "Records", symbol: "pristine", color: "var(--mc-yellow)", blurb: "Personal bests and lifetime totals." },
+const TABS: TabItem<TabId>[] = [
+    { id: "overview", group: "", label: "Overview", symbol: "wisdom", color: "var(--mc-aqua)", blurb: "The headline numbers." },
+    { id: "skills", group: "", label: "Skills", symbol: "strength", color: "var(--mc-green)", blurb: "Every skill level and how close the next one is." },
+    { id: "islands", group: "", label: "Islands", symbol: "location", color: "var(--mc-gold)", blurb: "Where you have been, and your mastery of each." },
+    { id: "pets", group: "", label: "Pets", symbol: "petLuck", color: "var(--mc-light-purple)", blurb: "Your collection and what is equipped." },
+    { id: "records", group: "", label: "Records", symbol: "pristine", color: "var(--mc-yellow)", blurb: "Personal bests and lifetime totals." },
 ];
 
 export function FracturedIdleBlock({ s, owner, footer, live, savedAt }: { s: State; owner?: string; footer?: ReactNode; live?: boolean; savedAt?: number }) {
@@ -183,7 +184,7 @@ export function FracturedIdleBlock({ s, owner, footer, live, savedAt }: { s: Sta
 
     return (
         <TipProvider>
-            <style>{TIP_CSS + LEVEL_CSS + ISLAND_CSS + BLOCK_CSS}</style>
+            <style>{TIP_CSS + LEVEL_CSS + ISLAND_CSS + BLOCK_CSS + TABBAR_CSS}</style>
             <section ref={root} onPointerMove={drift} onPointerLeave={settle} className="fi-pb" data-tier={tier.idx} style={{ ["--tc" as string]: tier.color, ["--glow" as string]: `${tier.glow}px`, ["--ic" as string]: island.color } as CSSProperties}>
                 <IslandScene key={island.id} island={island} variant="stage" className="fi-pb-scene absolute inset-0" />
                 <div aria-hidden className="fi-pb-shade" />
@@ -242,15 +243,7 @@ export function FracturedIdleBlock({ s, owner, footer, live, savedAt }: { s: Sta
                     </div>
                 </header>
 
-                <nav className="fi-pb-tabs" role="tablist" aria-label="Fractured Idle sections">
-                    {TABS.map((t) => (
-                        <Tip key={t.id} tip={<TipCard title={t.label} color={t.color} lines={[t.blurb]} cta={tab === t.id ? "You are here" : "Click to open!"} ctaDim={tab === t.id} />}>
-                            <button type="button" role="tab" aria-selected={tab === t.id} onClick={() => setTab(t.id)} className="fi-pb-tab" data-on={tab === t.id} style={{ ["--c" as string]: t.color } as CSSProperties}>
-                                <McSymbol name={t.symbol} /> <span>{t.label}</span>
-                            </button>
-                        </Tip>
-                    ))}
-                </nav>
+                <TabBar tabs={TABS} current={tab} label="Fractured Idle sections" keys={false} onSelect={setTab} />
 
                 <div key={tab} className="fi-pb-panel" role="tabpanel">
                     {tab === "overview" && (
@@ -404,12 +397,6 @@ const BLOCK_CSS = `
 .fi-pb-lh{font-family:var(--font-minecraft,inherit);font-size:.58rem;letter-spacing:.18em;text-transform:uppercase;color:#b9b3cc}
 .fi-pb-bar{height:.28rem;width:11rem;max-width:100%;overflow:hidden;border-radius:999px;background:rgba(255,255,255,.12)}
 .fi-pb-bar i{display:block;height:100%;border-radius:999px;box-shadow:0 0 8px var(--mc-yellow);transition:width .5s}
-.fi-pb-tabs{display:flex;flex-wrap:wrap;gap:.3rem;margin-top:.4rem}
-.fi-pb-tab{--c:var(--mc-aqua);display:inline-flex;align-items:center;gap:.4rem;height:2.1rem;padding:0 .8rem;border-radius:.7rem;font-family:var(--font-minecraft,inherit);font-size:.7rem;font-weight:700;color:#cfc8dd;background:rgba(8,6,18,.55);backdrop-filter:blur(8px);box-shadow:inset 0 0 0 1px rgba(255,255,255,.1);transition:background .16s,box-shadow .16s,color .16s,transform .14s cubic-bezier(.2,1.5,.4,1);outline:none;touch-action:manipulation}
-.fi-pb-tab:hover{color:#fff;background:color-mix(in oklch,var(--c) 16%,rgba(8,6,18,.6));transform:translateY(-1px)}
-.fi-pb-tab:active{transform:scale(.95)}
-.fi-pb-tab[data-on="true"]{color:var(--c);background:color-mix(in oklch,var(--c) 22%,rgba(8,6,18,.7));box-shadow:inset 0 0 0 1px color-mix(in oklch,var(--c) 70%,transparent),0 0 16px -6px var(--c)}
-.fi-pb-tab:focus-visible{outline:2px solid var(--c);outline-offset:2px}
 .fi-pb-panel{padding:.7rem;border-radius:1rem;background:rgba(8,6,18,.62);backdrop-filter:blur(12px);border:1px solid rgba(255,255,255,.1);animation:fi-pb-in .28s cubic-bezier(.2,.9,.3,1) both;display:flex;flex-direction:column;gap:.6rem}
 @keyframes fi-pb-in{from{opacity:0;transform:translateY(6px)}}
 .fi-pb-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(9.2rem,1fr));gap:.5rem}

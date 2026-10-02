@@ -8,7 +8,13 @@ import { fmtStat } from "@/lib/fractured-idle/enchant";
 import { msId, tierOf, type Ladder, type MsReward } from "@/lib/fractured-idle/milestones";
 import { GRANT_LABEL } from "@/lib/fractured-idle/skills";
 import type { State } from "@/lib/fractured-idle/data";
+import { TabBar, type TabItem } from "./tab-bar";
 import { Tip, TipCard } from "./tooltip";
+
+const MS_TABS: TabItem<"item" | "action">[] = [
+    { id: "item", label: "Item milestones", symbol: "pristine", group: "", color: "#ffd23a", blurb: "Tiers for every item you collect." },
+    { id: "action", label: "Action milestones", symbol: "bolt", group: "", color: "#57d8ff", blurb: "Tiers for the things you do." },
+];
 
 // The pieces the Mine and the Farm share: item icon tiles, a grid craft board (Forge and Kitchen),
 // furnace / oven slots and the Milestones board. Everything is a grid of tiles with an icon, so a
@@ -299,14 +305,17 @@ export function MilestoneBoard({ s, F, ladders, claimed, color, cats, onClaim, o
     return (
         <div className="fi-ms fi-ms-list" style={css({ "--k": color })}>
             <div className="fi-ms-top">
-                <span className="fi-cb-groups" role="tablist">
-                    {(["item", "action"] as const).map((g) => (
-                        <button key={g} type="button" data-on={group === g} onClick={() => { setGroup(g); setCat("all"); setSel(""); }}>
-                            {g === "item" ? "Item milestones" : "Action milestones"}
-                            {totalReady(g) > 0 && <i>{totalReady(g)}</i>}
-                        </button>
-                    ))}
-                </span>
+                <TabBar
+                    tabs={MS_TABS}
+                    current={group}
+                    label="Milestone kinds"
+                    keys={false}
+                    onSelect={(g) => { setGroup(g); setCat("all"); setSel(""); }}
+                    notes={{
+                        item: totalReady("item") > 0 ? [{ text: `${totalReady("item")} to claim`, color: "#ffd23a", act: true, n: totalReady("item") }] : [],
+                        action: totalReady("action") > 0 ? [{ text: `${totalReady("action")} to claim`, color: "#ffd23a", act: true, n: totalReady("action") }] : [],
+                    }}
+                />
                 {all > 0 && (
                     <button type="button" className="fi-cb-go slim" data-snd="off" onClick={onAll}>Claim all ({all})</button>
                 )}

@@ -15,8 +15,11 @@ import { lift, type Ctx } from "./ui";
 
 // The Inventory. A 9 x 3 grid per page (one page to start, two more unlocked in the Shop) of big, touching tiles:
 // icon, name, then the stack size underneath. It holds eggs, pet items and boosters directly and shows the Mine and
-// Farm stock in the same grid. Select a tile for its panel (beside the grid when there is room, under it on a phone):
-// use it, sell it, lock it, set an auto-sell rule. Drag tiles to rearrange (or Move on a touch screen), sort, search,
+// Farm stock in the same grid. Select a tile for its panel (to the right of the grid on anything wider than a phone, under it
+// on a phone): use it, sell it, lock it, set an auto-sell rule. Bulk sell / auto-sell / sold open in that same panel so
+// nothing pushes the page down. Every tile carries a small tag for its type (an egg for eggs, a bolt for boosters...)
+// and eggs have a quick-hatch bar above the grid. Keys: arrows move, Enter selects, H or U uses (hatches) it, A hatches
+// every egg of the kind, L locks, Esc clears, / searches. Drag tiles to rearrange (or Move on a touch screen), sort, search,
 // filter by type, bulk sell, and keep an eye on booster slots. Arrow keys move between tiles, Enter selects, L locks.
 
 type Qty = 1 | 10 | 100 | -1;
@@ -47,6 +50,7 @@ export function InventoryTab({ s, d, F, act, render, say, eggFx, go }: Ctx & { g
     const root = useRef<HTMLDivElement>(null);
     const panelRef = useRef<HTMLElement>(null);
     const gridRef = useRef<HTMLDivElement>(null);
+    const searchRef = useRef<HTMLInputElement>(null);
 
     const inv = s.inv;
     const overflow = syncSlots(s);
@@ -76,6 +80,7 @@ export function InventoryTab({ s, d, F, act, render, say, eggFx, go }: Ctx & { g
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [inv.slots.join("|"), overflow.join("|")]);
 
+    const eggIds = [...inv.slots, ...overflow].filter((id): id is string => !!id && id.startsWith("egg:") && itemCount(s, id) > 0);
     const selN = sel ? itemCount(s, sel) : 0;
     const selDef = sel && selN > 0 ? ITEM_BY_ID.get(sel) : undefined; // a stack that ran out simply shows nothing
 
@@ -83,9 +88,10 @@ export function InventoryTab({ s, d, F, act, render, say, eggFx, go }: Ctx & { g
     useEffect(() => {
         const el = panelRef.current;
         const box = root.current;
-        if (!sel || !el || !box || box.clientWidth >= 860) return;
-        el.scrollIntoView({ behavior: "smooth", block: "nearest" });
-    }, [sel]);
+        if (!el || !box || box.clientWidth >= 600) return;
+        if (sel || tool !== "none") el.scrollIntoView({ behavior: "smooth", block: "nearest" });
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [sel, tool]);
 
     // ---- actions ----
     const sell = (id: string, n: number) => {
@@ -156,13 +162,37 @@ export function InventoryTab({ s, d, F, act, render, say, eggFx, go }: Ctx & { g
         if (to >= 0 && to < all.length) {
             e.preventDefault();
             all[to].focus();
-        } else if ((e.key === "l" || e.key === "L") && !e.ctrlKey && !e.metaKey) {
+        } else if (!e.ctrlKey && !e.metaKey && !e.altKey) {
             const id = el.dataset.item;
-            if (id) {
+            const k = e.key.toLowerCase();
+            if (!id) return;
+            if (k === "l") {
                 e.preventDefault();
                 toggleLock(s, id);
                 render();
+            } else if (k === "h" || k === "u") {
+                e.preventDefault();
+                setSel(id);
+                primary(id);
+            } else if (k === "a" && id.startsWith("egg:")) {
+                e.preventDefault();
+                hatch(id, 500);
             }
+        }
+    };
+    const onRootKey = (e: KeyboardEvent<HTMLDivElement>) => {
+        const tag = (e.target as HTMLElement).tagName;
+        const typing = tag === "INPUT" || tag === "SELECT" || tag === "TEXTAREA";
+        if (e.key === "Escape") {
+            if (moving) setMoving(null);
+            else if (tool !== "none") setTool("none");
+            else if (sel) setSel(null);
+            else if (q) setQ("");
+            else return;
+            e.preventDefault();
+        } else if (e.key === "/" && !typing && !e.ctrlKey && !e.metaKey) {
+            e.preventDefault();
+            searchRef.current?.focus();
         }
     };
 
@@ -214,22 +244,26 @@ export function InventoryTab({ s, d, F, act, render, say, eggFx, go }: Ctx & { g
                     if (id) {
                         setSel(id);
                         setPicker(false);
+                        setTool("none");
                     } else setSel(null);
                 }}
             >
                 {def && (
                     <>
+                        <span className="iv-tg" style={{ ["--tc" as string]: CAT_BY_ID.get(def.cat)!.color } as CSSProperties} aria-hidden="true"><McSymbol name={CAT_BY_ID.get(def.cat)!.symbol} /></span>
+                        <span className="iv-fl">
+                            {isLocked(s, id!) && <span className="iv-lk"><McSymbol name="key" /></span>}
+                            {inv.auto[id!] !== undefined && <span className="iv-au"><McSymbol name="scales" /></span>}
+                        </span>
                         <span className="iv-ico"><McSymbol name={def.symbol} /></span>
                         <span className="iv-nm">{def.name}</span>
                         <span className="iv-ct"><i>x</i>{fmtInt(n)}</span>
-                        {isLocked(s, id!) && <span className="iv-lk"><McSymbol name="key" /></span>}
-                        {inv.auto[id!] !== undefined && <span className="iv-au"><McSymbol name="scales" /></span>}
                     </>
                 )}
             </button>
         );
         return id ? (
-            <Tip key={key} box className="contents" tip={() => <ItemTip s={s} d={d} id={id} extra={<span className="text-[10px] text-muted-foreground">Click for actions. Double-click to {def!.cat === "egg" ? "hatch one" : def!.cat === "booster" || def!.cat === "consumable" ? "use" : def!.cat === "cache" ? "open" : "select"}. Drag to move. Press L to lock.</span>} />}>
+            <Tip key={key} box className="contents" tip={() => <ItemTip s={s} d={d} id={id} extra={<span className="text-[10px] text-muted-foreground">Click for actions. Double-click to {def!.cat === "egg" ? "hatch one" : def!.cat === "booster" || def!.cat === "consumable" ? "use" : def!.cat === "cache" ? "open" : "select"}. Drag to move. L locks{def!.cat === "egg" ? ", A hatches all" : ""}.</span>} />}>
                 {btn}
             </Tip>
         ) : (
@@ -237,121 +271,9 @@ export function InventoryTab({ s, d, F, act, render, say, eggFx, go }: Ctx & { g
         );
     };
 
-    return (
-        <div className="iv" ref={root}>
-            <div className="iv-in">
-                <div className="iv-bar">
-                    <div className="iv-seg" role="tablist" aria-label="Inventory pages">
-                        {Array.from({ length: MAX_PAGES }, (_, p) => (
-                            <button key={p} type="button" role="tab" aria-selected={page === p} data-on={page === p} data-lock={p * PAGE_SIZE >= cap} onClick={() => setPage(p)}>
-                                {p * PAGE_SIZE >= cap && <Lock className="size-3" />}
-                                {ROMAN[p]}
-                            </button>
-                        ))}
-                    </div>
-                    <label className="relative flex-1" style={{ minWidth: "7rem" }}>
-                        <Search className="pointer-events-none absolute left-2.5 top-1/2 size-3.5 -translate-y-1/2 text-muted-foreground" />
-                        <input className="iv-search" value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search" aria-label="Search items" />
-                        {q && (
-                            <button type="button" aria-label="Clear search" className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground" onClick={() => setQ("")}>
-                                <X className="size-3.5" />
-                            </button>
-                        )}
-                    </label>
-                    <select
-                        className="iv-sel"
-                        aria-label="Sort inventory"
-                        value=""
-                        onChange={(e) => {
-                            if (!e.target.value) return;
-                            sortSlots(s, e.target.value as SortKey, (id) => unitValue(s, d, id));
-                            render();
-                        }}
-                    >
-                        <option value="">Sort: {SORTS.find((o) => o.id === inv.sort)?.label}</option>
-                        {SORTS.map((o) => (
-                            <option key={o.id} value={o.id}>{o.label}</option>
-                        ))}
-                    </select>
-                    <div className="iv-seg" role="group" aria-label="Inventory tools">
-                        {([["sell", "Sell", "var(--mc-yellow)"], ["auto", "Auto", "var(--mc-aqua)"], ["sold", "Sold", "var(--mc-red)"]] as const).map(([id, label, c]) => (
-                            <button key={id} type="button" data-on={tool === id} style={{ ["--c" as string]: c } as CSSProperties} onClick={() => { setTool((t) => (t === id ? "none" : id)); setConfirm(false); }}>
-                                {label}
-                                {id === "sold" && inv.buyback.length > 0 && <em>{inv.buyback.length}</em>}
-                                {id === "auto" && Object.keys(inv.auto).length > 0 && <em>{Object.keys(inv.auto).length}</em>}
-                            </button>
-                        ))}
-                    </div>
-                </div>
-
-                <div className="iv-cats" aria-label="Filter by type">
-                    <button type="button" className="iv-chip" data-on={cat === "all"} onClick={() => setCat("all")}>All <em>{used}</em></button>
-                    {CATS.map((c) => (
-                        <button key={c.id} type="button" className="iv-chip" data-on={cat === c.id} style={{ ["--c" as string]: c.color } as CSSProperties} onClick={() => setCat(cat === c.id ? "all" : c.id)}>
-                            <McSymbol name={c.symbol} /> {c.label} <em>{counts.get(c.id) ?? 0}</em>
-                        </button>
-                    ))}
-                </div>
-
-                <div className="iv-stats">
-                    <div className="iv-kv">
-                        <small>Slots</small>
-                        <b>{used} / {cap}</b>
-                        <div className="iv-meter"><i style={{ width: `${Math.min(100, (used / Math.max(1, cap)) * 100)}%`, background: used >= cap ? "var(--mc-red)" : undefined }} /></div>
-                    </div>
-                    <div className="iv-kv">
-                        <small>Stock worth</small>
-                        <b style={{ ["--c" as string]: "var(--mc-aqua)" } as CSSProperties}>{fmt(worth.current.v)}</b>
-                    </div>
-                    <div className="iv-kv">
-                        <small>Boosters</small>
-                        <b>{liveBoosts} / {boostSlots(s)}</b>
-                    </div>
-                </div>
-                {liveBoosts > 0 && <BoostStrip s={s} />}
-
-                <div className="iv-main">
-                    <div className="min-w-0">
-                        <div className="iv-grid" ref={gridRef} role="grid" aria-label={`Inventory page ${page + 1}`} onKeyDown={onGridKey}>
-                            {pageSlots.map((idx) => slotBtn(idx, unlocked ? inv.slots[idx] : null))}
-                            {!unlocked && (
-                                <div className="iv-lockpg">
-                                    <Lock className="size-6" style={{ color: "var(--mc-aqua)" }} />
-                                    <p>Page {ROMAN[page]} is locked. Unlock it with tokens in the Shop for 27 more slots.</p>
-                                    <button type="button" className="iv-btn" style={{ ["--c" as string]: "var(--mc-aqua)" } as CSSProperties} onClick={() => go("shop")}>Open the Shop</button>
-                                </div>
-                            )}
-                        </div>
-                        {moving && (
-                            <p className="iv-note mt-1.5" style={{ color: "var(--mc-green)" }}>
-                                Moving: tap the slot to drop it in. <button type="button" onClick={() => setMoving(null)}>Cancel</button>
-                            </p>
-                        )}
-                        {overflow.length > 0 && (
-                            <div className="mt-2 flex flex-col gap-1">
-                                <p className="iv-note" style={{ color: "var(--mc-gold)" }}>
-                                    No room for {overflow.length} item type{overflow.length > 1 ? "s" : ""}. They are safe: sell them, free a slot and Move them in, or <button type="button" onClick={() => go("shop")}>unlock a page</button>.
-                                </p>
-                                <div className="iv-over">{overflow.map((id) => slotBtn(-1, id, true))}</div>
-                            </div>
-                        )}
-                    </div>
-
-                    <aside ref={panelRef} aria-live="polite" className="min-w-0">
-                        {selDef ? (
-                            panel()
-                        ) : (
-                            <div className="iv-empty">
-                                <b className="font-minecraft text-xs" style={{ color: "var(--mc-aqua)" }}>Select an item</b>
-                                <p className="iv-pd">Click a tile to see what it does and what it sells for. Double-click an egg to hatch it or a booster to switch it on. Drag tiles to rearrange.</p>
-                                <p className="iv-pd">Mine and Farm stock lives here too: sell it, lock it, or set an auto-sell rule. Crafting still happens in those tabs.</p>
-                            </div>
-                        )}
-                    </aside>
-                </div>
-
-                {tool !== "none" && (
+    const toolsNode = tool !== "none" ? (
                     <div className="iv-tools">
+                        <button type="button" className="iv-x" aria-label="Close tool" onClick={() => setTool("none")}><X className="size-4" /></button>
                         {tool === "sell" && (
                             <>
                                 <div className="iv-h" style={{ color: "var(--mc-yellow)" }}>Bulk sell</div>
@@ -466,7 +388,145 @@ export function InventoryTab({ s, d, F, act, render, say, eggFx, go }: Ctx & { g
                             </>
                         )}
                     </div>
+    ) : null;
+
+    return (
+        <div className="iv" ref={root} onKeyDown={onRootKey}>
+            <div className="iv-in">
+                <div className="iv-bar">
+                    <div className="iv-seg" role="tablist" aria-label="Inventory pages">
+                        {Array.from({ length: MAX_PAGES }, (_, p) => (
+                            <button key={p} type="button" role="tab" aria-selected={page === p} data-on={page === p} data-lock={p * PAGE_SIZE >= cap} onClick={() => setPage(p)}>
+                                {p * PAGE_SIZE >= cap && <Lock className="size-3" />}
+                                {ROMAN[p]}
+                            </button>
+                        ))}
+                    </div>
+                    <label className="relative flex-1" style={{ minWidth: "7rem" }}>
+                        <Search className="pointer-events-none absolute left-2.5 top-1/2 size-3.5 -translate-y-1/2 text-muted-foreground" />
+                        <input ref={searchRef} className="iv-search" value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search ( / )" aria-label="Search items" />
+                        {q && (
+                            <button type="button" aria-label="Clear search" className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground" onClick={() => setQ("")}>
+                                <X className="size-3.5" />
+                            </button>
+                        )}
+                    </label>
+                    <select
+                        className="iv-sel"
+                        aria-label="Sort inventory"
+                        value=""
+                        onChange={(e) => {
+                            if (!e.target.value) return;
+                            sortSlots(s, e.target.value as SortKey, (id) => unitValue(s, d, id));
+                            render();
+                        }}
+                    >
+                        <option value="">Sort: {SORTS.find((o) => o.id === inv.sort)?.label}</option>
+                        {SORTS.map((o) => (
+                            <option key={o.id} value={o.id}>{o.label}</option>
+                        ))}
+                    </select>
+                    <div className="iv-seg" role="group" aria-label="Inventory tools">
+                        {([["sell", "Sell", "var(--mc-yellow)"], ["auto", "Auto", "var(--mc-aqua)"], ["sold", "Sold", "var(--mc-red)"]] as const).map(([id, label, c]) => (
+                            <button key={id} type="button" data-on={tool === id} style={{ ["--c" as string]: c } as CSSProperties} onClick={() => { setTool((t) => (t === id ? "none" : id)); setConfirm(false); }}>
+                                {label}
+                                {id === "sold" && inv.buyback.length > 0 && <em>{inv.buyback.length}</em>}
+                                {id === "auto" && Object.keys(inv.auto).length > 0 && <em>{Object.keys(inv.auto).length}</em>}
+                            </button>
+                        ))}
+                    </div>
+                </div>
+
+                <div className="iv-sub">
+                    <div className="iv-cats" aria-label="Filter by type">
+                        <button type="button" className="iv-chip" data-on={cat === "all"} onClick={() => setCat("all")}>All <em>{used}</em></button>
+                        {CATS.map((c) => (
+                            <button key={c.id} type="button" className="iv-chip" data-on={cat === c.id} style={{ ["--c" as string]: c.color } as CSSProperties} onClick={() => setCat(cat === c.id ? "all" : c.id)}>
+                                <McSymbol name={c.symbol} /> {c.label} <em>{counts.get(c.id) ?? 0}</em>
+                            </button>
+                        ))}
+                    </div>
+                    <div className="iv-stats">
+                        <div className="iv-kv" title="Slots used">
+                            <small>Slots</small>
+                            <b style={used >= cap ? ({ ["--c" as string]: "var(--mc-red)" } as CSSProperties) : undefined}>{used}/{cap}</b>
+                            <div className="iv-meter"><i style={{ width: `${Math.min(100, (used / Math.max(1, cap)) * 100)}%`, background: used >= cap ? "var(--mc-red)" : undefined }} /></div>
+                        </div>
+                        <div className="iv-kv" title="What your sellable stock would fetch">
+                            <small>Worth</small>
+                            <b style={{ ["--c" as string]: "var(--mc-aqua)" } as CSSProperties}>{fmt(worth.current.v)}</b>
+                        </div>
+                        <div className="iv-kv" title="Boosters running / slots">
+                            <small>Boosts</small>
+                            <b>{liveBoosts}/{boostSlots(s)}</b>
+                        </div>
+                    </div>
+                </div>
+                {liveBoosts > 0 && <BoostStrip s={s} />}
+
+                {eggIds.length > 0 && (
+                    <div className="iv-quick" aria-label="Quick hatch">
+                        <span className="iv-h">Hatch</span>
+                        {eggIds.map((id) => {
+                            const def = ITEM_BY_ID.get(id)!;
+                            const n = itemCount(s, id);
+                            return (
+                                <div key={id} className="iv-qe" style={{ ["--ic" as string]: def.color } as CSSProperties}>
+                                    <Tip tip={() => <ItemTip s={s} d={d} id={id} />}>
+                                        <button type="button" className="iv-qe-i" onClick={() => { setSel(id); setTool("none"); }} aria-label={`Select ${def.name}`}>
+                                            <McSymbol name={def.symbol} />
+                                            <b>{fmtInt(n)}</b>
+                                        </button>
+                                    </Tip>
+                                    <button type="button" onClick={() => hatch(id, 1)}>Hatch</button>
+                                    {n >= 3 && <button type="button" onClick={() => hatch(id, 3)}>x3</button>}
+                                    {n > 1 && <button type="button" data-all="true" onClick={() => hatch(id, 500)}>All</button>}
+                                </div>
+                            );
+                        })}
+                    </div>
                 )}
+
+                <div className="iv-main">
+                    <div className="min-w-0">
+                        <div className="iv-grid" ref={gridRef} role="grid" aria-label={`Inventory page ${page + 1}`} onKeyDown={onGridKey}>
+                            {pageSlots.map((idx) => slotBtn(idx, unlocked ? inv.slots[idx] : null))}
+                            {!unlocked && (
+                                <div className="iv-lockpg">
+                                    <Lock className="size-6" style={{ color: "var(--mc-aqua)" }} />
+                                    <p>Page {ROMAN[page]} is locked. Unlock it with tokens in the Shop for 27 more slots.</p>
+                                    <button type="button" className="iv-btn" style={{ ["--c" as string]: "var(--mc-aqua)" } as CSSProperties} onClick={() => go("shop")}>Open the Shop</button>
+                                </div>
+                            )}
+                        </div>
+                        {moving && (
+                            <p className="iv-note mt-1.5" style={{ color: "var(--mc-green)" }}>
+                                Moving: tap the slot to drop it in. <button type="button" onClick={() => setMoving(null)}>Cancel</button>
+                            </p>
+                        )}
+                        {overflow.length > 0 && (
+                            <div className="mt-2 flex flex-col gap-1">
+                                <p className="iv-note" style={{ color: "var(--mc-gold)" }}>
+                                    No room for {overflow.length} item type{overflow.length > 1 ? "s" : ""}. They are safe: sell them, free a slot and Move them in, or <button type="button" onClick={() => go("shop")}>unlock a page</button>.
+                                </p>
+                                <div className="iv-over">{overflow.map((id) => slotBtn(-1, id, true))}</div>
+                            </div>
+                        )}
+                    </div>
+
+                    <aside ref={panelRef} aria-live="polite" className="min-w-0">
+                        {toolsNode ?? (selDef ? (
+                            panel()
+                        ) : (
+                            <div className="iv-empty">
+                                <b className="font-minecraft text-xs" style={{ color: "var(--mc-aqua)" }}>Select an item</b>
+                                <p className="iv-pd">Click a tile for its actions. Double-click (or press H) to hatch an egg or switch a booster on. Drag tiles to rearrange.</p>
+                                <p className="iv-pd">Mine and Farm stock lives here too: sell it, lock it, or set an auto-sell rule. Crafting still happens in those tabs.</p>
+                            </div>
+                        ))}
+                    </aside>
+                </div>
+
             </div>
         </div>
     );

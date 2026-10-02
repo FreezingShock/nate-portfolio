@@ -57,7 +57,7 @@ function scan(s: State, since: (tab: string, cur: number) => number): Record<str
     if (fresh) add("button", { text: `${plural(fresh, "new look")} unlocked`, color: A, act: true });
 
     const eggs = heldEggs(s);
-    if (eggs > 0) add("pets", { text: `${plural(eggs, "egg")} to hatch`, color: P, act: true });
+    if (eggs > 0) add("inventory", { text: `${plural(eggs, "egg")} to hatch`, color: P, act: true });
     if (Object.keys(s.pets).length < PETS.length && EGGS.some((e) => eggCan(s, e))) add("shop", { text: "You can afford an egg", color: O, act: true });
     const day = since("shop", dayNow());
     if (day) add("shop", { text: "1 fresh shelf of daily deals", color: Y, act: true });

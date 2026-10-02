@@ -30,6 +30,7 @@ import {
     type ShopUp,
 } from "@/lib/fractured-idle/shop";
 import { Glyph, ItemTip, Wallet, fmtLeft } from "./inv-parts";
+import { TabBar, type TabItem } from "./tab-bar";
 import { Tip, TipCard } from "./tooltip";
 import { lift, type Ctx } from "./ui";
 
@@ -46,6 +47,7 @@ const QTYS = [
     { v: 100, label: "x100" },
     { v: -1, label: "Max" },
 ];
+const SHOP_TABS: TabItem<Section>[] = SECTIONS.map((x) => ({ id: x.id, label: x.label.replace("Today's deals", "Deals"), symbol: x.symbol, group: "", color: x.color, blurb: x.blurb }));
 const GROUPS: { title: string; blurb: string; color: string; ids: string[] }[] = [
     { title: "Inventory", blurb: "More room and auto-sell", color: "var(--mc-aqua)", ids: ["page2", "page3", "license"] },
     { title: "Prices", blurb: "Pay less, earn more", color: "var(--mc-green)", ids: ["haggle", "eye"] },
@@ -278,17 +280,17 @@ export function ShopTab({ s, d, F, act, say, go }: Ctx & { go: (id: string) => v
                     </span>
                 </div>
 
-                <div className="sh-nav">
-                    <div className="iv-seg" role="tablist" aria-label="Shop sections">
-                        {SECTIONS.map((x) => (
-                            <button key={x.id} type="button" role="tab" aria-selected={sec === x.id} data-on={sec === x.id} style={{ ["--c" as string]: x.color } as CSSProperties} onClick={() => setSec(x.id)}>
-                                <McSymbol name={x.symbol} /> {x.label.replace("Today's deals", "Deals")}
-                                {x.id === "deals" && dealsOpen > 0 && <em>{dealsOpen}</em>}
-                                {x.id === "buyback" && s.inv.buyback.length > 0 && <em>{s.inv.buyback.length}</em>}
-                            </button>
-                        ))}
-                    </div>
-                </div>
+                <TabBar
+                    tabs={SHOP_TABS}
+                    current={sec}
+                    label="Shop sections"
+                    keys={false}
+                    onSelect={setSec}
+                    notes={{
+                        deals: dealsOpen > 0 ? [{ text: `${dealsOpen} deal${dealsOpen === 1 ? "" : "s"} on the shelf`, color: "var(--mc-yellow)", act: true, n: dealsOpen }] : [],
+                        buyback: s.inv.buyback.length > 0 ? [{ text: `${s.inv.buyback.length} sold stack${s.inv.buyback.length === 1 ? "" : "s"} you can take back`, color: "var(--mc-red)" }] : [],
+                    }}
+                />
 
                 <div className="sh-nav">
                     <span className="iv-note" style={{ color: lift(meta.color), flex: "1 1 12rem" }}>{meta.blurb}</span>

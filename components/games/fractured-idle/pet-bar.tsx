@@ -57,7 +57,7 @@ export function PetBar({ s, onOpen }: { s: State; onOpen: () => void }) {
             })}
 
             {Array.from({ length: empty }, (_, i) => (
-                <Tip key={`e${i}`} tip={<TipCard title="Empty pet slot" color="var(--mc-dark-aqua)" lines={[egg ? "You have an egg you can hatch right now." : "Hatch an egg to fill it."]} cta="Click to open Pets!" />}>
+                <Tip key={`e${i}`} tip={<TipCard title="Empty pet slot" color="var(--mc-dark-aqua)" lines={[egg ? "You have an egg to hatch. Open your Inventory, hatch it, then equip the pet here." : "Hatch an egg (Shop, then Inventory) to fill it."]} cta="Click to open Pets!" />}>
                     <button type="button" onClick={onOpen} className="pbr-pet pbr-empty" data-egg={egg} aria-label="Empty pet slot">
                         <span className="pbr-ring"><span className="pbr-tile">{egg ? <McSymbol name="flower" /> : "+"}</span></span>
                     </button>

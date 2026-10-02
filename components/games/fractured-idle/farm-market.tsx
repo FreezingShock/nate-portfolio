@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { TabBar, type TabItem } from "./tab-bar";
 import { sfx } from "@/lib/sound/sounds";
 import {
     DEMAND_MULT,
@@ -49,6 +50,11 @@ import { SectionTitle, type Ctx } from "./ui";
 
 type P = { s: Ctx["s"]; d: Ctx["d"]; F: (n: number) => string; render: () => void; say: (m: string) => void };
 type Tab = "enchant" | "raw" | "goods";
+const MARKET_TABS: TabItem<Tab>[] = [
+    { id: "enchant", label: "Enchant and sell", symbol: "magicFind", group: "", color: "#ffaa00", blurb: "Pack crops into Enchanted crops and sell them." },
+    { id: "raw", label: "Raw crop stall", symbol: "flower", group: "", color: "#9be04a", blurb: "Sell crops as they come." },
+    { id: "goods", label: "Goods", symbol: "heat", group: "", color: "#ff9a4d", blurb: "Sell the goods you cooked." },
+];
 
 export function Market({ s, d, F, render, say }: P) {
     const f = s.farm;
@@ -111,11 +117,7 @@ export function Market({ s, d, F, render, say }: P) {
                 </button>
             </div>
 
-            <div className="fi-cb-groups" role="tablist" style={{ ["--k" as string]: C } as React.CSSProperties}>
-                {([["enchant", "Enchant and sell"], ["raw", "Raw crop stall"], ["goods", "Goods"]] as const).map(([k, label]) => (
-                    <button key={k} type="button" data-on={tab === k} onClick={() => setTab(k)}>{label}</button>
-                ))}
-            </div>
+            <TabBar tabs={MARKET_TABS} current={tab} label="Market views" keys={false} onSelect={setTab} />
 
             {tab === "enchant" && DIMS.map((dm) => {
                 const list = crops.filter((c) => c.dim === dm);

@@ -30,7 +30,7 @@ function spend(s: State, c: Cur, n: number) {
 export type Section = "deals" | "eggs" | "pet" | "boost" | "upgrades" | "buyback";
 export const SECTIONS: { id: Section; label: string; color: string; symbol: McSymbolName; blurb: string }[] = [
     { id: "deals", label: "Today's deals", color: "var(--mc-yellow)", symbol: "sunburst", blurb: "A few goods at a discount, in limited amounts. The shelf changes every day." },
-    { id: "eggs", label: "Eggs", color: "var(--mc-gold)", symbol: "flower", blurb: "Buy eggs into your inventory, then hatch them from the Pets tab or the inventory." },
+    { id: "eggs", label: "Eggs", color: "var(--mc-gold)", symbol: "flower", blurb: "Buy eggs into your inventory, then hatch them from the Inventory." },
     { id: "pet", label: "Pet items", color: "#ff8fc7", symbol: "petLuck", blurb: "Food and star dust to level and upgrade the pets you own." },
     { id: "boost", label: "Boosters", color: "var(--mc-green)", symbol: "bolt", blurb: "Timed boosts. Switch them on from your inventory." },
     { id: "upgrades", label: "Upgrades", color: "var(--mc-light-purple)", symbol: "scales", blurb: "More inventory pages, better prices, more booster slots." },

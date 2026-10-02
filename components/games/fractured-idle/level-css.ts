@@ -37,13 +37,6 @@ export const LEVEL_PAGE_CSS = `
 .fi-lv-hero-f{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:.5rem;margin-top:.6rem}
 
 /* sub navigation */
-.fi-lv-nav{display:flex;gap:.3rem;padding:.25rem;border-radius:.95rem;border:1px solid rgba(255,255,255,.1);background:rgba(0,0,0,.22);overflow-x:auto;scrollbar-width:none}
-.fi-lv-nav::-webkit-scrollbar{display:none}
-.fi-lv-nav button{position:relative;flex:1 0 auto;display:flex;align-items:center;justify-content:center;gap:.4rem;padding:.45rem .7rem;border-radius:.7rem;border:1px solid transparent;background:transparent;color:var(--muted-foreground);font-family:var(--font-minecraft,inherit);font-weight:700;font-size:.7rem;white-space:nowrap;transition:background .15s,color .15s}
-.fi-lv-nav button:hover{color:#fff;background:rgba(255,255,255,.06)}
-.fi-lv-nav button[data-on="true"]{color:var(--nc);border-color:color-mix(in oklch,var(--nc) 55%,transparent);background:color-mix(in oklch,var(--nc) 14%,transparent);box-shadow:0 0 14px -6px var(--nc)}
-.fi-lv-nav i{font-style:normal;display:grid;place-items:center;min-width:1rem;height:1rem;padding:0 .25rem;border-radius:999px;background:var(--gold);color:#201800;font-family:var(--font-rubik,inherit);font-size:.6rem;font-weight:800;animation:fi-lv-glow 2s ease-in-out infinite}
-@media (max-width:520px){.fi-lv-nav button span.t{display:none}.fi-lv-nav button[data-on="true"] span.t{display:inline}}
 
 /* chips */
 .fi-lv-chips{display:flex;flex-wrap:wrap;gap:.25rem}

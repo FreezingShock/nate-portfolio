@@ -47,6 +47,7 @@ import { BadgesView } from "./level-badges";
 import { LEVEL_PAGE_CSS } from "./level-css";
 import { LevelBadge } from "./level-badge";
 import { takeLevelWant, type LevelView } from "./level-nav";
+import { TabBar, type TabItem } from "./tab-bar";
 import { Bar, Buffs, GOLD, Grants, SagaCard, css } from "./level-parts";
 import { SagasView } from "./level-sagas";
 import { SourcesView } from "./level-sources";
@@ -57,12 +58,12 @@ import type { Ctx } from "./ui";
 // for every skill; finishing them pays permanent buffs). Five views: Journey (what to do next), Sagas, Timeline of
 // every level, where Fracture EXP comes from, and Badges.
 
-const NAV: { id: LevelView; label: string; symbol: McSymbolName; color: string }[] = [
-    { id: "journey", label: "Journey", symbol: "flag", color: "#7dffb8" },
-    { id: "sagas", label: "Sagas", symbol: "wisdom", color: "#ffd23a" },
-    { id: "timeline", label: "Timeline", symbol: "arrow", color: "#57d8ff" },
-    { id: "sources", label: "EXP sources", symbol: "pristine", color: "#ff8fc7" },
-    { id: "badges", label: "Badges", symbol: "star", color: "#c58bff" },
+const NAV: TabItem<LevelView>[] = [
+    { id: "journey", group: "", label: "Journey", symbol: "flag", color: "#7dffb8" },
+    { id: "sagas", group: "", label: "Sagas", symbol: "wisdom", color: "#ffd23a" },
+    { id: "timeline", group: "", label: "Timeline", symbol: "arrow", color: "#57d8ff" },
+    { id: "sources", group: "", label: "EXP sources", symbol: "pristine", color: "#ff8fc7" },
+    { id: "badges", group: "", label: "Badges", symbol: "star", color: "#c58bff" },
 ];
 
 const Timeline = memo(TimelineView);
@@ -138,15 +139,14 @@ export function LevelTab({ s, F, act, say, render, open }: Ctx & { open: (tab: s
                 </div>
             </div>
 
-            <div className="fi-lv-nav" role="tablist" aria-label="Level page">
-                {NAV.map((n) => (
-                    <button key={n.id} type="button" role="tab" aria-selected={view === n.id} data-on={view === n.id} style={css({ "--nc": n.color })} onClick={() => setView(n.id)}>
-                        <McSymbol name={n.symbol} />
-                        <span className="t">{n.label}</span>
-                        {n.id === "sagas" && ready > 0 && <i>{ready}</i>}
-                    </button>
-                ))}
-            </div>
+            <TabBar
+                tabs={NAV}
+                current={view}
+                label="Level page"
+                keys={false}
+                onSelect={setView}
+                notes={{ sagas: ready > 0 ? [{ text: `${ready} chapter${ready === 1 ? "" : "s"} to claim`, color: "#ffd23a", act: true, n: ready }] : [] }}
+            />
 
             {view === "journey" && <Journey s={s} F={F} act={act} say={say} open={open} go={go} openSymbols={openSymbols} openPrefixes={openPrefixes} />}
             {view === "sagas" && <SagasView s={s} F={F} act={act} say={say} open={open} sel={saga} setSel={setSaga} />}

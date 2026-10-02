@@ -104,7 +104,7 @@ const TABS: TabItem<TabId>[] = [
     { id: "minions", label: "Minions", symbol: "forge", group: "play", color: "#ffa940", blurb: "Hire and upgrade minions that earn shards for you." },
     { id: "upgrades", label: "Upgrades", symbol: "strength", group: "play", color: "var(--mc-green)", blurb: "Spend shards on click, minion, combo and popup upgrades." },
     { id: "button", label: "Button", symbol: "speed", group: "play", color: "var(--mc-aqua)", blurb: "Customize your button: shapes, skins, effects and loadouts." },
-    { id: "pets", label: "Pets", symbol: "petLuck", group: "play", color: "#ff8fc7", blurb: "Hatch eggs, equip pets and level them." },
+    { id: "pets", label: "Pets", symbol: "petLuck", group: "play", color: "#ff8fc7", blurb: "Your pet collection: equip, feed and inspect pets. Eggs are hatched from the Inventory." },
     { id: "level", label: "Level", symbol: "flag", group: "play", color: "#7dffb8", blurb: "Your Fractured Level and the sagas: chapters for every skill that pay permanent buffs, plus the milestone timeline." },
     { id: "inventory", label: "Inventory", symbol: "square", group: "play", color: "#7dd3ff", blurb: "Everything you own in one grid: eggs, pet items, boosters, ore, crops and more. Sort, lock, sell and auto-sell." },
     { id: "shop", label: "Shop", symbol: "scales", group: "play", color: "#ffd24a", blurb: "Buy eggs, pet items, boosters and inventory upgrades. Daily deals rotate at midnight UTC." },

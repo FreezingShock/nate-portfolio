@@ -63,6 +63,7 @@ import { ButtonFace } from "./button-face";
 import { shake } from "./button-fx";
 import { chargeFx, flashScreen, revealFx } from "./enchant-fx";
 import { Glint } from "./enchant-glint";
+import { TabBar, type TabItem } from "./tab-bar";
 import { Tip, TipCard } from "./tooltip";
 import { Progress, SectionTitle, tint, type Ctx } from "./ui";
 
@@ -102,9 +103,16 @@ interface Cut {
     key: number;
 }
 
+type EnView = "table" | "codex" | "style";
+const EN_TABS: TabItem<EnView>[] = [
+    { id: "table", label: "Table", symbol: "magicFind", group: "", color: "#c58bff", blurb: "Roll enchants onto your gear." },
+    { id: "codex", label: "Codex", symbol: "wisdom", group: "", color: "#ffd23a", blurb: "Every enchant and rarity you have found." },
+    { id: "style", label: "Style", symbol: "star", group: "", color: "#57d8ff", blurb: "Pick how your enchants look." },
+];
+
 export function EnchantTab({ s, d, F, render, say }: Ctx) {
     const o = s.enc.opts;
-    const [view, setView] = useState<"table" | "codex" | "style">("table");
+    const [view, setView] = useState<EnView>("table");
     const [slot, setSlot] = useState<SlotId>("button");
     const [shown, setShown] = useState<Shown | null>(null);
     const [busy, setBusy] = useState(false);
@@ -448,13 +456,7 @@ export function EnchantTab({ s, d, F, render, say }: Ctx) {
             </div>
             <Progress label={`Enchanting ${lvl}`} color="var(--mc-light-purple)" pct={lvl >= 60 ? 1 : (s.enchanting - lo) / (hi - lo)} right={lvl >= 60 ? "MAX" : `${F(s.enchanting - lo)} / ${F(hi - lo)} xp`} />
 
-            <div className="fi-en-seg" role="tablist">
-                {(["table", "codex", "style"] as const).map((v) => (
-                    <button key={v} type="button" role="tab" aria-selected={view === v} onClick={() => setView(v)} data-on={view === v}>
-                        {v === "table" ? "Table" : v === "codex" ? "Codex" : "Style"}
-                    </button>
-                ))}
-            </div>
+            <TabBar tabs={EN_TABS} current={view} label="Enchanting views" keys={false} onSelect={setView} />
 
             {view === "table" && (
                 <>
@@ -962,9 +964,6 @@ export const ENCH_CSS = `
 .fi-en-stat span{font-family:var(--font-minecraft,inherit);font-size:.6rem;letter-spacing:.14em;text-transform:uppercase;color:var(--muted-foreground)}
 .fi-en-stat b{font-family:var(--font-minecraft,inherit);font-weight:400;font-size:1.1rem;line-height:1.15;color:var(--c);text-shadow:0 0 12px color-mix(in oklch,var(--c) 60%,transparent);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .fi-en-stat small{font-family:var(--font-rubik,inherit);font-size:.58rem;color:var(--muted-foreground);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.fi-en-seg{display:flex;border-radius:.6rem;border:1px solid rgba(255,255,255,.14);overflow:hidden}
-.fi-en-seg button{flex:1;padding:.35rem;font-family:var(--font-minecraft,inherit);font-size:.72rem;color:var(--muted-foreground);transition:background .15s,color .15s}
-.fi-en-seg button[data-on="true"]{background:color-mix(in oklch,var(--mc-light-purple) 22%,transparent);color:var(--mc-light-purple);box-shadow:inset 0 -2px 0 var(--mc-light-purple)}
 .fi-en-slot{position:relative;display:flex;align-items:center;gap:.5rem;padding:.45rem .55rem;border-radius:.75rem;border:1px solid rgba(255,255,255,.12);background:rgba(255,255,255,.02);text-align:left;transition:transform .15s,background .15s,border-color .15s;min-width:0}
 .fi-en-slot:hover:not(:disabled){transform:translateY(-1px);background:rgba(255,255,255,.06)}
 .fi-en-slot[data-on="true"]{border-color:var(--sc);background:color-mix(in oklch,var(--sc) 12%,transparent);box-shadow:0 0 18px -6px var(--sc)}

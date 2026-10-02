@@ -34,10 +34,13 @@ export interface TabGroup {
 
 interface Props<T extends string> {
     tabs: TabItem<T>[];
-    groups: TabGroup[];
+    /** Omit for a plain single row (the tabs' `group` is ignored): the sub-view bars inside a tab use this. */
+    groups?: TabGroup[];
     current: T;
-    notes: Partial<Record<T, TipNote[]>>;
+    notes?: Partial<Record<T, TipNote[]>>;
     onSelect: (id: T) => void;
+    /** Screen-reader name for the bar. */
+    label?: string;
     /** Show "key N" in the tooltips (only the main switcher has number keys). */
     keys?: boolean;
     /** Called when a tab's badge is read (hovered, focused or marked read). */
@@ -55,7 +58,12 @@ const sigOf = (notes: Partial<Record<string, TipNote[]>>) =>
 const countOf = (notes: TipNote[] | undefined) => (notes ?? []).filter((x) => x.act).reduce((a, x) => a + (x.n ?? 1), 0);
 const actSig = (notes: TipNote[] | undefined) => (notes ?? []).filter((x) => x.act).map((x) => `${x.n ?? 1}${typeof x.text === "string" ? x.text : ""}`).join("|");
 
-function Bar<T extends string>({ tabs, groups, current, notes, onSelect, keys = true, onRead, onReadAll }: Props<T>) {
+const NO_NOTES = {};
+const FLAT: TabGroup[] = [{ id: "", label: "", color: "var(--mc-aqua)" }];
+
+function Bar<T extends string>({ tabs, groups, current, notes = NO_NOTES, onSelect, label = "Game sections", keys = true, onRead, onReadAll }: Props<T>) {
+    const flat = !groups;
+    const rows = groups ?? FLAT;
     const pick = useRef(onSelect);
     pick.current = onSelect;
     // A badge is read once you hover or focus its tab (or press Mark all read); it comes back when the notices change.
@@ -69,13 +77,13 @@ function Bar<T extends string>({ tabs, groups, current, notes, onSelect, keys = 
     };
     const total = tabs.reduce((a, t) => a + shown(t.id), 0);
     return (
-        <nav className="fi-tabs" aria-label="Game sections">
-            {groups.map((g) => {
-                const list = tabs.filter((t) => t.group === g.id);
+        <nav className="fi-tabs" data-flat={flat} aria-label={label}>
+            {rows.map((g) => {
+                const list = flat ? tabs : tabs.filter((t) => t.group === g.id);
                 const hot = list.some((t) => shown(t.id) > 0);
                 return (
                     <div key={g.id} className="fi-tg" style={{ ["--g" as string]: g.color } as CSSProperties} data-hot={hot}>
-                        <span className="fi-tg-l">{g.label}</span>
+                        {!flat && <span className="fi-tg-l">{g.label}</span>}
                         <div className="fi-tg-row" role="tablist">
                             {list.map((t) => {
                                 const on = current === t.id;
@@ -124,7 +132,7 @@ function Bar<T extends string>({ tabs, groups, current, notes, onSelect, keys = 
                     </div>
                 );
             })}
-            <Tip
+            {(!flat || !!onReadAll) && <Tip
                 box
                 className="fi-tabs-rw"
                 tip={() => {
@@ -155,12 +163,12 @@ function Bar<T extends string>({ tabs, groups, current, notes, onSelect, keys = 
                 >
                     <span>✓</span>
                 </button>
-            </Tip>
+            </Tip>}
         </nav>
     );
 }
 
-export const TabBar = memo(Bar, (a, b) => a.current === b.current && a.tabs === b.tabs && a.groups === b.groups && sigOf(a.notes) === sigOf(b.notes)) as typeof Bar;
+export const TabBar = memo(Bar, (a, b) => a.current === b.current && a.tabs === b.tabs && a.groups === b.groups && sigOf(a.notes ?? NO_NOTES) === sigOf(b.notes ?? NO_NOTES)) as typeof Bar;
 
 export const TABBAR_CSS = `
 .fi-tabs{display:flex;flex-wrap:wrap;gap:.4rem .55rem;padding:.55rem .6rem;border-bottom:1px solid rgba(255,255,255,.1);background:linear-gradient(180deg,rgba(255,255,255,.035),transparent)}
@@ -193,6 +201,11 @@ export const TABBAR_CSS = `
 @keyframes fi-tab-pop{0%{transform:scale(.9)}60%{transform:scale(1.07)}100%{transform:scale(1)}}
 @keyframes fi-tab-ping{0%{transform:scale(0)}100%{transform:scale(1)}}
 @keyframes fi-tab-ring{0%{transform:scale(1);opacity:.8}100%{transform:scale(1.9);opacity:0}}
+.fi-tabs[data-flat="true"]{padding:.3rem 0;border-bottom:0;background:none}
+.fi-tabs[data-flat="true"] .fi-tg-row{padding:.2rem;flex-wrap:wrap}
+.fi-tabs[data-flat="true"] .fi-tab-l{max-width:8rem;opacity:1;margin-left:.4rem}
+.fi-tabs[data-flat="true"] .fi-tab{padding:0 .65rem}
+.fi-tabs[data-flat="true"] .fi-tab[data-on="false"] .fi-tab-l{color:color-mix(in oklch,var(--c) 70%,var(--muted-foreground))}
 @media (max-width:480px){.fi-tabs{gap:.3rem;padding:.4rem}.fi-tg-l{display:none}.fi-tab{height:2.3rem;min-width:2.3rem;padding:0 .5rem}}
 @media (prefers-reduced-motion:reduce){.fi-tab,.fi-tab-i,.fi-tab-l{transition:none;animation:none!important}.fi-tab-n,.fi-tab-n::before{animation:none}}
 `;
