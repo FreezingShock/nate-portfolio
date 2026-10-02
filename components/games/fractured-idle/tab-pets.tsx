@@ -127,7 +127,7 @@ export function PetsTab({ s, d, F, act, say, eggFx }: Ctx) {
         else say(`Hatched ${res.map((r) => PET_BY_ID.get(r.id)?.name).join(", ")}`);
     };
 
-    /** Open a big stack in one go: no reveal, just a summary of what came out. */
+    /** Hatch a big stack in one go: one egg shakes, then the unique pets land in a grid. */
     const openAll = (egg: EggDef, free = false) => {
         const res: HatchResult[] = [];
         act(() => {
@@ -141,7 +141,7 @@ export function PetsTab({ s, d, F, act, say, eggFx }: Ctx) {
         });
         if (!res.length) return;
         if (eggFx) eggFx(egg, res);
-        else say(`Opened ${res.length} eggs`);
+        else say(`Hatched ${res.length} eggs`);
     };
 
     const shown = useMemo(
@@ -246,7 +246,7 @@ export function PetsTab({ s, d, F, act, say, eggFx }: Ctx) {
                             <span className="flex-1 text-[11px] text-muted-foreground">Found by a treasure bobber.</span>
                             <button type="button" className="pt-hatch" onClick={() => open(EGGS[0], 1, true)}>Hatch</button>
                             {s.freeEggs >= 3 && <button type="button" className="pt-hatch" onClick={() => open(EGGS[0], 3, true)}>x3</button>}
-                            {s.freeEggs > 3 && <button type="button" className="pt-hatch" onClick={() => openAll(EGGS[0], true)}>Open all ({s.freeEggs})</button>}
+                            {s.freeEggs > 3 && <button type="button" className="pt-hatch" onClick={() => openAll(EGGS[0], true)}>Hatch all ({s.freeEggs})</button>}
                         </div>
                     )}
                     {PET_DIMS.map((dim) => {
@@ -306,8 +306,8 @@ export function PetsTab({ s, d, F, act, say, eggFx }: Ctx) {
                                                         <button type="button" className="pt-hatch" disabled={aff < 3} onClick={() => open(e, 3)}>x3</button>
                                                     </Tip>
                                                     {affAll > 3 && (
-                                                        <Tip tip={<TipCard title="Open all" color={e.color} lines={["Hatches every egg you can pay for with no animation, then shows what you got."]} rows={[["About", `${affAll >= 500 ? "500+" : affAll} egg${affAll === 1 ? "" : "s"}`], ["Stops", "when you run out or at 500"]]} />}>
-                                                            <button type="button" className="pt-hatch" onClick={() => openAll(e)}>Open all</button>
+                                                        <Tip tip={<TipCard title="Hatch all" color={e.color} lines={["Hatches every egg you can pay for in one short animation, then lists every pet you got."]} rows={[["About", `${affAll >= 500 ? "500+" : affAll} egg${affAll === 1 ? "" : "s"}`], ["Stops", "when you run out or at 500"]]} />}>
+                                                            <button type="button" className="pt-hatch" onClick={() => openAll(e)}>Hatch all</button>
                                                         </Tip>
                                                     )}
                                                 </div>

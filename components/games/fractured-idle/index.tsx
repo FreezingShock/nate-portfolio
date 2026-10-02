@@ -1024,7 +1024,7 @@ export function FracturedIdle() {
                 />
             )}
 
-            {reveal && <EggReveal egg={reveal.egg} results={reveal.results} fixed={full} onClose={() => setReveal(null)} />}
+            {reveal && <EggReveal egg={reveal.egg} results={reveal.results} s={s} fixed={full} onClose={() => setReveal(null)} />}
 
             <SkillToasts ref={skillApi} />
 

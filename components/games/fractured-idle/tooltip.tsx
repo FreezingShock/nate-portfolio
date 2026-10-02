@@ -251,7 +251,7 @@ export const TIP_CSS = `
 .fi-tip .tl{text-shadow:2px 2px 0 color-mix(in srgb,currentColor 25%,black);white-space:normal}
 @keyframes fi-pulse{0%,100%{opacity:.55}50%{opacity:1}}
 @media (prefers-reduced-motion:reduce){.fi-tip{transition:none}}
-.fi-tipbox{position:fixed;left:0;top:0;z-index:90;pointer-events:none;will-change:transform}
+.fi-tipbox{position:fixed;left:0;top:0;z-index:140;pointer-events:none;will-change:transform}
 .fi-tw{display:contents}
 .fi-tw-box{display:block;min-width:0}
 .fi-tw-box button:disabled,.fi-tw-box [aria-disabled="true"]{pointer-events:none}

@@ -2,10 +2,12 @@
 
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties, type MutableRefObject } from "react";
 import { McSymbol } from "@/components/mc-symbol";
-import { EGG_CUR, PET_BY_ID, PET_DIM_BY_ID, RARITIES, RARITY_ORDER, petStatValue, PET_LABEL, rarityIdx, type EggDef, type Rarity } from "@/lib/fractured-idle/data";
+import { EGG_CUR, PET_BY_ID, PET_DIM_BY_ID, RARITIES, RARITY_ORDER, petStatValue, PET_LABEL, rarityIdx, type EggDef, type Rarity, type State } from "@/lib/fractured-idle/data";
 import type { HatchResult } from "@/lib/fractured-idle/engine";
 import { chargeFx, flashScreen, revealFx } from "./enchant-fx";
 import { lift } from "./ui";
+import { PetTipBody } from "./pet-tip";
+import { Tip, useTipHost } from "./tooltip";
 
 // The egg opening. It covers the screen with a 3D particle tunnel whose colors follow the best rarity in the batch
 // (it drifts from the egg's color toward that rarity while the eggs shake, then locks in on the crack). Each egg
@@ -158,17 +160,20 @@ function Particles({ fx }: { fx: MutableRefObject<Fx> }) {
     return <canvas ref={cv} className="fi-eg-cv" aria-hidden="true" />;
 }
 
-type RevealProps = { egg: EggDef; results: HatchResult[]; onClose: () => void; fixed?: boolean };
+type RevealProps = { egg: EggDef; results: HatchResult[]; onClose: () => void; fixed?: boolean; s?: State };
 
-/** Up to three eggs open one by one; bigger batches (Open all) use the compact bulk reveal. */
+/** Up to three eggs open one by one; bigger batches (Hatch all) use the compact bulk reveal. */
 export function EggReveal(props: RevealProps) {
     return props.results.length > 3 ? <BulkReveal {...props} /> : <RowReveal {...props} />;
 }
 
 type Phase = "charge" | "pour" | "done";
 
-/** Open all: one egg shakes under an "xN" badge, cracks, and every unique pet flies out of it into a grid with its count. */
-function BulkReveal({ egg, results, onClose, fixed = false }: RevealProps) {
+/** Hatch all: one egg shakes under an "xN" badge, cracks, and every unique pet flies out of it into a grid with its count. */
+function BulkReveal({ egg, results, onClose, fixed = false, s }: RevealProps) {
+    const tipHost = useTipHost();
+    const touch = useRef(false);
+    useEffect(() => () => tipHost?.hide(), [tipHost]);
     const host = useRef<HTMLDivElement>(null);
     const eggEl = useRef<HTMLDivElement>(null);
     const tiles = useRef<(HTMLDivElement | null)[]>([]);
@@ -337,7 +342,7 @@ function BulkReveal({ egg, results, onClose, fixed = false }: RevealProps) {
             ref={host}
             role="dialog"
             aria-modal="true"
-            aria-label={`Opening ${results.length} ${egg.name}s`}
+            aria-label={`Hatching ${results.length} ${egg.name}s`}
             className="fi-eg-ov fi-bk-ov"
             data-fixed={fixed}
             data-n="1"
@@ -345,16 +350,21 @@ function BulkReveal({ egg, results, onClose, fixed = false }: RevealProps) {
             onMouseDown={(e) => e.preventDefault()}
             onDoubleClick={(e) => e.preventDefault()}
             onContextMenu={(e) => e.preventDefault()}
+            onPointerDown={(e) => {
+                touch.current = e.pointerType !== "mouse";
+            }}
             onClick={(e) => {
                 e.preventDefault();
                 e.stopPropagation();
+                // On touch, tapping a pet shows its tooltip instead of skipping or closing.
+                if (touch.current && (e.target as HTMLElement).closest(".fi-bk-t")) return;
                 skip();
             }}
         >
             <Particles fx={fx} />
             <div className="fi-eg-top">
                 <span className="fi-eg-title" style={{ color: egg.color }}>
-                    <McSymbol name={egg.symbol} /> Opening all {egg.name}s
+                    <McSymbol name={egg.symbol} /> Hatching all {egg.name}s
                 </span>
                 <span className="fi-eg-sub">{PET_DIM_BY_ID[egg.dim].name} · paid with {cur.name.toLowerCase()}</span>
             </div>
@@ -376,18 +386,25 @@ function BulkReveal({ egg, results, onClose, fixed = false }: RevealProps) {
 
                 <div className="fi-bk-g" data-done={phase === "done"}>
                     {phase === "charge" ? (
-                        <div className="fi-bk-ph">Opening {results.length.toLocaleString()} eggs…</div>
+                        <div className="fi-bk-ph">Hatching {results.length.toLocaleString()} eggs…</div>
                     ) : (
                         groups.map((g, i) => {
                             const p = PET_BY_ID.get(g.id)!;
                             const rc = RARITIES[g.rarity].color;
-                            return (
-                                <div key={g.id} ref={(el) => { tiles.current[i] = el; }} className="fi-bk-t" data-r={rarityIdx(g.rarity)} title={`${p.name} (${RARITIES[g.rarity].name}) x${g.n}`} style={{ ["--rc" as string]: rc, ["--pc" as string]: p.color } as CSSProperties}>
+                            const tile = (
+                                <div ref={(el) => { tiles.current[i] = el; }} className="fi-bk-t" data-r={rarityIdx(g.rarity)} aria-label={`${p.name}, ${RARITIES[g.rarity].name}, x${g.n}`} style={{ ["--rc" as string]: rc, ["--pc" as string]: p.color } as CSSProperties}>
                                     <span className="fi-bk-i"><McSymbol name={p.symbol} /></span>
                                     <span className="fi-bk-n">{p.name}</span>
                                     <b className="fi-bk-c">x{g.n}</b>
                                     {g.isNew && <i className="fi-bk-new">NEW</i>}
                                 </div>
+                            );
+                            return s ? (
+                                <Tip key={g.id} box className="fi-bk-w" tip={() => <PetTipBody p={p} owned={s.pets[g.id]} equipped={s.equip.includes(g.id)} slot={s.equip.indexOf(g.id)} />}>
+                                    {tile}
+                                </Tip>
+                            ) : (
+                                <span key={g.id} className="fi-bk-w">{tile}</span>
                             );
                         })
                     )}
@@ -660,6 +677,7 @@ export const EGG_CSS = `
 @keyframes fi-bk-jit{0%{transform:translate(-2px,1px) rotate(-3deg) scale(1.06)}50%{transform:translate(2px,-1px) rotate(3deg) scale(1.1)}100%{transform:translate(-1px,-2px) rotate(-2deg) scale(1.06)}}
 .fi-bk-g{flex:1 1 0;min-width:0;display:grid;grid-template-columns:repeat(auto-fill,minmax(4.6rem,1fr));gap:.4rem;align-content:start;max-height:min(58vh,26rem);overflow-y:auto;overscroll-behavior:contain;padding:.3rem;border-radius:1rem;background:rgba(0,0,0,.22);border:1px solid rgba(255,255,255,.08);scrollbar-width:thin}
 .fi-bk-ph{grid-column:1/-1;display:grid;place-items:center;min-height:6rem;font-family:var(--font-rubik,inherit);font-size:.75rem;letter-spacing:.1em;text-transform:uppercase;color:#8f89a3;animation:fi-pulse 1s ease-in-out infinite}
+.fi-bk-w{display:block;min-width:0}
 .fi-bk-t{position:relative;display:flex;flex-direction:column;align-items:center;gap:.1rem;padding:.4rem .2rem .3rem;border-radius:.7rem;border:1px solid color-mix(in oklch,var(--rc) 60%,transparent);background:color-mix(in oklch,var(--rc) 12%,rgba(8,6,18,.75));box-shadow:0 0 14px -6px var(--rc);will-change:transform,opacity}
 .fi-bk-t[data-r="4"],.fi-bk-t[data-r="5"],.fi-bk-t[data-r="6"]{box-shadow:0 0 18px -2px var(--rc),inset 0 0 12px -6px var(--rc)}
 .fi-bk-i{font-size:1.5rem;color:var(--pc);line-height:1}
