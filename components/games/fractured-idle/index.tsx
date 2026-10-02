@@ -100,6 +100,7 @@ const TABS: TabItem<TabId>[] = [
     { id: "upgrades", label: "Upgrades", symbol: "strength", group: "play", color: "var(--mc-green)", blurb: "Spend shards on click, minion, combo and popup upgrades." },
     { id: "button", label: "Button", symbol: "speed", group: "play", color: "var(--mc-aqua)", blurb: "Customize your button: shapes, skins, effects and loadouts." },
     { id: "pets", label: "Pets", symbol: "petLuck", group: "play", color: "#ff8fc7", blurb: "Hatch eggs, equip pets and level them." },
+    { id: "level", label: "Level", symbol: "flag", group: "play", color: "#7dffb8", blurb: "Your Fractured Level and the sagas: chapters for every skill that pay permanent buffs, plus the milestone timeline." },
     { id: "islands", label: "Islands", symbol: "location", group: "world", color: "#6fb4ff", blurb: "Travel between islands and master their perks." },
     { id: "skills", label: "Skills", symbol: "wisdom", group: "world", color: "var(--mc-yellow)", blurb: "Six skills with milestone rewards." },
     { id: "mine", label: "Mine", symbol: "pick", group: "world", color: "#e0b070", blurb: "Break ore, forge pickaxes, build drills and crack geodes. The Mining skill lives here." },
@@ -108,7 +109,6 @@ const TABS: TabItem<TabId>[] = [
     { id: "rebirth", label: "Rebirth", symbol: "portal", group: "prog", color: "var(--mc-red)", blurb: "Reset for tokens and a permanent multiplier." },
     { id: "ascension", label: "Ascension", symbol: "comet", group: "prog", color: "var(--mc-light-purple)", blurb: "The prestige above rebirth." },
     { id: "trophies", label: "Trophies", symbol: "pristine", group: "prog", color: "#ffd24a", blurb: "Permanent bonuses for milestones you hit." },
-    { id: "level", label: "Level", symbol: "flag", group: "prog", color: "#7dffb8", blurb: "Your Fractured Level, rewards, badges and prefixes." },
     { id: "stats", label: "Stats", symbol: "check", group: "prog", color: "#a9b8ff", blurb: "Every number behind your income." },
     { id: "soon", label: "Soon", symbol: "night", group: "sys", color: "#9a94b0", blurb: "What is planned next." },
     { id: "settings", label: "Settings", symbol: "defense", group: "sys", color: "#c9c9d6", blurb: "Display, saving, import/export and keys." },
@@ -985,13 +985,13 @@ export function FracturedIdle() {
                         {tab === "islands" && <IslandsTab {...ctx} openMenu={(id) => setMenu(id)} />}
                         {tab === "skills" && <SkillsTab {...ctx} open={(id) => setTab(id as TabId)} />}
                         {tab === "mine" && <MineTab {...ctx} />}
-                        {tab === "farm" && <FarmTab {...ctx} />}
+                        {tab === "farm" && <FarmTab {...ctx} open={(id) => setTab(id as TabId)} />}
                         {tab === "enchant" && <EnchantTab {...ctx} />}
                         {tab === "stats" && <StatsTab {...ctx} />}
                         {tab === "rebirth" && <RebirthTab {...ctx} />}
                         {tab === "ascension" && <AscensionTab {...ctx} />}
                         {tab === "trophies" && <TrophiesTab {...ctx} />}
-                        {tab === "level" && <LevelTab {...ctx} />}
+                        {tab === "level" && <LevelTab {...ctx} open={(id) => setTab(id as TabId)} />}
                         {tab === "soon" && <SoonTab {...ctx} />}
                         {tab === "settings" && <SettingsTab {...ctx} replaceState={replaceState} />}
                     </div>

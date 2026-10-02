@@ -4,6 +4,7 @@ import { skillLevel, type State } from "./data";
 import { skillPerks } from "./skills";
 import { mineFx } from "./mine";
 import { farmFx } from "./farm";
+import { journeyFx } from "./sagas";
 
 // Enchanting: roll random enchants onto four things (the button, your minions,
 // popup events and a universal tome), Terraria-reforge and Sol's-RNG style.
@@ -450,6 +451,8 @@ export function allFx(s: State): EnchFx {
     for (const k of STAT_IDS) fx[k] += mf[k] ?? 0;
     const ff = farmFx(s); // Farming: hoe tiers, crop collections, scarecrows and feats
     for (const k of STAT_IDS) fx[k] += ff[k] ?? 0;
+    const jf = journeyFx(s); // The Level page: saga chapters, finales and level milestone perks
+    for (const k of STAT_IDS) fx[k] += jf[k] ?? 0;
     return fx;
 }
 

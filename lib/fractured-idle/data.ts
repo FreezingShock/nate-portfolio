@@ -81,6 +81,7 @@ export interface State {
     lvClaim: number; // highest level whose milestone rewards were paid
     pfx: string; // equipped level prefix
     bsym: string; // equipped level badge symbol
+    chap: string[]; // claimed saga chapters ("<saga>:<n>") and finales ("<saga>:fin"), see sagas.ts
     frag: number; // Fracture Fragments: permanent +0.2% all shards each
     evs: EventStats; // popup event counters
     mine: MineState; // Mining: ore, pickaxe, upgrades, drills, collections (see mine.ts)

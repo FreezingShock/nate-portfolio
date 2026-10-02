@@ -33,7 +33,6 @@ import {
     buyHoe,
     canCraft,
     claimAllFeats,
-    claimAllGuide,
     claimFeat,
     collectAll,
     collectJob,
@@ -50,7 +49,6 @@ import {
     featsReady,
     gardenOpen,
     goalOf,
-    guideReady,
     handBoost,
     handCost,
     harvestAll,
@@ -97,19 +95,20 @@ import { Tip, TipCard } from "./tooltip";
 import { Progress, SectionTitle, type Ctx } from "./ui";
 import { C, CostRow, CropTip, ResChip, UpgradeList, col, fmtPct } from "./farm-bits";
 import { GARDEN_CSS, Garden } from "./farm-garden";
+import { wantLevel } from "./level-nav";
 import { Market, MARKET_CSS } from "./farm-market";
 import { TOOLS_CSS, Tools } from "./farm-tools";
 
 // The Farm. The same shape as the Mine (see tab-mine.tsx): gardens grow real crops on timers (one garden per
 // dimension, every open one at once), every press of the big button waters a random plot, crops can be tapped to
 // tend or harvest, and everything else (tools, the market, farmhands, the Cookhouse, collections, biomes, feats) is
-// spent and read from here. A guide at the top of the Garden always names the next thing to do. Nothing needs
+// spent and read from here. The Garden shows the current Farmhand Saga chapter. Nothing needs
 // tapping to progress: with the Auto-Reaper every garden harvests itself, also while you are away. It reuses the
 // Mine's layout classes (fi-mn-*); the pieces live in farm-garden.tsx, farm-tools.tsx and farm-market.tsx.
 
 type View = FarmView;
 
-export function FarmTab({ s, d, F, render, say }: Ctx) {
+export function FarmTab({ s, d, F, render, say, open }: Ctx & { open: (tab: string) => void }) {
     const f = s.farm;
     const lvl = farmLevel(s);
     const [view, setView] = useState<View>("garden");
@@ -139,13 +138,13 @@ export function FarmTab({ s, d, F, render, say }: Ctx) {
                     <button key={v} type="button" role="tab" aria-selected={view === v} data-on={view === v} onClick={() => setView(v)}>
                         {label}
                         {v === "kitchen" && ready > 0 && <i className="fi-mn-dot">{ready}</i>}
-                        {v === "garden" && (readyCount(s) > 0 || guideReady(s)) && <i className="fi-mn-dot feat">{guideReady(s) ? "!" : readyCount(s)}</i>}
+                        {v === "garden" && readyCount(s) > 0 && <i className="fi-mn-dot feat">{readyCount(s)}</i>}
                         {v === "feats" && featsReady(s).length > 0 && <i className="fi-mn-dot feat">{featsReady(s).length}</i>}
                     </button>
                 ))}
             </div>
 
-            {view === "garden" && <Garden s={s} d={d} F={F} render={render} say={say} go={setView} />}
+            {view === "garden" && <Garden s={s} d={d} F={F} render={render} say={say} openSaga={() => { wantLevel("sagas", "farming"); open("level"); }} />}
             {view === "tools" && <Tools s={s} F={F} render={render} say={say} />}
             {view === "market" && <Market s={s} d={d} F={F} render={render} say={say} />}
             {view === "hands" && <Hands s={s} d={d} F={F} render={render} />}

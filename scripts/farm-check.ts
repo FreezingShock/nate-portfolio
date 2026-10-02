@@ -48,12 +48,6 @@ ok(withTool > FM.cropUnits(s, c), "a worn scythe boosts wheat crops");
 FM.equipTool(s, "stalk1");
 ok(Object.keys(FM.farmFx(s)).length > 0, "farmFx includes belt");
 
-// guide
-ok(FM.guideStep(s)?.id === "plant", "guide starts at plant");
-const got = FM.claimAllGuide(s);
-ok(got.length >= 1, `guide claims ${got.length} step(s) and stops at the first unfinished one`);
-ok(FM.guideStep(s)?.id === "pick", "next guide step is the hand-pick one");
-
 // save round trip + old save migration
 const back = parseSave(serialize(s));
 ok(!!back && FM.allPlots(back).length === FM.allPlots(s).length, "save round trip keeps plots");

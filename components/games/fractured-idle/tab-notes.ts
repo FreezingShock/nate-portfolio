@@ -5,7 +5,8 @@ import { SLOT_IDS, canRoll, slotOpen } from "@/lib/fractured-idle/enchant";
 import { ascPlan, bulk, eggCan, minionBase, rebirthPlan, skillLevel, trophyCounts, upAvailable, upCost } from "@/lib/fractured-idle/engine";
 import { openIslands } from "@/lib/fractured-idle/island-logic";
 import { MINE_UPS, canBuyPick, canBuyUp, featsReady, geodeCount, jobsReady, mineLevel, slotsFree } from "@/lib/fractured-idle/mine";
-import { FARM_UPS, canBuyUp as canBuyFarmUp, canBuyHoe, featsReady as farmFeatsReady, jobsReady as farmJobsReady, readyCount, podCount, guideReady, guideStep } from "@/lib/fractured-idle/farm";
+import { FARM_UPS, canBuyUp as canBuyFarmUp, canBuyHoe, featsReady as farmFeatsReady, jobsReady as farmJobsReady, readyCount, podCount } from "@/lib/fractured-idle/farm";
+import { SAGAS, SAGA_BY_ID, finaleReady, readyChapters, type SagaId } from "@/lib/fractured-idle/sagas";
 import type { TabNote } from "./tab-bar";
 
 // What each tab's tooltip (and its badge) says. `act` notes need a click and
@@ -109,7 +110,6 @@ export function buildTabNotes(s: State, current: string, cache: NoteCache, now =
     if (pods) add("farm", { text: `${plural(pods, "seed pod")} to open`, color: "var(--mc-light-purple)", act: true });
     const ff = farmFeatsReady(s).length;
     if (ff) add("farm", { text: `${plural(ff, "farming feat")} to claim`, color: "#ffd23a", act: true });
-    if (guideReady(s)) add("farm", { text: `Farming guide: ${guideStep(s)!.title}`, color: "#ffd23a", act: true });
     if (canBuyHoe(s).ok) add("farm", { text: "A new hoe is ready to make", color: "#9be04a", act: true });
     const fups = FARM_UPS.filter((u) => canBuyFarmUp(s, u).ok).length;
     if (fups) add("farm", { text: `${plural(fups, "farm upgrade")} you can afford`, color: G, act: true });
@@ -121,6 +121,8 @@ export function buildTabNotes(s: State, current: string, cache: NoteCache, now =
     const rollable = SLOT_IDS.filter((id) => slotOpen(s, id) && !s.enc.pend[id] && canRoll(s, id).ok).length;
     if (rollable) add("enchant", { text: `Dust ready to roll on ${plural(rollable, "slot")}`, color: "#c58bff", act: true });
 
+    for (const c of readyChapters(s)) add("level", { text: `${SAGA_BY_ID[c.id.split(":")[0] as SagaId].name}: ${c.name} is ready to claim`, color: "#ffd23a", act: true });
+    for (const x of SAGAS) if (finaleReady(s, x)) add("level", { text: `${x.name} finale is ready to claim`, color: x.color, act: true });
     add("level", { text: `Fractured Level ${s.lvl}`, color: "var(--mc-aqua)" });
     return out;
 }

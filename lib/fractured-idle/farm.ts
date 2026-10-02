@@ -397,7 +397,6 @@ export interface FarmState {
     bestStreak: number;
     tends: number; // taps on growing plots
     goldens: number; // golden crops harvested
-    guide: number; // guide steps claimed
     waters: number; // presses of the big button that watered a plot
     harvests: number; // harvests (by hand, by Reaper, offline)
     picked: number; // harvested by hand
@@ -422,7 +421,7 @@ export const newFarm = (): FarmState => ({
         end: Array.from({ length: BASE_PLOTS.end }, () => ({ c: "", p: 0 })),
     },
     sow: { overworld: "", nether: "", end: "" }, ench: {}, enchanted: 0, soldN: 0, sold: 0, tools: [], belt: [],
-    streak: 0, streakAt: 0, bestStreak: 0, tends: 0, goldens: 0, guide: 0, waters: 0, harvests: 0, picked: 0, bumpers: 0,
+    streak: 0, streakAt: 0, bestStreak: 0, tends: 0, goldens: 0, waters: 0, harvests: 0, picked: 0, bumpers: 0,
     pods: {}, opened: 0, podFrac: {}, openT: 0, bloom: 0, bumper: 0, focus: "", jobs: [], crafted: 0, log: [],
 });
 
@@ -487,7 +486,6 @@ export function cleanFarm(raw: unknown): FarmState {
     out.bestStreak = Math.max(0, Math.floor(num(o.bestStreak)));
     out.tends = Math.max(0, Math.floor(num(o.tends)));
     out.goldens = Math.max(0, Math.floor(num(o.goldens)));
-    out.guide = Math.max(0, Math.min(GUIDE.length, Math.floor(num(o.guide))));
     out.waters = Math.max(0, Math.floor(num(o.waters)));
     out.harvests = Math.max(0, Math.floor(num(o.harvests)));
     out.picked = Math.max(0, Math.floor(num(o.picked)));
@@ -1542,56 +1540,6 @@ export function buyTool(s: State, id: string): boolean {
     return true;
 }
 
-// ---- The guide: what to do next, with a reward for every step ----
+// The step-by-step farming guide is the Farmhand Saga now (sagas.ts, shown on the Level page).
 
 export type FarmView = "garden" | "tools" | "market" | "hands" | "kitchen" | "crops" | "biomes" | "feats";
-export interface GuideStep {
-    id: string;
-    title: string;
-    hint: string;
-    view: FarmView;
-    done: (s: State) => boolean;
-    prog?: (s: State) => [number, number];
-    reward: [GrantKind, number];
-}
-const anyPlanted = (s: State) => allPlots(s).some((r) => r.pl.c) || s.farm.harvests > 0;
-export const GUIDE: GuideStep[] = [
-    { id: "plant", title: "Plant your first crop", hint: "Tap an empty plot in the Garden to plant the best crop you have open.", view: "garden", done: anyPlanted, reward: ["dust", 20] },
-    { id: "pick", title: "Pick 10 plots by hand", hint: "Tap ripe plots. Hand-picked crops pay 25% more, and picking back to back builds a streak.", view: "garden", done: (s) => s.farm.picked >= 10, prog: (s) => [s.farm.picked, 10], reward: ["dust", 30] },
-    { id: "tend", title: "Tend 25 growing plots", hint: "Tap a growing plot to give it a burst of growth. Every press of the big button waters one too.", view: "garden", done: (s) => s.farm.tends >= 25, prog: (s) => [s.farm.tends, 25], reward: ["dust", 30] },
-    { id: "flour", title: "Mill some flour", hint: "Kitchen tab: cook 25 wheat into Flour. Hoes and early tools are made from it.", view: "kitchen", done: (s) => (s.farm.goods.flour || 0) > 0 || s.farm.crafted > 0, reward: ["dust", 30] },
-    { id: "stone", title: "Make a Stone Hoe", hint: "Tools tab: a better hoe means bigger harvests from every plot.", view: "tools", done: (s) => s.farm.hoe >= 1, reward: ["tokens", 1] },
-    { id: "reaper", title: "Build the Auto-Reaper", hint: "Hands tab, Garden rig: ripe crops then harvest and replant themselves, even while you are away.", view: "hands", done: (s) => upLevel(s, "reaper") > 0, reward: ["dust", 40] },
-    { id: "hands", title: "Hire 5 farmhands", hint: "Hands tab: each farmhand speeds up the crop it is hired for, in every garden at once.", view: "hands", done: (s) => totalHands(s) >= 5, prog: (s) => [totalHands(s), 5], reward: ["tokens", 1] },
-    { id: "ench", title: "Enchant your first crop", hint: "Market tab: 160 raw crops become one Enchanted crop. They sell for shards and build tools.", view: "market", done: (s) => s.farm.enchanted >= 1, reward: ["dust", 50] },
-    { id: "sell", title: "Sell an Enchanted crop", hint: "Market tab: every sale pays shards for your whole game, not just the farm.", view: "market", done: (s) => s.farm.soldN >= 1, reward: ["tokens", 1] },
-    { id: "tool", title: "Make your first tool", hint: "Tools tab: every kind of crop has its own tool line. A new tool wears itself if there is room on the belt.", view: "tools", done: (s) => s.farm.tools.length >= 1, reward: ["eggs", 1] },
-    { id: "plots", title: "Grow to 10 plots", hint: "Hands tab, Extra Plot, and more plots open at Farming 10, 25 and 40.", view: "hands", done: (s) => allPlots(s).length >= 10, prog: (s) => [allPlots(s).length, 10], reward: ["dust", 40] },
-    { id: "belt2", title: "Wear two tools at once", hint: "Tools tab: the belt holds one tool per kind. Wear the ones for the crops you grow most.", view: "tools", done: (s) => s.farm.belt.length >= 2, reward: ["tokens", 1] },
-    { id: "nether", title: "Open the Nether garden", hint: "Travel to a Nether island (press I). Its garden then grows beside the Overworld one, both at once.", view: "biomes", done: (s) => gardenOpen(s, "nether"), reward: ["tokens", 2] },
-    { id: "streak", title: "Chain a 25 hand-pick streak", hint: "Pick ripe plots back to back, each within a few seconds of the last. Harvest Rhythm stretches the window.", view: "garden", done: (s) => s.farm.bestStreak >= 25, prog: (s) => [s.farm.bestStreak, 25], reward: ["dust", 80] },
-    { id: "gold", title: "Harvest a golden crop", hint: "Some crops turn golden when planted and pay 5x. Golden Seeds in the Hands tab makes them common.", view: "garden", done: (s) => s.farm.goldens >= 1, reward: ["frag", 1] },
-    { id: "end", title: "Open the End garden", hint: "Travel to an End island (press I). The End grows the rarest crops and drops the most pods.", view: "biomes", done: (s) => gardenOpen(s, "end"), reward: ["eggs", 1] },
-    { id: "tier3", title: "Make a tier 3 tool", hint: "Each tool needs the one before it, plus Enchanted crops and goods. Check the Market for what you are short of.", view: "tools", done: (s) => s.farm.tools.some((id) => (TOOL_BY_ID[id]?.tier ?? 0) >= 3), reward: ["tokens", 2] },
-    { id: "set", title: "Finish a dimension's collection tier 1", hint: "Crops tab: harvest 100 of every crop of one dimension for a permanent set bonus.", view: "crops", done: (s) => DIMS.some((dm) => dimSet(s, dm).tier >= 1), reward: ["tokens", 2] },
-    { id: "kinds", title: "Own a tool of every kind", hint: "Five tool lines cover every crop in every dimension. Each wears on the belt for permanent bonuses to the whole game.", view: "tools", done: (s) => KINDS.every((k) => s.farm.tools.some((id) => TOOL_BY_ID[id]?.kind === k)), reward: ["ap", 1] },
-    { id: "cosmic", title: "Make the Cosmic Hoe", hint: "The best hoe: Void Tea and Ember Tarts from the Kitchen, and a lot of patience.", view: "tools", done: (s) => s.farm.hoe >= HOES.length - 1, reward: ["ap", 1] },
-];
-export const guideStep = (s: State): GuideStep | null => GUIDE[s.farm.guide] ?? null;
-export const guideReady = (s: State) => !!guideStep(s) && guideStep(s)!.done(s);
-export function claimGuide(s: State): GuideStep | null {
-    const st = guideStep(s);
-    if (!st || !st.done(s)) return null;
-    pay(s, st.reward[0], st.reward[1]);
-    s.farm.guide += 1;
-    return st;
-}
-export function claimAllGuide(s: State): GuideStep[] {
-    const out: GuideStep[] = [];
-    for (let i = 0; i < GUIDE.length; i++) {
-        const c = claimGuide(s);
-        if (!c) break;
-        out.push(c);
-    }
-    return out;
-}

@@ -21,6 +21,7 @@ import { CODEX_TOTAL, ENCHANTS, RARITY_N } from "./enchant";
 import { colTiers } from "./engine";
 import { islandOpen, masteryLevel } from "./island-logic";
 import { ISLANDS, MASTERY_AT, isSpecial } from "./islands";
+import { CHAPTERS, SAGAS, SAGA_BY_ID, chapterClaimed, finaleClaimed, perkAt, sagasDone, type SagaId } from "./sagas";
 
 // Fractured Level: a slow, SkyBlock-style account level. Every level costs
 // FXP_PER_LEVEL Fracture EXP. You never "spend" anything: Fracture EXP is
@@ -38,11 +39,14 @@ import { ISLANDS, MASTERY_AT, isSpecial } from "./islands";
 export const FXP_PER_LEVEL = 100;
 export const MAX_DISPLAY_LEVEL = 400; // where the badge turns gold and "endgame" starts
 
-export type FxpCat = "trophies" | "skills" | "islands" | "looks" | "pets" | "minions" | "upgrades" | "events" | "enchant" | "progress";
+export type FxpCat = "sagas" | "mining" | "farming" | "trophies" | "skills" | "islands" | "looks" | "pets" | "minions" | "upgrades" | "events" | "enchant" | "progress";
 
 export const FXP_CATS: { id: FxpCat; name: string; color: string; symbol: McSymbolName; hint: string }[] = [
+    { id: "sagas", name: "Sagas", color: "#ffd23a", symbol: "flag", hint: "Every saga chapter and finale you claim" },
+    { id: "mining", name: "Mining", color: "#e8b04a", symbol: "pick", hint: "Swings, pickaxes, drills, geodes, the forge and ore collections" },
+    { id: "farming", name: "Farming", color: "#8fdc4a", symbol: "fortune", hint: "Harvests, hoes, farmhands, tools, enchanted crops and collections" },
     { id: "trophies", name: "Trophies", color: "var(--mc-yellow)", symbol: "pristine", hint: "Every trophy tier you unlock" },
-    { id: "skills", name: "Skills", color: "var(--mc-green)", symbol: "wisdom", hint: "Every level of all six skills" },
+    { id: "skills", name: "Skill levels", color: "var(--mc-green)", symbol: "wisdom", hint: "Every level of all six skills" },
     { id: "islands", name: "Islands", color: "var(--mc-aqua)", symbol: "location", hint: "Unlocking, visiting and mastering islands" },
     { id: "looks", name: "Button looks", color: "var(--mc-light-purple)", symbol: "speed", hint: "Every look you unlock for the button" },
     { id: "pets", name: "Pets", color: "var(--mc-dark-aqua)", symbol: "petLuck", hint: "Discovering pets and levelling them" },
@@ -178,25 +182,29 @@ export function fxpSources(s: State): FxpSource[] {
 
     // Mining: veins, pickaxes, upgrades, drills, geodes and ore collections.
     const mn = s.mine;
-    add("mine:nodes", "skills", "Pickaxe swings", ladder(mn.nodes, [[100, 8], [1000, 15], [5000, 30], [25000, 60], [100000, 120]]), 233);
-    add("mine:pick", "skills", "Pickaxe tiers", mn.pick * 12, 84);
-    add("mine:ups", "skills", "Mine upgrade levels", Object.values(mn.ups).reduce((a, b) => a + b, 0), MINE_UPS.reduce((a, u) => a + u.max, 0));
+    add("mine:nodes", "mining", "Pickaxe swings", ladder(mn.nodes, [[100, 8], [1000, 15], [5000, 30], [25000, 60], [100000, 120]]), 233);
+    add("mine:pick", "mining", "Pickaxe tiers", mn.pick * 12, 84);
+    add("mine:ups", "mining", "Mine upgrade levels", Object.values(mn.ups).reduce((a, b) => a + b, 0), MINE_UPS.reduce((a, u) => a + u.max, 0));
     const fm = s.farm;
-    add("farm:harvest", "skills", "Harvests", ladder(fm.harvests, [[50, 8], [500, 15], [5000, 30], [25000, 60], [100000, 120]]), 233);
-    add("farm:hoe", "skills", "Hoe tiers", fm.hoe * 12, 108);
-    add("farm:ups", "skills", "Farm upgrade levels", Object.values(fm.ups).reduce((a, b) => a + b, 0), FARM_UPS.reduce((a, u) => a + u.max, 0));
-    add("farm:hands", "skills", "Farmhands hired", ladder(Object.values(fm.hands).reduce((a, b) => a + b, 0), [[1, 10], [10, 20], [50, 40], [200, 80]]), 150);
-    add("farm:pods", "skills", "Seed pods opened", ladder(fm.opened, [[1, 10], [10, 20], [50, 40], [200, 80]]), 150);
-    add("farm:col", "skills", "Crop collection tiers", Object.values(fm.grown).reduce((a, m) => a + CROP_COL_AT.filter((n) => m >= n).length, 0) * 5, 450);
-    add("farm:feats", "skills", "Farming feats", fm.claimed.length * 6, FARM_FEATS.length * 6);
-    add("farm:tools", "skills", "Farm tools made", fm.tools.length * 12, FARM_TOOLS.length * 12);
-    add("farm:ench", "skills", "Enchanted crops made", ladder(fm.enchanted, [[1, 10], [25, 20], [250, 40], [2000, 80]]), 150);
-    add("farm:kitchen", "skills", "Kitchen crafts and scarecrows", ladder(fm.crafted, [[1, 10], [10, 20], [40, 40], [150, 80]]) + fm.relics.length * 20, 150 + CROW_RELICS.length * 20);
-    add("mine:feats", "skills", "Mining feats", mn.claimed.length * 6, FEATS.length * 6);
-    add("mine:forge", "skills", "Forge crafts and relics", ladder(mn.crafted, [[1, 10], [10, 20], [40, 40], [150, 80]]) + mn.relics.length * 20, 150 + RELICS.length * 20);
-    add("mine:drills", "skills", "Drills built", ladder(Object.values(mn.drills).reduce((a, b) => a + b, 0), [[1, 10], [10, 20], [50, 40], [200, 80]]), 150);
-    add("mine:geodes", "skills", "Geodes cracked", ladder(mn.cracked, [[1, 10], [10, 20], [50, 40], [200, 80]]), 150);
-    add("mine:col", "skills", "Ore collection tiers", Object.values(mn.mined).reduce((a, m) => a + ORE_COL_AT.filter((n) => m >= n).length, 0) * 5, 250);
+    add("farm:harvest", "farming", "Harvests", ladder(fm.harvests, [[50, 8], [500, 15], [5000, 30], [25000, 60], [100000, 120]]), 233);
+    add("farm:hoe", "farming", "Hoe tiers", fm.hoe * 12, 108);
+    add("farm:ups", "farming", "Farm upgrade levels", Object.values(fm.ups).reduce((a, b) => a + b, 0), FARM_UPS.reduce((a, u) => a + u.max, 0));
+    add("farm:hands", "farming", "Farmhands hired", ladder(Object.values(fm.hands).reduce((a, b) => a + b, 0), [[1, 10], [10, 20], [50, 40], [200, 80]]), 150);
+    add("farm:pods", "farming", "Seed pods opened", ladder(fm.opened, [[1, 10], [10, 20], [50, 40], [200, 80]]), 150);
+    add("farm:col", "farming", "Crop collection tiers", Object.values(fm.grown).reduce((a, m) => a + CROP_COL_AT.filter((n) => m >= n).length, 0) * 5, 450);
+    add("farm:feats", "farming", "Farming feats", fm.claimed.length * 6, FARM_FEATS.length * 6);
+    add("farm:tools", "farming", "Farm tools made", fm.tools.length * 12, FARM_TOOLS.length * 12);
+    add("farm:ench", "farming", "Enchanted crops made", ladder(fm.enchanted, [[1, 10], [25, 20], [250, 40], [2000, 80]]), 150);
+    add("farm:kitchen", "farming", "Kitchen crafts and scarecrows", ladder(fm.crafted, [[1, 10], [10, 20], [40, 40], [150, 80]]) + fm.relics.length * 20, 150 + CROW_RELICS.length * 20);
+    add("mine:feats", "mining", "Mining feats", mn.claimed.length * 6, FEATS.length * 6);
+    add("mine:forge", "mining", "Forge crafts and relics", ladder(mn.crafted, [[1, 10], [10, 20], [40, 40], [150, 80]]) + mn.relics.length * 20, 150 + RELICS.length * 20);
+    add("mine:drills", "mining", "Drills built", ladder(Object.values(mn.drills).reduce((a, b) => a + b, 0), [[1, 10], [10, 20], [50, 40], [200, 80]]), 150);
+    add("mine:geodes", "mining", "Geodes cracked", ladder(mn.cracked, [[1, 10], [10, 20], [50, 40], [200, 80]]), 150);
+    add("mine:col", "mining", "Ore collection tiers", Object.values(mn.mined).reduce((a, m) => a + ORE_COL_AT.filter((n) => m >= n).length, 0) * 5, 250);
+
+    // Sagas: each claimed chapter and finale pays once.
+    for (const c of CHAPTERS) add(`chap:${c.id}`, "sagas", `${SAGA_BY_ID[c.id.split(":")[0] as SagaId].name}, chapter ${c.n}: ${c.name}`, chapterClaimed(s, c) ? c.xp : 0, c.xp);
+    for (const x of SAGAS) add(`fin:${x.id}`, "sagas", `${x.name} finale: ${x.finale.name}`, finaleClaimed(s, x) ? x.finale.xp : 0, x.finale.xp);
 
     // Progress that is not tied to one system.
     const rb = Math.max(s.rebirths, s.btn.rb);
@@ -217,7 +225,7 @@ export interface LevelReward {
     tokens: number;
     eggs: number;
     ap: number;
-    unlocks: string[]; // names of badge symbols / prefixes that unlock at exactly this level
+    unlocks: string[]; // names of badge symbols / prefixes / perks that unlock at exactly this level
 }
 
 export function rewardFor(level: number): LevelReward {
@@ -225,7 +233,7 @@ export function rewardFor(level: number): LevelReward {
         tokens: level % 10 === 0 ? 2 + (level % 100 === 0 ? 8 : 0) : 0,
         eggs: level % 20 === 0 ? 1 : 0,
         ap: (level % 50 === 0 ? 1 : 0) + (level % 100 === 0 ? 3 : 0),
-        unlocks: [...BADGE_SYMBOLS.filter((b) => b.at === level && level > 0).map((b) => `${b.name} badge`), ...PREFIXES.filter((p) => p.need?.stat === "level" && p.need.n === level).map((p) => `${p.name} prefix`)],
+        unlocks: [...(perkAt(level) ? [`${perkAt(level)!.name} perk`] : []), ...BADGE_SYMBOLS.filter((b) => b.at === level && level > 0 && !b.saga).map((b) => `${b.name} badge`), ...PREFIXES.filter((p) => p.need?.stat === "level" && p.need.n === level).map((p) => `${p.name} prefix`)],
     };
 }
 
@@ -289,27 +297,51 @@ export interface BadgeSymbol {
     name: string;
     symbol: McSymbolName | "";
     at: number; // level needed
+    saga?: SagaId; // also needs this saga finished (its finale claimed)
 }
 
 export const BADGE_SYMBOLS: BadgeSymbol[] = [
     { id: "none", name: "Plain", symbol: "", at: 0 },
     { id: "spark", name: "Spark", symbol: "speed", at: 5 },
+    { id: "bolt", name: "Bolt", symbol: "bolt", at: 10 },
     { id: "fist", name: "Fist", symbol: "strength", at: 15 },
+    { id: "melody", name: "Melody", symbol: "notes", at: 20 },
     { id: "clover", name: "Clover", symbol: "fortune", at: 25 },
+    { id: "anchor", name: "Anchor", symbol: "anchor", at: 30 },
+    { id: "flask", name: "Flask", symbol: "flask", at: 35 },
     { id: "steam", name: "Steam", symbol: "heat", at: 40 },
+    { id: "key", name: "Key", symbol: "key", at: 50 },
+    { id: "frost", name: "Frost", symbol: "snow", at: 55 },
     { id: "heart", name: "Heart", symbol: "regen", at: 60 },
+    { id: "gear", name: "Gear", symbol: "cog", at: 70 },
     { id: "moon", name: "Moon", symbol: "night", at: 80 },
+    { id: "sun", name: "Sun", symbol: "sun", at: 90 },
     { id: "bloom", name: "Bloom", symbol: "flower", at: 100 },
+    { id: "shield", name: "Shield", symbol: "shield", at: 110 },
+    { id: "atom", name: "Atom", symbol: "atom", at: 120 },
     { id: "gem", name: "Gem", symbol: "pristine", at: 130 },
+    { id: "eye", name: "Eye", symbol: "eye", at: 145 },
     { id: "comet", name: "Comet", symbol: "comet", at: 160 },
+    { id: "fleur", name: "Fleur", symbol: "fleur", at: 180 },
     { id: "blades", name: "Blades", symbol: "attackSpeed", at: 200 },
+    { id: "crown", name: "Crown", symbol: "crown", at: 225 },
     { id: "star", name: "Star", symbol: "magicFind", at: 250 },
+    { id: "infinity", name: "Infinity", symbol: "infinity", at: 275 },
     { id: "portal", name: "Portal", symbol: "portal", at: 300 },
+    { id: "rune", name: "Rune", symbol: "rune2", at: 325 },
     { id: "skull", name: "Skull", symbol: "critDamage", at: 350 },
+    { id: "hourglass", name: "Hourglass", symbol: "hourglass", at: 375 },
     { id: "banner", name: "Banner", symbol: "flag", at: 400 },
+    // One for each finished saga.
+    { id: "saga-mining", name: "Pickaxe", symbol: "pick", at: 1, saga: "mining" },
+    { id: "saga-farming", name: "Sprout", symbol: "daisy", at: 1, saga: "farming" },
+    { id: "saga-combat", name: "Duelist", symbol: "knight", at: 1, saga: "combat" },
+    { id: "saga-fishing", name: "Hook", symbol: "fishing", at: 1, saga: "fishing" },
+    { id: "saga-foraging", name: "Leaf", symbol: "blossom", at: 1, saga: "foraging" },
+    { id: "saga-enchanting", name: "Staff", symbol: "staff", at: 1, saga: "enchanting" },
 ];
 
-export type PrefixStat = "level" | "mining" | "farming" | "combat" | "fishing" | "rebirths" | "asc" | "pets" | "visited" | "islands" | "total" | "bestCombo" | "frag" | "perfect";
+export type PrefixStat = `saga_${SagaId}` | "sagas" | "level" | "mining" | "farming" | "combat" | "fishing" | "rebirths" | "asc" | "pets" | "visited" | "islands" | "total" | "bestCombo" | "frag" | "perfect";
 
 export interface Prefix {
     id: string;
@@ -341,6 +373,14 @@ export const PREFIXES: Prefix[] = [
     { id: "legend", name: "Legend", color: "#ff55ff", need: { stat: "level", n: 200, label: "Reach level 200" } },
     { id: "fractured", name: "Fractured", color: "#aa00aa", need: { stat: "level", n: 300, label: "Reach level 300" } },
     { id: "mythic", name: "Mythic", color: "rainbow", need: { stat: "level", n: 400, label: "Reach level 400" } },
+    { id: "spelunker", name: "Spelunker", color: "#e8b04a", need: { stat: "saga_mining", n: 1, label: "Finish the Spelunking Saga" } },
+    { id: "farmhand", name: "Farmhand", color: "#8fdc4a", need: { stat: "saga_farming", n: 1, label: "Finish the Farmhand Saga" } },
+    { id: "duelist", name: "Duelist", color: "#ff6a5f", need: { stat: "saga_combat", n: 1, label: "Finish the Duelist Saga" } },
+    { id: "deepangler", name: "Deep Angler", color: "#57d8ff", need: { stat: "saga_fishing", n: 1, label: "Finish the Angler Saga" } },
+    { id: "wanderer", name: "Wanderer", color: "#b6f06a", need: { stat: "saga_foraging", n: 1, label: "Finish the Wanderer Saga" } },
+    { id: "wizard", name: "Wizard", color: "#c58bff", need: { stat: "saga_enchanting", n: 1, label: "Finish the Wizard Saga" } },
+    { id: "chronicler", name: "Chronicler", color: "#ffd23a", need: { stat: "sagas", n: 3, label: "Finish 3 sagas" } },
+    { id: "loremaster", name: "Loremaster", color: "rainbow", need: { stat: "sagas", n: 6, label: "Finish all 6 sagas" } },
 ];
 
 export function prefixStat(s: State, stat: PrefixStat): number {
@@ -359,11 +399,13 @@ export function prefixStat(s: State, stat: PrefixStat): number {
         case "bestCombo": return s.bestCombo;
         case "frag": return s.frag;
         case "perfect": return s.evs.perfect;
+        case "sagas": return sagasDone(s);
+        default: return finaleClaimed(s, SAGA_BY_ID[stat.slice(5) as SagaId]) ? 1 : 0;
     }
 }
 
 export const prefixOpen = (s: State, p: Prefix) => !p.need || prefixStat(s, p.need.stat) >= p.need.n;
-export const symbolOpen = (s: State, b: BadgeSymbol) => s.lvl >= b.at;
+export const symbolOpen = (s: State, b: BadgeSymbol) => s.lvl >= b.at && (!b.saga || finaleClaimed(s, SAGA_BY_ID[b.saga]));
 export const prefixOf = (s: State) => PREFIXES.find((p) => p.id === s.pfx && prefixOpen(s, p)) ?? PREFIXES[0];
 export const symbolOf = (s: State) => BADGE_SYMBOLS.find((b) => b.id === s.bsym && symbolOpen(s, b)) ?? BADGE_SYMBOLS[0];
 export { LEVEL_BONUS };

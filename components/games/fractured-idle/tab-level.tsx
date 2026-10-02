@@ -1,206 +1,295 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
-import { Lock } from "lucide-react";
-import { McSymbol } from "@/components/mc-symbol";
+import { memo, useEffect, useMemo, useState } from "react";
+import { McSymbol, type McSymbolName } from "@/components/mc-symbol";
 import {
-    BADGE_SYMBOLS,
-    FXP_CATS,
     FXP_PER_LEVEL,
     LEVEL_BONUS,
     MAX_DISPLAY_LEVEL,
-    PREFIXES,
+    BADGE_SYMBOLS,
     fxpSources,
     fxpTotal,
     hasReward,
+    levelColor,
     prefixOf,
     prefixOpen,
-    recentGains,
     rewardFor,
     rewardText,
     symbolOf,
     symbolOpen,
-    type FxpCat,
+    PREFIXES,
 } from "@/lib/fractured-idle/fxp";
+import {
+    CHAPTERS,
+    JOURNEY_TOTAL,
+    LEVEL_PERKS,
+    SAGAS,
+    chapterFrac,
+    chapterReady,
+    claimAllJourney,
+    claimChapter,
+    claimFinale,
+    currentChapter,
+    finaleReady,
+    journeyDone,
+    journeyReady,
+    levelFx,
+    perkAt,
+    sagaFx,
+    sagasDone,
+    tasksDone,
+    type Buff,
+    type SagaId,
+} from "@/lib/fractured-idle/sagas";
+import { BadgesView } from "./level-badges";
+import { LEVEL_PAGE_CSS } from "./level-css";
 import { LevelBadge } from "./level-badge";
-import { SectionTitle, tint, type Ctx } from "./ui";
+import { takeLevelWant, type LevelView } from "./level-nav";
+import { Bar, Buffs, GOLD, Grants, SagaCard, css } from "./level-parts";
+import { SagasView } from "./level-sagas";
+import { SourcesView } from "./level-sources";
+import { TimelineView } from "./level-timeline";
+import type { Ctx } from "./ui";
 
-// Fractured Level: your account level. Shows the XP bar, what pays Fracture
-// EXP (by system, with the sources closest to paying), the next milestone
-// rewards, and the badge symbol and prefix you can wear.
+// The Level page, in the Play group: your Fractured Level and its rewards, plus the Sagas (a story with four chapters
+// for every skill; finishing them pays permanent buffs). Five views: Journey (what to do next), Sagas, Timeline of
+// every level, where Fracture EXP comes from, and Badges.
 
-const C = "var(--mc-yellow)";
+const NAV: { id: LevelView; label: string; symbol: McSymbolName; color: string }[] = [
+    { id: "journey", label: "Journey", symbol: "flag", color: "#7dffb8" },
+    { id: "sagas", label: "Sagas", symbol: "wisdom", color: "#ffd23a" },
+    { id: "timeline", label: "Timeline", symbol: "arrow", color: "#57d8ff" },
+    { id: "sources", label: "EXP sources", symbol: "pristine", color: "#ff8fc7" },
+    { id: "badges", label: "Badges", symbol: "star", color: "#c58bff" },
+];
 
-export function LevelTab({ s, F, render }: Ctx) {
+const Timeline = memo(TimelineView);
+
+export function LevelTab({ s, F, act, say, render, open }: Ctx & { open: (tab: string) => void }) {
+    const [init] = useState(() => takeLevelWant());
+    const [view, setView] = useState<LevelView>(init?.view ?? "journey");
+    const [saga, setSaga] = useState<SagaId>(() => init?.saga ?? (SAGAS.find((x) => x.chapters.some((c) => chapterReady(s, c))) ?? SAGAS.find((x) => currentChapter(s, x)) ?? SAGAS[0]).id);
     const [tick, setTick] = useState(0);
-    const [openCat, setOpenCat] = useState<FxpCat | null>(null);
     useEffect(() => {
         const id = setInterval(() => setTick((t) => t + 1), 1000);
         return () => clearInterval(id);
     }, []);
-    const sources = useMemo(() => fxpSources(s), [tick, s]); // eslint-disable-line react-hooks/exhaustive-deps
+    // The sources are the heaviest thing here, so they are only read on that view (and once a second).
+    const sources = useMemo(() => (view === "sources" ? fxpSources(s) : []), [view, tick, s]); // eslint-disable-line react-hooks/exhaustive-deps
+
     const total = fxpTotal(s);
     const into = total - s.lvl * FXP_PER_LEVEL;
-    const pfx = prefixOf(s);
+    const lc = levelColor(s.lvl);
+    const ready = journeyReady(s);
     const sym = symbolOf(s);
-    const gains = recentGains(Date.now(), 120000).slice(-8).reverse();
+    const pfx = prefixOf(s);
+    const nextPerk = LEVEL_PERKS.find((p) => p.at > s.lvl);
+    const openSymbols = BADGE_SYMBOLS.filter((b) => b.symbol && symbolOpen(s, b)).length;
+    const openPrefixes = PREFIXES.filter((p) => p.id !== "none" && prefixOpen(s, p)).length;
 
-    // The next few levels that pay something.
-    const upcoming: { level: number; text: string }[] = [];
-    for (let l = s.lvl + 1; l <= s.lvl + 80 && upcoming.length < 6; l++) {
+    const go = (v: LevelView, id?: SagaId) => {
+        if (id) setSaga(id);
+        setView(v);
+    };
+
+    return (
+        <div className="fi-lv">
+            <style>{LEVEL_PAGE_CSS}</style>
+
+            <div className="fi-lv-hero" style={css({ "--lc": lc })}>
+                <div className="fi-lv-top">
+                    <LevelBadge level={s.lvl} sym={sym} prefix={pfx} size="lg" />
+                    <div className="fi-lv-stats">
+                        <div className="fi-lv-stat" style={css({ "--k": "var(--mc-green)" })}><b>+{+(LEVEL_BONUS * s.lvl * 100).toFixed(1)}%</b><span>all shards</span></div>
+                        <div className="fi-lv-stat" style={css({ "--k": GOLD })}><b>{journeyDone(s)}/{JOURNEY_TOTAL}</b><span>chapters</span></div>
+                        <div className="fi-lv-stat" style={css({ "--k": "var(--mc-light-purple)" })}><b>{LEVEL_PERKS.filter((p) => s.lvl >= p.at).length}/{LEVEL_PERKS.length}</b><span>level perks</span></div>
+                    </div>
+                </div>
+                <div className="fi-lv-xp">
+                    <div className="fi-lv-xp-r">
+                        <span>Level {s.lvl} to {s.lvl + 1}</span>
+                        <span><b>{into}</b> / {FXP_PER_LEVEL} XP · {F(total)} total</span>
+                    </div>
+                    <Bar pct={into / FXP_PER_LEVEL} />
+                </div>
+                <div className="fi-lv-hero-f">
+                    <span className="fi-lv-note">
+                        {nextPerk ? <>Next perk at level <b style={{ color: "#fff" }}>{nextPerk.at}</b>: {nextPerk.name}.</> : "Every perk unlocked."} Each level is +{+(LEVEL_BONUS * 100).toFixed(2)}% all shards.
+                    </span>
+                    {ready > 0 && (
+                        <button
+                            type="button"
+                            className="fi-lv-btn go"
+                            data-snd="off"
+                            onClick={() =>
+                                act(() => {
+                                    const got = claimAllJourney(s);
+                                    const n = got.chapters.length + got.sagas.length;
+                                    if (n) say(`Claimed ${got.chapters.length} chapter${got.chapters.length === 1 ? "" : "s"}${got.sagas.length ? ` and ${got.sagas.length} finale${got.sagas.length === 1 ? "" : "s"}` : ""}.`);
+                                    return n > 0;
+                                }, "trophy")
+                            }
+                        >
+                            Claim all ({ready})
+                        </button>
+                    )}
+                </div>
+            </div>
+
+            <div className="fi-lv-nav" role="tablist" aria-label="Level page">
+                {NAV.map((n) => (
+                    <button key={n.id} type="button" role="tab" aria-selected={view === n.id} data-on={view === n.id} style={css({ "--nc": n.color })} onClick={() => setView(n.id)}>
+                        <McSymbol name={n.symbol} />
+                        <span className="t">{n.label}</span>
+                        {n.id === "sagas" && ready > 0 && <i>{ready}</i>}
+                    </button>
+                ))}
+            </div>
+
+            {view === "journey" && <Journey s={s} F={F} act={act} say={say} open={open} go={go} openSymbols={openSymbols} openPrefixes={openPrefixes} />}
+            {view === "sagas" && <SagasView s={s} F={F} act={act} say={say} open={open} sel={saga} setSel={setSaga} />}
+            {view === "timeline" && <Timeline lvl={s.lvl} into={into} />}
+            {view === "sources" && <SourcesView s={s} F={F} sources={sources} />}
+            {view === "badges" && <BadgesView s={s} render={render} />}
+        </div>
+    );
+}
+
+// ---- Journey ----
+
+function Journey({ s, F, act, say, open, go, openSymbols, openPrefixes }: Pick<Ctx, "s" | "F" | "act" | "say"> & { open: (tab: string) => void; go: (v: LevelView, id?: SagaId) => void; openSymbols: number; openPrefixes: number }) {
+    // What to do next: every chapter that is ready, then the chapters closest to done, one per saga.
+    const picks = SAGAS.map((x) => ({ x, c: currentChapter(s, x) }))
+        .filter((p): p is { x: (typeof SAGAS)[number]; c: NonNullable<typeof p.c> } => !!p.c)
+        .sort((a, b) => Number(chapterReady(s, b.c)) - Number(chapterReady(s, a.c)) || chapterFrac(s, b.c) - chapterFrac(s, a.c))
+        .slice(0, 3);
+    const finales = SAGAS.filter((x) => finaleReady(s, x));
+    const fresh = s.chap.length === 0;
+
+    const nextMs: { level: number; text: string; perk?: string; buff?: Buff[] }[] = [];
+    for (let l = s.lvl + 1; l <= MAX_DISPLAY_LEVEL && nextMs.length < 4; l++) {
         const r = rewardFor(l);
-        if (hasReward(r)) upcoming.push({ level: l, text: rewardText(r) });
+        const p = perkAt(l);
+        if (hasReward(r) || p) nextMs.push({ level: l, text: rewardText({ ...r, unlocks: r.unlocks.filter((u) => !u.endsWith(" perk")) }), perk: p?.name, buff: p?.buff });
     }
+
+    const lf = Object.entries(levelFx(s)) as Buff[];
+    const sf = Object.entries(sagaFx(s)) as Buff[];
 
     return (
         <>
-            <div className="relative overflow-hidden rounded-2xl border p-4" style={{ borderColor: tint(C, 50), backgroundImage: `linear-gradient(130deg, ${tint(C, 12)}, transparent 70%)` }}>
-                <div className="flex flex-wrap items-center justify-between gap-2">
-                    <LevelBadge level={s.lvl} sym={sym} prefix={pfx} size="lg" />
-                    <div className="text-left font-rubik text-[11px] text-muted-foreground sm:text-right">
-                        <div><b style={{ color: C }}>{F(total)}</b> Fracture EXP</div>
-                        <div>Every level: <b style={{ color: "var(--mc-green)" }}>+{+(LEVEL_BONUS * 100).toFixed(2)}%</b> all shards (now +{+(LEVEL_BONUS * s.lvl * 100).toFixed(1)}%)</div>
-                    </div>
-                </div>
-                <div className="mt-3 flex justify-between font-rubik text-[10px] text-muted-foreground">
-                    <span>Level {s.lvl} → {s.lvl + 1}</span>
-                    <span>{into} / {FXP_PER_LEVEL} XP</span>
-                </div>
-                <div className="mt-1 h-2 overflow-hidden rounded-full bg-white/10">
-                    <div className="h-full rounded-full transition-[width] duration-500" style={{ width: `${(into / FXP_PER_LEVEL) * 100}%`, backgroundColor: C, boxShadow: `0 0 10px ${C}` }} />
-                </div>
-                <p className="mt-2 font-rubik text-[11px] text-muted-foreground">
-                    You earn Fracture EXP once for each thing you unlock or achieve, in every system. Level {MAX_DISPLAY_LEVEL} needs almost all of it, and every ascension keeps paying.
+            {fresh && (
+                <p className="fi-lv-note" style={{ padding: ".1rem .2rem" }}>
+                    <b style={{ color: "#fff" }}>Welcome to the Level page.</b> Every skill has a Saga: four chapters of simple tasks that complete on their own as you play. Finish a chapter, claim it here, and keep its buff forever. Start with whichever skill you like; the cards below always show the best next step.
                 </p>
-            </div>
-
-            {upcoming.length > 0 && (
-                <>
-                    <SectionTitle color="var(--mc-green)">Next rewards</SectionTitle>
-                    <div className="grid grid-cols-1 gap-1 sm:grid-cols-2">
-                        {upcoming.map((u) => (
-                            <div key={u.level} className="flex items-center gap-2 rounded-lg border border-white/10 px-2.5 py-1.5 font-rubik text-[11px]">
-                                <span className="font-minecraft font-bold text-xs" style={{ color: C }}>Lv {u.level}</span>
-                                <span className="min-w-0 flex-1 truncate">{u.text}</span>
-                            </div>
-                        ))}
-                    </div>
-                </>
             )}
 
-            <SectionTitle color="var(--mc-aqua)">Where Fracture EXP comes from</SectionTitle>
-            <div className="space-y-1">
-                {FXP_CATS.map((c) => {
-                    const list = sources.filter((x) => x.cat === c.id);
-                    const got = list.reduce((a, x) => a + Math.max(x.xp, s.fxp[x.id] || 0), 0);
-                    const max = list.reduce((a, x) => a + x.max, 0);
-                    const frac = max > 0 ? Math.min(1, got / max) : 0;
-                    const open = openCat === c.id;
-                    const todo = list
-                        .filter((x) => x.max > 0 && Math.max(x.xp, s.fxp[x.id] || 0) < x.max)
-                        .sort((a, b) => b.xp / b.max - a.xp / a.max)
-                        .slice(0, 8);
-                    return (
-                        <div key={c.id} className="rounded-xl border border-white/10">
-                            <button type="button" onClick={() => setOpenCat(open ? null : c.id)} className="flex w-full items-center gap-2.5 px-3 py-2 text-left transition-colors hover:bg-white/5">
-                                <span className="text-lg" style={{ color: c.color }}><McSymbol name={c.symbol} /></span>
-                                <span className="min-w-0 flex-1">
-                                    <span className="flex items-baseline justify-between gap-2 font-minecraft font-bold text-xs" style={{ color: c.color }}>
-                                        {c.name}
-                                        <span className="font-rubik text-[10px] text-muted-foreground">{F(got)}{max > 0 ? ` / ${F(max)}` : ""} XP</span>
-                                    </span>
-                                    <span className="mt-1 block h-1.5 overflow-hidden rounded-full bg-white/10">
-                                        <span className="block h-full rounded-full" style={{ width: `${frac * 100}%`, backgroundColor: c.color, boxShadow: `0 0 8px ${c.color}` }} />
-                                    </span>
-                                </span>
+            <div className="fi-lv-h" style={css({ "--hc": "#7dffb8" })}>Continue your journey <small>{journeyDone(s)} of {JOURNEY_TOTAL} claimed</small></div>
+            <div className="fi-lv-next">
+                {finales.map((x) => (
+                    <div key={`f${x.id}`} className="fi-lv-cont" data-ready="true" style={css({ "--sc": x.color })}>
+                        <div className="fi-lv-cont-h"><McSymbol name={x.symbol} />{x.name}<em>Finale</em></div>
+                        <div className="fi-lv-cont-t">{x.finale.name} is ready</div>
+                        <Buffs buff={x.finale.buff} />
+                        <div className="fi-lv-cont-f">
+                            <Grants grant={x.finale.grant} xp={x.finale.xp} />
+                            <button
+                                type="button"
+                                className="fi-lv-btn go"
+                                data-snd="off"
+                                onClick={() =>
+                                    act(() => {
+                                        const got = claimFinale(s, x.id);
+                                        if (got) say(`${got.name} complete! ${got.finale.name} unlocked.`);
+                                        return !!got;
+                                    }, "tier")
+                                }
+                            >
+                                Claim
                             </button>
-                            {open && (
-                                <div className="border-t border-white/10 px-3 py-2">
-                                    <p className="mb-1.5 font-rubik text-[10px] text-muted-foreground">{c.hint}. Closest to paying more:</p>
-                                    <div className="space-y-1">
-                                        {todo.length === 0 && <div className="font-rubik text-[11px] text-muted-foreground">Everything here is done{c.id === "progress" ? " (ascending keeps paying)" : ""}.</div>}
-                                        {todo.map((x) => (
-                                            <div key={x.id} className="flex items-center gap-2 font-rubik text-[11px]">
-                                                <span className="min-w-0 flex-1 truncate">{x.label}</span>
-                                                <span className="h-1 w-16 shrink-0 overflow-hidden rounded-full bg-white/10">
-                                                    <span className="block h-full rounded-full" style={{ width: `${(x.xp / x.max) * 100}%`, backgroundColor: c.color }} />
-                                                </span>
-                                                <span className="w-16 shrink-0 text-right text-muted-foreground">{Math.floor(x.xp)}/{x.max}</span>
-                                            </div>
-                                        ))}
-                                    </div>
+                        </div>
+                    </div>
+                ))}
+                {picks.map(({ x, c }) => {
+                    const rd = chapterReady(s, c);
+                    const t = c.tasks.find((k) => k.prog(s)[0] < k.prog(s)[1]);
+                    const pr = t?.prog(s);
+                    return (
+                        <div key={c.id} className="fi-lv-cont" data-ready={rd} style={css({ "--sc": x.color })}>
+                            <div className="fi-lv-cont-h">
+                                <McSymbol name={x.symbol} />
+                                {x.name} · Ch {c.n}
+                                <em>{tasksDone(s, c)}/{c.tasks.length} tasks</em>
+                            </div>
+                            <div className="fi-lv-cont-t">{rd ? `${c.name} is ready to claim` : t?.text}</div>
+                            {pr && !rd && (
+                                <div className="fi-lv-cont-p">
+                                    <Bar pct={pr[0] / pr[1]} color={x.color} thin />
+                                    <span>{F(Math.min(pr[0], pr[1]))} / {F(pr[1])}</span>
                                 </div>
                             )}
+                            <Buffs buff={c.buff} dim={!rd} />
+                            <div className="fi-lv-cont-f">
+                                <button type="button" className="fi-lv-btn ghost" onClick={() => go("sagas", x.id)}>{c.name}</button>
+                                {rd ? (
+                                    <button
+                                        type="button"
+                                        className="fi-lv-btn go"
+                                        data-snd="off"
+                                        onClick={() =>
+                                            act(() => {
+                                                const got = claimChapter(s, c.id);
+                                                if (got) say(`${x.name}, chapter ${got.n}: ${got.name}. Permanent buff unlocked!`);
+                                                return !!got;
+                                            }, "trophy")
+                                        }
+                                    >
+                                        Claim
+                                    </button>
+                                ) : (
+                                    t && <button type="button" className="fi-lv-btn" onClick={() => open(t.tab)}>Go</button>
+                                )}
+                            </div>
                         </div>
                     );
                 })}
+                {picks.length === 0 && finales.length === 0 && <p className="fi-lv-note">Every chapter of every saga is claimed. Nicely done.</p>}
             </div>
 
-            <SectionTitle color="var(--mc-light-purple)">Badge symbol</SectionTitle>
-            <div className="flex flex-wrap gap-1.5">
-                {BADGE_SYMBOLS.map((b) => {
-                    const ok = symbolOpen(s, b);
-                    const on = sym.id === b.id;
-                    return (
-                        <button
-                            key={b.id}
-                            type="button"
-                            disabled={!ok}
-                            title={ok ? b.name : `${b.name}: reach level ${b.at}`}
-                            onClick={() => {
-                                s.bsym = b.id;
-                                render();
-                            }}
-                            className="flex items-center gap-1 rounded-lg border px-2 py-1 font-minecraft font-bold text-xs transition-colors enabled:hover:bg-white/10 disabled:opacity-50"
-                            style={on ? { borderColor: C, color: C, backgroundColor: tint(C, 14) } : { borderColor: "rgba(255,255,255,.15)" }}
-                        >
-                            {ok ? b.symbol ? <McSymbol name={b.symbol} /> : "–" : <Lock className="size-3" />}
-                            <span className="font-rubik text-[10px]">{ok ? b.name : `Lv ${b.at}`}</span>
-                        </button>
-                    );
-                })}
+            <div className="fi-lv-h" style={css({ "--hc": "#ffd23a" })}>The sagas <small>{sagasDone(s)} of {SAGAS.length} complete</small></div>
+            <div className="fi-lv-sagas">
+                {SAGAS.map((x) => (
+                    <SagaCard key={x.id} s={s} x={x} onClick={() => go("sagas", x.id)} />
+                ))}
             </div>
 
-            <SectionTitle color="var(--mc-gold)">Prefix</SectionTitle>
-            <div className="flex flex-wrap gap-1.5">
-                {PREFIXES.map((p) => {
-                    const ok = prefixOpen(s, p);
-                    const on = pfx.id === p.id;
-                    return (
-                        <button
-                            key={p.id}
-                            type="button"
-                            disabled={!ok}
-                            title={ok ? p.name : (p.need?.label ?? "")}
-                            onClick={() => {
-                                s.pfx = p.id;
-                                render();
-                            }}
-                            className="rounded-lg border px-2 py-1 font-rubik text-[11px] transition-colors enabled:hover:bg-white/10 disabled:opacity-50"
-                            style={on ? { borderColor: p.color === "rainbow" ? "#fff" : p.color, backgroundColor: tint(p.color === "rainbow" ? "#ffffff" : p.color, 14) } : { borderColor: "rgba(255,255,255,.15)" }}
-                        >
-                            <span className={p.color === "rainbow" ? "fi-rainbow" : ""} style={p.color === "rainbow" ? undefined : { color: ok ? p.color : undefined }}>
-                                {ok ? p.name : <><Lock className="mr-1 inline size-3" />{p.name}</>}
-                            </span>
-                            {!ok && p.need && <span className="ml-1.5 text-[9px] text-muted-foreground">{p.need.label}</span>}
-                        </button>
-                    );
-                })}
+            <div className="fi-lv-h" style={css({ "--hc": "#57d8ff" })}>Coming up on the timeline</div>
+            <div className="fi-lv-next">
+                {nextMs.map((m) => (
+                    <button key={m.level} type="button" className="fi-lv-cont" style={css({ "--sc": levelColor(m.level), textAlign: "left", color: "#fff" })} onClick={() => go("timeline")}>
+                        <div className="fi-lv-cont-h">Level {m.level}<em>{m.level - s.lvl} to go</em></div>
+                        {m.perk && <div className="fi-lv-cont-t">{m.perk}</div>}
+                        {m.buff && <Buffs buff={m.buff} dim />}
+                        {m.text && <span className="fi-lv-note">{m.text}</span>}
+                    </button>
+                ))}
             </div>
 
-            {gains.length > 0 && (
-                <>
-                    <SectionTitle color="var(--mc-green)">Recent</SectionTitle>
-                    <div className="space-y-0.5 font-rubik text-[11px]">
-                        {gains.map((g, i) => (
-                            <div key={i} className="flex justify-between gap-2">
-                                <span className="truncate text-muted-foreground">{g.label}</span>
-                                <span style={{ color: "var(--mc-green)" }}>+{g.xp} XP</span>
-                            </div>
-                        ))}
-                    </div>
-                </>
-            )}
+            <div className="fi-lv-h" style={css({ "--hc": "var(--mc-green)" })}>Your permanent buffs</div>
+            <div className="fi-lv-led">
+                <div style={css({ "--k": "#7dffb8" })}>
+                    <b>From your level</b>
+                    {lf.length ? <Buffs buff={lf} /> : <span className="fi-lv-note">Reach level {LEVEL_PERKS[0].at} for the first perk.</span>}
+                </div>
+                <div style={css({ "--k": "#ffd23a" })}>
+                    <b>From sagas</b>
+                    {sf.length ? <Buffs buff={sf} /> : <span className="fi-lv-note">Claim a chapter to start stacking these.</span>}
+                </div>
+            </div>
+            <p className="fi-lv-note">
+                {CHAPTERS.length} chapters, {SAGAS.length} finales and {LEVEL_PERKS.length} level perks, plus {openSymbols} badge symbols and {openPrefixes} prefixes unlocked so far.{" "}
+                <button type="button" className="fi-lv-btn ghost" style={{ padding: ".1rem .5rem" }} onClick={() => go("badges")}>Open badges</button>
+            </p>
         </>
     );
 }

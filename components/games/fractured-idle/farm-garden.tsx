@@ -8,13 +8,11 @@ import { fmtTime } from "@/lib/fractured-idle/engine";
 import { ISLANDS } from "@/lib/fractured-idle/islands";
 import type { Dim } from "@/lib/fractured-idle/islands";
 import { activeIsland } from "@/lib/fractured-idle/island-logic";
-import { GRANT_LABEL } from "@/lib/fractured-idle/skills";
 import {
     CROP_BY_ID,
     DIMS,
     DIM_FX,
     DIM_LABEL,
-    GUIDE,
     ITEMS,
     KIND_INFO,
     PODS,
@@ -23,7 +21,6 @@ import {
     bottleneck,
     bumperLen,
     bumperMult,
-    claimAllGuide,
     consumeItem,
     cropTable,
     cropUnits,
@@ -31,8 +28,6 @@ import {
     gardenOpen,
     goalOf,
     growSpeed,
-    guideReady,
-    guideStep,
     harvest,
     harvestAll,
     have,
@@ -59,83 +54,54 @@ import { ISLAND_BY_ID } from "@/lib/fractured-idle/islands";
 import { CostRow, CropTip, amt, col, fmtPct, C } from "./farm-bits";
 import { Tip, TipCard } from "./tooltip";
 import { SectionTitle, type Ctx } from "./ui";
-import type { FarmView } from "@/lib/fractured-idle/farm";
+import { SAGA_BY_ID, chapterFrac, chapterReady, currentChapter, tasksDone } from "@/lib/fractured-idle/sagas";
 
 // The Garden: one garden per dimension (a biome), every open one growing at once, with a tab for each. Tap an empty
 // plot to plant, tap a growing one to tend it (a burst of growth), tap a ripe one to pick it; picking back to back builds a
-// streak. A guide card at the top always names the next thing worth doing and pays a reward for it.
+// streak. A card at the top shows the current Farmhand Saga chapter and opens the Level page.
 
 type P = { s: Ctx["s"]; d: Ctx["d"]; F: (n: number) => string; render: () => void; say: (m: string) => void };
 
 const BIOME_ICON: Record<Dim, "flower" | "heat" | "comet"> = { overworld: "flower", nether: "heat", end: "comet" };
-const rewardText = (r: [keyof typeof GRANT_LABEL, number]) => `+${r[1]} ${GRANT_LABEL[r[0]]}`;
+// ---- The saga card (the old guide lives in the Farmhand Saga now) ----
 
-// ---- The guide ----
-
-export function GuideCard({ s, render, say, go }: Pick<P, "s" | "render" | "say"> & { go: (v: FarmView) => void }) {
-    const step = guideStep(s);
-    const i = s.farm.guide;
-    if (!step) {
+function SagaNudge({ s, open }: { s: Ctx["s"]; open: () => void }) {
+    const saga = SAGA_BY_ID.farming;
+    const ch = currentChapter(s, saga);
+    if (!ch) {
         return (
-            <div className="fi-fg" data-done="">
-                <div className="fi-fg-h"><span>Farming guide</span><b>Complete</b></div>
-                <p className="fi-fg-p">You have done every step. Keep going for feats, collections and the best tools.</p>
-            </div>
+            <button type="button" className="fi-fg" data-done="" onClick={open} style={{ textAlign: "left" }}>
+                <div className="fi-fg-h"><span>Farmhand Saga</span><b>Complete</b></div>
+                <p className="fi-fg-p">You have finished every chapter. Open the Level page for the finale and your other sagas.</p>
+            </button>
         );
     }
-    const ready = guideReady(s);
-    const pr = step.prog?.(s);
-    const ahead = GUIDE.slice(i + 1, i + 3);
+    const ready = chapterReady(s, ch);
+    const next = ch.tasks.find((t) => t.prog(s)[0] < t.prog(s)[1]);
+    const pr = next?.prog(s);
     return (
-        <div className="fi-fg" data-ready={ready}>
+        <button type="button" className="fi-fg" data-ready={ready} onClick={open} style={{ textAlign: "left" }}>
             <div className="fi-fg-h">
-                <span>Farming guide</span>
-                <b>Step {i + 1} of {GUIDE.length}</b>
+                <span>Farmhand Saga · Chapter {ch.n}</span>
+                <b>{tasksDone(s, ch)} of {ch.tasks.length} tasks</b>
             </div>
-            <div className="fi-fg-bar"><i style={{ width: `${(i / GUIDE.length) * 100}%` }} /></div>
+            <div className="fi-fg-bar"><i style={{ width: `${chapterFrac(s, ch) * 100}%` }} /></div>
             <div className="fi-fg-t">
                 <span className="fi-fg-mark">{ready ? "✔" : "➜"}</span>
-                {step.title}
-                <em>{rewardText(step.reward)}</em>
+                {ready ? `${ch.name} is ready to claim` : next?.text}
+                <em>{ready ? "Open the Level page" : ch.name}</em>
             </div>
-            <p className="fi-fg-p">{step.hint}</p>
-            {pr && (
+            {pr && !ready && (
                 <div className="fi-fg-prog">
                     <span><i style={{ width: `${Math.min(100, (pr[0] / pr[1]) * 100)}%` }} /></span>
-                    <small>{Math.min(pr[0], pr[1])} / {pr[1]}</small>
+                    <small>{Math.min(pr[0], pr[1]).toLocaleString()} / {pr[1].toLocaleString()}</small>
                 </div>
             )}
-            <div className="fi-fg-f">
-                {ready ? (
-                    <button
-                        type="button"
-                        className="fi-mn-buy small"
-                        data-snd="off"
-                        onClick={() => {
-                            const got = claimAllGuide(s);
-                            if (got.length) {
-                                sfx("trophy");
-                                say(`Guide: ${got.map((g) => g.title).slice(0, 2).join(", ")}${got.length > 2 ? "..." : ""}. ${got.map((g) => rewardText(g.reward)).slice(0, 3).join(", ")}`);
-                                render();
-                            }
-                        }}
-                    >
-                        Claim {rewardText(step.reward)}
-                    </button>
-                ) : (
-                    <button type="button" className="fi-mn-buy small ghost" onClick={() => go(step.view)}>
-                        {step.view === "garden" ? "You are in the right place" : `Open the ${step.view} tab`}
-                    </button>
-                )}
-                {ahead.length > 0 && <span className="fi-fg-next">Next: {ahead.map((a) => a.title).join(" · ")}</span>}
-            </div>
-        </div>
+        </button>
     );
 }
 
-// ---- The garden ----
-
-export function Garden({ s, d, F, render, say, go }: P & { go: (v: FarmView) => void }) {
+export function Garden({ s, d, F, render, say, openSaga }: P & { openSaga: () => void }) {
     const f = s.farm;
     const here = activeIsland(s).dim;
     const [pick, setPick] = useState<Dim>(here);
@@ -279,7 +245,7 @@ export function Garden({ s, d, F, render, say, go }: P & { go: (v: FarmView) => 
 
     return (
         <>
-            <GuideCard s={s} render={render} say={say} go={go} />
+            <SagaNudge s={s} open={openSaga} />
 
             <div className="fi-fb" role="tablist" aria-label="Gardens">
                 {DIMS.map((dm) => {
