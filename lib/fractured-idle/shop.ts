@@ -51,15 +51,15 @@ const BUY: Record<string, Buy> = {
     "pet:biscuit": { cur: "shards", secs: 240, min: 4e4 },
     "pet:cookie": { cur: "shards", secs: 800, min: 1.6e5 },
     "pet:feast": { cur: "shards", secs: 3000, min: 6e5 },
-    "pet:stardust": { cur: "gems", price: 9, need: (s) => (s.asc >= 1 ? null : "Ascend once to unlock") },
+    "pet:stardust": { cur: "gems", price: 9, need: (s) => (s.ascEver >= 1 ? null : "Ascend once to unlock") },
     "boost:greed": { cur: "shards", secs: 1100, min: 6e4 },
     "boost:might": { cur: "shards", secs: 800, min: 5e4 },
     "boost:swarm": { cur: "shards", secs: 1100, min: 6e4 },
     "boost:wisdom": { cur: "shards", secs: 1400, min: 8e4 },
     "boost:lure": { cur: "shards", secs: 900, min: 5e4 },
-    "boost:clover": { cur: "tokens", price: 12, need: (s) => (s.rebirths >= 1 || s.asc >= 1 ? null : "Rebirth once to unlock") },
-    "boost:magnet": { cur: "tokens", price: 16, need: (s) => (s.rebirths >= 1 || s.asc >= 1 ? null : "Rebirth once to unlock") },
-    "boost:frenzy": { cur: "gems", price: 6, need: (s) => (s.asc >= 1 ? null : "Ascend once to unlock") },
+    "boost:clover": { cur: "tokens", price: 12, need: (s) => (s.rebirths >= 1 || s.ascEver >= 1 ? null : "Rebirth once to unlock") },
+    "boost:magnet": { cur: "tokens", price: 16, need: (s) => (s.rebirths >= 1 || s.ascEver >= 1 ? null : "Rebirth once to unlock") },
+    "boost:frenzy": { cur: "gems", price: 6, need: (s) => (s.ascEver >= 1 ? null : "Ascend once to unlock") },
 };
 const eggDef = (id: string): EggDef | undefined => (id.startsWith("egg:") ? EGG_BY_ID.get(id.slice(4)) : undefined);
 

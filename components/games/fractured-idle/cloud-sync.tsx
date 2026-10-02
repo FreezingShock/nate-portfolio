@@ -29,7 +29,7 @@ const BACKUP_KEY = "fractured-idle-backup";
 const EPOCH_KEY = "fi-cloud-epoch";
 
 /** One comparable number for "how far along": ascensions, then rebirths, then lifetime shards. */
-export const progressOf = (s: State) => s.asc * 1e9 + s.rebirths * 1e6 + Math.log10(Math.max(1, s.total)) * 1e3;
+export const progressOf = (s: State) => (s.trans * 1000 + s.ascEver) * 1e9 + s.rebirths * 1e6 + Math.log10(Math.max(1, s.total)) * 1e3;
 
 /** A readable name for this browser, so a conflict can say where the other save came from. */
 export function deviceLabel(): string {

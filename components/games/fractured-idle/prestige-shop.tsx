@@ -219,7 +219,7 @@ type AutoKey = "min" | "up" | "tok" | "rb";
 
 /** Compact auto-buyer switches. Shown at the top of the shop tabs (all four) and on the tabs they act on (`only`). */
 export function AutoBar({ s, act, only, children, sticky }: Pick<Ctx, "s" | "act"> & { only?: AutoKey[]; children?: ReactNode; sticky?: boolean }) {
-    const cap = Math.min(15, rebirthCap(s));
+    const cap = Math.min(40, rebirthCap(s));
     const list = AUTOS.filter((a) => !only || only.includes(a.key));
     // On a tab they act on, hide the bar until one is unlocked; on the shops always show it so the unlock is discoverable.
     if (only && !children && !list.some((a) => (s.aups[a.up] || 0) > 0)) return null;

@@ -181,7 +181,7 @@ export function StatsTab({ s, d, F }: Ctx) {
                 { id: "isl2", label: "Islands", value: `${unlocked}/${ISLANDS.length}`, icon: "location", color: BLUE, bar: unlocked / ISLANDS.length },
                 { id: "tro2", label: "Trophy tiers", value: `${tro.got}/${tro.all}`, icon: "pristine", color: YELLOW, bar: tro.got / Math.max(1, tro.all) },
                 { id: "as", label: "Ascensions", value: fmtInt(s.asc), icon: "comet", color: PURPLE, hint: `${fmtInt(s.ap)} gems unspent` },
-                { id: "stack", label: "Rebirth stack", value: `${rebirthCap(s)}/15`, icon: "portal", color: RED, hint: "levels per rebirth", bar: rebirthCap(s) / 15 },
+                { id: "stack", label: "Rebirth stack", value: `${rebirthCap(s)}`, icon: "portal", color: RED, hint: "levels per rebirth", bar: Math.min(1, rebirthCap(s) / 15) },
                 { id: "peak", label: "Best income", value: `${F(s.peakInc)}/s`, icon: "speed", color: GREEN, hint: "prices your eggs" },
                 { id: "tm", label: "Token bonus", value: `x${tokenMult(s).toFixed(2)}`, icon: "pristine", color: PURPLE, hint: "trophies + Token Magnet" },
                 { id: "time", label: "Play time", value: fmtTime(s.playTime), icon: "night", color: "#b9b3cc" },

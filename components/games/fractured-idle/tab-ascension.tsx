@@ -4,7 +4,7 @@ import { fmtInt } from "@/lib/fractured-idle/format";
 import { useState } from "react";
 import { McSymbol } from "@/components/mc-symbol";
 import { ASC_BASE, ASC_COST, ASC_UPS } from "@/lib/fractured-idle/data";
-import { ascMult, ascPlan, ascend, aupCost } from "@/lib/fractured-idle/engine";
+import { ascMult, ascMultAt, ascPlan, ascend, aupCost } from "@/lib/fractured-idle/engine";
 import { AutoBar, PrestigeShop } from "./prestige-shop";
 import { SectionTitle, lift, tint, type Ctx } from "./ui";
 
@@ -22,7 +22,7 @@ export function AscensionTab({ s, d, F, act, say }: Ctx) {
     const [confirm, setConfirm] = useState(false);
     const plan = ascPlan(s);
     const multNow = ascMult(s);
-    const multAfter = Math.pow(ASC_BASE, s.asc + 1) * (1 + 0.25 * (s.aups.cosmic || 0));
+    const multAfter = ascMultAt(s, s.asc + 1);
     const frac = Math.min(1, s.rebirths / plan.req);
 
     return (

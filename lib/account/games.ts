@@ -25,7 +25,7 @@ const hours = (s: number) => (s >= 3600 ? `${fmt(Math.round((s / 3600) * 10) / 1
 export const fracturedIdleStats = (s: State): GameStat[] => [
     { label: "Lifetime shards", value: num(s.total) },
     { label: "Rebirths", value: fmtInt(s.rebirths) },
-    { label: "Ascensions", value: fmtInt(s.asc) },
+    { label: "Ascensions", value: fmtInt(s.ascEver) },
     { label: "Clicks", value: num(s.clicks) },
     { label: "Play time", value: hours(s.playTime) },
     { label: "Islands visited", value: fmtInt(s.visited.length) },

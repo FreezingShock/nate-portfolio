@@ -10,13 +10,14 @@ import { CHAPTER_COUNT, CHAPTER_INFO, chapterReady, claimChapter, currentChapter
 import { claimAllJourney, journeyReady } from "@/lib/fractured-idle/sagas";
 import { Tip, TipCard } from "./tooltip";
 import { McSymbol } from "@/components/mc-symbol";
-import { ASC_BASE, EGGS, EGG_CUR, ISLANDS, PETS, REWARD_LABEL, SKILLS, TROPHIES, rebirthCost } from "@/lib/fractured-idle/data";
+import { ASC_BASE, EGGS, EGG_CUR, ISLANDS, PETS, REWARD_LABEL, SKILLS, TROPHIES } from "@/lib/fractured-idle/data";
 import {
     ascPlan,
     eggCan,
     eggPrice,
     fmtEta,
     income,
+    rbCost,
     rebirthMultAt,
     rebirthPlan,
     skillLevel,
@@ -177,7 +178,7 @@ export function Goals({ s, d, F, open, render, say }: Pick<Ctx, "s" | "d" | "F" 
     // ---- Rebirth ----
     const plan = rebirthPlan(s);
     const level = s.rebirths + 1;
-    const cost = rebirthCost(s.rebirths, s.asc);
+    const cost = rbCost(s, s.rebirths);
     if (plan.count > 0) {
         goals.push({
             key: "rebirth",

@@ -210,7 +210,7 @@ export function fxpSources(s: State): FxpSource[] {
     // Progress that is not tied to one system.
     const rb = Math.max(s.rebirths, s.btn.rb);
     add("rebirths", "progress", "Rebirths", Math.min(150, rb) * 5, 750);
-    add("ascensions", "progress", "Ascensions", s.asc * 400, 0);
+    add("ascensions", "progress", "Ascensions", s.ascEver * 400, 0);
     add("wealth", "progress", "Lifetime shards", decadePay(s.total), decadePay(1e45));
     add("hours", "progress", "Time played", ladder(s.playTime / 3600, HOURS), ladderMax(HOURS));
     add("eggs", "progress", "Eggs hatched", ladder(s.hatched, EGGS), ladderMax(EGGS));
@@ -392,7 +392,7 @@ export function prefixStat(s: State, stat: PrefixStat): number {
         case "combat": return skillLevel(s.combat);
         case "fishing": return skillLevel(s.fishing);
         case "rebirths": return Math.max(s.rebirths, s.btn.rb);
-        case "asc": return s.asc;
+        case "asc": return s.ascEver;
         case "pets": return Object.keys(s.pets).length;
         case "visited": return s.visited.length;
         case "islands": return ISLANDS.filter((i) => islandOpen(s, i)).length;

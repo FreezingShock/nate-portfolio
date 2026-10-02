@@ -63,10 +63,19 @@ export interface State {
     orbit: boolean; // orbiting minions around the button
     toasts: boolean; // popup messages
     // Ascension: the prestige layer above rebirth.
-    asc: number; // ascensions taken
+    asc: number; // ascensions taken since the last Transcendence (this is what multiplies shards and prices rebirths)
+    ascEver: number; // ascensions ever taken: never resets, so trophies, looks and Fracture EXP never go backwards
     ap: number; // unspent gems (named ascension points in the code)
     aups: Record<string, number>;
     auto: AutoPrefs; // which auto-buyers are switched on (they must be unlocked with gems first)
+    // Transcendence: the layer above ascension (trans.ts). It keeps every gem upgrade and auto-buyer.
+    trans: number; // Transcendences taken
+    ess: number; // unspent Essence
+    essTotal: number; // Essence ever earned (each point is +3% all shards)
+    eups: Record<string, number>; // Essence upgrade levels
+    vow: string[]; // vows being kept this run
+    vowNext: string[]; // vows chosen for the next run
+    pbest: { rb: number }; // best rebirth count ever reached: rebirth milestone perks never reset
     autoT: Record<string, number>; // seconds since each auto-buyer last fired; transient
     // Pets: survive rebirth and ascension.
     pets: Record<string, { xp: number; n: number }>; // n = copies found
@@ -401,8 +410,13 @@ export interface AutoPrefs {
     rb: boolean;
     /** Auto-rebirth waits until this many rebirth levels are ready at once. */
     rbN: number;
+    /** Auto-ascend (an Essence upgrade) and the gem auto-spender. */
+    asc: boolean;
+    gem: boolean;
+    /** Auto-ascend waits until you have this many rebirths. */
+    ascN: number;
 }
-export const DEFAULT_AUTO: AutoPrefs = { min: false, up: false, tok: false, rb: false, rbN: 1 };
+export const DEFAULT_AUTO: AutoPrefs = { min: false, up: false, tok: false, rb: false, rbN: 1, asc: false, gem: false, ascN: 10 };
 
 export interface RebirthUpDef {
     id: string;
@@ -470,7 +484,7 @@ export const REBIRTH_MILESTONES: Record<number, number> = {
 export const ASC_COST = 4;
 export const REBIRTH_BASE = 1e5;
 export const REBIRTH_GROWTH = 6;
-export const rebirthCost = (r: number, asc = 0) => REBIRTH_BASE * Math.pow(REBIRTH_GROWTH, r) * Math.pow(ASC_COST, asc);
+export const rebirthCost = (r: number, asc = 0, discount = 1) => REBIRTH_BASE * Math.pow(REBIRTH_GROWTH, r) * Math.pow(ASC_COST, asc) * discount;
 
 export { ISLANDS } from "./islands";
 export type { IslandDef } from "./islands";
@@ -564,7 +578,7 @@ export const TROPHIES: TrophyDef[] = [
     { id: "hatch", name: "Egg Hunter", category: "pets", symbol: "flower", stat: "skillXp", unit: "eggs hatched", metric: (s) => s.hatched, tiers: tiers([1, 10, 30, 100, 300, 1000], [0.05, 0.05, 0.1, 0.1, 0.15, 0.25]) },
     { id: "legend", name: "Legendary Luck", category: "pets", symbol: "magicFind", stat: "minion", unit: "legendary or better pets", metric: (s) => PETS.filter((p) => (p.rarity === "legendary" || p.rarity === "mythic" || p.rarity === "divine") && s.pets[p.id]).length, tiers: tiers([1, 2, 3, 6, 10, 14], [0.05, 0.1, 0.2, 0.2, 0.3, 0.5]) },
     { id: "bestfriend", name: "Best Friend", category: "pets", symbol: "regen", stat: "click", unit: "top pet level", metric: (s) => Math.max(0, ...PETS.map((p) => (s.pets[p.id] ? petLevel(p, s.pets[p.id].xp) : 0))), tiers: tiers([10, 25, 50, 75, 100], [0.02, 0.03, 0.05, 0.08, 0.15]) },
-    { id: "ascended", name: "Ascended", category: "rebirth", symbol: "comet", stat: "tokens", unit: "ascensions", metric: (s) => s.asc, tiers: tiers([1, 2, 3, 5, 10], [0.1, 0.1, 0.15, 0.2, 0.3]) },
+    { id: "ascended", name: "Ascended", category: "rebirth", symbol: "comet", stat: "tokens", unit: "ascensions", metric: (s) => s.ascEver, tiers: tiers([1, 2, 3, 5, 10], [0.1, 0.1, 0.15, 0.2, 0.3]) },
     { id: "u-first", name: "First Click", category: "unique", symbol: "check", stat: "all", unit: "clicks", metric: (s) => s.clicks, tiers: tiers([1], [0.01]) },
     { id: "u-auto", name: "Fully Automated", category: "unique", symbol: "attackSpeed", stat: "click", unit: "Auto-Clicker level", metric: (s) => s.ups.auto || 0, tiers: tiers([25], [0.1]) },
     { id: "u-speed", name: "Speedrunner", category: "unique", symbol: "speed", stat: "tokens", unit: "rebirths inside the first 30 min", metric: (s) => (s.rebirths >= 1 && s.playTime < 1800 ? 1 : 0), tiers: tiers([1], [0.1]) },

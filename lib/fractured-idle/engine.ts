@@ -9,6 +9,7 @@ import { DUST_BASE, addDust, allFx, cleanEnc, newEnc } from "./enchant";
 import { cleanMine, mineCtx, newMine, tickMine } from "./mine";
 import { cleanFarm, farmCtx, newFarm, tickFarm } from "./farm";
 import { GEM_UPS, TOKEN_UPS, autoEvery, bulkBuy, lockedBy, priceAt, valueOf } from "./prestige";
+import { ESS_UPS, VOW_BY_ID, ascBase, eLv, gemStewardEvery, hasVow, leanMult, prestigeBonus, resonanceMult, transMult, transPlan } from "./trans";
 import { activeIsland, islandFx, openIslands, tierMult, visitBonus, type IslandFx } from "./island-logic";
 import type { SkillKey } from "./islands";
 import { fxText } from "./upfx";
@@ -102,6 +103,14 @@ export function newState(): State {
         orbit: true,
         toasts: true,
         asc: 0,
+        ascEver: 0,
+        trans: 0,
+        ess: 0,
+        essTotal: 0,
+        eups: {},
+        vow: [],
+        vowNext: [],
+        pbest: { rb: 0 },
         ap: 0,
         aups: {},
         auto: { ...DEFAULT_AUTO },
@@ -204,7 +213,9 @@ export type PetBonus = Record<PetStat, number>;
 const PET_MAP = new Map(PETS.map((p) => [p.id, p]));
 export const petOf = (id: string) => PET_MAP.get(id);
 export const petSlots = (s: State) => 1 + (s.aups.perch2 ? 1 : 0) + (s.aups.perch3 ? 1 : 0) + (s.aups.perch4 ? 1 : 0);
-export const ascMult = (s: State) => Math.pow(ASC_BASE, s.asc) * (1 + 0.25 * (s.aups.cosmic || 0));
+/** The ascension multiplier if you had taken `asc` ascensions: the base compounds, Cosmic Core adds, Transcendence stacks on top. */
+export const ascMultAt = (s: State, asc: number) => Math.pow(ascBase(s, ASC_BASE), asc) * (1 + 0.25 * (s.aups.cosmic || 0)) * transMult(s) * resonanceMult(s);
+export const ascMult = (s: State) => ascMultAt(s, s.asc);
 
 /** Collection score: every species you own adds a little, more for rarer ones. It is added to all shards. */
 export function petScore(s: State): number {
@@ -367,7 +378,7 @@ export function derive(s: State): Derived {
     const foraging = skillLevel(s.foraging, "foraging");
     const enchanting = skillLevel(s.enchanting, "enchanting");
     clickMult *= (1 + bonus.click) * (1 + ce.click) * (1 + pb.click) * (1 + bb.click) * (1 + 0.05 * (s.rups.might || 0)) * (1 + 0.02 * (s.rups.surge || 0)) * bf.click * isl.click * isl.affinity * (1 + bx.click);
-    minionMult *= (1 + bonus.minion) * (1 + pb.minion) * (1 + 0.05 * (s.rups.engine || 0)) * (1 + 0.25 * (s.aups.union || 0)) * (1 + 0.02 * (s.rups.swarm || 0)) * bf.minion * isl.minionAll * (1 + bx.minion);
+    minionMult *= (hasVow(s, "lone") ? 0.4 : 1) * (1 + bonus.minion) * (1 + pb.minion) * (1 + 0.05 * (s.rups.engine || 0)) * (1 + 0.25 * (s.aups.union || 0)) * (1 + 0.02 * (s.rups.swarm || 0)) * bf.minion * isl.minionAll * (1 + bx.minion);
     critChance += bonus.critChance + ce.crit + pb.critChance + bb.crit + bf.crit + isl.crit + 0.01 * (s.rups.luck || 0);
     critDmg += bonus.critDmg + ce.critDmg + pb.critDmg + bb.critDmg + bf.critDmg + isl.critDmg + 0.03 * (s.rups.edge || 0);
     clickMult *= 1 + X.click;
@@ -547,7 +558,7 @@ export const upAvailable = (s: State, u: UpgradeDef) => u.minion === undefined |
 export function buyUpgrade(s: State, id: string): boolean {
     const u = UPGRADES.find((x) => x.id === id)!;
     const lvl = s.ups[id] || 0;
-    if (lvl >= u.max || !upAvailable(s, u)) return false;
+    if (hasVow(s, "poverty") || lvl >= u.max || !upAvailable(s, u)) return false;
     const cost = upCost(s, id, lvl);
     if (s.shards < cost) return false;
     s.shards -= cost;
@@ -593,23 +604,27 @@ export const rebirthBase = (s: State) => 1.42 + 0.03 * (s.rups.core || 0) + 0.01
 export const rebirthMultAt = (s: State, r: number) => Math.pow(rebirthBase(s), r);
 
 /** Base tokens for clearing rebirth cost index `r` while holding `shards`. */
-export const tokensFor = (shards: number, r: number, asc = 0) =>
-    Math.max(2, Math.floor(2 + Math.log10(shards / rebirthCost(r, asc)) * 2.5));
+export const tokensFor = (shards: number, r: number, asc = 0, discount = 1) =>
+    Math.max(2, Math.floor(2 + Math.log10(shards / rebirthCost(r, asc, discount)) * 2.5));
 
-export const rebirthCap = (s: State) => 1 + (s.rups.stack || 0);
-export const tokenMult = (s: State) => 1 + trophyBonus(s).tokens + collectionEffects(s).tokens + petBonus(s).tokens + 0.25 * (s.aups.well || 0) + 0.25 * (s.rups.magnet || 0) + 0.1 * (s.rups.bank || 0) + allFx(s).tokens + boostFx(s).tokens;
+/** The price of rebirth number `r` (0-based) with Lean Climb applied. */
+export const rbCost = (s: State, r: number) => rebirthCost(r, s.asc, leanMult(s));
+export const rebirthCap = (s: State) => 1 + (s.rups.stack || 0) + 2 * eLv(s, "deepstack") + prestigeBonus(s).cap;
+const tokenMultBase = (s: State) => 1 + trophyBonus(s).tokens + collectionEffects(s).tokens + petBonus(s).tokens + 0.25 * (s.aups.well || 0) + 0.25 * (s.rups.magnet || 0) + 0.1 * (s.rups.bank || 0) + allFx(s).tokens + boostFx(s).tokens;
+/** Tokens per rebirth. The Vow of Scarcity takes 40% off. */
+export const tokenMult = (s: State) => tokenMultBase(s) * (hasVow(s, "scarcity") ? 0.6 : 1);
 export const milestoneTokens = (level: number) => REBIRTH_MILESTONES[level] || 0;
 
 /** Tokens for taking rebirth number `level` (1-based) while holding `shards`. */
 export const tokensAt = (s: State, shards: number, level: number) =>
-    Math.max(1, Math.round(tokensFor(shards, level - 1, s.asc) * tokenMult(s))) + milestoneTokens(level);
+    Math.max(1, Math.round(tokensFor(shards, level - 1, s.asc, leanMult(s)) * tokenMult(s))) + milestoneTokens(level);
 
 /** How many rebirths you could take right now (up to your stack cap) and what they pay. */
 export function rebirthPlan(s: State, take?: number) {
     const limit = Math.min(rebirthCap(s), take ?? Infinity);
     let count = 0;
     let tokens = 0;
-    while (count < limit && s.shards >= rebirthCost(s.rebirths + count, s.asc)) {
+    while (count < limit && s.shards >= rbCost(s, s.rebirths + count)) {
         tokens += tokensAt(s, s.shards, s.rebirths + count + 1);
         count++;
     }
@@ -631,11 +646,14 @@ export function rebirth(s: State, take?: number): boolean {
     s.tokens += plan.tokens;
     addDust(s, 12 * plan.count * derive(s).dustMult); // each rebirth leaves some dust behind
     s.rebirths += plan.count;
+    if (s.rebirths > s.pbest.rb) s.pbest.rb = s.rebirths;
+    const keepMin = Math.min(0.9, prestigeBonus(s).keep);
+    const heldMin = s.minions;
     s.shards = startShards(s);
-    s.minions = MINIONS.map(() => 0);
+    s.minions = MINIONS.map((_, i) => Math.floor(heldMin[i] * keepMin));
     s.mcol = MINIONS.map(() => 0);
-    s.minions[0] = 5 * (s.rups.kit || 0);
-    s.minions[1] = 2 * (s.rups.kit || 0);
+    s.minions[0] = Math.max(s.minions[0], 5 * (s.rups.kit || 0));
+    s.minions[1] = Math.max(s.minions[1], 2 * (s.rups.kit || 0));
     s.ups = {};
     for (const [id, lvl] of kept) if (lvl > 0) s.ups[id] = lvl;
     return true;
@@ -751,7 +769,7 @@ export const eggBalance = (s: State, cur: EggDef["cur"]) => (cur === "shards" ? 
 /** Why an egg cannot be bought yet, or null when its dimension is open to you. */
 export function eggLocked(s: State, egg: EggDef): string | null {
     if (egg.dim === "overworld") return null;
-    if (egg.dim === "fractured") return s.rebirths >= 3 || s.asc >= 1 ? null : "Rebirth 3 times to open the Fractured eggs";
+    if (egg.dim === "fractured") return s.rebirths >= 3 || s.ascEver >= 1 ? null : "Rebirth 3 times to open the Fractured eggs";
     const seen = ISLANDS.some((i) => i.dim === egg.dim && s.visited.includes(i.id));
     return seen ? null : `Visit a ${egg.dim === "nether" ? "Nether" : "End"} island to open these eggs`;
 }
@@ -927,11 +945,21 @@ export function feedEquipped(s: State): number {
 
 // ---- Ascension ----
 
+/** Rebirths needed to ascend: Short Ascent shaves some off, the Vow of Haste adds three. */
+export const ascReqFor = (s: State) => Math.max(6, ascReq(s.asc) - eLv(s, "short") + (hasVow(s, "haste") ? 3 : 0));
+
+/** Gems from ascending: the base formula, plus Dividend, scaled by every gem bonus (the Vow of Scarcity takes 40% off). */
+export function ascGems(s: State, rebirths: number) {
+    const base = ascGain(rebirths, s.asc);
+    if (base <= 0) return 0;
+    const pct = 1 + 0.05 * (s.aups.hoard || 0) + 0.1 * eLv(s, "well") + prestigeBonus(s).gems;
+    return Math.floor((base + 2 * eLv(s, "dividend")) * pct * (hasVow(s, "scarcity") ? 0.6 : 1));
+}
+
 export function ascPlan(s: State) {
-    const req = ascReq(s.asc);
+    const req = ascReqFor(s);
     const can = s.rebirths >= req;
-    const hoard = 1 + 0.05 * (s.aups.hoard || 0);
-    return { req, can, ap: can ? Math.floor(ascGain(s.rebirths, s.asc) * hoard) : 0, next: Math.floor(ascGain(Math.max(s.rebirths, req), s.asc) * hoard) };
+    return { req, can, ap: can ? ascGems(s, s.rebirths) : 0, next: ascGems(s, Math.max(s.rebirths, req)) };
 }
 
 export const aupCost = (u: AscUpDef, lvl: number) => Math.ceil(u.cost * Math.pow(u.growth, lvl));
@@ -940,24 +968,55 @@ export function buyAscUp(s: State, id: string): boolean {
     return buyPrestige(s, "gems", id, 1) > 0;
 }
 
-export function ascend(s: State): boolean {
-    const plan = ascPlan(s);
-    if (!plan.can) return false;
-    const keep = 0.1 * (s.aups.keep || 0);
+/**
+ * What an ascension and a Transcendence share: tokens and token upgrades go (Keepsake and Keeper keep a share of the
+ * levels), rebirths, shards, minions, collections and shard upgrades reset, and Afterglow / Kept Memory keep some minions.
+ * Gem upgrades, auto-buyers and everything outside the shard economy are never touched.
+ */
+function resetRun(s: State, rebirthsAfter: number) {
+    const keep = Math.min(1, 0.1 * (s.aups.keep || 0) + 0.1 * eLv(s, "keeper"));
     const kept = Object.entries(s.rups)
         .map(([id, lvl]) => [id, Math.floor(lvl * keep)] as const)
         .filter(([, lvl]) => lvl > 0);
-    s.ap += plan.ap;
-    addDust(s, 200 * derive(s).dustMult);
-    s.asc += 1;
+    const keepMin = Math.min(0.9, prestigeBonus(s).ascKeep + 0.05 * eLv(s, "memory"));
+    const heldMin = s.minions;
     s.tokens = 0;
     s.rups = Object.fromEntries(kept);
-    s.rebirths = s.aups.echo || 0;
+    s.rebirths = rebirthsAfter;
     s.shards = 0;
-    s.minions = MINIONS.map(() => 0);
+    s.minions = MINIONS.map((_, i) => Math.floor(heldMin[i] * keepMin));
     s.mcol = MINIONS.map(() => 0);
     s.ups = {};
     if (s.aups.auto2) s.ups.auto = 3 * s.aups.auto2;
+}
+
+export function ascend(s: State): boolean {
+    const plan = ascPlan(s);
+    if (!plan.can) return false;
+    s.ap += plan.ap;
+    addDust(s, 200 * derive(s).dustMult);
+    s.asc += 1;
+    s.ascEver += 1;
+    resetRun(s, s.aups.echo || 0);
+    return true;
+}
+
+/**
+ * Transcend: pay Essence for how far you got, then reset like an ascension and also drop the ascension count and
+ * every unspent gem. Gem upgrades and auto-buyers stay. The vows you chose for the next run take effect.
+ */
+export function transcend(s: State): boolean {
+    const plan = transPlan(s);
+    if (!plan.can) return false;
+    s.ess += plan.gain;
+    s.essTotal += plan.gain;
+    s.trans += 1;
+    addDust(s, 1000 * derive(s).dustMult);
+    s.asc = Math.min(eLv(s, "afterimage"), 9);
+    s.ap = 0;
+    resetRun(s, s.aups.echo || 0);
+    s.vow = s.vowNext.slice(0, 1 + eLv(s, "twin"));
+    s.vowNext = [];
     return true;
 }
 
@@ -1044,6 +1103,7 @@ function autoUpgrade(s: State): boolean {
 
 /** Runs each switched-on auto-buyer on its own timer. Only ever spends what the player already has. */
 function tickAuto(s: State, d: Derived, dt: number) {
+    if (hasVow(s, "silence")) return; // the Vow of Silence switches every auto-buyer off for the run
     const lv = { min: s.aups.autoMin || 0, up: s.aups.autoUp || 0, tok: s.aups.autoTok || 0, rb: s.aups.autoRb || 0 };
     for (const k of ["min", "up", "tok", "rb"] as const) {
         if (!s.auto[k] || lv[k] < 1) continue;
@@ -1067,6 +1127,24 @@ function tickAuto(s: State, d: Derived, dt: number) {
                 s.autoT.rbCount = plan.count;
                 s.autoT.rbTokens = plan.tokens;
             }
+        }
+    }
+    // Essence auto-buyers: they live in the Transcendence shop, so a Transcendence never takes them away.
+    const gem = eLv(s, "gemSteward");
+    if (s.auto.gem && gem > 0) {
+        const t = (s.autoT.gem || 0) + dt;
+        if (t < gemStewardEvery(gem)) s.autoT.gem = t;
+        else {
+            s.autoT.gem = 0;
+            const b = bestPrestige(s, "gems");
+            if (b) buyPrestige(s, "gems", b.id, 1);
+        }
+    }
+    if (s.auto.asc && eLv(s, "autoAsc") > 0) {
+        const plan = ascPlan(s);
+        if (plan.can && s.rebirths >= Math.max(plan.req, s.auto.ascN) && ascend(s)) {
+            s.autoT.ascAt = Date.now();
+            s.autoT.ascGems = plan.ap;
         }
     }
 }
@@ -1097,8 +1175,21 @@ export function parseSave(raw: string): State | null {
         s.tro = { ...(o.tro ?? {}) };
         s.peak = { minions: Number(o.peak?.minions) || 0, types: Number(o.peak?.types) || 0 };
         s.aups = { ...(o.aups ?? {}) };
-        s.auto = { ...DEFAULT_AUTO, min: o.auto?.min === true, up: o.auto?.up === true, tok: o.auto?.tok === true, rb: o.auto?.rb === true, rbN: Math.max(1, Math.min(15, Math.floor(Number(o.auto?.rbN) || 1))) };
+        s.auto = { ...DEFAULT_AUTO, min: o.auto?.min === true, up: o.auto?.up === true, tok: o.auto?.tok === true, rb: o.auto?.rb === true, rbN: Math.max(1, Math.min(40, Math.floor(Number(o.auto?.rbN) || 1))), asc: o.auto?.asc === true, gem: o.auto?.gem === true, ascN: Math.max(6, Math.min(60, Math.floor(Number(o.auto?.ascN) || 10))) };
         s.autoT = {};
+        s.ascEver = Math.max(0, Math.floor(Number(o.ascEver) || 0), s.asc);
+        s.trans = Math.max(0, Math.floor(Number(o.trans) || 0));
+        s.ess = Math.max(0, Number(o.ess) || 0);
+        s.essTotal = Math.max(s.ess, Number(o.essTotal) || 0);
+        s.eups = {};
+        for (const u of ESS_UPS) {
+            const l = Math.max(0, Math.min(u.max, Math.floor(Number(o.eups?.[u.id]) || 0)));
+            if (l > 0) s.eups[u.id] = l;
+        }
+        const vowIds = (v: unknown) => (Array.isArray(v) ? (v as unknown[]).filter((x, i, a): x is string => typeof x === "string" && a.indexOf(x) === i && x in VOW_BY_ID).slice(0, 2) : []);
+        s.vow = vowIds(o.vow);
+        s.vowNext = vowIds(o.vowNext);
+        s.pbest = { rb: Math.max(0, Math.floor(Number(o.pbest?.rb) || 0), s.rebirths) };
         s.pets = {};
         for (const p of PETS) {
             const r = o.pets?.[p.id];

@@ -13,7 +13,7 @@ export function islandStat(s: State, stat: IslandStat): number {
         case "pets": return Object.keys(s.pets).length;
         case "frag": return s.frag;
         case "bestCombo": return s.bestCombo;
-        case "asc": return s.asc;
+        case "asc": return s.ascEver;
     }
 }
 
