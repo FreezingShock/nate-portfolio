@@ -262,7 +262,7 @@ export function ShopTab({ s, d, F, act, say, go }: Ctx & { go: (id: string) => v
     };
 
     const meta = SECTIONS.find((x) => x.id === sec)!;
-    const none = <p className="iv-note">Nothing here is affordable right now. Turn off "Affordable only" to see everything.</p>;
+    const none = <p className="iv-note">Nothing here is affordable right now. Turn off &quot;Affordable only&quot; to see everything.</p>;
     /** A card grid that says so when the filter hides everything. */
     const gridOf = (cards: (ReactNode | null)[], cls = "sh-grid") => {
         const shown = cards.filter(Boolean);
