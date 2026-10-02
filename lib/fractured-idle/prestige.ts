@@ -51,7 +51,7 @@ const WORTH: Record<string, number> = {
 
 /** Seconds between an auto-buyer's purchases at a given level. */
 export function autoEvery(kind: "min" | "up" | "tok" | "rb", lvl: number): number {
-    if (kind === "rb") return 2;
+    if (kind === "rb") return 0.5;
     if (kind === "tok") return [12, 8, 5][Math.max(0, Math.min(2, lvl - 1))];
     return Math.max(1.5, (kind === "min" ? 6 : 8) / (1 + 0.5 * Math.max(0, lvl - 1)));
 }

@@ -1056,6 +1056,7 @@ function tickAuto(s: State, d: Derived, dt: number) {
     const lv = { min: s.aups.autoMin || 0, up: s.aups.autoUp || 0, tok: s.aups.autoTok || 0, rb: s.aups.autoRb || 0 };
     for (const k of ["min", "up", "tok", "rb"] as const) {
         if (!s.auto[k] || lv[k] < 1) continue;
+        if (k === "rb" && lv.tok < 1) continue; // Rebirth Cycle needs Token Steward, even on an imported save
         const t = (s.autoT[k] || 0) + dt;
         if (t < autoEvery(k, lv[k])) {
             s.autoT[k] = t;
