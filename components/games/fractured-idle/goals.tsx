@@ -239,12 +239,12 @@ export function Goals({ s, d, F, open, render, say }: Pick<Ctx, "s" | "d" | "F" 
             symbol: "night",
             color: "var(--mc-gold)",
             title: tp.can ? "Transcendence ready!" : `Transcendence #${s.trans + 1}`,
-            chip: tp.can ? `+${tp.gain} Essence` : `${tp.req - s.asc} ascension${tp.req - s.asc === 1 ? "" : "s"}`,
+            chip: tp.can ? `+${tp.gain} Essence` : tp.ascOk ? `${Math.ceil(tp.timeLeft / 3600)}h` : `${tp.req - s.asc} ascension${tp.req - s.asc === 1 ? "" : "s"}`,
             chipHot: tp.can,
-            pct: Math.min(1, s.asc / tp.req),
+            pct: Math.min(1, s.asc / tp.req, tp.secs / tp.minSecs),
             ready: tp.can,
             prio: tp.can ? 0 : 3,
-            left: `Ascension ${fmtInt(s.asc)} / ${tp.req}`,
+            left: tp.ascOk ? `Ascension ${fmtInt(s.asc)} / ${tp.req}, run settling` : `Ascension ${fmtInt(s.asc)} / ${tp.req}`,
             right: tp.can ? "Click to choose vows and transcend" : "keeps every gem upgrade",
         });
     }

@@ -1,7 +1,8 @@
 import type { McSymbolName } from "@/components/mc-symbol";
-import type { State } from "./data";
+import { TUNE, type State } from "./data";
 import type { EStat } from "./enchant";
 import { GEM_UPS, TOKEN_UPS, type PrestigeCat } from "./prestige";
+import { runSecs } from "./runs";
 
 // The third prestige layer, Transcendence, and the progression extras that go with it. Everything here is pure data
 // and pure functions of the save (the engine does the actual resetting): Essence and its shop, Vows (a handicap you
@@ -128,7 +129,9 @@ export function abandonVows(s: State): boolean {
 // ---- Transcendence ----
 
 /** Ascension number you must have reached before you can Transcend. */
-export const transReq = (s: State) => 10 + s.trans;
+export const transReq = (s: State) => 10 + Math.round(s.trans * TUNE.transStep);
+/** How long (seconds) this run must have lasted before you can Transcend. */
+export const transMinSecs = (s: State) => 3600 * TUNE.transHours * Math.pow(TUNE.transGrow, s.trans);
 /** Reserved for future Essence boosts: today only vows change the gain. */
 export const essMult = (_s: State) => 1;
 
@@ -137,8 +140,11 @@ export const essFor = (s: State, asc: number) => Math.floor(Math.pow(Math.max(0,
 
 export function transPlan(s: State) {
     const req = transReq(s);
-    const can = s.asc >= req;
-    return { req, can, gain: can ? essFor(s, s.asc) : 0, next: essFor(s, Math.max(s.asc, req) + 1) };
+    const minSecs = transMinSecs(s);
+    const secs = runSecs(s.runs, "trans", s.playTime);
+    const timeLeft = Math.max(0, minSecs - secs);
+    const can = s.asc >= req && timeLeft <= 0;
+    return { req, can, gain: can ? essFor(s, s.asc) : 0, next: essFor(s, Math.max(s.asc, req) + 1), minSecs, secs, timeLeft, ascOk: s.asc >= req };
 }
 
 /** The permanent boost from Transcending: x2 per Transcendence and +3% per Essence ever earned. */

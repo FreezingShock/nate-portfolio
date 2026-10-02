@@ -3,7 +3,7 @@
 import { fmtInt } from "@/lib/fractured-idle/format";
 import { useState } from "react";
 import { McSymbol } from "@/components/mc-symbol";
-import { ASC_BASE, ASC_COST, ASC_UPS } from "@/lib/fractured-idle/data";
+import { ASC_BASE, ASC_UPS, ascScale } from "@/lib/fractured-idle/data";
 import { ascMult, ascMultAt, ascPlan, ascend, aupCost } from "@/lib/fractured-idle/engine";
 import { AutoBar, PrestigeShop } from "./prestige-shop";
 import { SectionTitle, lift, tint, type Ctx } from "./ui";
@@ -36,7 +36,7 @@ export function AscensionTab({ s, d, F, act, say }: Ctx) {
                     </span>
                 </div>
                 <p className="mt-1 font-rubik text-xs text-muted-foreground">
-                    Ascend to trade your rebirths for Gems and a x{ASC_BASE} boost to everything. Each ascension makes rebirths x{ASC_COST} pricier, so the climb is never skipped, only easier.
+                    Ascend to trade your rebirths for Gems and a x{ASC_BASE} boost to everything. Your next ascension makes rebirths x{F(ascScale(s.asc + 1) / ascScale(s.asc))} pricier, so the climb is never skipped, only easier.
                 </p>
 
                 <div className="mt-3">
@@ -52,11 +52,11 @@ export function AscensionTab({ s, d, F, act, say }: Ctx) {
                 <div className="mt-3 grid grid-cols-2 gap-x-4 gap-y-1 font-rubik text-xs sm:grid-cols-4">
                     <Fact label="Gems if ascended now" value={plan.can ? `+${fmtInt(plan.ap)}` : "not yet"} />
                     <Fact label="Multiplier after" value={`x${F(multAfter)}`} />
-                    <Fact label="Rebirth price after" value={`x${ASC_COST} each`} />
+                    <Fact label="Rebirth price after" value={`x${F(ascScale(s.asc + 1) / ascScale(s.asc))} each`} />
                     <Fact label="Total gems earned" value={fmtInt(s.ap + Object.entries(s.aups).reduce((a, [id, l]) => a + spent(id, l), 0))} />
                 </div>
                 <p className="mt-2 font-rubik text-[10px] text-muted-foreground">
-                    Going deeper before you ascend pays more gems: every 2 rebirths past 10 adds 1, plus 1 per ascension you already have.
+                    Going deeper before you ascend pays more gems: each extra rebirth adds more than the last, plus a little for every ascension you already have.
                 </p>
 
                 <div className="mt-3 grid gap-2 sm:grid-cols-2">

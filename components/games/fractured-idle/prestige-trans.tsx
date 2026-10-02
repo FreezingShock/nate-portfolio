@@ -8,7 +8,7 @@ import { bestPrestige, buyPrestige, layerGain, transcend } from "@/lib/fractured
 import { advise } from "@/lib/fractured-idle/runs";
 import { ESS_BRANCHES, ESS_UPS, abandonVows, buyEssence, eLv, essLocked, essPrice, toggleVow, transMult, transPlan, vowMult, vowSlots, VOWS, type EssUp } from "@/lib/fractured-idle/trans";
 import { Tip, TipCard } from "./tooltip";
-import { Chips, Cue, LAYERS_INFO, Ring, keepsOf, losesOf, perHour } from "./prestige-parts";
+import { Chips, Cue, LAYERS_INFO, Ring, keepsOf, losesOf, perHour, secs } from "./prestige-parts";
 import type { Ctx } from "./ui";
 
 // Transcendence: the third reset. Its page has the Essence you hold, the vows (a handicap for a run that pays more
@@ -94,10 +94,10 @@ export function TranscendView({ s, F, act, say }: Pick<Ctx, "s" | "F" | "act" | 
         <>
             <div className="pr-card" data-ready={g.can} style={{ ["--c" as string]: L.color } as CSSProperties}>
                 <div className="pr-card-h">
-                    <Ring pct={Math.min(1, s.asc / plan.req)} color={L.color} size={4}><McSymbol name={L.symbol} /></Ring>
+                    <Ring pct={Math.min(1, s.asc / plan.req, plan.secs / plan.minSecs)} color={L.color} size={4}><McSymbol name={L.symbol} /></Ring>
                     <span className="pr-card-t">
                         <b>Transcendence {fmtInt(s.trans + 1)}</b>
-                        <small>Reach Ascension {fmtInt(plan.req)} ({fmtInt(s.asc)} now). {L.blurb}</small>
+                        <small>Needs Ascension {fmtInt(plan.req)} ({fmtInt(s.asc)} now) and a run of at least {secs(plan.minSecs)}{plan.timeLeft > 0 ? ` (${secs(plan.timeLeft)} to go)` : ""}. {L.blurb}</small>
                     </span>
                 </div>
                 <div className="pr-gain">
@@ -135,7 +135,7 @@ export function TranscendView({ s, F, act, say }: Pick<Ctx, "s" | "F" | "act" | 
                         </>
                     ) : (
                         <button type="button" className={`pr-btn ${g.can ? "fi-afford" : ""}`} disabled={!g.can} style={{ ["--c" as string]: L.color } as CSSProperties} onClick={() => setConfirm(true)}>
-                            {g.can ? `Transcend for +${fmtInt(plan.gain)} Essence` : `Reach Ascension ${fmtInt(plan.req)}`}
+                            {g.can ? `Transcend for +${fmtInt(plan.gain)} Essence` : plan.ascOk ? `Settling: ${secs(plan.timeLeft)} to go` : `Reach Ascension ${fmtInt(plan.req)}`}
                         </button>
                     )}
                 </div>

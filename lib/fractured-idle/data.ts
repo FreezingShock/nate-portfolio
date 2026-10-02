@@ -483,10 +483,35 @@ export const REBIRTH_MILESTONES: Record<number, number> = {
 
 // Each ascension makes every rebirth ASC_COST times pricier, so the extra power
 // it grants has to be earned back rather than skipping the climb.
-export const ASC_COST = 4;
+/**
+ * The pacing knobs of the prestige layers, in one place so scripts/prestige-sim.ts can try values. The game never
+ * changes them; ASC_COST below is what the screens print.
+ */
+export const TUNE = {
+    ascCost: 4, // every ascension (up to ascKnee) makes each rebirth this many times pricier
+    ascKnee: 3, // ...and each one after that makes it ascCostLate times pricier
+    ascCostLate: 4,
+    // Gems for ascending: floor(((rebirths - gemOff) / gemDiv) ^ gemExp) + ascensions. A touch front-loaded: the first
+    // ascension pays 5 gems instead of 3, and the pacing of the climb is unchanged.
+    gemOff: 5,
+    gemDiv: 1.5,
+    gemExp: 1.1,
+    gemAsc: 1, // extra gems per ascension already taken this run
+    ascStep: 1, // rebirths added to the ascension requirement per ascension taken
+    transCost: 1, // every Transcendence makes each rebirth this many times pricier
+    transStep: 2, // ascensions added to the Transcendence requirement per Transcendence taken
+    // Transcendence also needs the run to have lasted this long (hours), growing by transGrow each time. Income in this
+    // game is exponential, so no shard price can slow the climb back to ascension 10; time is the one gate that cannot be
+    // out-earned. scripts/prestige-sim.ts and fi-sim show a strong player re-climbing in well under an hour without it.
+    transHours: 8,
+    transGrow: 1.15,
+};
+export const ASC_COST = TUNE.ascCost;
+/** How much pricier rebirths are after `asc` ascensions. */
+export const ascScale = (asc: number) => Math.pow(TUNE.ascCost, Math.min(asc, TUNE.ascKnee)) * Math.pow(TUNE.ascCostLate, Math.max(0, asc - TUNE.ascKnee));
 export const REBIRTH_BASE = 1e5;
 export const REBIRTH_GROWTH = 6;
-export const rebirthCost = (r: number, asc = 0, discount = 1) => REBIRTH_BASE * Math.pow(REBIRTH_GROWTH, r) * Math.pow(ASC_COST, asc) * discount;
+export const rebirthCost = (r: number, asc = 0, discount = 1) => REBIRTH_BASE * Math.pow(REBIRTH_GROWTH, r) * ascScale(asc) * discount;
 
 export { ISLANDS } from "./islands";
 export type { IslandDef } from "./islands";
@@ -603,8 +628,8 @@ export * from "./pets-data";
 // forever. Pets, skills, trophies and islands are never touched.
 
 export const ASC_BASE = 3; // every ascension multiplies all shards by this
-export const ascReq = (asc: number) => 10 + asc; // rebirths needed
-export const ascGain = (rebirths: number, asc: number) => Math.max(0, Math.floor((rebirths - 6) / 2) + asc);
+export const ascReq = (asc: number) => 10 + Math.round(asc * TUNE.ascStep); // rebirths needed
+export const ascGain = (rebirths: number, asc: number) => Math.max(0, Math.floor(Math.pow(Math.max(0, (rebirths - TUNE.gemOff) / TUNE.gemDiv), TUNE.gemExp)) + Math.floor(asc * TUNE.gemAsc));
 
 export interface AscUpDef {
     id: string;

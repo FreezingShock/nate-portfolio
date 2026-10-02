@@ -32,6 +32,7 @@ const mk = () => {
     s.pets = { silverfish: { xp: 5, n: 2 } };
     s.shards = 1e12;
     s.total = 1e15;
+    s.playTime = 100000; // a long run, so the Transcendence time gate is open
     return s;
 };
 
@@ -57,7 +58,22 @@ const mk = () => {
     close(transMult(s), 2 * (1 + 0.03 * 4), "transcendent multiplier");
     ok(ascMult(s) < before, "ascension multiplier restarts (it comes back as you re-ascend)");
     ok(!transcend(s), "cannot transcend again straight away");
-    ok(transPlan(s).req === 11, "next transcendence needs one more ascension");
+    ok(transPlan(s).req === 12, "next transcendence needs two more ascensions");
+}
+
+// ---- The Transcendence time gate ----
+{
+    const s = mk();
+    s.playTime = 3600 * 7; // seven hours in, the first run needs eight
+    ok(!transPlan(s).can && transPlan(s).ascOk && Math.abs(transPlan(s).timeLeft - 3600) < 1, "ascension 10 is not enough before the time gate opens");
+    ok(!transcend(s), "cannot transcend before the gate opens");
+    s.playTime = 3600 * 8 + 1;
+    ok(transPlan(s).can && transcend(s), "the gate opens after eight hours");
+    s.asc = 12;
+    s.playTime += 3600 * 8;
+    ok(!transPlan(s).can, "the second run needs longer than eight hours (it grows)");
+    s.playTime += 3600 * 2;
+    ok(transPlan(s).can, "...and opens a little later");
 }
 
 // ---- Essence upgrades ----
@@ -209,11 +225,11 @@ const mk = () => {
 // ---- Run history and the reset cue ----
 {
     const s = mk();
-    s.playTime = 1000;
+    s.playTime = 40000;
     ok(transcend(s), "transcend for the history test");
-    ok(s.runs.recs.trans.length === 1 && s.runs.recs.trans[0].gain === 4 && s.runs.recs.trans[0].secs === 1000, "Transcendence is logged with its length and gain");
-    ok(s.runs.mark.trans === 1000 && s.runs.mark.rb === 1000 && s.runs.mark.asc === 1000, "a Transcendence restarts every layer's clock");
-    s.playTime = 1000 + 3600;
+    ok(s.runs.recs.trans.length === 1 && s.runs.recs.trans[0].gain === 4 && s.runs.recs.trans[0].secs === 40000, "Transcendence is logged with its length and gain");
+    ok(s.runs.mark.trans === 40000 && s.runs.mark.rb === 40000 && s.runs.mark.asc === 40000, "a Transcendence restarts every layer's clock");
+    s.playTime = 40000 + 3600;
     ok(runSecs(s.runs, "trans", s.playTime) === 3600, "run time counts from the last reset");
 
     const log = newRunLog();

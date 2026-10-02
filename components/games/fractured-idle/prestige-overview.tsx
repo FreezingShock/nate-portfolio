@@ -47,7 +47,16 @@ export function Overview({ s, d, F, act, say, go }: Props) {
         const p = transPlan(s);
         const left = Math.max(0, p.req - s.asc);
         const per = avg("asc");
-        return { L, g, a, pct: Math.min(1, s.asc / p.req), eta: left === 0 ? 0 : per ? left * per : Infinity, need: [fmtInt(left), left === 1 ? "more ascension to transcend" : "more ascensions to transcend"] as [string, string], facts: [["Ascensions", `${fmtInt(s.asc)} / ${fmtInt(p.req)}`], ["Boost now", `x${F(transMult(s))}`], ["Essence if next", fmtInt(p.next)], ["Run time", secs(runSecs(s.runs, k, s.playTime))]] as [string, string][] };
+        const waiting = p.ascOk && p.timeLeft > 0;
+        return {
+            L,
+            g,
+            a,
+            pct: Math.min(1, s.asc / p.req, p.secs / p.minSecs),
+            eta: waiting ? p.timeLeft : left === 0 ? 0 : Math.max(p.timeLeft, per ? left * per : Infinity),
+            need: (waiting ? [secs(p.timeLeft), "more for the run to settle"] : [fmtInt(left), left === 1 ? "more ascension to transcend" : "more ascensions to transcend"]) as [string, string],
+            facts: [["Ascensions", `${fmtInt(s.asc)} / ${fmtInt(p.req)}`], ["Run time", `${secs(p.secs)} / ${secs(p.minSecs)}`], ["Boost now", `x${F(transMult(s))}`], ["Essence if next", fmtInt(p.next)]] as [string, string][],
+        };
     };
 
     const doReset = (k: Layer) => {

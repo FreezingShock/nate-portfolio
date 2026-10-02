@@ -51,6 +51,7 @@ import {
     REBIRTH_UPS,
     SKILL_CAP,
     TROPHIES,
+    TUNE,
     UPGRADES,
     rebirthCost,
     skillLevel,
@@ -610,7 +611,9 @@ export const tokensFor = (shards: number, r: number, asc = 0, discount = 1) =>
     Math.max(2, Math.floor(2 + Math.log10(shards / rebirthCost(r, asc, discount)) * 2.5));
 
 /** The price of rebirth number `r` (0-based) with Lean Climb applied. */
-export const rbCost = (s: State, r: number) => rebirthCost(r, s.asc, leanMult(s));
+/** Everything that scales what a rebirth costs on top of the ascension count: Lean Climb cheaper, each Transcendence dearer. */
+export const rbDisc = (s: State) => leanMult(s) * Math.pow(TUNE.transCost, s.trans);
+export const rbCost = (s: State, r: number) => rebirthCost(r, s.asc, rbDisc(s));
 export const rebirthCap = (s: State) => 1 + (s.rups.stack || 0) + 2 * eLv(s, "deepstack") + prestigeBonus(s).cap;
 const tokenMultBase = (s: State) => 1 + trophyBonus(s).tokens + collectionEffects(s).tokens + petBonus(s).tokens + 0.25 * (s.aups.well || 0) + 0.25 * (s.rups.magnet || 0) + 0.1 * (s.rups.bank || 0) + allFx(s).tokens + boostFx(s).tokens;
 /** Tokens per rebirth. The Vow of Scarcity takes 40% off. */
@@ -619,7 +622,7 @@ export const milestoneTokens = (level: number) => REBIRTH_MILESTONES[level] || 0
 
 /** Tokens for taking rebirth number `level` (1-based) while holding `shards`. */
 export const tokensAt = (s: State, shards: number, level: number) =>
-    Math.max(1, Math.round(tokensFor(shards, level - 1, s.asc, leanMult(s)) * tokenMult(s))) + milestoneTokens(level);
+    Math.max(1, Math.round(tokensFor(shards, level - 1, s.asc, rbDisc(s)) * tokenMult(s))) + milestoneTokens(level);
 
 /** How many rebirths you could take right now (up to your stack cap) and what they pay. */
 export function rebirthPlan(s: State, take?: number) {
