@@ -76,6 +76,7 @@ export function PetBar({ s, onOpen }: { s: State; onOpen: () => void }) {
 export const PB_CSS = `
 .pbr{position:absolute;left:.6rem;top:.6rem;z-index:8;display:flex;flex-direction:column;align-items:flex-start;gap:.5rem;pointer-events:none}
 .pbr>*{pointer-events:auto}
+@media (max-width:1023px){.pbr{position:relative;left:auto;top:auto;flex-direction:row;flex-wrap:wrap;align-items:center;justify-content:center;gap:.45rem;padding:.6rem .75rem 0;pointer-events:auto}.pbr-pet{width:2.5rem;height:2.5rem}.pbr-tile{font-size:1.15rem}}
 .pbr-pet{--rc:#fff;--c:#fff;--p:0;position:relative;display:block;width:2.9rem;height:2.9rem;animation:pbr-drift 3.6s ease-in-out infinite;outline:none;border-radius:50%}
 @keyframes pbr-drift{0%,100%{transform:translateY(0)}50%{transform:translateY(-2px)}}
 .pbr-pet:hover,.pbr-pet:focus-visible{animation:pbr-hop .5s cubic-bezier(.2,1.6,.4,1)}

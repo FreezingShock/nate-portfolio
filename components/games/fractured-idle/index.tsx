@@ -888,7 +888,7 @@ export function FracturedIdle() {
                             setTab("pets");
                         }}
                     />
-                    <div className={`fi-side relative flex h-full flex-col py-3 pr-4 lg:overflow-y-auto ${petBarVisible(s) ? "pl-[3.9rem]" : "pl-4"}`}>
+                    <div className={`fi-side relative flex h-full flex-col py-3 pr-4 lg:overflow-y-auto ${petBarVisible(s) ? "pl-4 lg:pl-[3.9rem]" : "pl-4"}`}>
                     <div className="my-auto flex w-full flex-col items-center gap-3">
                     <Tip
                         tip={() => (
