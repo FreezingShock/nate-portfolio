@@ -8,6 +8,7 @@ import { ChevronDown, Star } from "lucide-react";
 import { TabBar, type TabItem } from "./tab-bar";
 import { CHAPTER_COUNT, CHAPTER_INFO, chapterReady, claimChapter, currentChapter, nextPicks } from "@/lib/fractured-idle/chapters";
 import { claimAllJourney, journeyReady } from "@/lib/fractured-idle/sagas";
+import { transPlan } from "@/lib/fractured-idle/trans";
 import { Tip, TipCard } from "./tooltip";
 import { McSymbol } from "@/components/mc-symbol";
 import { ASC_BASE, EGGS, EGG_CUR, ISLANDS, PETS, REWARD_LABEL, SKILLS, TROPHIES } from "@/lib/fractured-idle/data";
@@ -226,6 +227,25 @@ export function Goals({ s, d, F, open, render, say }: Pick<Ctx, "s" | "d" | "F" 
             prio: ap.can ? 0 : 2,
             left: `Rebirth ${fmtInt(s.rebirths)} / ${ap.req}`,
             right: ap.can ? "Click to ascend" : "multiplies everything by x" + ASC_BASE,
+        });
+    }
+
+    // ---- Transcendence (once the layer is visible) ----
+    const tp = transPlan(s);
+    if (s.ascEver >= 3 || s.trans > 0) {
+        goals.push({
+            key: "transcend",
+            tab: "transcend",
+            symbol: "night",
+            color: "var(--mc-gold)",
+            title: tp.can ? "Transcendence ready!" : `Transcendence #${s.trans + 1}`,
+            chip: tp.can ? `+${tp.gain} Essence` : `${tp.req - s.asc} ascension${tp.req - s.asc === 1 ? "" : "s"}`,
+            chipHot: tp.can,
+            pct: Math.min(1, s.asc / tp.req),
+            ready: tp.can,
+            prio: tp.can ? 0 : 3,
+            left: `Ascension ${fmtInt(s.asc)} / ${tp.req}`,
+            right: tp.can ? "Click to choose vows and transcend" : "keeps every gem upgrade",
         });
     }
 

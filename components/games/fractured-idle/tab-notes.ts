@@ -10,6 +10,7 @@ import { openIslands } from "@/lib/fractured-idle/island-logic";
 import { ENCHANTS, RECIPE_BY_ID, canBuyEnch, canCraft as canMineCraft, featsReady, geodeCount, goalOf as mineGoal, heldTool, isOre, jobsReady, mineLevel, slotsFree } from "@/lib/fractured-idle/mine";
 import { FARM_UPS, canBuyUp as canBuyFarmUp, canBuyHoe, featsReady as farmFeatsReady, jobsReady as farmJobsReady, readyCount, podCount } from "@/lib/fractured-idle/farm";
 import { CHAPTER_INFO, chapterReady } from "@/lib/fractured-idle/chapters";
+import { transPlan } from "@/lib/fractured-idle/trans";
 import { SAGAS, SAGA_BY_ID, finaleReady, readyChapters, type SagaId } from "@/lib/fractured-idle/sagas";
 import type { TabNote } from "./tab-bar";
 
@@ -104,8 +105,9 @@ export function buildTabNotes(s: State, current: string, cache: NoteCache, now =
 
     // Cheap and time-critical: read every render.
     const plan = rebirthPlan(s);
-    if (plan.count > 0) add("rebirth", { text: `${plan.count} rebirth${plan.count === 1 ? "" : "s"} ready: ${plural(plan.tokens, "token")}`, color: R, act: true, n: plan.count });
-    if (ascPlan(s).can) add("ascension", { text: `Ascension ready: +${ascPlan(s).ap} AP`, color: O, act: true });
+    if (plan.count > 0) add("prestige", { text: `${plan.count} rebirth${plan.count === 1 ? "" : "s"} ready: ${plural(plan.tokens, "token")}`, color: R, act: true, n: plan.count });
+    if (ascPlan(s).can) add("prestige", { text: `Ascension ready: +${ascPlan(s).ap} AP`, color: O, act: true });
+    if (transPlan(s).can) add("prestige", { text: `Transcendence ready: +${transPlan(s).gain} Essence`, color: O, act: true });
 
     const ready = jobsReady(s, now);
     if (ready) add("mine", { text: `${plural(ready, "forge craft")} ready to collect`, color: "#ff9a4d", act: true });

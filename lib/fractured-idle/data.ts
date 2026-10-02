@@ -4,6 +4,7 @@ import type { McSymbolName } from "@/components/mc-symbol";
 import { PETS, petLevel } from "./pets-data";
 import type { MineState } from "./mine";
 import type { FarmState } from "./farm";
+import type { RunLog } from "./runs";
 import type { InvState } from "./inv-core";
 import type { BtnPrefs } from "./button";
 import { ISLANDS } from "./islands";
@@ -76,6 +77,7 @@ export interface State {
     vow: string[]; // vows being kept this run
     vowNext: string[]; // vows chosen for the next run
     pbest: { rb: number }; // best rebirth count ever reached: rebirth milestone perks never reset
+    runs: RunLog; // history of your resets (runs.ts): how long each run took and what it paid
     autoT: Record<string, number>; // seconds since each auto-buyer last fired; transient
     // Pets: survive rebirth and ascension.
     pets: Record<string, { xp: number; n: number }>; // n = copies found

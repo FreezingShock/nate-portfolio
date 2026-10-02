@@ -194,13 +194,13 @@ export interface Bonus {
 
 // ---- Families: bonus tiers for how many levels you hold in a kind of upgrade ----
 
-interface Tier {
+export interface Tier {
     fx?: [EStat, number][];
     cap?: number;
     gems?: number;
 }
-type Fam = { at: number[]; tiers: Tier[] };
-type FamCat = Exclude<PrestigeCat, "auto">;
+export type Fam = { at: number[]; tiers: Tier[] };
+export type FamCat = Exclude<PrestigeCat, "auto">;
 
 export const TOKEN_FAMILIES: Record<FamCat, Fam> = {
     power: { at: [25, 60, 120], tiers: [{ fx: [["all", 0.08]] }, { fx: [["all", 0.12]] }, { fx: [["all", 0.2]] }] },

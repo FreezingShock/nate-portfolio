@@ -58,7 +58,8 @@ import { MinionsTab } from "./tab-minions";
 import { PET_CSS, PetsTab } from "./tab-pets";
 import { PB_CSS, PetBar, petBarVisible } from "./pet-bar";
 import { EGG_CSS, EggReveal } from "./egg-reveal";
-import { AscensionTab } from "./tab-ascension";
+import { PrestigeTab } from "./tab-prestige";
+import { wantPrestige } from "./prestige-nav";
 import { UPG_CSS, UpgradeTip, UpgradesTab } from "./tab-upgrades";
 import { TrophiesTab, TrophyTip } from "./tab-trophies";
 import { IslandsTab } from "./tab-islands";
@@ -82,7 +83,6 @@ import { TABBAR_CSS, TabBar, type TabGroup, type TabItem } from "./tab-bar";
 import { buildTabNotes, newNoteCache } from "./tab-notes";
 import { SKILL_TOAST_CSS, SkillToasts, type SkillToastApi } from "./skill-toasts";
 import { STATS_CSS, StatsTab } from "./tab-stats";
-import { RebirthTab } from "./tab-rebirth";
 import { SettingsTab, SoonTab } from "./tab-misc";
 
 // Fractured Idle: a button-simulator incremental with SkyBlock flavor.
@@ -91,7 +91,7 @@ import { SettingsTab, SoonTab } from "./tab-misc";
 // 100ms re-render keeps the UI live, so clicking never waits on React.
 // To add a tab: write a component that takes Ctx and register it in TABS.
 
-type TabId = "minions" | "upgrades" | "button" | "pets" | "inventory" | "shop" | "islands" | "skills" | "mine" | "farm" | "enchant" | "stats" | "rebirth" | "ascension" | "trophies" | "level" | "soon" | "settings";
+type TabId = "minions" | "upgrades" | "button" | "pets" | "inventory" | "shop" | "islands" | "skills" | "mine" | "farm" | "enchant" | "stats" | "prestige" | "rebirth" | "ascension" | "transcend" | "trophies" | "level" | "soon" | "settings";
 
 const GROUPS: TabGroup[] = [
     { id: "play", label: "Play", color: "var(--mc-aqua)" },
@@ -113,8 +113,7 @@ const TABS: TabItem<TabId>[] = [
     { id: "mine", label: "Mine", symbol: "pick", group: "world", color: "#e0b070", blurb: "Dig ore, forge drill parts and pickaxes, enchant your tool and crack geodes. The Mining skill lives here." },
     { id: "farm", label: "Farm", symbol: "fortune", group: "world", color: "#9be04a", blurb: "Grow fields of crops across three dimensions, hire a crew, enchant and sell them, cook and open seed pods. The Farming skill lives here." },
     { id: "enchant", label: "Enchant", symbol: "intelligence", group: "world", color: "#c58bff", blurb: "Roll enchants for your button, minions, popups and more." },
-    { id: "rebirth", label: "Rebirth", symbol: "portal", group: "prog", color: "var(--mc-red)", blurb: "Reset for tokens and a permanent multiplier." },
-    { id: "ascension", label: "Ascension", symbol: "comet", group: "prog", color: "var(--mc-light-purple)", blurb: "The prestige above rebirth." },
+    { id: "prestige", label: "Prestige", symbol: "portal", group: "prog", color: "var(--mc-light-purple)", blurb: "Every reset in one place: Rebirth, Ascension and Transcendence, your long-term path, milestones and auto-buyers." },
     { id: "trophies", label: "Trophies", symbol: "pristine", group: "prog", color: "#ffd24a", blurb: "Permanent bonuses for milestones you hit." },
     { id: "stats", label: "Stats", symbol: "check", group: "prog", color: "#a9b8ff", blurb: "Every number behind your income." },
     { id: "soon", label: "Soon", symbol: "night", group: "sys", color: "#9a94b0", blurb: "What is planned next." },
@@ -128,7 +127,14 @@ export function FracturedIdle() {
     const ref = useRef<State | null>(null);
     const [ready, setReady] = useState(false);
     const [, render] = useReducer((x: number) => x + 1, 0);
-    const [tab, setTab] = useState<TabId>("minions");
+    const [tab, setTabRaw] = useState<TabId>("minions");
+    // The old Rebirth and Ascension tab ids still work as shortcuts: they open the Prestige tab on that page.
+    const setTab = useCallback((v: TabId | ((cur: TabId) => TabId)) => {
+        if (typeof v === "string" && (v === "rebirth" || v === "ascension" || v === "transcend")) {
+            wantPrestige(v);
+            setTabRaw("prestige");
+        } else setTabRaw(v);
+    }, []);
     const [toast, setToast] = useState<string | null>(null);
     const [menu, setMenu] = useState<string | null>(null); // travel map: island id to focus, or closed
     const [isFs, setIsFs] = useState(false);
@@ -1013,8 +1019,7 @@ export function FracturedIdle() {
                         {tab === "farm" && <FarmTab {...ctx} open={(id) => setTab(id as TabId)} />}
                         {tab === "enchant" && <EnchantTab {...ctx} />}
                         {tab === "stats" && <StatsTab {...ctx} />}
-                        {tab === "rebirth" && <RebirthTab {...ctx} />}
-                        {tab === "ascension" && <AscensionTab {...ctx} />}
+                        {tab === "prestige" && <PrestigeTab {...ctx} />}
                         {tab === "trophies" && <TrophiesTab {...ctx} />}
                         {tab === "level" && <LevelTab {...ctx} open={(id) => setTab(id as TabId)} />}
                         {tab === "soon" && <SoonTab {...ctx} />}

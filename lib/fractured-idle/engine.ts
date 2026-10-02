@@ -9,6 +9,7 @@ import { DUST_BASE, addDust, allFx, cleanEnc, newEnc } from "./enchant";
 import { cleanMine, mineCtx, newMine, tickMine } from "./mine";
 import { cleanFarm, farmCtx, newFarm, tickFarm } from "./farm";
 import { GEM_UPS, TOKEN_UPS, autoEvery, bulkBuy, lockedBy, priceAt, valueOf } from "./prestige";
+import { LAYERS, cleanRunLog, logReset, newRunLog, sample, type Layer } from "./runs";
 import { ESS_UPS, VOW_BY_ID, ascBase, eLv, gemStewardEvery, hasVow, leanMult, prestigeBonus, resonanceMult, transMult, transPlan } from "./trans";
 import { activeIsland, islandFx, openIslands, tierMult, visitBonus, type IslandFx } from "./island-logic";
 import type { SkillKey } from "./islands";
@@ -111,6 +112,7 @@ export function newState(): State {
         vow: [],
         vowNext: [],
         pbest: { rb: 0 },
+        runs: newRunLog(),
         ap: 0,
         aups: {},
         auto: { ...DEFAULT_AUTO },
@@ -644,6 +646,7 @@ export function rebirth(s: State, take?: number): boolean {
     const keep = Math.min(1, 0.2 * (s.rups.keep || 0) + 0.02 * (s.rups.heir || 0));
     const kept = TRAINING.map((id) => [id, Math.floor((s.ups[id] || 0) * keep)] as const);
     s.tokens += plan.tokens;
+    logReset(s.runs, "rb", s.playTime, plan.tokens);
     addDust(s, 12 * plan.count * derive(s).dustMult); // each rebirth leaves some dust behind
     s.rebirths += plan.count;
     if (s.rebirths > s.pbest.rb) s.pbest.rb = s.rebirths;
@@ -994,6 +997,7 @@ export function ascend(s: State): boolean {
     const plan = ascPlan(s);
     if (!plan.can) return false;
     s.ap += plan.ap;
+    logReset(s.runs, "asc", s.playTime, plan.ap);
     addDust(s, 200 * derive(s).dustMult);
     s.asc += 1;
     s.ascEver += 1;
@@ -1010,6 +1014,7 @@ export function transcend(s: State): boolean {
     if (!plan.can) return false;
     s.ess += plan.gain;
     s.essTotal += plan.gain;
+    logReset(s.runs, "trans", s.playTime, plan.gain);
     s.trans += 1;
     addDust(s, 1000 * derive(s).dustMult);
     s.asc = Math.min(eLv(s, "afterimage"), 9);
@@ -1052,6 +1057,31 @@ export function advance(s: State, d: Derived, dt: number) {
     if (inc > s.peakInc) s.peakInc = inc;
     tickAuto(s, d, dt);
     tickInventory(s, d, dt);
+    sampleRuns(s);
+}
+
+/** What each layer would pay if you reset now, for the gain-per-hour readings (runs.ts). */
+export function layerGain(s: State, layer: Layer): { can: boolean; gain: number } {
+    if (layer === "rb") {
+        const p = rebirthPlan(s);
+        return { can: p.count > 0, gain: p.tokens };
+    }
+    if (layer === "asc") {
+        const p = ascPlan(s);
+        return { can: p.can, gain: p.ap };
+    }
+    const p = transPlan(s);
+    return { can: p.can, gain: p.gain };
+}
+
+/** About every 20 seconds, take a reading for each layer that is ready. Cheap: it only works when one is due. */
+function sampleRuns(s: State) {
+    for (const k of LAYERS) {
+        if (s.playTime - s.runs.smp[k].t < 20) continue;
+        const g = layerGain(s, k);
+        if (g.can) sample(s.runs, k, s.playTime, g.gain);
+        else s.runs.smp[k].t = s.playTime;
+    }
 }
 
 // ---- Auto-buyers (unlocked with gems, switched on in the Ascension shop) ----
@@ -1190,6 +1220,7 @@ export function parseSave(raw: string): State | null {
         s.vow = vowIds(o.vow);
         s.vowNext = vowIds(o.vowNext);
         s.pbest = { rb: Math.max(0, Math.floor(Number(o.pbest?.rb) || 0), s.rebirths) };
+        s.runs = cleanRunLog(o.runs);
         s.pets = {};
         for (const p of PETS) {
             const r = o.pets?.[p.id];

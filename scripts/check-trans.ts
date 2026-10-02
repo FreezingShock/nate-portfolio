@@ -3,6 +3,7 @@
 import "../lib/fractured-idle/enchant";
 import { MINIONS } from "../lib/fractured-idle/data";
 import { advance, ascPlan, ascend, ascMult, buyUpgrade, derive, newState, parseSave, rbCost, rebirth, rebirthCap, rebirthPlan, serialize, tokenMult, transcend } from "../lib/fractured-idle/engine";
+import { advise, logReset, newRunLog, sample, runSecs } from "../lib/fractured-idle/runs";
 import { ESS_UPS, buyEssence, essFor, hasVow, prestigeBonus, toggleVow, transMult, transPlan, VOWS } from "../lib/fractured-idle/trans";
 
 let bad = 0;
@@ -203,6 +204,35 @@ const mk = () => {
     const e = s.ascEver;
     ascend(s);
     ok(s.ascEver === e + 1 && s.asc === 6, "ascend raises both counters");
+}
+
+// ---- Run history and the reset cue ----
+{
+    const s = mk();
+    s.playTime = 1000;
+    ok(transcend(s), "transcend for the history test");
+    ok(s.runs.recs.trans.length === 1 && s.runs.recs.trans[0].gain === 4 && s.runs.recs.trans[0].secs === 1000, "Transcendence is logged with its length and gain");
+    ok(s.runs.mark.trans === 1000 && s.runs.mark.rb === 1000 && s.runs.mark.asc === 1000, "a Transcendence restarts every layer's clock");
+    s.playTime = 1000 + 3600;
+    ok(runSecs(s.runs, "trans", s.playTime) === 3600, "run time counts from the last reset");
+
+    const log = newRunLog();
+    // Rate climbs 10 -> 14 (still rising): wait. Then flat at the top: good. Then clearly falling: reset now.
+    let t = 0;
+    const feed = (gainPerHour: number) => {
+        t += 20;
+        sample(log, "rb", t, (gainPerHour * runSecs(log, "rb", t)) / 3600);
+    };
+    feed(10);
+    feed(14);
+    ok(advise(log, "rb", t, (14 * runSecs(log, "rb", t)) / 3600, true).cue === "wait", "a rising rate says keep going");
+    feed(14.1);
+    ok(advise(log, "rb", t, (14.1 * runSecs(log, "rb", t)) / 3600, true).cue === "good", "a flat rate near the peak says good time");
+    feed(11);
+    ok(advise(log, "rb", t, (11 * runSecs(log, "rb", t)) / 3600, true).cue === "now", "a falling rate says reset now");
+    ok(advise(log, "rb", t, 0, false).cue === "none", "no cue when nothing is ready");
+    logReset(log, "rb", t, 10);
+    ok(log.smp.rb.pk === 0 && log.mark.rb === t, "a reset clears the run's readings");
 }
 
 // ---- Save round-trip and old saves ----
