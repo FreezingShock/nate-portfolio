@@ -1,5 +1,6 @@
 "use client";
 
+import { fmtPct } from "@/lib/fractured-idle/format";
 import { type CSSProperties } from "react";
 import { McSymbol } from "@/components/mc-symbol";
 import { EGGS, PET_BY_ID, PET_MAX, RARITIES, petLevel, petXpFor, type State } from "@/lib/fractured-idle/data";
@@ -63,8 +64,8 @@ export function PetBar({ s, onOpen }: { s: State; onOpen: () => void }) {
             ))}
 
             {bonds.list.length > 0 && (
-                <Tip tip={<TipCard title="Pet bonds" color="var(--mc-yellow)" lines={["Your equipped pets share a dimension, so they work better together."]} rows={bonds.list.map((b): [string, string, string?] => [b.label, `+${Math.round(b.bonus * 100)}% all shards`, b.color])} />}>
-                    <span className="pbr-bond" tabIndex={0}><McSymbol name="heartS" /> +{Math.round(bonds.total * 100)}%</span>
+                <Tip tip={<TipCard title="Pet bonds" color="var(--mc-yellow)" lines={["Your equipped pets share a dimension, so they work better together."]} rows={bonds.list.map((b): [string, string, string?] => [b.label, `+${fmtPct(b.bonus, 0)} all shards`, b.color])} />}>
+                    <span className="pbr-bond" tabIndex={0}><McSymbol name="heartS" /> +{fmtPct(bonds.total, 0)}</span>
                 </Tip>
             )}
         </div>

@@ -1,5 +1,7 @@
 "use client";
 
+import { fmtPct } from "@/lib/fractured-idle/format";
+export { fmtPct };
 import type { CSSProperties } from "react";
 import { Lock } from "lucide-react";
 import { fmtTime } from "@/lib/fractured-idle/engine";
@@ -41,7 +43,6 @@ import { KIND_ICON_MAP } from "./farm-icons";
 
 export const C = "#9be04a";
 
-export const fmtPct = (n: number) => `${+(n * 100).toFixed(1)}%`;
 export const amt = (F: (n: number) => string, n: number) => (n >= 1000 ? F(Math.floor(n)) : n >= 100 ? String(Math.floor(n)) : String(+n.toFixed(n < 10 ? 1 : 0)));
 export const col = (c: string) => ({ ["--oc" as string]: c }) as CSSProperties;
 

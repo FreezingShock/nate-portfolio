@@ -1,5 +1,6 @@
 "use client";
 
+import { fmtPct } from "@/lib/fractured-idle/format";
 import { useMemo, useState } from "react";
 import { McSymbol } from "@/components/mc-symbol";
 import { FXP_CATS, recentGains, type FxpCat, type FxpSource } from "@/lib/fractured-idle/fxp";
@@ -61,13 +62,13 @@ export function SourcesView({ s, F, sources }: { s: State; F: (n: number) => str
             <div>
                 <div className="fi-lv-share" role="img" aria-label="Fracture EXP by source">
                     {stats.filter((x) => x.got > 0).map((x) => (
-                        <button key={x.c.id} type="button" data-on={sel === x.c.id} style={css({ "--w": x.got, "--cc": x.c.color })} title={`${x.c.name}: ${F(x.got)} XP (${((x.got / Math.max(1, total)) * 100).toFixed(1)}%)`} onClick={() => setSel(sel === x.c.id ? "all" : x.c.id)} aria-label={x.c.name} />
+                        <button key={x.c.id} type="button" data-on={sel === x.c.id} style={css({ "--w": x.got, "--cc": x.c.color })} title={`${x.c.name}: ${F(x.got)} XP (${fmtPct((x.got / Math.max(1, total)), 1)})`} onClick={() => setSel(sel === x.c.id ? "all" : x.c.id)} aria-label={x.c.name} />
                     ))}
                 </div>
                 <div className="fi-lv-share-l">
                     {stats.filter((x) => x.got > 0).map((x) => (
                         <button key={x.c.id} type="button" data-on={sel === x.c.id} style={css({ "--cc": x.c.color })} onClick={() => setSel(sel === x.c.id ? "all" : x.c.id)}>
-                            <i />{x.c.name} {((x.got / Math.max(1, total)) * 100).toFixed(0)}%
+                            <i />{x.c.name} {fmtPct((x.got / Math.max(1, total)), 0)}
                         </button>
                     ))}
                 </div>

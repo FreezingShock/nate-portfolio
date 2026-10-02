@@ -1,3 +1,5 @@
+import { fmtPct } from "@/lib/fractured-idle/format";
+import { fmtInt } from "@/lib/fractured-idle/format";
 import { Lock, Star } from "lucide-react";
 import { MINIONS } from "@/lib/fractured-idle/data";
 import { activeIsland, islandOpen, islandProgress, masteryInfo, tierMult, visitBonus } from "@/lib/fractured-idle/island-logic";
@@ -35,7 +37,7 @@ export function IslandsTab({ s, d, F, openMenu }: Ctx & { openMenu: (id: string)
             <div className="grid grid-cols-2 gap-2 font-rubik text-[11px] sm:grid-cols-4">
                 {[
                     ["Tier bonus", `x${F(tierMult(s))}`, "best main-path island, always on"],
-                    ["Explorer", `+${+(visitBonus(s) * 100).toFixed(1)}%`, `${s.visited.length} islands visited`],
+                    ["Explorer", `+${fmtPct(visitBonus(s), 1)}`, `${fmtInt(s.visited.length)} islands visited`],
                     ["Unlocked", `${open}/${ISLANDS.length}`, `${ISLANDS.filter(isSpecial).filter((i) => islandOpen(s, i)).length} special`],
                     ["Mastery here", `${mast.level}/10`, `perks x${mast.strength.toFixed(2)}`],
                 ].map(([k, v, sub]) => (

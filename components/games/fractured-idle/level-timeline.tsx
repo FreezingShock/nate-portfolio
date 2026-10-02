@@ -1,5 +1,6 @@
 "use client";
 
+import { fmtPct } from "@/lib/fractured-idle/format";
 import { memo, useEffect, useMemo, useRef, useState } from "react";
 import { McSymbol } from "@/components/mc-symbol";
 import { BADGE_SYMBOLS, FXP_PER_LEVEL, LEVEL_BONUS, MAX_DISPLAY_LEVEL, PREFIXES, hasReward, levelColor, rewardFor } from "@/lib/fractured-idle/fxp";
@@ -50,7 +51,7 @@ const Node = memo(function Node({ level, milestone, state }: Row & { state: "pas
                         </span>
                     </>
                 ) : (
-                    <p className="fi-lv-card-s">+{+(LEVEL_BONUS * 100).toFixed(2)}% all shards</p>
+                    <p className="fi-lv-card-s">+{fmtPct(LEVEL_BONUS, 2)} all shards</p>
                 )}
             </div>
         </div>
@@ -92,7 +93,7 @@ export function TimelineView({ lvl, into }: { lvl: number; into: number }) {
                 </div>,
             );
         }
-        if (mode === "milestones" && r.level - prev > 1) out.push(<div key={`g${r.level}`} className="fi-lv-gap">{r.level - prev - 1} level{r.level - prev - 1 === 1 ? "" : "s"} of +{+(LEVEL_BONUS * 100).toFixed(2)}% all shards each</div>);
+        if (mode === "milestones" && r.level - prev > 1) out.push(<div key={`g${r.level}`} className="fi-lv-gap">{r.level - prev - 1} level{r.level - prev - 1 === 1 ? "" : "s"} of +{fmtPct(LEVEL_BONUS, 2)} all shards each</div>);
         const state = r.level === lvl ? "now" : r.level < lvl ? "past" : r.level === nextM ? "next" : "future";
         if (!marked && r.level > lvl && mode === "milestones" && lvl > 0) {
             marked = true;
@@ -123,7 +124,7 @@ export function TimelineView({ lvl, into }: { lvl: number; into: number }) {
                 <div className="fi-lv-tl-in" style={css({ "--pr": `${pr}%` })}>
                     {out}
                     <div className="fi-lv-end">
-                        <b>Level {MAX_DISPLAY_LEVEL}+</b> The badge turns gold at {MAX_DISPLAY_LEVEL}, but Fracture EXP never stops: every ascension keeps paying, and each level is still +{+(LEVEL_BONUS * 100).toFixed(2)}% all shards.
+                        <b>Level {MAX_DISPLAY_LEVEL}+</b> The badge turns gold at {MAX_DISPLAY_LEVEL}, but Fracture EXP never stops: every ascension keeps paying, and each level is still +{fmtPct(LEVEL_BONUS, 2)} all shards.
                     </div>
                 </div>
             </div>

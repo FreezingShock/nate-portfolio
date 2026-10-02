@@ -1,5 +1,6 @@
 "use client";
 
+import { fmtPct } from "@/lib/fractured-idle/format";
 import { sfx } from "@/lib/sound/sounds";
 import { QUICK_CSS, QuickPanel, type QuickAct } from "./quick-actions";
 import { useEffect, useReducer, useRef, useState, type CSSProperties, type ReactNode } from "react";
@@ -116,7 +117,6 @@ const MINE_GROUPS: TabGroup[] = [
     { id: "know", label: "Know", color: "#55ffff" },
 ];
 
-const fmtPct = (n: number) => `${+(n * 100).toFixed(1)}%`;
 const amt = (F: (n: number) => string, n: number) => (n >= 1000 ? F(Math.floor(n)) : n >= 100 ? String(Math.floor(n)) : String(+n.toFixed(n < 10 ? 2 : 1)));
 const col = (c: string) => ({ ["--oc" as string]: c }) as CSSProperties;
 
@@ -519,7 +519,7 @@ function DigView({ s, d, F, render, say }: { s: Ctx["s"]; d: Ctx["d"]; F: (n: nu
                                 <span className="fi-mn-bar">
                                     <i style={{ width: `${r.p * 100}%` }} />
                                 </span>
-                                <span className="fi-mn-pc">{r.open ? `${r.p >= 0.1 ? Math.round(r.p * 100) : +(r.p * 100).toFixed(1)}%` : <><Lock className="inline size-3" /> {o.need}</>}</span>
+                                <span className="fi-mn-pc">{r.open ? `${r.p >= 0.1 ? Math.round(r.p * 100) : fmtPct(r.p, 1)}` : <><Lock className="inline size-3" /> {o.need}</>}</span>
                                 <span className="fi-mn-stk">{r.open ? F(Math.floor(haveOre(s, o.id))) : ""}</span>
                                 {r.open && lvlOpen(s) && (
                                     <button
@@ -927,11 +927,11 @@ function Worlds({ s, F }: { s: Ctx["s"]; F: (n: number) => string }) {
                         <div className="fi-mn-geo" style={{ ["--oc" as string]: GEODES[dm].color } as CSSProperties}>
                             {GEODE_ROWS.map((n, k) => (
                                 <span key={n}>
-                                    {n} <b>{Math.round((w[k] / wt) * 100)}%</b>
+                                    {n} <b>{fmtPct((w[k] / wt), 0)}</b>
                                 </span>
                             ))}
                         </div>
-                        <p className="fi-mn-world-b">Tokens from these geodes x{GEODE_TOKENS[dm]}. {fx.geode > 1 ? `Found ${Math.round((fx.geode - 1) * 100)}% more often here.` : "Found at the normal rate."}</p>
+                        <p className="fi-mn-world-b">Tokens from these geodes x{GEODE_TOKENS[dm]}. {fx.geode > 1 ? `Found ${fmtPct((fx.geode - 1), 0)} more often here.` : "Found at the normal rate."}</p>
 
                         <div className="fi-mn-world-s">Set bonus</div>
                         <div className="fi-mn-setrow">

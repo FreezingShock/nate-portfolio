@@ -1,5 +1,6 @@
 "use client";
 
+import { fmtPct } from "@/lib/fractured-idle/format";
 import {
     INGOTS,
     MINE_UPS,
@@ -101,7 +102,7 @@ export function Forge({ s, render, say }: P) {
         <>
             <div className="fi-mn-sum">
                 <div>
-                    <b>{slots}</b> {slots === 1 ? "furnace" : "furnaces"} · crafts finish <b>{Math.round((forgeSpeed(s) - 1) * 100)}%</b> faster <span>and keep cooking while you are away</span>
+                    <b>{slots}</b> {slots === 1 ? "furnace" : "furnaces"} · crafts finish <b>{fmtPct((forgeSpeed(s) - 1), 0)}</b> faster <span>and keep cooking while you are away</span>
                 </div>
                 <small>Pick something on the grid, press Forge, and come back. A finished craft waits in its furnace until you collect it.</small>
             </div>

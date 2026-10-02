@@ -1,3 +1,4 @@
+import { fmtPct } from "./format";
 import type { McSymbolName } from "@/components/mc-symbol";
 import type { State } from "./data";
 import { openIslands } from "./island-logic";
@@ -481,14 +482,14 @@ export const holdMax = (s: State) => HOLD_MAX + btnBonus(s).hold;
 
 export function bonusText(b: BtnBonus): string {
     const p: string[] = [];
-    if (b.click) p.push(`+${+(b.click * 100).toFixed(1)}% click`);
-    if (b.crit) p.push(`+${+(b.crit * 100).toFixed(1)}% crit chance`);
-    if (b.critDmg) p.push(`+${Math.round(b.critDmg * 100)}% crit dmg`);
+    if (b.click) p.push(`+${fmtPct(b.click, 1)} click`);
+    if (b.crit) p.push(`+${fmtPct(b.crit, 1)} crit chance`);
+    if (b.critDmg) p.push(`+${fmtPct(b.critDmg, 0)} crit dmg`);
     if (b.hold) p.push(`+${b.hold} hold/s`);
-    if (b.xp) p.push(`+${Math.round(b.xp * 100)}% skill xp`);
-    if (b.bobber) p.push(`+${Math.round(b.bobber * 100)}% bobber loot`);
+    if (b.xp) p.push(`+${fmtPct(b.xp, 0)} skill xp`);
+    if (b.bobber) p.push(`+${fmtPct(b.bobber, 0)} bobber loot`);
     if (b.combo) p.push(`+${b.combo} max combo`);
-    if (b.flow) p.push(`+${Math.round(b.flow * 100)}% combo speed`);
+    if (b.flow) p.push(`+${fmtPct(b.flow, 0)} combo speed`);
     return p.join(", ");
 }
 

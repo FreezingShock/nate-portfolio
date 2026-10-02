@@ -1,5 +1,6 @@
 "use client";
 
+import { fmtPct } from "@/lib/fractured-idle/format";
 import { forwardRef, useImperativeHandle, useRef } from "react";
 import { COMBO_MILESTONES, COMBO_TIERS, SURGE_GAIN, comboFill } from "@/lib/fractured-idle/combo";
 import { comboBurst, comboPop, comboSpark, comboSurge } from "./button-fx";
@@ -82,7 +83,7 @@ export const ComboMeter = forwardRef<ComboApi, { info: ComboInfo; enabled: boole
             L.mult = f.mult;
             L.rate = f.rate;
             L.holding = f.holding;
-            const pct = `${(f.fill * 100).toFixed(2)}%`;
+            const pct = `${fmtPct(f.fill, 2)}`;
             if (fill.current) fill.current.style.width = pct;
             if (head.current) head.current.style.left = pct;
             if (multEl.current) {
@@ -157,9 +158,9 @@ function ComboCard({ info, live }: { info: ComboInfo; live: { mult: number; tier
     const rows: [string, string, string?][] = [
         ["Now", `x${fmtMult(live.mult)} (${tier.name})${live.holding ? `, ${live.rate.toFixed(1)} clicks/s` : ""}`, tier.color],
         ["Max multiplier", `x${fmtMult(info.max)}`, "var(--mc-green)"],
-        ["Fill", `${Math.round(live.fill * 100)}% of the bar`],
+        ["Fill", `${fmtPct(live.fill, 0)} of the bar`],
         ["Build speed", `x${info.gain.toFixed(2)}`],
-        ["Surge chance", `${(info.surge * 100).toFixed(1)}% per second, x${SURGE_GAIN} build speed`],
+        ["Surge chance", `${fmtPct(info.surge, 1)} per second, x${SURGE_GAIN} build speed`],
         ["Held clicks", `${info.base}/s x combo, up to ${info.cap}/s`],
         ["Best ever", `x${fmtMult(info.best)}`, "var(--mc-yellow)"],
     ];

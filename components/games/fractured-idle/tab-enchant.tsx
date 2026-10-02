@@ -1,5 +1,7 @@
 "use client";
 
+import { fmtPct } from "@/lib/fractured-idle/format";
+import { fmt, fmtInt } from "@/lib/fractured-idle/format";
 import { useCallback, useEffect, useLayoutEffect, useRef, useState, type CSSProperties } from "react";
 import { createPortal } from "react-dom";
 import { Lock } from "lucide-react";
@@ -78,7 +80,7 @@ const DUR = { full: [520, 650, 900, 1250, 1800, 2400, 3100, 3900], quick: [240, 
 const rar = (r: number) => RARITIES[Math.max(0, Math.min(RARITY_N - 1, r))];
 const isCosmic = (r: number) => r >= RARITY_N - 1;
 const rcolor = (r: number) => (isCosmic(r) ? "#ffb3f2" : rar(r).color);
-const fmtOdds = (n: number) => (n >= 10000 ? `${Math.round(n / 1000)}K` : n >= 100 ? Math.round(n).toLocaleString() : n.toFixed(n < 10 ? 1 : 0));
+const fmtOdds = (n: number) => (n >= 100 ? fmt(Math.round(n)) : n.toFixed(n < 10 ? 1 : 0));
 
 interface Shown {
     out: RollOut;
@@ -422,25 +424,25 @@ export function EnchantTab({ s, d, F, render, say }: Ctx) {
                         <small>+{dustRate.toFixed(2)}/s</small>
                     </div>
                 </Tip>
-                <Tip tip={() => <TipCard title="Luck" color="var(--mc-green)" lines={["Luck shifts rolls toward rarer pulls (each rarity scales by luck^(rank/7))."]} rows={[["Total", `x${luck.toFixed(2)}`], ["Enchanting level", `+${lvl * 2}%`], ["Codex", `+${Math.round(codexLuck(codexCount(s)) * 100)}%`]]} foot="Tome enchants, affixes, skills and Fortune's Favor add more." />}>
+                <Tip tip={() => <TipCard title="Luck" color="var(--mc-green)" lines={["Luck shifts rolls toward rarer pulls (each rarity scales by luck^(rank/7))."]} rows={[["Total", `x${luck.toFixed(2)}`], ["Enchanting level", `+${lvl * 2}%`], ["Codex", `+${fmtPct(codexLuck(codexCount(s)), 0)}`]]} foot="Tome enchants, affixes, skills and Fortune's Favor add more." />}>
                     <div className="fi-en-stat" style={{ ["--c" as string]: "var(--mc-green)" } as CSSProperties}>
                         <span>Luck</span>
                         <b>x{luck.toFixed(2)}</b>
                         <small>better odds for rare pulls</small>
                     </div>
                 </Tip>
-                <Tip tip={() => <TipCard title="Rolls" color="var(--mc-yellow)" lines={["Pity keeps bad streaks short."]} rows={[["Total rolls", s.enc.rolls.toLocaleString()], ["Epic+ in", `${Math.max(1, PITY_EPIC - s.enc.pe)} rolls`], ["Legendary+ in", `${Math.max(1, PITY_LEGEND - s.enc.pl)} rolls`]]} />}>
+                <Tip tip={() => <TipCard title="Rolls" color="var(--mc-yellow)" lines={["Pity keeps bad streaks short."]} rows={[["Total rolls", fmtInt(s.enc.rolls)], ["Epic+ in", `${Math.max(1, PITY_EPIC - s.enc.pe)} rolls`], ["Legendary+ in", `${Math.max(1, PITY_LEGEND - s.enc.pl)} rolls`]]} />}>
                     <div className="fi-en-stat" style={{ ["--c" as string]: "var(--mc-yellow)" } as CSSProperties}>
                         <span>Rolls</span>
-                        <b>{s.enc.rolls.toLocaleString()}</b>
-                        <small>{s.enc.polishes} polishes</small>
+                        <b>{fmtInt(s.enc.rolls)}</b>
+                        <small>{fmtInt(s.enc.polishes)} polishes</small>
                     </div>
                 </Tip>
-                <Tip tip={() => { const n = codexCount(s); const nx = CODEX_MILES.find((m) => m.n > n); return <TipCard title="Codex" color="var(--mc-light-purple)" lines={["Every enchant and rarity you roll is recorded. Each entry adds to all shards."]} rows={[["Found", `${n}/${CODEX_TOTAL}`], ["Bonus", `+${(CODEX_ALL * n * 100).toFixed(1)}% all shards`], nx ? ["Next reward", `${nx.n} entries`] : ["Complete", "all rewards earned", "var(--mc-green)"]]} />; }}>
+                <Tip tip={() => { const n = codexCount(s); const nx = CODEX_MILES.find((m) => m.n > n); return <TipCard title="Codex" color="var(--mc-light-purple)" lines={["Every enchant and rarity you roll is recorded. Each entry adds to all shards."]} rows={[["Found", `${n}/${CODEX_TOTAL}`], ["Bonus", `+${fmtPct(CODEX_ALL * n, 1)} all shards`], nx ? ["Next reward", `${nx.n} entries`] : ["Complete", "all rewards earned", "var(--mc-green)"]]} />; }}>
                     <div className="fi-en-stat" style={{ ["--c" as string]: "var(--mc-light-purple)" } as CSSProperties}>
                         <span>Codex</span>
                         <b>{codexCount(s)}/{CODEX_TOTAL}</b>
-                        <small>+{(CODEX_ALL * codexCount(s) * 100).toFixed(1)}% all shards</small>
+                        <small>+{fmtPct(CODEX_ALL * codexCount(s), 1)} all shards</small>
                     </div>
                 </Tip>
             </div>
@@ -548,7 +550,7 @@ export function EnchantTab({ s, d, F, render, say }: Ctx) {
                                 <div className="fi-en-name">{ENCH_BY_ID[reveal.cand.id].name}</div>
                                 <div className="fi-en-badges">
                                     {reveal.cand.kind === "roll" && <span>1 in {fmtOdds(reveal.odds)}</span>}
-                                    <span>{Math.round(reveal.cand.q * 100)}% quality{reveal.cand.q >= 0.97 ? " · Perfect" : ""}</span>
+                                    <span>{fmtPct(reveal.cand.q, 0)} quality{reveal.cand.q >= 0.97 ? " · Perfect" : ""}</span>
                                     {reveal.fresh && <span className="fi-en-new">NEW in Codex</span>}
                                     {reveal.pity && <span>Pity</span>}
                                 </div>
@@ -647,7 +649,7 @@ export function EnchantTab({ s, d, F, render, say }: Ctx) {
                                     <option key={e.id} value={e.id}>{e.name}</option>
                                 ))}
                             </select>
-                            <span>{s.enc.focus[slot] ? `${Math.round(FOCUS_CHANCE * 100)}% of rolls land on it, rolls cost x${FOCUS_COST}` : "Choose an enchant to chase"}</span>
+                            <span>{s.enc.focus[slot] ? `${fmtPct(FOCUS_CHANCE, 0)} of rolls land on it, rolls cost x${FOCUS_COST}` : "Choose an enchant to chase"}</span>
                         </label>
                     )}
 
@@ -728,7 +730,7 @@ function EnchCard({ e, tag, vs, glow }: { e: Ench | undefined; tag: string; vs?:
                 <span className="h-1.5 flex-1 overflow-hidden rounded-full bg-white/10">
                     <i className="fi-en-bar block h-full rounded-full" style={{ width: `${e.q * 100}%`, backgroundColor: col, boxShadow: `0 0 8px ${col}` }} />
                 </span>
-                <span style={{ color: e.q >= 0.97 ? "var(--mc-yellow)" : undefined }}>{Math.round(e.q * 100)}%{e.q >= 0.97 ? " ✦" : ""}</span>
+                <span style={{ color: e.q >= 0.97 ? "var(--mc-yellow)" : undefined }}>{fmtPct(e.q, 0)}{e.q >= 0.97 ? " ✦" : ""}</span>
             </div>
             <ul className="mt-1.5 space-y-0.5 font-rubik text-[11px]">
                 {lines.map((l, i) => (
@@ -795,7 +797,7 @@ function Codex({ s }: { s: Ctx["s"] }) {
                 <div className="flex flex-wrap items-baseline justify-between gap-2">
                     <span className="font-minecraft font-bold text-sm" style={{ color: C }}>Enchant Codex</span>
                     <span className="font-rubik text-[11px] text-muted-foreground">
-                        {n}/{CODEX_TOTAL} found · +{(CODEX_ALL * n * 100).toFixed(1)}% all shards
+                        {n}/{CODEX_TOTAL} found · +{fmtPct(CODEX_ALL * n, 1)} all shards
                     </span>
                 </div>
                 <div className="mt-2 h-2 overflow-hidden rounded-full bg-white/10">
@@ -807,7 +809,7 @@ function Codex({ s }: { s: Ctx["s"] }) {
                         return (
                             <div key={m.n} className="rounded-lg border px-2 py-1 font-rubik text-[10px]" style={{ borderColor: done ? tint("var(--mc-green)", 50) : "rgba(255,255,255,0.1)", opacity: done ? 1 : 0.65 }}>
                                 <div className="font-minecraft font-bold text-[11px]" style={{ color: done ? "var(--mc-green)" : undefined }}>{done ? "✓ " : ""}{m.n} entries</div>
-                                <div className="text-muted-foreground">+{Math.round(m.luck * 100)}% luck, {m.dust} dust</div>
+                                <div className="text-muted-foreground">+{fmtPct(m.luck, 0)} luck, {m.dust} dust</div>
                             </div>
                         );
                     })}

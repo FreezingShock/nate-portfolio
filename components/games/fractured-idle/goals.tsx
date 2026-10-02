@@ -1,5 +1,7 @@
 "use client";
 
+import { fmtPct } from "@/lib/fractured-idle/format";
+import { fmtInt } from "@/lib/fractured-idle/format";
 import { useMemo, useState } from "react";
 import { Tip, TipCard } from "./tooltip";
 import { McSymbol } from "@/components/mc-symbol";
@@ -119,8 +121,8 @@ export function Goals({ s, d, F, open, render, say }: Pick<Ctx, "s" | "d" | "F" 
             tab: "rebirth",
             symbol: "portal",
             color: "var(--mc-light-purple)",
-            title: `Rebirth x${plan.count} ready!`,
-            chip: `+${plan.tokens} tokens`,
+            title: `Rebirth x${fmtInt(plan.count)} ready!`,
+            chip: `+${fmtInt(plan.tokens)} tokens`,
             chipHot: true,
             pct: 1,
             ready: true,
@@ -158,7 +160,7 @@ export function Goals({ s, d, F, open, render, say }: Pick<Ctx, "s" | "d" | "F" 
             pct: Math.min(1, s.rebirths / ap.req),
             ready: ap.can,
             prio: ap.can ? 0 : 2,
-            left: `Rebirth ${s.rebirths} / ${ap.req}`,
+            left: `Rebirth ${fmtInt(s.rebirths)} / ${ap.req}`,
             right: ap.can ? "Click to ascend" : "multiplies everything by x" + ASC_BASE,
         });
     }
@@ -172,7 +174,7 @@ export function Goals({ s, d, F, open, render, say }: Pick<Ctx, "s" | "d" | "F" 
             symbol: "petLuck",
             color: "var(--mc-dark-aqua)",
             title: s.freeEggs > 0 ? "Free egg to hatch!" : `${egg!.name} ready to hatch`,
-            chip: s.freeEggs > 0 ? `x${s.freeEggs}` : `${F(eggPrice(s, egg!))} ${EGG_CUR[egg!.cur].one}s`,
+            chip: s.freeEggs > 0 ? `x${fmtInt(s.freeEggs)}` : `${F(eggPrice(s, egg!))} ${EGG_CUR[egg!.cur].one}s`,
             chipHot: true,
             pct: 1,
             ready: true,
@@ -199,7 +201,7 @@ export function Goals({ s, d, F, open, render, say }: Pick<Ctx, "s" | "d" | "F" 
             symbol: i.symbol,
             color: i.color,
             title: `Island: ${i.name}`,
-            chip: i.need ? `${Math.round(nextIsl.f * 100)}%` : fmtEta((i.at - s.total) / rate),
+            chip: i.need ? `${fmtPct(nextIsl.f, 0)}` : fmtEta((i.at - s.total) / rate),
             pct: nextIsl.f,
             prio: 3,
             left: `${F(have)} / ${F(need)}`,
@@ -236,7 +238,7 @@ export function Goals({ s, d, F, open, render, say }: Pick<Ctx, "s" | "d" | "F" 
                 frac,
                 have,
                 at: tier.at,
-                text: `+${+(tier.reward * 100).toFixed(1)}% ${REWARD_LABEL[t.stat]}`,
+                text: `+${fmtPct(tier.reward, 1)} ${REWARD_LABEL[t.stat]}`,
                 stat: t.unit,
                 symbol: t.symbol,
             };
@@ -249,7 +251,7 @@ export function Goals({ s, d, F, open, render, say }: Pick<Ctx, "s" | "d" | "F" 
             symbol: best.symbol,
             color: "var(--mc-yellow)",
             title: `Trophy: ${best.name}`,
-            chip: `${Math.round(best.frac * 100)}%`,
+            chip: `${fmtPct(best.frac, 0)}`,
             pct: best.frac,
             prio: 4,
             left: `${F(best.have)} / ${F(best.at)} ${best.stat}`,
@@ -277,7 +279,7 @@ export function Goals({ s, d, F, open, render, say }: Pick<Ctx, "s" | "d" | "F" 
             symbol: skill.symbol,
             color: skill.color,
             title: `${skill.name} ${skill.lvl} → ${skill.lvl + 1}`,
-            chip: `${Math.round(skill.frac * 100)}%`,
+            chip: `${fmtPct(skill.frac, 0)}`,
             pct: skill.frac,
             prio: 5,
             left: `${F(skill.xp)} / ${F(skill.need)} xp`,
@@ -300,7 +302,7 @@ export function Goals({ s, d, F, open, render, say }: Pick<Ctx, "s" | "d" | "F" 
         const mrec = MINE_RECIPES[mg.id];
         const ok = !!mrec && mineCanCraft(s, mrec, 1).ok;
         const frac = COST_FRAC(mg.cost as Record<string, number>, (id) => mineHave(s, id as MineRes));
-        goals.push({ key: "minegoal", tab: "mine", symbol: "pick", color: mg.color, title: `${mg.kind === "part" ? "Drill part" : mg.kind === "pick" ? "Pickaxe" : "Relic"}: ${mg.title}`, chip: ok ? "Make" : mineLevel(s) < mg.need ? `Mining ${mg.need}` : `${Math.round(frac * 100)}%`, chipHot: ok, pct: ok ? 1 : frac, ready: ok, prio: ok ? 0 : 3.5, left: Object.entries(mg.cost).map(([k, v]) => `${v} ${mineRes(k as MineRes).name}`).slice(0, 3).join(", ") || "free", right: ok ? "Everything is ready" : mineLevel(s) < mg.need ? `Needs Mining ${mg.need}` : "Mine and smelt what is missing", act: ok ? { label: "Forge it", run: () => (mineStart(s, mg.id) ? `${mg.title} is in the furnace.` : "") } : undefined });
+        goals.push({ key: "minegoal", tab: "mine", symbol: "pick", color: mg.color, title: `${mg.kind === "part" ? "Drill part" : mg.kind === "pick" ? "Pickaxe" : "Relic"}: ${mg.title}`, chip: ok ? "Make" : mineLevel(s) < mg.need ? `Mining ${mg.need}` : `${fmtPct(frac, 0)}`, chipHot: ok, pct: ok ? 1 : frac, ready: ok, prio: ok ? 0 : 3.5, left: Object.entries(mg.cost).map(([k, v]) => `${v} ${mineRes(k as MineRes).name}`).slice(0, 3).join(", ") || "free", right: ok ? "Everything is ready" : mineLevel(s) < mg.need ? `Needs Mining ${mg.need}` : "Mine and smelt what is missing", act: ok ? { label: "Forge it", run: () => (mineStart(s, mg.id) ? `${mg.title} is in the furnace.` : "") } : undefined });
     }
     if (mfeats > 0)
         goals.push({ key: "minefeats", tab: "mine", symbol: "star", color: "#ffd23a", title: `${mfeats} mining milestone${mfeats === 1 ? "" : "s"} to claim`, chip: "Claim", chipHot: true, pct: 1, ready: true, prio: 0, left: "tokens, eggs, dust, stats", right: "Click to open the Mine", act: { label: `Claim ${mfeats}`, run: () => { const g = mineClaim(s); return g.length ? `Claimed ${g.length} mining milestone${g.length > 1 ? "s" : ""}.` : ""; } } });
@@ -320,7 +322,7 @@ export function Goals({ s, d, F, open, render, say }: Pick<Ctx, "s" | "d" | "F" 
     if (fg) {
         const ok = fg.kind === "hoe" && canBuyHoe(s).ok;
         const frac = COST_FRAC(fg.cost as Record<string, number>, (id) => farmHave(s, id as FarmRes));
-        goals.push({ key: "farmgoal", tab: "farm", symbol: "fortune", color: fg.color, title: `${fg.kind === "hoe" ? "Hoe" : "Scarecrow"}: ${fg.title}`, chip: ok ? "Make" : farmLevel(s) < fg.need ? `Farming ${fg.need}` : `${Math.round(frac * 100)}%`, chipHot: ok, pct: ok ? 1 : frac, ready: ok, prio: ok ? 0 : 3.6, left: Object.entries(fg.cost).map(([k, v]) => `${v} ${farmRes(k as FarmRes).name}`).slice(0, 3).join(", ") || "free", right: ok ? "Everything is ready" : farmLevel(s) < fg.need ? `Needs Farming ${fg.need}` : "Grow and cook what is missing", act: ok ? { label: "Make it", run: () => (buyHoe(s) ? `Made the ${fg.title}!` : "") } : undefined });
+        goals.push({ key: "farmgoal", tab: "farm", symbol: "fortune", color: fg.color, title: `${fg.kind === "hoe" ? "Hoe" : "Scarecrow"}: ${fg.title}`, chip: ok ? "Make" : farmLevel(s) < fg.need ? `Farming ${fg.need}` : `${fmtPct(frac, 0)}`, chipHot: ok, pct: ok ? 1 : frac, ready: ok, prio: ok ? 0 : 3.6, left: Object.entries(fg.cost).map(([k, v]) => `${v} ${farmRes(k as FarmRes).name}`).slice(0, 3).join(", ") || "free", right: ok ? "Everything is ready" : farmLevel(s) < fg.need ? `Needs Farming ${fg.need}` : "Grow and cook what is missing", act: ok ? { label: "Make it", run: () => (buyHoe(s) ? `Made the ${fg.title}!` : "") } : undefined });
     }
     if (ffeats > 0)
         goals.push({ key: "farmfeats", tab: "farm", symbol: "star", color: "#ffd23a", title: `${ffeats} farming milestone${ffeats === 1 ? "" : "s"} to claim`, chip: "Claim", chipHot: true, pct: 1, ready: true, prio: 0, left: "tokens, eggs, dust, stats", right: "Click to open the Farm", act: { label: `Claim ${ffeats}`, run: () => { const g = farmClaim(s); return g.length ? `Claimed ${g.length} farming milestone${g.length > 1 ? "s" : ""}.` : ""; } } });
@@ -333,7 +335,7 @@ export function Goals({ s, d, F, open, render, say }: Pick<Ctx, "s" | "d" | "F" 
 
     // ---- Button looks ----
     if (nextLook)
-        goals.push({ key: "look", tab: "button", symbol: "daisy", color: "#6fd0ff", title: `Look: ${nextLook.name}`, chip: `${Math.round(nextLook.f * 100)}%`, pct: nextLook.f, prio: 6, left: `${nextLook.cat}, ${nextLook.stat}`, right: `Needs ${F(nextLook.need)} ${nextLook.stat}` });
+        goals.push({ key: "look", tab: "button", symbol: "daisy", color: "#6fd0ff", title: `Look: ${nextLook.name}`, chip: `${fmtPct(nextLook.f, 0)}`, pct: nextLook.f, prio: 6, left: `${nextLook.cat}, ${nextLook.stat}`, right: `Needs ${F(nextLook.need)} ${nextLook.stat}` });
 
     // Ready goals first (in the order pushed), then by priority.
     const ordered = goals

@@ -1,5 +1,7 @@
 "use client";
 
+import { fmtPct } from "@/lib/fractured-idle/format";
+import { fmtInt } from "@/lib/fractured-idle/format";
 import { useState, type CSSProperties } from "react";
 import { McSymbol, type McSymbolName } from "@/components/mc-symbol";
 import { openIslands } from "@/lib/fractured-idle/island-logic";
@@ -48,7 +50,7 @@ const TEAL = "var(--mc-dark-aqua)";
 
 export function StatsTab({ s, d, F }: Ctx) {
     const [cat, setCat] = useState<string>("all");
-    const pct = (n: number) => `${(n * 100).toFixed(n * 100 < 10 ? 1 : 0)}%`;
+    const pct = (n: number) => fmtPct(n, n * 100 < 10 ? 1 : 0);
     const owned = s.minions.reduce((a, b) => a + b, 0);
     const types = s.minions.filter((n) => n > 0).length;
     const unlocked = openIslands(s).length;
@@ -126,7 +128,7 @@ export function StatsTab({ s, d, F }: Ctx) {
             stats: [
                 { id: "dust", label: "Arcane Dust", value: F(s.enc.dust), icon: "night", color: "#d9a8ff", hint: `${F(s.enc.earned)} earned in total` },
                 { id: "dustm", label: "Dust gain", value: `x${d.dustMult.toFixed(2)}`, icon: "night", color: "#d9a8ff", src: "dust" },
-                { id: "rolls", label: "Rolls", value: F(s.enc.rolls), icon: "intelligence", color: YELLOW, hint: `${s.enc.polishes} polishes and reforges` },
+                { id: "rolls", label: "Rolls", value: F(s.enc.rolls), icon: "intelligence", color: YELLOW, hint: `${fmtInt(s.enc.polishes)} polishes and reforges` },
                 { id: "luck", label: "Luck", value: `x${d.luck.toFixed(2)}`, icon: "petLuck", color: GREEN, hint: `table level ${enchLevel(s)}`, src: "luck" },
                 { id: "best", label: "Best pull", value: bestPull ? bestPull.name : "none yet", icon: "magicFind", color: bestPull ? bestPull.color : undefined },
                 { id: "codex", label: "Codex", value: `${codexCount(s)}/${CODEX_TOTAL}`, icon: "wisdom", color: PURPLE, bar: codexCount(s) / CODEX_TOTAL },
@@ -134,7 +136,7 @@ export function StatsTab({ s, d, F }: Ctx) {
                     const e = s.enc.eq[sl.id];
                     return { id: `slot-${sl.id}`, label: sl.name, value: e ? RARITIES[e.r].name : "empty", icon: sl.symbol, color: e ? RARITIES[e.r].color : sl.color };
                 }),
-                { id: "procs", label: "Click procs", value: `${(d.procs.bolt * 100).toFixed(1)}% / ${(d.procs.midas * 100).toFixed(1)}% / ${(d.procs.echo * 100).toFixed(1)}%`, icon: "critDamage", color: YELLOW, hint: "Lightning / Midas / Echo per click" },
+                { id: "procs", label: "Click procs", value: `${fmtPct(d.procs.bolt, 1)} / ${fmtPct(d.procs.midas, 1)} / ${fmtPct(d.procs.echo, 1)}`, icon: "critDamage", color: YELLOW, hint: "Lightning / Midas / Echo per click" },
             ],
         },
         {
@@ -145,9 +147,9 @@ export function StatsTab({ s, d, F }: Ctx) {
             icon: "petLuck",
             stats: [
                 { id: "found", label: "Pets found", value: `${Object.keys(s.pets).length}/${PETS.length}`, icon: "petLuck", bar: Object.keys(s.pets).length / PETS.length },
-                { id: "hatched", label: "Eggs hatched", value: String(s.hatched), icon: "pristine", color: GOLD },
-                { id: "slots", label: "Slots", value: `${s.equip.length}/${petSlots(s)}`, icon: "flag", color: AQUA, hint: "equipped / unlocked" },
-                ...(Object.keys(d.pet) as PetStat[]).filter((k) => d.pet[k] > 0).map((k): Stat => ({ id: `pet-${k}`, label: PET_LABEL[k], value: `+${+(d.pet[k] * 100).toFixed(1)}%`, icon: "petLuck", color: GREEN })),
+                { id: "hatched", label: "Eggs hatched", value: fmtInt(s.hatched), icon: "pristine", color: GOLD },
+                { id: "slots", label: "Slots", value: `${fmtInt(s.equip.length)}/${petSlots(s)}`, icon: "flag", color: AQUA, hint: "equipped / unlocked" },
+                ...(Object.keys(d.pet) as PetStat[]).filter((k) => d.pet[k] > 0).map((k): Stat => ({ id: `pet-${k}`, label: PET_LABEL[k], value: `+${fmtPct(d.pet[k], 1)}`, icon: "petLuck", color: GREEN })),
             ],
         },
         {
@@ -161,9 +163,9 @@ export function StatsTab({ s, d, F }: Ctx) {
                 { id: "caught", label: "Popups caught", value: F(s.evs.caught), icon: "check", color: GREEN },
                 { id: "gold", label: "Golden shards", value: F(s.evs.golden), icon: "magicFind", color: GOLD },
                 { id: "qte", label: "Quick time events", value: F(s.evs.qte), icon: "attackSpeed", color: BLUE, hint: `${F(s.evs.perfect)} perfect` },
-                { id: "frag", label: "Fracture Fragments", value: String(s.frag), icon: "comet", color: PURPLE, hint: `+${+(Math.min(500, s.frag) * 0.2).toFixed(1)}% all shards` },
-                { id: "curse", label: "Curses taken", value: String(s.evs.curses), icon: "heat", color: RED },
-                { id: "lvl", label: "Fractured Level", value: `${s.lvl}`, icon: "flag", color: YELLOW, hint: `+${+(s.lvl * 0.15).toFixed(1)}% all shards` },
+                { id: "frag", label: "Fracture Fragments", value: fmtInt(s.frag), icon: "comet", color: PURPLE, hint: `+${fmtPct(Math.min(500, s.frag) * 0.002, 1)} all shards` },
+                { id: "curse", label: "Curses taken", value: fmtInt(s.evs.curses), icon: "heat", color: RED },
+                { id: "lvl", label: "Fractured Level", value: `${fmtInt(s.lvl)}`, icon: "flag", color: YELLOW, hint: `+${fmtPct(s.lvl * 0.0015, 1)} all shards` },
             ],
         },
         {
@@ -174,11 +176,11 @@ export function StatsTab({ s, d, F }: Ctx) {
             icon: "comet",
             stats: [
                 { id: "life", label: "Lifetime shards", value: F(s.total), icon: "speed", color: AQUA },
-                { id: "rb", label: "Rebirths", value: String(s.rebirths), icon: "portal", color: RED },
-                { id: "tok", label: "Tokens", value: String(s.tokens), icon: "pristine", color: PURPLE },
+                { id: "rb", label: "Rebirths", value: fmtInt(s.rebirths), icon: "portal", color: RED },
+                { id: "tok", label: "Tokens", value: fmtInt(s.tokens), icon: "pristine", color: PURPLE },
                 { id: "isl2", label: "Islands", value: `${unlocked}/${ISLANDS.length}`, icon: "location", color: BLUE, bar: unlocked / ISLANDS.length },
                 { id: "tro2", label: "Trophy tiers", value: `${tro.got}/${tro.all}`, icon: "pristine", color: YELLOW, bar: tro.got / Math.max(1, tro.all) },
-                { id: "as", label: "Ascensions", value: String(s.asc), icon: "comet", color: PURPLE, hint: `${s.ap} gems unspent` },
+                { id: "as", label: "Ascensions", value: fmtInt(s.asc), icon: "comet", color: PURPLE, hint: `${fmtInt(s.ap)} gems unspent` },
                 { id: "stack", label: "Rebirth stack", value: `${rebirthCap(s)}/15`, icon: "portal", color: RED, hint: "levels per rebirth", bar: rebirthCap(s) / 15 },
                 { id: "peak", label: "Best income", value: `${F(s.peakInc)}/s`, icon: "speed", color: GREEN, hint: "prices your eggs" },
                 { id: "tm", label: "Token bonus", value: `x${tokenMult(s).toFixed(2)}`, icon: "pristine", color: PURPLE, hint: "trophies + Token Magnet" },
@@ -190,14 +192,14 @@ export function StatsTab({ s, d, F }: Ctx) {
 
     const bonusStats: Stat[] = (Object.keys(REWARD_LABEL) as RewardStat[])
         .filter((k) => d.bonus[k] > 0)
-        .map((k) => ({ id: `tb-${k}`, label: REWARD_LABEL[k], value: `+${+(d.bonus[k] * 100).toFixed(1)}%`, icon: "pristine" as McSymbolName, color: YELLOW }));
+        .map((k) => ({ id: `tb-${k}`, label: REWARD_LABEL[k], value: `+${fmtPct(d.bonus[k], 1)}`, icon: "pristine" as McSymbolName, color: YELLOW }));
     if (bonusStats.length) cats.push({ id: "trophy", title: "Trophy bonuses", blurb: "Permanent rewards from trophies", color: YELLOW, icon: "pristine", stats: bonusStats });
 
     const hero: Stat[] = [
         { id: "h-inc", label: "Income", value: `${F(income(d))}/s`, icon: "speed", color: GREEN, hint: "per second" },
         { id: "h-click", label: "Per click", value: F(d.avgClick), icon: "strength", color: AQUA, hint: "with crits", src: "click" },
         { id: "h-all", label: "Everything", value: `x${F(d.all)}`, icon: "fortune", color: GOLD, hint: "total multiplier", src: "all" },
-        { id: "h-lvl", label: "Level", value: String(s.lvl), icon: "flag", color: YELLOW, hint: "Fractured Level" },
+        { id: "h-lvl", label: "Level", value: fmtInt(s.lvl), icon: "flag", color: YELLOW, hint: "Fractured Level" },
     ];
 
     const shown = cat === "all" ? cats : cats.filter((c) => c.id === cat);

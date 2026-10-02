@@ -1,5 +1,6 @@
 "use client";
 
+import { fmtInt } from "@/lib/fractured-idle/format";
 import { memo, useRef, useState, type ComponentProps, type CSSProperties } from "react";
 import { McSymbol } from "@/components/mc-symbol";
 import { Tip, TipCard, type TipNote } from "./tooltip";
@@ -101,7 +102,7 @@ function Bar<T extends string>({ tabs, groups, current, notes, onSelect, keys = 
                                             role="tab"
                                             aria-selected={on}
                                             data-on={on}
-                                            aria-label={count ? `${t.label}, ${count} to check` : t.label}
+                                            aria-label={count ? `${t.label}, ${fmtInt(count)} to check` : t.label}
                                             onClick={() => pick.current(t.id)}
                                             onPointerEnter={(e) => e.pointerType === "mouse" && markRead(t.id)}
                                             onFocus={() => markRead(t.id)}
@@ -132,8 +133,8 @@ function Bar<T extends string>({ tabs, groups, current, notes, onSelect, keys = 
                         <TipCard
                             title="Notifications"
                             color="var(--mc-green)"
-                            tag={total > 0 ? `${total} new` : "all read"}
-                            lines={[total > 0 ? `${total} thing${total === 1 ? "" : "s"} waiting on ${hot.length} tab${hot.length === 1 ? "" : "s"}.` : "You are all caught up."]}
+                            tag={total > 0 ? `${fmtInt(total)} new` : "all read"}
+                            lines={[total > 0 ? `${fmtInt(total)} thing${total === 1 ? "" : "s"} waiting on ${hot.length} tab${hot.length === 1 ? "" : "s"}.` : "You are all caught up."]}
                             rows={hot.map((t): [string, string, string] => [t.label, String(shown(t.id)), t.color])}
                             cta={total > 0 ? "Click to mark all read!" : undefined}
                         />
@@ -150,7 +151,7 @@ function Bar<T extends string>({ tabs, groups, current, notes, onSelect, keys = 
                         setRead(Object.fromEntries(tabs.map((t) => [t.id, actSig(notes[t.id])])));
                         onReadAll?.();
                     }}
-                    aria-label={total > 0 ? `Mark all ${total} notifications as read` : "No notifications"}
+                    aria-label={total > 0 ? `Mark all ${fmtInt(total)} notifications as read` : "No notifications"}
                 >
                     <span>✓</span>
                 </button>

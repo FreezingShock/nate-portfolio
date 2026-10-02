@@ -343,7 +343,7 @@ function Kitchen({ s, F, render, say }: { s: Ctx["s"]; F: (n: number) => string;
         <>
             <div className="fi-mn-sum">
                 <div>
-                    <b>{slots}</b> {slots === 1 ? "oven" : "ovens"} · crafts finish <b>{Math.round((cookSpeed(s) - 1) * 100)}%</b> faster <span>and keep cooking while you are away</span>
+                    <b>{slots}</b> {slots === 1 ? "oven" : "ovens"} · crafts finish <b>{fmtPct((cookSpeed(s) - 1), 0)}</b> faster <span>and keep cooking while you are away</span>
                 </div>
                 <small>Pick something on the grid, press Cook, and come back. Cooks (in the Crew tab) start the goods your next goal is short of for you. A finished craft waits in its oven until you collect it.</small>
             </div>
@@ -543,11 +543,11 @@ function Biomes({ s, F }: { s: Ctx["s"]; F: (n: number) => string }) {
                         <div className="fi-mn-geo" style={{ ["--oc" as string]: PODS[dm].color } as CSSProperties}>
                             {POD_ROWS.map((n, k) => (
                                 <span key={n}>
-                                    {n} <b>{Math.round((w[k] / wt) * 100)}%</b>
+                                    {n} <b>{fmtPct((w[k] / wt), 0)}</b>
                                 </span>
                             ))}
                         </div>
-                        <p className="fi-mn-world-b">Tokens from these pods x{POD_TOKENS[dm]}. {fx.pod > 1 ? `Found ${Math.round((fx.pod - 1) * 100)}% more often here.` : "Found at the normal rate."}</p>
+                        <p className="fi-mn-world-b">Tokens from these pods x{POD_TOKENS[dm]}. {fx.pod > 1 ? `Found ${fmtPct((fx.pod - 1), 0)} more often here.` : "Found at the normal rate."}</p>
                         <div className="fi-mn-world-s">Set bonus</div>
                         <div className="fi-mn-setrow">
                             {SET_STEPS.map((st) => (

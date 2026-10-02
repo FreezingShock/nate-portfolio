@@ -1,5 +1,7 @@
 "use client";
 
+import { fmtPct } from "@/lib/fractured-idle/format";
+import { fmtInt } from "@/lib/fractured-idle/format";
 import { memo, useEffect, useMemo, useState } from "react";
 import { McSymbol, type McSymbolName } from "@/components/mc-symbol";
 import {
@@ -100,21 +102,21 @@ export function LevelTab({ s, F, act, say, render, open }: Ctx & { open: (tab: s
                 <div className="fi-lv-top">
                     <LevelBadge level={s.lvl} sym={sym} prefix={pfx} size="lg" />
                     <div className="fi-lv-stats">
-                        <div className="fi-lv-stat" style={css({ "--k": "var(--mc-green)" })}><b>+{+(LEVEL_BONUS * s.lvl * 100).toFixed(1)}%</b><span>all shards</span></div>
+                        <div className="fi-lv-stat" style={css({ "--k": "var(--mc-green)" })}><b>+{fmtPct(LEVEL_BONUS * s.lvl, 1)}</b><span>all shards</span></div>
                         <div className="fi-lv-stat" style={css({ "--k": GOLD })}><b>{journeyDone(s)}/{JOURNEY_TOTAL}</b><span>chapters</span></div>
                         <div className="fi-lv-stat" style={css({ "--k": "var(--mc-light-purple)" })}><b>{LEVEL_PERKS.filter((p) => s.lvl >= p.at).length}/{LEVEL_PERKS.length}</b><span>level perks</span></div>
                     </div>
                 </div>
                 <div className="fi-lv-xp">
                     <div className="fi-lv-xp-r">
-                        <span>Level {s.lvl} to {s.lvl + 1}</span>
+                        <span>Level {fmtInt(s.lvl)} to {s.lvl + 1}</span>
                         <span><b>{into}</b> / {FXP_PER_LEVEL} XP · {F(total)} total</span>
                     </div>
                     <Bar pct={into / FXP_PER_LEVEL} />
                 </div>
                 <div className="fi-lv-hero-f">
                     <span className="fi-lv-note">
-                        {nextPerk ? <>Next perk at level <b style={{ color: "#fff" }}>{nextPerk.at}</b>: {nextPerk.name}.</> : "Every perk unlocked."} Each level is +{+(LEVEL_BONUS * 100).toFixed(2)}% all shards.
+                        {nextPerk ? <>Next perk at level <b style={{ color: "#fff" }}>{nextPerk.at}</b>: {nextPerk.name}.</> : "Every perk unlocked."} Each level is +{fmtPct(LEVEL_BONUS, 2)} all shards.
                     </span>
                     {ready > 0 && (
                         <button

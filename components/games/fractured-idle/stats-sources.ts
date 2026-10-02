@@ -1,3 +1,4 @@
+import { fmtPct } from "@/lib/fractured-idle/format";
 import { LEVEL_BONUS, UPGRADES, type State } from "@/lib/fractured-idle/data";
 import { COMBO_BASE_MAX } from "@/lib/fractured-idle/combo";
 import { btnBonus } from "@/lib/fractured-idle/button";
@@ -32,7 +33,7 @@ export function makeSources(s: State, d: Derived, F: (n: number) => string) {
 
     const fm = (v: number) => (v >= 1000 ? F(v) : v.toFixed(v < 10 ? 2 : 1));
     const mul = (label: string, v: number): Src | null => (Math.abs(v - 1) < 1e-6 ? null : { label, value: `×${fm(v)}`, color: v > 1 ? G : R, w: Math.abs(Math.log(Math.max(1e-9, v))) });
-    const pct = (v: number) => `${+(v * 100).toFixed(Math.abs(v) < 0.1 ? 2 : 1)}%`;
+    const pct = (v: number) => fmtPct(v, Math.abs(v) < 0.1 ? 2 : 1);
     const add = (label: string, v: number): Src | null => (Math.abs(v) < 1e-9 ? null : { label, value: `${v > 0 ? "+" : "-"}${pct(Math.abs(v))}`, color: v > 0 ? A : R, w: Math.abs(v) });
     const flat = (label: string, v: number, unit = ""): Src | null => (Math.abs(v) < 1e-9 ? null : { label, value: `+${+v.toFixed(2)}${unit}`, color: A, w: Math.abs(v) });
     const base = (label: string, text: string): Src => ({ label, value: text, color: GRAY, w: Infinity });

@@ -1,5 +1,6 @@
 "use client";
 
+import { fmtPct } from "@/lib/fractured-idle/format";
 import { useEffect, useRef, useState } from "react";
 import { McSymbol } from "@/components/mc-symbol";
 import { REWARD_LABEL, TROPHIES, TROPHY_CATEGORIES, type RewardStat, type TrophyDef } from "@/lib/fractured-idle/data";
@@ -10,7 +11,7 @@ import { SectionTitle, tint, type Ctx } from "./ui";
 // a chain of tiers; the tile shows how many tiers are unlocked and a thin bar
 // toward the next one.
 
-const pctText = (r: number) => `+${+(r * 100).toFixed(1)}%`;
+const pctText = (r: number) => `+${fmtPct(r, 1)}`;
 const GRAY = "#aaaaaa";
 const DARK = "#777777";
 

@@ -1,5 +1,6 @@
 "use client";
 
+import { fmtInt } from "@/lib/fractured-idle/format";
 import { useState } from "react";
 import { McSymbol } from "@/components/mc-symbol";
 import { rebirthCost } from "@/lib/fractured-idle/data";
@@ -78,12 +79,12 @@ export function RebirthTab({ s, d, F, act, say }: Ctx) {
             {/* Take rebirth */}
             <div className="rounded-xl border p-4" style={{ borderColor: tint("var(--mc-light-purple)", 45), backgroundColor: tint("var(--mc-light-purple)", 8) }}>
                 <div className="mb-1 flex flex-wrap items-center gap-x-3 gap-y-1 font-minecraft font-bold text-sm" style={{ color: "var(--mc-light-purple)" }}>
-                    <span><McSymbol name="portal" /> {plan.count > 0 ? `Rebirth x${takeN} of ${plan.count} ready` : `Rebirth ${s.rebirths + 1}`}</span>
+                    <span><McSymbol name="portal" /> {plan.count > 0 ? `Rebirth x${fmtInt(takeN)} of ${fmtInt(plan.count)} ready` : `Rebirth ${s.rebirths + 1}`}</span>
                     <span className="rounded-full border px-2 py-0.5 font-rubik text-[10px]" style={{ borderColor: tint("var(--mc-light-purple)", 50) }}>
                         Stack {cap}/15
                     </span>
                     <span className="font-rubik text-xs text-muted-foreground">
-                        Tokens <b style={{ color: "var(--mc-yellow)" }}>{s.tokens}</b>
+                        Tokens <b style={{ color: "var(--mc-yellow)" }}>{fmtInt(s.tokens)}</b>
                         {startShards(s) > 0 && `  ·  start with ${F(startShards(s))} shards`}
                     </span>
                 </div>
@@ -106,7 +107,7 @@ export function RebirthTab({ s, d, F, act, say }: Ctx) {
                                     setConfirm(false);
                                     setTake(null);
                                     setSel(1);
-                                    say(`Reborn x${takeN}! +${chosen.tokens} tokens. Spend them below.`);
+                                    say(`Reborn x${fmtInt(takeN)}! +${chosen.tokens} tokens. Spend them below.`);
                                 }}
                                 className="rounded-lg px-4 py-2 font-minecraft font-bold text-xs text-black"
                                 style={{ backgroundColor: "var(--mc-light-purple)" }}
@@ -124,7 +125,7 @@ export function RebirthTab({ s, d, F, act, say }: Ctx) {
                                 className={`rounded-lg px-4 py-2 font-minecraft font-bold text-xs text-black transition-opacity disabled:opacity-40 ${plan.count > 0 ? "fi-afford" : ""}`}
                                 style={{ backgroundColor: "var(--mc-light-purple)", ["--c" as string]: "var(--mc-light-purple)" }}
                             >
-                                {plan.count > 0 ? `Rebirth x${takeN} for +${chosen.tokens} tokens` : `Need ${F(nodes[0].cost)} shards`}
+                                {plan.count > 0 ? `Rebirth x${fmtInt(takeN)} for +${chosen.tokens} tokens` : `Need ${F(nodes[0].cost)} shards`}
                             </button>
                             {plan.count > 1 && (
                                 <div className="flex overflow-hidden rounded-lg border border-white/15 font-rubik text-[11px]">
@@ -162,10 +163,10 @@ export function RebirthTab({ s, d, F, act, say }: Ctx) {
                         {/* You are here */}
                         <div className="flex w-20 flex-col items-center gap-1">
                             <div className="grid size-12 place-items-center rounded-full border-2 font-minecraft font-bold text-sm" style={{ borderColor: "var(--mc-yellow)", color: "var(--mc-yellow)", backgroundColor: tint("var(--mc-yellow)", 14), boxShadow: `0 0 18px -2px ${tint("var(--mc-yellow)", 60)}` }}>
-                                {s.rebirths}
+                                {fmtInt(s.rebirths)}
                             </div>
                             <div className="font-rubik text-[10px] text-muted-foreground">You are here</div>
-                            <div className="font-minecraft font-bold text-[11px]" style={{ color: "var(--mc-yellow)" }}>{s.tokens} tokens</div>
+                            <div className="font-minecraft font-bold text-[11px]" style={{ color: "var(--mc-yellow)" }}>{fmtInt(s.tokens)} tokens</div>
                         </div>
                         {nodes.map((n) => {
                             const size = Math.min(56, 32 + n.k * 2);

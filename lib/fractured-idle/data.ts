@@ -1,3 +1,4 @@
+import { fmtPct } from "./format";
 import type { EStat } from "./enchant";
 import type { McSymbolName } from "@/components/mc-symbol";
 import { PETS, petLevel } from "./pets-data";
@@ -195,7 +196,7 @@ export const colTier = (items: number) => {
     return n;
 };
 
-const pctText = (v: number) => `${Math.round(v * 1000) / 10}%`;
+const pctText = (v: number) => fmtPct(v, 1);
 
 export function colRewardText(r: ColReward, minion: string, next?: string): string {
     const m = minion.replace(" Minion", "");

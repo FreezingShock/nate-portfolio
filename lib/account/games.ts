@@ -3,6 +3,7 @@
 // turn its raw save into a few stats. Nothing else in the account system knows about any particular game.
 import type { State } from "@/lib/fractured-idle/data";
 import { importSave } from "@/lib/fractured-idle/engine";
+import { fmt, fmtInt } from "@/lib/fractured-idle/format";
 
 export interface GameStat {
     label: string;
@@ -18,16 +19,16 @@ export interface AccountGame {
     summarize: (data: string) => GameStat[] | null;
 }
 
-const num = (n: number) => (n >= 1e6 ? n.toExponential(2).replace("e+", "e") : Math.floor(n).toLocaleString());
-const hours = (s: number) => (s >= 3600 ? `${(s / 3600).toFixed(1)}h` : `${Math.floor(s / 60)}m`);
+const num = (n: number) => fmt(n);
+const hours = (s: number) => (s >= 3600 ? `${fmt(Math.round((s / 3600) * 10) / 10)}h` : `${Math.floor(s / 60)}m`);
 
 export const fracturedIdleStats = (s: State): GameStat[] => [
     { label: "Lifetime shards", value: num(s.total) },
-    { label: "Rebirths", value: String(s.rebirths) },
-    { label: "Ascensions", value: String(s.asc) },
+    { label: "Rebirths", value: fmtInt(s.rebirths) },
+    { label: "Ascensions", value: fmtInt(s.asc) },
     { label: "Clicks", value: num(s.clicks) },
     { label: "Play time", value: hours(s.playTime) },
-    { label: "Islands visited", value: String(s.visited.length) },
+    { label: "Islands visited", value: fmtInt(s.visited.length) },
 ];
 
 export const ACCOUNT_GAMES: AccountGame[] = [

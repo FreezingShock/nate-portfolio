@@ -1,3 +1,4 @@
+import { fmtInt } from "@/lib/fractured-idle/format";
 import { CATS, isUnlocked, lookKey } from "@/lib/fractured-idle/button";
 import { EGGS, MINIONS, MINION_GROWTH, PETS, SKILLS, UPGRADES, type State } from "@/lib/fractured-idle/data";
 import { MILESTONES_BY_SKILL } from "@/lib/fractured-idle/skills";
@@ -22,7 +23,7 @@ const O = "var(--mc-gold)";
 const P = "var(--mc-light-purple)";
 const R = "var(--mc-red)";
 
-const plural = (n: number, one: string, many = `${one}s`) => `${n} ${n === 1 ? one : many}`;
+const plural = (n: number, one: string, many = `${one}s`) => `${fmtInt(n)} ${n === 1 ? one : many}`;
 
 /** A notice that starts with a number ("3 minion types you can afford") counts as that many in the tab badge. */
 const withCount = (n: TabNote): TabNote => {

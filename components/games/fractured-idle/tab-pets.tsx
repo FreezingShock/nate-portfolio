@@ -1,5 +1,7 @@
 "use client";
 
+import { fmtPct } from "@/lib/fractured-idle/format";
+import { fmtInt } from "@/lib/fractured-idle/format";
 import { memo, useCallback, useMemo, useState, type CSSProperties } from "react";
 import { Check, Lock } from "lucide-react";
 import { McSymbol } from "@/components/mc-symbol";
@@ -77,7 +79,7 @@ function EggCost({ s, e, F }: { s: State; e: EggDef; F: (n: number) => string })
             ? ["Base", info.flooredBy ? `${F(info.floor)} (minimum)` : `${+(info.secs / 60).toFixed(0)} min of your best income = ${F(info.income)}`]
             : ["Base price", `${F(info.base)} ${cur.one}s`],
         ["Eggs hatched", `x${info.growth.toFixed(2)} (${info.hatched} so far${info.capped ? ", capped" : ""})`, info.growth > 1.01 ? "var(--mc-gold)" : undefined],
-        ["Egg Fluency", info.nest ? `-${Math.round((1 - info.disc) * 100)}% (level ${info.nest})` : "none (Ascension gem upgrade)", info.nest ? "var(--mc-green)" : undefined],
+        ["Egg Fluency", info.nest ? `-${fmtPct((1 - info.disc), 0)} (level ${info.nest})` : "none (Ascension gem upgrade)", info.nest ? "var(--mc-green)" : undefined],
         ["Price now", `${F(info.price)} ${cur.one}${info.price === 1 ? "" : "s"}`, cur.color],
     ];
     return <TipCard title={e.name} color={e.color} tag={cur.name} lines={cur.how} rows={rows} foot={e.cur === "shards" ? "Shard prices follow the best income you have ever reached." : "Prices rise a little with every egg you hatch."} />;
@@ -159,15 +161,15 @@ export function PetsTab({ s, d, F, act, say, eggFx }: Ctx) {
             <div className="pt-head">
                 <div className="pt-head-top">
                     <span className="pt-title"><McSymbol name="petLuck" /> Pets</span>
-                    <Tip tip={<TipCard title="Collection" color={C} lines={["Every species you find adds to all shards, more for rarer ones, whether it is equipped or not."]} rows={[["Found", `${owned.length} / ${PETS.length}`], ["Score bonus", `+${(score * 100).toFixed(1)}% all shards`, "var(--mc-green)"], ["Eggs hatched", String(s.hatched)]]} />}>
+                    <Tip tip={<TipCard title="Collection" color={C} lines={["Every species you find adds to all shards, more for rarer ones, whether it is equipped or not."]} rows={[["Found", `${owned.length} / ${PETS.length}`], ["Score bonus", `+${fmtPct(score, 1)} all shards`, "var(--mc-green)"], ["Eggs hatched", fmtInt(s.hatched)]]} />}>
                         <span className="pt-chip" tabIndex={0}>{owned.length}/{PETS.length} found</span>
                     </Tip>
                     <Tip tip={<TipCard title="Collection score" color="var(--mc-green)" lines={["+0.5% for a Common up to +7% for a Divine, per species you own."]} />}>
-                        <span className="pt-chip" tabIndex={0} style={{ ["--c" as string]: "var(--mc-green)" } as CSSProperties}>+{(score * 100).toFixed(1)}% score</span>
+                        <span className="pt-chip" tabIndex={0} style={{ ["--c" as string]: "var(--mc-green)" } as CSSProperties}>+{fmtPct(score, 1)} score</span>
                     </Tip>
                     {bonds.list.map((b) => (
-                        <Tip key={b.label} tip={<TipCard title={b.label} color={b.color} lines={["Equip pets from the same dimension together for a bonus. Three different dimensions make a Traveler bond."]} rows={[["Pets", String(b.n)], ["Bonus", `+${Math.round(b.bonus * 100)}% all shards`, "var(--mc-green)"]]} />}>
-                            <span className="pt-chip" tabIndex={0} style={{ ["--c" as string]: b.color } as CSSProperties}><McSymbol name="heartS" /> {b.label} +{Math.round(b.bonus * 100)}%</span>
+                        <Tip key={b.label} tip={<TipCard title={b.label} color={b.color} lines={["Equip pets from the same dimension together for a bonus. Three different dimensions make a Traveler bond."]} rows={[["Pets", String(b.n)], ["Bonus", `+${fmtPct(b.bonus, 0)} all shards`, "var(--mc-green)"]]} />}>
+                            <span className="pt-chip" tabIndex={0} style={{ ["--c" as string]: b.color } as CSSProperties}><McSymbol name="heartS" /> {b.label} +{fmtPct(b.bonus, 0)}</span>
                         </Tip>
                     ))}
                     <span className="flex-1" />
@@ -246,7 +248,7 @@ export function PetsTab({ s, d, F, act, say, eggFx }: Ctx) {
                             <span className="flex-1 text-[11px] text-muted-foreground">Found by a treasure bobber.</span>
                             <button type="button" className="pt-hatch" onClick={() => open(EGGS[0], 1, true)}>Hatch</button>
                             {s.freeEggs >= 3 && <button type="button" className="pt-hatch" onClick={() => open(EGGS[0], 3, true)}>x3</button>}
-                            {s.freeEggs > 3 && <button type="button" className="pt-hatch" onClick={() => openAll(EGGS[0], true)}>Hatch all ({s.freeEggs})</button>}
+                            {s.freeEggs > 3 && <button type="button" className="pt-hatch" onClick={() => openAll(EGGS[0], true)}>Hatch all ({fmtInt(s.freeEggs)})</button>}
                         </div>
                     )}
                     {PET_DIMS.map((dim) => {
@@ -276,7 +278,7 @@ export function PetsTab({ s, d, F, act, say, eggFx }: Ctx) {
                                         const got = pool.filter((p) => s.pets[p.id]).length;
                                         return (
                                             <div key={e.id} className="pt-egg" data-lock={!!lock} data-can={can} style={{ ["--ec" as string]: e.color } as CSSProperties}>
-                                                <Tip box tip={() => <TipCard title={e.name} color={e.color} tag={dim.name} lines={[e.blurb]} rows={[...rarities.map((r): [string, string, string?] => [RARITIES[r].name, `${+(((e.odds[r] || 0) / total) * 100).toFixed(1)}%`, RARITIES[r].color]), ["Pets in this pool", `${got} / ${pool.length} found`]]} notes={lock ? [{ text: lock, color: "var(--mc-gold)" }] : undefined} />}>
+                                                <Tip box tip={() => <TipCard title={e.name} color={e.color} tag={dim.name} lines={[e.blurb]} rows={[...rarities.map((r): [string, string, string?] => [RARITIES[r].name, `${fmtPct(((e.odds[r] || 0) / total), 1)}`, RARITIES[r].color]), ["Pets in this pool", `${got} / ${pool.length} found`]]} notes={lock ? [{ text: lock, color: "var(--mc-gold)" }] : undefined} />}>
                                                     <div className="pt-egg-h">
                                                         <span className="pt-egg-i"><McSymbol name={lock ? "check" : e.symbol} /></span>
                                                         <span className="min-w-0 flex-1">
@@ -292,7 +294,7 @@ export function PetsTab({ s, d, F, act, say, eggFx }: Ctx) {
                                                 </div>
                                                 <div className="pt-odds-l">
                                                     {rarities.map((r) => (
-                                                        <span key={r} style={{ color: lift(RARITIES[r].color) }}>{RARITIES[r].name} {+(((e.odds[r] || 0) / total) * 100).toFixed(1)}%</span>
+                                                        <span key={r} style={{ color: lift(RARITIES[r].color) }}>{RARITIES[r].name} {fmtPct(((e.odds[r] || 0) / total), 1)}</span>
                                                     ))}
                                                 </div>
                                                 <div className="pt-buy">

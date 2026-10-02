@@ -1,6 +1,7 @@
 import { ASC_UPS, REBIRTH_UPS, type AscUpDef, type RebirthUpDef } from "./data";
 import type { McSymbolName } from "@/components/mc-symbol";
 import { fxText } from "./upfx";
+import { fmt } from "./format";
 
 // Everything the Rebirth and Ascension shops know about an upgrade beyond what the engine needs: which family it
 // belongs to, how to print "what it does at level N" (so the shop can show old -> new), and a rough "worth" used
@@ -58,7 +59,7 @@ export function autoEvery(kind: "min" | "up" | "tok" | "rb", lvl: number): numbe
 
 type Lv = (id: string) => number;
 const n = (x: number) => (Number.isInteger(x) ? String(x) : x.toFixed(2).replace(/0$/, ""));
-const num = (x: number) => (x >= 1e6 ? x.toExponential(1).replace("e+", "e") : Math.floor(x).toLocaleString());
+const num = (x: number) => fmt(Math.floor(x));
 
 /** What an upgrade does at level `l`, as a short phrase. `lv` reads other upgrade levels where they matter. */
 const EFF: Record<string, (l: number, lv: Lv) => string> = {

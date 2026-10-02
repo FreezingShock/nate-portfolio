@@ -1,5 +1,6 @@
 "use client";
 
+import { fmtInt } from "@/lib/fractured-idle/format";
 import { useState } from "react";
 import { McSymbol } from "@/components/mc-symbol";
 import { ASC_BASE, ASC_COST, ASC_UPS } from "@/lib/fractured-idle/data";
@@ -28,10 +29,10 @@ export function AscensionTab({ s, d, F, act, say }: Ctx) {
         <>
             <div className="relative overflow-hidden rounded-xl border p-4" style={{ borderColor: tint(C, 55), backgroundImage: `linear-gradient(130deg, ${tint(C, 14)}, ${tint(G, 8)} 70%)` }}>
                 <div className="flex flex-wrap items-center gap-x-3 gap-y-1 font-minecraft font-bold text-sm" style={{ color: lift(C) }}>
-                    <span><McSymbol name="comet" /> Ascension {s.asc}</span>
+                    <span><McSymbol name="comet" /> Ascension {fmtInt(s.asc)}</span>
                     <span className="rounded-full border px-2 py-0.5 font-rubik text-[10px]" style={{ borderColor: tint(C, 55) }}>x{F(multNow)} all shards</span>
                     <span className="font-rubik text-xs text-muted-foreground">
-                        Gems <b style={{ color: G }}>{s.ap}</b>
+                        Gems <b style={{ color: G }}>{fmtInt(s.ap)}</b>
                     </span>
                 </div>
                 <p className="mt-1 font-rubik text-xs text-muted-foreground">
@@ -40,8 +41,8 @@ export function AscensionTab({ s, d, F, act, say }: Ctx) {
 
                 <div className="mt-3">
                     <div className="mb-1 flex justify-between font-rubik text-[10px] text-muted-foreground">
-                        <span>Rebirth {s.rebirths} / {plan.req} needed</span>
-                        <span>{plan.can ? `Ready: +${plan.ap} gems` : `${plan.req - s.rebirths} more rebirths`}</span>
+                        <span>Rebirth {fmtInt(s.rebirths)} / {fmtInt(plan.req)} needed</span>
+                        <span>{plan.can ? `Ready: +${fmtInt(plan.ap)} gems` : `${plan.req - s.rebirths} more rebirths`}</span>
                     </div>
                     <div className="h-2 overflow-hidden rounded-full bg-white/10">
                         <div className={`h-full rounded-full transition-[width] duration-300 ${plan.can ? "fi-pulse" : ""}`} style={{ width: `${frac * 100}%`, backgroundColor: C, boxShadow: `0 0 10px ${C}` }} />
@@ -49,10 +50,10 @@ export function AscensionTab({ s, d, F, act, say }: Ctx) {
                 </div>
 
                 <div className="mt-3 grid grid-cols-2 gap-x-4 gap-y-1 font-rubik text-xs sm:grid-cols-4">
-                    <Fact label="Gems if ascended now" value={plan.can ? `+${plan.ap}` : "not yet"} />
+                    <Fact label="Gems if ascended now" value={plan.can ? `+${fmtInt(plan.ap)}` : "not yet"} />
                     <Fact label="Multiplier after" value={`x${F(multAfter)}`} />
                     <Fact label="Rebirth price after" value={`x${ASC_COST} each`} />
-                    <Fact label="Total gems earned" value={String(s.ap + Object.entries(s.aups).reduce((a, [id, l]) => a + spent(id, l), 0))} />
+                    <Fact label="Total gems earned" value={fmtInt(s.ap + Object.entries(s.aups).reduce((a, [id, l]) => a + spent(id, l), 0))} />
                 </div>
                 <p className="mt-2 font-rubik text-[10px] text-muted-foreground">
                     Going deeper before you ascend pays more gems: every 2 rebirths past 10 adds 1, plus 1 per ascension you already have.
@@ -71,7 +72,7 @@ export function AscensionTab({ s, d, F, act, say }: Ctx) {
                                 onClick={() => {
                                     act(() => ascend(s));
                                     setConfirm(false);
-                                    say(`Ascended! +${plan.ap} gems. Spend them below.`);
+                                    say(`Ascended! +${fmtInt(plan.ap)} gems. Spend them below.`);
                                 }}
                                 className="rounded-lg px-4 py-2 font-minecraft font-bold text-xs text-black"
                                 style={{ backgroundColor: C }}
@@ -88,7 +89,7 @@ export function AscensionTab({ s, d, F, act, say }: Ctx) {
                             className={`rounded-lg px-4 py-2 font-minecraft font-bold text-xs text-black transition-opacity disabled:opacity-40 ${plan.can ? "fi-afford" : ""}`}
                             style={{ backgroundColor: C, ["--c" as string]: C }}
                         >
-                            {plan.can ? `Ascend for +${plan.ap} gems` : `Reach rebirth ${plan.req}`}
+                            {plan.can ? `Ascend for +${fmtInt(plan.ap)} gems` : `Reach rebirth ${fmtInt(plan.req)}`}
                         </button>
                     )}
                 </div>

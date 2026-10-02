@@ -1,5 +1,7 @@
 "use client";
 
+import { fmtInt, fmtPct } from "@/lib/fractured-idle/format";
+import { useNotation } from "@/lib/fractured-idle/use-notation";
 import { useEffect, useRef, useState, type CSSProperties, type ReactNode } from "react";
 import { McSymbol, type McSymbolName } from "@/components/mc-symbol";
 import { ShineBorder } from "@/components/ui/shine-border";
@@ -48,8 +50,8 @@ export function tierOf(s: State): Tier {
 }
 
 const tint = (c: string, pct: number) => `color-mix(in oklch, ${c} ${pct}%, transparent)`;
-const hours = (sec: number) => (sec >= 3600 ? `${(sec / 3600).toFixed(1)}h` : `${Math.floor(sec / 60)}m`);
-const F = (n: number) => fmt(n, false);
+const hours = (sec: number) => (sec >= 3600 ? `${fmt(Math.round((sec / 3600) * 10) / 10)}h` : `${Math.floor(sec / 60)}m`);
+const F = (n: number) => fmt(n);
 const cap = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
 
 /** A number that eases to its new value instead of jumping, so a block following a running game visibly ticks. */
@@ -113,6 +115,7 @@ const TABS: { id: TabId; label: string; symbol: McSymbolName; color: string; blu
 ];
 
 export function FracturedIdleBlock({ s, owner, footer, live, savedAt }: { s: State; owner?: string; footer?: ReactNode; live?: boolean; savedAt?: number }) {
+    useNotation(); // follow the suffix / scientific switch even though this block sits outside the game's render loop
     const tier = tierOf(s);
     const lvlColor = levelColor(s.lvl);
     const into = Math.max(0, fxpTotal(s) - s.lvl * FXP_PER_LEVEL);
@@ -148,17 +151,17 @@ export function FracturedIdleBlock({ s, owner, footer, live, savedAt }: { s: Sta
 
     const stats: { symbol: McSymbolName; label: string; value: ReactNode; color: string; tip: ReactNode }[] = [
         { symbol: "speed", label: "Shards", value: <Num v={s.total} />, color: "var(--mc-aqua)", tip: <TipCard title="Lifetime shards" color="var(--mc-aqua)" lines={["Every shard you have ever earned. It survives rebirths and unlocks islands."]} rows={[["Right now", F(s.shards)], ["Best income", `${F(s.peakInc)}/s`]]} /> },
-        { symbol: "portal", label: "Rebirths", value: <Num v={s.rebirths} />, color: "var(--mc-light-purple)", tip: <TipCard title="Rebirths" color="var(--mc-light-purple)" lines={["Reset your minions for permanent rebirth tokens."]} rows={[["Tokens held", String(s.tokens)]]} /> },
-        { symbol: "comet", label: "Ascensions", value: <Num v={s.asc} />, color: "var(--mc-gold)", tip: <TipCard title="Ascensions" color="var(--mc-gold)" lines={["The prestige layer above rebirth. Each one pays gems and permanent power."]} rows={[["Gems held", String(s.ap)]]} /> },
+        { symbol: "portal", label: "Rebirths", value: <Num v={s.rebirths} />, color: "var(--mc-light-purple)", tip: <TipCard title="Rebirths" color="var(--mc-light-purple)" lines={["Reset your minions for permanent rebirth tokens."]} rows={[["Tokens held", fmtInt(s.tokens)]]} /> },
+        { symbol: "comet", label: "Ascensions", value: <Num v={s.asc} />, color: "var(--mc-gold)", tip: <TipCard title="Ascensions" color="var(--mc-gold)" lines={["The prestige layer above rebirth. Each one pays gems and permanent power."]} rows={[["Gems held", fmtInt(s.ap)]]} /> },
         { symbol: "critChance", label: "Clicks", value: <Num v={s.clicks} />, color: "var(--mc-red)", tip: <TipCard title="Clicks" color="var(--mc-red)" lines={["Every press of the big button."]} rows={[["Critical hits", F(s.crits)], ["Best combo", `x${prefixStat(s, "bestCombo")}`]]} /> },
         { symbol: "regen", label: "Play time", value: hours(s.playTime), color: "var(--mc-green)", tip: <TipCard title="Play time" color="var(--mc-green)" lines={["Time spent playing, plus offline time at a reduced rate."]} /> },
-        { symbol: "location", label: "Islands", value: `${s.visited.length} / ${ISLANDS.length}`, color: "#00aaaa", tip: <TipCard title="Islands" color="#00aaaa" lines={["Islands you have travelled to. Each visit adds a little to all shards."]} rows={[["Unlocked", `${islands} / ${ISLANDS.length}`]]} /> },
-        { symbol: "petLuck", label: "Pets", value: <Num v={pets} />, color: "var(--mc-green)", tip: <TipCard title="Pets" color="var(--mc-green)" lines={["Different pets you have discovered."]} rows={[["Hatched", String(s.hatched)]]} /> },
-        { symbol: "pristine", label: "Trophies", value: <Num v={trophies} />, color: "var(--mc-yellow)", tip: <TipCard title="Trophies" color="var(--mc-yellow)" lines={["Trophy tiers unlocked across every system."]} rows={[["Fracture Fragments", String(s.frag)], ["Treasure bobbers", F(s.bobbers)]]} /> },
+        { symbol: "location", label: "Islands", value: `${fmtInt(s.visited.length)} / ${ISLANDS.length}`, color: "#00aaaa", tip: <TipCard title="Islands" color="#00aaaa" lines={["Islands you have travelled to. Each visit adds a little to all shards."]} rows={[["Unlocked", `${islands} / ${ISLANDS.length}`]]} /> },
+        { symbol: "petLuck", label: "Pets", value: <Num v={pets} />, color: "var(--mc-green)", tip: <TipCard title="Pets" color="var(--mc-green)" lines={["Different pets you have discovered."]} rows={[["Hatched", fmtInt(s.hatched)]]} /> },
+        { symbol: "pristine", label: "Trophies", value: <Num v={trophies} />, color: "var(--mc-yellow)", tip: <TipCard title="Trophies" color="var(--mc-yellow)" lines={["Trophy tiers unlocked across every system."]} rows={[["Fracture Fragments", fmtInt(s.frag)], ["Treasure bobbers", F(s.bobbers)]]} /> },
         { symbol: "attackSpeed", label: "Best income", value: <>{<Num v={s.peakInc} />}/s</>, color: "var(--mc-aqua)", tip: <TipCard title="Best income" color="var(--mc-aqua)" lines={["The highest shards per second this account has ever reached. It prices pet eggs."]} /> },
         { symbol: "critDamage", label: "Critical hits", value: <Num v={s.crits} />, color: "var(--mc-red)", tip: <TipCard title="Critical hits" color="var(--mc-red)" lines={["Clicks that hit a weak point. Combat levels come from these."]} /> },
         { symbol: "magicFind", label: "Best combo", value: `x${prefixStat(s, "bestCombo")}`, color: "var(--mc-gold)", tip: <TipCard title="Best combo" color="var(--mc-gold)" lines={["The highest combo multiplier reached by holding the button."]} /> },
-        { symbol: "fortune", label: "Fragments", value: <Num v={s.frag} />, color: "var(--mc-light-purple)", tip: <TipCard title="Fracture Fragments" color="var(--mc-light-purple)" lines={["Rare finds worth a permanent +0.2% to all shards each."]} rows={[["Bonus", `+${(s.frag * 0.2).toFixed(1)}% all shards`, "var(--mc-green)"]]} /> },
+        { symbol: "fortune", label: "Fragments", value: <Num v={s.frag} />, color: "var(--mc-light-purple)", tip: <TipCard title="Fracture Fragments" color="var(--mc-light-purple)" lines={["Rare finds worth a permanent +0.2% to all shards each."]} rows={[["Bonus", `+${fmtPct(s.frag * 0.002, 1)} all shards`, "var(--mc-green)"]]} /> },
     ];
 
     const records: [McSymbolName, string, string, string][] = [
@@ -167,11 +170,11 @@ export function FracturedIdleBlock({ s, owner, footer, live, savedAt }: { s: Sta
         ["critChance", "Total clicks", F(s.clicks), "var(--mc-red)"],
         ["critDamage", "Critical hits", F(s.crits), "var(--mc-red)"],
         ["fishing", "Treasure bobbers", F(s.bobbers), "var(--mc-aqua)"],
-        ["petLuck", "Eggs hatched", String(s.hatched), "var(--mc-green)"],
+        ["petLuck", "Eggs hatched", fmtInt(s.hatched), "var(--mc-green)"],
         ["defense", "Peak minions", F(s.peak.minions), "var(--mc-gold)"],
-        ["trueDefense", "Minion types", String(s.peak.types), "var(--mc-aqua)"],
+        ["trueDefense", "Minion types", fmtInt(s.peak.types), "var(--mc-aqua)"],
         ["check", "Perfect events", F(s.evs.perfect), "var(--mc-green)"],
-        ["fortune", "Fracture Fragments", String(s.frag), "var(--mc-light-purple)"],
+        ["fortune", "Fracture Fragments", fmtInt(s.frag), "var(--mc-light-purple)"],
         ["pristine", "Trophy tiers", String(trophies), "var(--mc-yellow)"],
         ["wisdom", "Total Fracture EXP", F(fxpTotal(s)), "var(--mc-yellow)"],
         ["regen", "Play time", hours(s.playTime), "var(--mc-green)"],
@@ -222,11 +225,11 @@ export function FracturedIdleBlock({ s, owner, footer, live, savedAt }: { s: Sta
                         <Tip
                             tip={
                                 <TipCard
-                                    title={`Fractured Level ${s.lvl}`}
+                                    title={`Fractured Level ${fmtInt(s.lvl)}`}
                                     color={lvlColor}
                                     tag={`${Math.floor(into)} / ${FXP_PER_LEVEL} EXP`}
                                     lines={["Earn Fracture EXP by unlocking things across every system. Each level adds to all shards."]}
-                                    rows={[["Bonus", `+${(LEVEL_BONUS * s.lvl * 100).toFixed(2)}% all shards`, "var(--mc-green)"], ["To next level", `${Math.max(0, Math.ceil(FXP_PER_LEVEL - into))} EXP`, "var(--mc-yellow)"]]}
+                                    rows={[["Bonus", `+${fmtPct(LEVEL_BONUS * s.lvl, 2)} all shards`, "var(--mc-green)"], ["To next level", `${Math.max(0, Math.ceil(FXP_PER_LEVEL - into))} EXP`, "var(--mc-yellow)"]]}
                                 />
                             }
                         >
@@ -265,7 +268,7 @@ export function FracturedIdleBlock({ s, owner, footer, live, savedAt }: { s: Sta
                                 <span className="fi-pb-chip" style={{ ["--c" as string]: "var(--mc-gold)" } as CSSProperties}>{islands} islands unlocked</span>
                                 <span className="fi-pb-chip" style={{ ["--c" as string]: "var(--mc-light-purple)" } as CSSProperties}>{pets}/{PETS.length} pets</span>
                             </div>
-                            {owner && <p className="fi-pb-run">{F(s.total)} lifetime shards, {s.rebirths} rebirth{s.rebirths === 1 ? "" : "s"}, {s.asc} ascension{s.asc === 1 ? "" : "s"}, {hours(s.playTime)} played.</p>}
+                            {owner && <p className="fi-pb-run">{F(s.total)} lifetime shards, {fmtInt(s.rebirths)} rebirth{s.rebirths === 1 ? "" : "s"}, {fmtInt(s.asc)} ascension{s.asc === 1 ? "" : "s"}, {hours(s.playTime)} played.</p>}
                         </>
                     )}
 

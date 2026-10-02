@@ -1,5 +1,6 @@
 "use client";
 
+import { fmtPct } from "@/lib/fractured-idle/format";
 import { type CSSProperties } from "react";
 import { Lock } from "lucide-react";
 import { McSymbol } from "@/components/mc-symbol";
@@ -60,7 +61,6 @@ import { SectionTitle, type Ctx } from "./ui";
 
 type P = { s: Ctx["s"]; F: (n: number) => string; render: () => void; say: (m: string) => void; goForge: () => void };
 const C = "#e0b070";
-const fmtPct = (n: number) => `${+(n * 100).toFixed(1)}%`;
 const col = (c: string) => ({ ["--oc" as string]: c }) as CSSProperties;
 
 /** What an enchant does at a level. */

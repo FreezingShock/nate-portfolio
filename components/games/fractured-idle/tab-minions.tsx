@@ -1,5 +1,6 @@
 "use client";
 
+import { fmtInt } from "@/lib/fractured-idle/format";
 import { useState } from "react";
 import { Check, ChevronDown, Lock, Sparkles } from "lucide-react";
 import { McSymbol } from "@/components/mc-symbol";
@@ -191,7 +192,7 @@ export function MinionsTab({ s, d, F, act, render }: Ctx) {
                                     style={{ color: m.color, backgroundColor: tint(m.color, 14), boxShadow: `inset 0 0 0 1px ${tint(m.color, 40)}${mm > 1 ? `, 0 0 14px -4px ${m.color}` : ""}` }}
                                 >
                                     <span className="pointer-events-none absolute inset-0 grid place-items-center overflow-hidden rounded-xl leading-none opacity-30" style={{ fontSize: "2.3rem", textShadow: `0 0 14px ${m.color}` }}><McSymbol name={m.symbol} /></span>
-                                    <span className="relative z-[1] mt-1.5 font-minecraft font-bold text-xl leading-none text-white" style={{ textShadow: `0 2px 0 #000, 0 0 10px ${m.color}` }}>{owned.toLocaleString()}</span>
+                                    <span className="relative z-[1] mt-1.5 font-minecraft font-bold text-xl leading-none text-white" style={{ textShadow: `0 2px 0 #000, 0 0 10px ${m.color}` }}>{fmtInt(owned)}</span>
                                     <span className="absolute inset-x-0 bottom-0.5 z-[1] text-center font-minecraft text-[8px] uppercase tracking-widest opacity-80" style={{ textShadow: "0 1px 0 #000" }}>owned</span>
                                 </span>
 

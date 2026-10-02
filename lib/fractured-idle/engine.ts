@@ -1,3 +1,4 @@
+import { fmt, fmtPct } from "./format";
 import { DEFAULT_BTN, btnBonus, cleanBtn } from "./button";
 import { COMBO_BASE_MAX, COMBO_CPS_SHARE, SURGE_BASE_CHANCE } from "./combo";
 import { buffFx, newEventStats, tickBuffs } from "./events";
@@ -127,21 +128,7 @@ export function newState(): State {
 
 // ---- Formatting ----
 
-const SUFFIX = ["", "K", "M", "B", "T", "Qa", "Qi", "Sx", "Sp", "Oc", "No", "Dc"];
-
-export function fmt(n: number, sci = false): string {
-    if (!isFinite(n)) return "∞";
-    if (n <= 0) return "0";
-    if (n < 0.01) return "<0.01";
-    if (n < 1000) {
-        if (n >= 100) return Math.floor(n).toString();
-        return n.toFixed(n < 10 ? 2 : 1).replace(/\.?0+$/, "");
-    }
-    const e = Math.floor(Math.log10(n) / 3);
-    if (sci || e >= SUFFIX.length) return n.toExponential(2).replace("e+", "e");
-    const v = n / Math.pow(1000, e);
-    return `${v.toFixed(v < 10 ? 2 : v < 100 ? 1 : 0)}${SUFFIX[e]}`;
-}
+export { fmt, fmtInt, setNotation, getNotation, suffixFor } from "./format";
 
 export function fmtTime(s: number): string {
     const h = Math.floor(s / 3600);
@@ -656,7 +643,7 @@ export interface UpInfo {
     next: string;
 }
 
-const pct = (n: number) => `${Math.round(n * 100)}%`;
+const pct = (n: number) => `${fmtPct(n, 0)}`;
 
 export function upgradeInfo(d: Derived, u: UpgradeDef, sci = false, lvl = 0): UpInfo {
     const x = (n: number) => `x${fmt(n, sci)}`;

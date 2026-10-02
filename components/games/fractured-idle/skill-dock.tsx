@@ -1,5 +1,7 @@
 "use client";
 
+import { fmtPct } from "@/lib/fractured-idle/format";
+import { fmtInt } from "@/lib/fractured-idle/format";
 import { useEffect, useRef, type CSSProperties, type ReactNode } from "react";
 import { McSymbol, type McSymbolName } from "@/components/mc-symbol";
 import { skillLevel, skillXpFor, type State } from "@/lib/fractured-idle/data";
@@ -92,7 +94,7 @@ const xpFrac = (xp: number, id?: "foraging" | "enchanting") => {
     const hi = skillXpFor(l + 1, id);
     return (xp - lo) / (hi - lo);
 };
-const plural = (n: number, w: string) => `${n} ${w}${n === 1 ? "" : "s"}`;
+const plural = (n: number, w: string) => `${fmtInt(n)} ${w}${n === 1 ? "" : "s"}`;
 const pc = (n: number) => `${+(n * 100).toFixed(n < 0.1 ? 1 : 0)}%`;
 
 export function SkillDock({ s, d, notes, onOpen }: { s: State; d: Derived; notes: Partial<Record<string, TipNote[]>>; onOpen: (tab: "mine" | "farm" | "enchant") => void }) {
@@ -162,9 +164,9 @@ export function SkillDock({ s, d, notes, onOpen }: { s: State; d: Derived; notes
                     ...rows.slice(0, 4).map((r): [string, string, string] => [`${r.ore.name} on ${isl.name}`, pc(r.p), r.ore.color]),
                     [`${dfx.tag} ${isl.dim}`, dfx.lines.join(", ")],
                     ["Geodes waiting", String(geodeCount(s))],
-                    ["Forge", `${s.mine.jobs.length}/${forgeSlots(s)} busy`],
-                    ["Relics worn", `${s.mine.equipped.length}/${mineSlots(s)}`],
-                    ["Milestones claimed", `${s.mine.claimed.length}/${MINE_FEATS.length}`],
+                    ["Forge", `${fmtInt(s.mine.jobs.length)}/${forgeSlots(s)} busy`],
+                    ["Relics worn", `${fmtInt(s.mine.equipped.length)}/${mineSlots(s)}`],
+                    ["Milestones claimed", `${fmtInt(s.mine.claimed.length)}/${MINE_FEATS.length}`],
                     ...(goal ? ([["Next goal", goal.title, goal.color]] as [string, string, string][]) : []),
                 ]}
                 notes={notes.mine}
@@ -204,9 +206,9 @@ export function SkillDock({ s, d, notes, onOpen }: { s: State; d: Derived; notes
                     [`${dfx.tag} ${isl.dim}`, dfx.lines.join(", ")],
                     ["Crew levels / specialists", `${crewTotal(s)} / ${totalHands(s)}`],
                     ["Seed pods waiting", String(podCount(s))],
-                    ["Kitchen", `${s.farm.jobs.length}/${ovenSlots(s)} busy`],
-                    ["Scarecrows up", `${s.farm.equipped.length}/${farmSlots(s)}`],
-                    ["Milestones claimed", `${s.farm.claimed.length}/${FARM_FEATS.length}`],
+                    ["Kitchen", `${fmtInt(s.farm.jobs.length)}/${ovenSlots(s)} busy`],
+                    ["Scarecrows up", `${fmtInt(s.farm.equipped.length)}/${farmSlots(s)}`],
+                    ["Milestones claimed", `${fmtInt(s.farm.claimed.length)}/${FARM_FEATS.length}`],
                     ...(goal ? ([["Next goal", goal.title, goal.color]] as [string, string, string][]) : []),
                 ]}
                 notes={notes.farm}
@@ -306,7 +308,7 @@ export function SkillDock({ s, d, notes, onOpen }: { s: State; d: Derived; notes
                 xp={xpFrac(s.enchanting, "enchanting")}
                 pct={cheapest ? s.enc.dust / cheapest : 0}
                 hot={ready || pending}
-                status={pending ? <b>candidate waiting!</b> : ready ? <b>roll ready</b> : `${Math.round(Math.min(1, cheapest ? s.enc.dust / cheapest : 0) * 100)}% to a roll`}
+                status={pending ? <b>candidate waiting!</b> : ready ? <b>roll ready</b> : `${fmtPct(Math.min(1, cheapest ? s.enc.dust / cheapest : 0), 0)} to a roll`}
                 statusColor={pending ? "#ffd23a" : ready ? "#c58bff" : undefined}
                 flash={flash.current.ench}
                 right={

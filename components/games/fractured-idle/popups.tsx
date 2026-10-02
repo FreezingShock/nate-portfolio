@@ -1,5 +1,6 @@
 "use client";
 
+import { fmtPct } from "@/lib/fractured-idle/format";
 import { sfx } from "@/lib/sound/sounds";
 import { useCallback, useEffect, useRef, useState, type MutableRefObject, type ReactNode } from "react";
 import { McSymbol } from "@/components/mc-symbol";
@@ -216,14 +217,14 @@ export function Popups({ stateRef, dRef, getCombo, say, enabled }: Props) {
                 color={o.color}
                 tag="Gamble"
                 lines={["Crack it open: a big windfall, or a curse. Roughly even odds."]}
-                rows={[["Windfall", `${Math.round(CRACKED_WIN * 100)}% · ~${F(win)}`, "var(--mc-yellow)"], ["Curse", `${Math.round((1 - CRACKED_WIN) * 100)}%`, "var(--mc-red)"], time]}
+                rows={[["Windfall", `${fmtPct(CRACKED_WIN, 0)} · ~${F(win)}`, "var(--mc-yellow)"], ["Curse", `${fmtPct((1 - CRACKED_WIN), 0)}`, "var(--mc-red)"], time]}
                 notes={[
                     ...curseOdds().map((c): TipNote => {
                         const b = BUFF_BY_ID[c.id];
                         return { text: b ? `${b.name}: ${b.desc}` : "Pickpocket: a few shards go missing", color: "var(--mc-red)" };
                     }),
                     { text: "A windfall has a 20% chance to leave a Fragment", color: "var(--mc-light-purple)" },
-                    ...(d.curseResist > 0 ? [{ text: `Curse resist: curses last ${Math.round(resist * 100)}% as long`, color: "var(--mc-green)" }] : []),
+                    ...(d.curseResist > 0 ? [{ text: `Curse resist: curses last ${fmtPct(resist, 0)} as long`, color: "var(--mc-green)" }] : []),
                     ...notes,
                 ]}
                 cta={cta}

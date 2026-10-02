@@ -1,5 +1,6 @@
 "use client";
 
+import { fmtPct } from "@/lib/fractured-idle/format";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
     CATS,
@@ -358,7 +359,7 @@ export function ButtonTab({ s, render, F }: Ctx) {
                                                 tag={`${ch.length} change${ch.length === 1 ? "" : "s"}`}
                                                 lines={["Wears the best unlocked shape, skin, click FX, crit FX and aura for value. Colors, numbers and symbols stay as they are."]}
                                                 rows={ch.map((c): [string, string, string] => [catOf(c.cat).label, `${c.from.name} → ${c.to.name}`, "var(--mc-green)"])}
-                                                notes={[{ text: `About +${+(gain * 100).toFixed(1)}% click value`, color: "var(--mc-green)" }, ...ch.map((c) => ({ text: `${c.to.name}: ${c.to.bonus ? bonusText(c.to.bonus) : "no bonus"}`, color: "var(--mc-aqua)" }))]}
+                                                notes={[{ text: `About +${fmtPct(gain, 1)} click value`, color: "var(--mc-green)" }, ...ch.map((c) => ({ text: `${c.to.name}: ${c.to.bonus ? bonusText(c.to.bonus) : "no bonus"}`, color: "var(--mc-aqua)" }))]}
                                                 cta="Click to equip!"
                                             />
                                         ) : (

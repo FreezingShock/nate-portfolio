@@ -1,3 +1,4 @@
+import { fmtPct } from "./format";
 import type { McSymbolName } from "@/components/mc-symbol";
 
 // Islands: pure content tables (no runtime imports, so data.ts can re-export
@@ -419,7 +420,7 @@ export const ISLAND_BY_ID: Record<string, IslandDef> = Object.fromEntries(ISLAND
 /** Human-readable line for a perk. `k` scales it by mastery. */
 export function perkText(p: Perk, k = 1, names: Record<string, string> = {}): string {
     const mult = (m: number) => `x${+(1 + (m - 1) * k).toFixed(2)}`;
-    const add = (v: number) => `+${+(v * k * 100).toFixed(1)}%`;
+    const add = (v: number) => `+${fmtPct(v * k, 1)}`;
     const list = (ids: string[]) => (ids.length > 4 ? `${ids.length} minion types` : ids.map((i) => names[i] ?? i).join(", "));
     const skill = (s: SkillKey) => s[0].toUpperCase() + s.slice(1);
     switch (p.k) {

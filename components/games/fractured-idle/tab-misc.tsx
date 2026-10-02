@@ -1,5 +1,6 @@
 "use client";
 
+import { fmtPct } from "@/lib/fractured-idle/format";
 import { useState, type ComponentProps } from "react";
 import { Copy, Download, RotateCcw, Save, Upload } from "lucide-react";
 import { McSymbol } from "@/components/mc-symbol";
@@ -63,7 +64,7 @@ export function SettingsTab({ s, render, say, replaceState }: Ctx & { replaceSta
             <CloudPanel s={s} say={say} replaceState={replaceState} />
             <SectionTitle color="var(--mc-yellow)">Save data</SectionTitle>
             <p className="font-rubik text-[11px] text-muted-foreground">
-                Offline progress: {Math.round(offlineEff(s) * 100)}% efficiency, up to 8 hours. Saves to this browser every 10 seconds.
+                Offline progress: {fmtPct(offlineEff(s), 0)} efficiency, up to 8 hours. Saves to this browser every 10 seconds.
             </p>
             <div className="flex flex-wrap gap-2">
                 <ActionBtn icon={<Save className="size-4" />} onClick={() => { writeSave(s); say("Saved."); }}>Save now</ActionBtn>

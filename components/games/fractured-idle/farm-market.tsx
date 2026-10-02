@@ -85,7 +85,7 @@ export function Market({ s, d, F, render, say }: P) {
                 <div className="fi-mk-demand" style={col(KIND_INFO[dk].color)}>
                     <small>In demand now</small>
                     <b>{KIND_INFO[dk].name}</b>
-                    <span>+{Math.round((DEMAND_MULT - 1) * 100)}% for every crop of this kind</span>
+                    <span>+{fmtPct((DEMAND_MULT - 1), 0)} for every crop of this kind</span>
                     <em>changes in {fmtTime(Math.ceil(demandLeft() / 1000))}</em>
                 </div>
             </div>

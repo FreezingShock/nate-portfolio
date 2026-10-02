@@ -1,5 +1,7 @@
 "use client";
 
+import { fmtPct } from "@/lib/fractured-idle/format";
+import { fmtInt, setNotation } from "@/lib/fractured-idle/format";
 import { sfx, type SfxName } from "@/lib/sound/sounds";
 import { useCallback, useEffect, useMemo, useReducer, useRef, useState } from "react";
 import { Expand, Minimize } from "lucide-react";
@@ -259,7 +261,7 @@ export function FracturedIdle() {
                 lastLooks.current = keys;
                 const rbAt = s.autoT.rbAt || 0;
                 if (rbAt > lastAutoRb.current) {
-                    say(`Auto-rebirth: +${s.autoT.rbCount} level${s.autoT.rbCount > 1 ? "s" : ""}, +${s.autoT.rbTokens} tokens`);
+                    say(`Auto-rebirth: +${fmtInt(s.autoT.rbCount)} level${s.autoT.rbCount > 1 ? "s" : ""}, +${fmtInt(s.autoT.rbTokens)} tokens`);
                     sfx("rebirth");
                     lastAutoRb.current = rbAt;
                 }
@@ -286,12 +288,12 @@ export function FracturedIdle() {
                 lc.open = nowCrops.map((c) => c.id);
                 for (const c of CROPS) {
                     const tier = cropTierOf(s.farm.grown[c.id] || 0);
-                    if (tier > (lc.tiers[c.id] ?? 0) && tier <= CROP_COL_AT.length) say(`${CROP_BY_ID[c.id].name} collection tier ${tier}: +${+(0.4 * c.col[1] * (tier <= 5 ? 1 : 0.5) * 100).toFixed(2)}% ${c.colText}!`);
+                    if (tier > (lc.tiers[c.id] ?? 0) && tier <= CROP_COL_AT.length) say(`${CROP_BY_ID[c.id].name} collection tier ${tier}: +${fmtPct(0.4 * c.col[1] * (tier <= 5 ? 1 : 0.5), 2)} ${c.colText}!`);
                     lc.tiers[c.id] = tier;
                 }
                 for (const o of ORES) {
                     const tier = colTierOf(s.mine.mined[o.id] || 0);
-                    if (tier > (lo.tiers[o.id] ?? 0) && tier <= COL_AT.length) say(`${o.name} collection tier ${tier}: +${+(o.col[1] * (tier <= 5 ? 1 : 0.5) * 100).toFixed(2)}% ${o.colText}!`);
+                    if (tier > (lo.tiers[o.id] ?? 0) && tier <= COL_AT.length) say(`${o.name} collection tier ${tier}: +${fmtPct(o.col[1] * (tier <= 5 ? 1 : 0.5), 2)} ${o.colText}!`);
                     lo.tiers[o.id] = tier;
                 }
             }
@@ -625,6 +627,7 @@ export function FracturedIdle() {
     const island = activeIsland(s);
     const plan = rebirthPlan(s);
     const asc = ascPlan(s);
+    setNotation(s.sci); // every fmt() call below (and in child components) follows the setting
     const F = (n: number) => fmt(n, s.sci);
     const full = isFs || pseudoFs;
     const totalMinions = s.minions.reduce((a, b) => a + b, 0);
@@ -696,11 +699,11 @@ export function FracturedIdle() {
                         const gains = recentGains(Date.now(), 12000).slice(-3).reverse();
                         return (
                             <TipCard
-                                title={`Fractured Level ${s.lvl}`}
+                                title={`Fractured Level ${fmtInt(s.lvl)}`}
                                 color={levelColor(s.lvl)}
                                 tag={`${Math.floor(into)} / ${FXP_PER_LEVEL} EXP`}
                                 lines={["Earn Fracture EXP by unlocking things across every system. Each level adds to all shards."]}
-                                rows={[["Bonus", `+${(LEVEL_BONUS * s.lvl * 100).toFixed(2)}% all shards`, "var(--mc-green)"], ["To next level", `${Math.max(0, Math.ceil(FXP_PER_LEVEL - into))} EXP`, "var(--mc-yellow)"]]}
+                                rows={[["Bonus", `+${fmtPct(LEVEL_BONUS * s.lvl, 2)} all shards`, "var(--mc-green)"], ["To next level", `${Math.max(0, Math.ceil(FXP_PER_LEVEL - into))} EXP`, "var(--mc-yellow)"]]}
                                 notes={[
                                     ...(hasReward(reward) ? [{ text: `Lv ${nx} pays ${rewardText(reward)}`, color: "var(--mc-aqua)" }] : []),
                                     ...gains.map((g) => ({ text: `+${g.xp} EXP · ${g.label}`, color: "var(--mc-yellow)" })),
@@ -744,7 +747,7 @@ export function FracturedIdle() {
                             title="Per click"
                             color="var(--mc-aqua)"
                             lines={["What one plain click is worth right now."]}
-                            rows={[["Crit chance", `${Math.round(d.critChance * 100)}%`], ["Crit bonus", `+${Math.round(d.critDmg * 100)}%`], ["Average with crits", F(d.avgClick)], ["Combo", `x${s.combo.toFixed(2)}`]]}
+                            rows={[["Crit chance", `${fmtPct(d.critChance, 0)}`], ["Crit bonus", `+${fmtPct(d.critDmg, 0)}`], ["Average with crits", F(d.avgClick)], ["Combo", `x${s.combo.toFixed(2)}`]]}
                         />
                     )}
                 >
@@ -780,7 +783,7 @@ export function FracturedIdle() {
                             title="Rebirth"
                             color="var(--mc-light-purple)"
                             lines={["Reset shards, minions and shop upgrades for tokens and a permanent multiplier."]}
-                            rows={[["Rebirths", String(s.rebirths)], ["Tokens", String(s.tokens)], plan.count > 0 ? ["Ready now", `x${plan.count} (+${plan.tokens} tokens)`, "var(--mc-green)"] : ["Next cost", F(rebirthCost(s.rebirths, s.asc))]]}
+                            rows={[["Rebirths", fmtInt(s.rebirths)], ["Tokens", fmtInt(s.tokens)], plan.count > 0 ? ["Ready now", `x${fmtInt(plan.count)} (+${fmtInt(plan.tokens)} tokens)`, "var(--mc-green)"] : ["Next cost", F(rebirthCost(s.rebirths, s.asc))]]}
                         />
                     )}
                 >
@@ -794,7 +797,7 @@ export function FracturedIdle() {
                 >
                     <div className="font-minecraft text-[10px] uppercase tracking-widest text-muted-foreground">Rebirth</div>
                     <div className="flex items-center gap-1.5 font-minecraft font-bold text-lg leading-none" style={{ color: "var(--mc-light-purple)" }}>
-                        {s.rebirths}
+                        {fmtInt(s.rebirths)}
                         {plan.count > 0 && (
                             <span className="fi-afford rounded-full px-1.5 py-0.5 text-[10px] text-black" style={{ backgroundColor: "var(--mc-light-purple)", ["--c" as string]: "var(--mc-light-purple)" }}>
                                 x{plan.count} ready
@@ -810,7 +813,7 @@ export function FracturedIdle() {
                                 title="Ascension"
                                 color="var(--mc-aqua)"
                                 lines={["The prestige above rebirth: reset almost everything for gems and permanent upgrades."]}
-                                rows={[["Ascensions", String(s.asc)], ["Gems", String(s.ap)], asc.can ? ["Ready", `+${asc.ap} gems`, "var(--mc-green)"] : ["Needs", `${asc.req} rebirths`]]}
+                                rows={[["Ascensions", fmtInt(s.asc)], ["Gems", fmtInt(s.ap)], asc.can ? ["Ready", `+${fmtInt(asc.ap)} gems`, "var(--mc-green)"] : ["Needs", `${fmtInt(asc.req)} rebirths`]]}
                             />
                         )}
                     >
@@ -824,7 +827,7 @@ export function FracturedIdle() {
                     >
                         <div className="font-minecraft text-[10px] uppercase tracking-widest text-muted-foreground">Ascension</div>
                         <div className="flex items-center gap-1.5 font-minecraft font-bold text-lg leading-none" style={{ color: "var(--mc-aqua)" }}>
-                            {s.asc}
+                            {fmtInt(s.asc)}
                             {asc.can && (
                                 <span className="fi-afford rounded-full px-1.5 py-0.5 text-[10px] text-black" style={{ backgroundColor: "var(--mc-aqua)", ["--c" as string]: "var(--mc-aqua)" }}>
                                     ready
@@ -897,7 +900,7 @@ export function FracturedIdle() {
                         <McSymbol name={island.symbol} color={island.color} /> {island.name}
                         <span className="rounded-full border px-2 py-0.5 font-rubik text-[10px]" style={{ borderColor: tint(island.color, 50) }}>x{island.mult}</span>
                         <span className="rounded-full border border-white/15 px-2 py-0.5 font-rubik text-[10px] text-muted-foreground">
-                            {totalMinions.toLocaleString()} minion{totalMinions === 1 ? "" : "s"}
+                            {fmtInt(totalMinions)} minion{totalMinions === 1 ? "" : "s"}
                         </span>
                         <span className="rounded-full border border-white/15 px-2 py-0.5 font-rubik text-[10px] text-muted-foreground transition-colors group-hover:text-foreground">Travel ▸</span>
                     </button>
@@ -936,7 +939,7 @@ export function FracturedIdle() {
                     <Popups stateRef={ref} dRef={dRef} getCombo={getCombo} say={say} enabled={s.popups} />
 
                     <div className="text-center font-rubik text-xs text-muted-foreground">
-                        Press <Kbd>Space</Kbd> or click. Crit {Math.round(d.critChance * 100)}% for +{Math.round(d.critDmg * 100)}%.
+                        Press <Kbd>Space</Kbd> or click. Crit {fmtPct(d.critChance, 0)} for +{fmtPct(d.critDmg, 0)}.
                     </div>
                     <ComboMeter
                         ref={meterApi}

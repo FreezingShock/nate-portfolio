@@ -1,4 +1,6 @@
+import { fmtPct } from "@/lib/fractured-idle/format";
 import { McSymbol } from "@/components/mc-symbol";
+import { fmt } from "@/lib/fractured-idle/format";
 import { EGGS, PET_DIM_BY_ID, PET_LABEL, PET_MAX, PET_PERK_AT, PET_STAR_BONUS, PET_STAR_MAX, RARITIES, petLevel, petStatText, petStatValue, petXpFor, starMult, type PetDef } from "@/lib/fractured-idle/pets-data";
 
 // The tooltip body for ANY pet, drawn the way SkyBlock draws pets: name and rarity, level, stars, the main stat
@@ -7,7 +9,7 @@ import { EGGS, PET_DIM_BY_ID, PET_LABEL, PET_MAX, PET_PERK_AT, PET_STAR_BONUS, P
 // nothing is built until the tooltip actually opens.
 
 const stars = (n: number) => "★".repeat(Math.min(PET_STAR_MAX, Math.max(0, n - 1))) + "☆".repeat(Math.max(0, PET_STAR_MAX - Math.max(0, n - 1)));
-const short = (n: number) => (n >= 1e9 ? `${(n / 1e9).toFixed(1)}B` : n >= 1e6 ? `${(n / 1e6).toFixed(1)}M` : n >= 1e3 ? `${(n / 1e3).toFixed(1)}K` : String(Math.floor(n)));
+const short = (n: number) => fmt(Math.floor(n));
 
 export function PetTipBody({ p, owned, equipped, cta, slot }: { p: PetDef; owned?: { xp: number; n: number }; equipped?: boolean; cta?: string; slot?: number }) {
     const rar = RARITIES[p.rarity];
@@ -57,7 +59,7 @@ export function PetTipBody({ p, owned, equipped, cta, slot }: { p: PetDef; owned
 
             <div className="fi-pt-stars" title={`${owned.n} found`}>
                 <span style={{ color: "var(--mc-yellow)" }}>{stars(owned.n)}</span>
-                <em>{starCount > 0 ? `+${Math.round(starCount * PET_STAR_BONUS * 100)}% to everything below` : `hatch duplicates: +${PET_STAR_BONUS * 100}% each`}</em>
+                <em>{starCount > 0 ? `+${fmtPct(starCount * PET_STAR_BONUS, 0)} to everything below` : `hatch duplicates: +${PET_STAR_BONUS * 100}% each`}</em>
             </div>
 
             <div className="fi-pt-sec">Main stat</div>

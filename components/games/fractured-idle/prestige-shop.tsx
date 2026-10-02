@@ -1,5 +1,6 @@
 "use client";
 
+import { fmtInt } from "@/lib/fractured-idle/format";
 import { useMemo, useState, type CSSProperties } from "react";
 import { Lock, Star } from "lucide-react";
 import { McSymbol } from "@/components/mc-symbol";
@@ -243,7 +244,7 @@ export function AutoBar({ s, act, only }: Pick<Ctx, "s" | "act"> & { only?: Auto
                 const missing = rb && lock && !(s.aups.autoTok > 0) ? "Needs Token Steward first." : null;
                 const lines = [a.blurb, lock ? "Buy it with gems in the Ascension tab." : on ? "It is running." : "Click to switch it on."];
                 if (rb && !lock) lines.push(`Rebirths once ${rbN} level${rbN > 1 ? "s are" : " is"} ready, checked every ${autoEvery("rb", lv)}s. Use - and + to change the number.`);
-                if (rb && s.autoT.rbAt) lines.push(`Last auto-rebirth: ${Math.max(0, Math.round((Date.now() - s.autoT.rbAt) / 1000))}s ago (+${s.autoT.rbCount} levels, +${s.autoT.rbTokens} tokens).`);
+                if (rb && s.autoT.rbAt) lines.push(`Last auto-rebirth: ${Math.max(0, Math.round((Date.now() - s.autoT.rbAt) / 1000))}s ago (+${fmtInt(s.autoT.rbCount)} levels, +${fmtInt(s.autoT.rbTokens)} tokens).`);
                 return (
                     <Tip key={a.key} box tip={<TipCard title={a.name} color={a.color} tag={lock ? "Locked" : `Level ${lv} / ${max}`} lines={lines} rows={lock ? undefined : [["Fires every", `${autoEvery(a.key, lv)}s`], ...(lv < max ? ([["Next level", `${autoEvery(a.key, lv + 1)}s`, "var(--mc-green)"]] as [string, string, string][]) : [])]} notes={missing ? [{ text: missing, color: "var(--mc-gold)" }] : undefined} />}>
                         <span className="ps-abc" data-on={on} data-lock={lock} data-fire={rb && on && ready >= rbN} style={{ ["--c" as string]: a.color } as CSSProperties}>

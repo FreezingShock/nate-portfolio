@@ -1,5 +1,6 @@
 "use client";
 
+import { fmtPct } from "@/lib/fractured-idle/format";
 import { Dices, RotateCcw, Save, Sparkles } from "lucide-react";
 import {
     AURAS,
@@ -79,7 +80,7 @@ export function SetupPage({ s, island, next, render, apply, randomize }: Props) 
                         <div className="h-full rounded-full" style={{ width: `${(have / total) * 100}%`, backgroundColor: Y, boxShadow: `0 0 8px ${Y}` }} />
                     </div>
                     <p className="mt-2 font-rubik text-[11px] leading-snug text-muted-foreground">
-                        Each look you own: +{+(COLLECTION_PER_LOOK * 100).toFixed(2)}% click, permanent. Now <b style={{ color: "var(--mc-green)" }}>+{+(COLLECTION_PER_LOOK * have * 100).toFixed(2)}%</b>.
+                        Each look you own: +{fmtPct(COLLECTION_PER_LOOK, 2)} click, permanent. Now <b style={{ color: "var(--mc-green)" }}>+{fmtPct(COLLECTION_PER_LOOK * have, 2)}</b>.
                         {next && <> Closest: <b style={{ color: Y }}>{next.name}</b> ({next.cat}), {Math.floor(next.f * 100)}%.</>}
                     </p>
                 </div>

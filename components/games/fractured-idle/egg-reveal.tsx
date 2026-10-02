@@ -1,5 +1,6 @@
 "use client";
 
+import { fmtInt } from "@/lib/fractured-idle/format";
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties, type MutableRefObject } from "react";
 import { McSymbol } from "@/components/mc-symbol";
 import { EGG_CUR, PET_BY_ID, PET_DIM_BY_ID, RARITIES, RARITY_ORDER, petStatValue, PET_LABEL, rarityIdx, type EggDef, type Rarity, type State } from "@/lib/fractured-idle/data";
@@ -371,7 +372,7 @@ function BulkReveal({ egg, results, onClose, fixed = false, s }: RevealProps) {
 
             <div className="fi-bk">
                 <div className="fi-bk-l">
-                    <div className="fi-bk-mult" style={{ color: egg.color }}>x{results.length.toLocaleString()}</div>
+                    <div className="fi-bk-mult" style={{ color: egg.color }}>x{fmtInt(results.length)}</div>
                     <div ref={eggEl} className="fi-bk-egg" data-ph={phase}>
                         <div className="fi-eg">
                             <span className="fi-eg-sym"><McSymbol name={egg.symbol} /></span>
@@ -386,7 +387,7 @@ function BulkReveal({ egg, results, onClose, fixed = false, s }: RevealProps) {
 
                 <div className="fi-bk-g" data-done={phase === "done"}>
                     {phase === "charge" ? (
-                        <div className="fi-bk-ph">Hatching {results.length.toLocaleString()} eggs…</div>
+                        <div className="fi-bk-ph">Hatching {fmtInt(results.length)} eggs…</div>
                     ) : (
                         groups.map((g, i) => {
                             const p = PET_BY_ID.get(g.id)!;
@@ -419,7 +420,7 @@ function BulkReveal({ egg, results, onClose, fixed = false, s }: RevealProps) {
                 </div>
                 <div className="fi-bk-s">
                     {groups.length} species · {fresh ? `${fresh} new` : "none new"}
-                    {xp > 0 ? ` · duplicates gave ${Math.round(xp).toLocaleString()} xp` : ""}
+                    {xp > 0 ? ` · duplicates gave ${fmtInt(xp)} xp` : ""}
                 </div>
             </div>
             <div className="fi-eg-hint">{phase === "done" ? "Tap anywhere to continue" : "Tap to skip"}</div>

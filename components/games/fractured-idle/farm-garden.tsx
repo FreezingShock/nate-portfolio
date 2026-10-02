@@ -1,5 +1,6 @@
 "use client";
 
+import { fmtInt } from "@/lib/fractured-idle/format";
 import { useEffect, useRef, useState, type CSSProperties } from "react";
 import { Lock } from "lucide-react";
 import { McSymbol } from "@/components/mc-symbol";
@@ -101,7 +102,7 @@ function SagaNudge({ s, open }: { s: Ctx["s"]; open: () => void }) {
             {pr && !ready && (
                 <div className="fi-fg-prog">
                     <span><i style={{ width: `${Math.min(100, (pr[0] / pr[1]) * 100)}%` }} /></span>
-                    <small>{Math.min(pr[0], pr[1]).toLocaleString()} / {pr[1].toLocaleString()}</small>
+                    <small>{fmtInt(Math.min(pr[0], pr[1]))} / {fmtInt(pr[1])}</small>
                 </div>
             )}
         </button>
@@ -314,14 +315,14 @@ export function Garden({ s, d, F, render, say, openSaga }: P & { openSaga: () =>
             {sow && fld > 0 && (
                 <div className="fi-fm-field">
                     <b>Field of {sow.name}: {fld} plot{fld === 1 ? "" : "s"}</b>
-                    <span>+{Math.round(fieldBonus(s, fld) * 100)}% crops from each (cap +{Math.round(fieldCap(s) * 100)}%). {fld < plots.length ? "Plant the whole garden with one crop for the biggest bonus and the fastest collection." : "The whole garden is one field."}{crewLevel(s, "agron") > 0 ? " Your Agronomists keep it planted." : ""}</span>
+                    <span>+{fmtPct(fieldBonus(s, fld), 0)} crops from each (cap +{fmtPct(fieldCap(s), 0)}). {fld < plots.length ? "Plant the whole garden with one crop for the biggest bonus and the fastest collection." : "The whole garden is one field."}{crewLevel(s, "agron") > 0 ? " Your Agronomists keep it planted." : ""}</span>
                 </div>
             )}
 
             <div className="fi-fm-streak" data-on={sn > 0} style={{ ["--w" as string]: win } as CSSProperties}>
                 <div className="fi-fm-streak-h">
                     <b>{sn > 0 ? `Streak x${sn}` : "Streak"}</b>
-                    <span>{sn > 0 ? `+${Math.round(sb * 100)}% crops on your next hand-pick` : `Pick ripe plots back to back, within ${win}s of each other`}</span>
+                    <span>{sn > 0 ? `+${fmtPct(sb, 0)} crops on your next hand-pick` : `Pick ripe plots back to back, within ${win}s of each other`}</span>
                 </div>
                 <div className="fi-fm-streak-bar"><i key={f.streakAt} style={sn > 0 ? { animationDuration: `${Math.max(0.2, left)}s`, width: `${(left / win) * 100}%` } : { width: 0 }} /></div>
             </div>
@@ -432,7 +433,7 @@ export function Garden({ s, d, F, render, say, openSaga }: P & { openSaga: () =>
                                 <span className="fi-mn-bar">
                                     <i style={{ width: `${r.p * 100}%` }} />
                                 </span>
-                                <span className="fi-mn-pc">{r.open ? (r.p > 0 ? `${r.p >= 0.1 ? Math.round(r.p * 100) : +(r.p * 100).toFixed(1)}%` : "pick") : <><Lock className="inline size-3" /> {c.need}</>}</span>
+                                <span className="fi-mn-pc">{r.open ? (r.p > 0 ? `${r.p >= 0.1 ? Math.round(r.p * 100) : fmtPct(r.p, 1)}` : "pick") : <><Lock className="inline size-3" /> {c.need}</>}</span>
                                 <span className="fi-mn-stk">{r.open ? F(Math.floor(haveCrop(s, c.id))) : ""}</span>
                                 {r.open && (
                                     <button

@@ -1,5 +1,6 @@
 "use client";
 
+import { fmtInt } from "@/lib/fractured-idle/format";
 import { useState, type CSSProperties } from "react";
 import { Lock } from "lucide-react";
 import { McSymbol, type McSymbolName } from "@/components/mc-symbol";
@@ -49,13 +50,13 @@ type P = { s: Ctx["s"]; F: (n: number) => string; render: () => void; say: (m: s
 
 export const KIND_ICON: Record<CropKind, McSymbolName> = { stalk: "sunburst", root: "spade", fruit: "scissors", fungus: "atom", bloom: "blossom" };
 const SPECIAL_TEXT: Record<CropKind, (v: number) => string> = {
-    stalk: (v) => `+${Math.round(v * 100)}% shards`,
-    root: (v) => `+${Math.round(v * 100)}% Farming XP`,
-    fruit: (v) => `+${+(v * 100).toFixed(1)}% triple harvests`,
-    fungus: (v) => `+${Math.round(v * 100)}% seed pods`,
-    bloom: (v) => `+${Math.round(v * 100)}% sale price`,
+    stalk: (v) => `+${fmtPct(v, 0)} shards`,
+    root: (v) => `+${fmtPct(v, 0)} Farming XP`,
+    fruit: (v) => `+${fmtPct(v, 1)} triple harvests`,
+    fungus: (v) => `+${fmtPct(v, 0)} seed pods`,
+    bloom: (v) => `+${fmtPct(v, 0)} sale price`,
 };
-const statLine = (t: ToolDef) => `+${Math.round(t.yield * 100)}% crops${t.speed ? ` · +${Math.round(t.speed * 100)}% growth` : ""} · ${SPECIAL_TEXT[t.kind](t.special)}`;
+const statLine = (t: ToolDef) => `+${fmtPct(t.yield, 0)} crops${t.speed ? ` · +${fmtPct(t.speed, 0)} growth` : ""} · ${SPECIAL_TEXT[t.kind](t.special)}`;
 const gameLine = (t: ToolDef) => fmtStat(TOOL_FX[t.kind][0], TOOL_FX[t.kind][1] * t.tier);
 const cropsOf = (k: CropKind) => CROPS.filter((c) => c.kind === k).map((c) => c.name).join(", ");
 
@@ -77,7 +78,7 @@ export function Tools({ s, F, render, say }: P) {
                 <div className="fi-tl-rows">
                     <span>Power <b>x{hoePower(s).toFixed(hoePower(s) < 10 ? 2 : 1)}</b></span>
                     <span>Tilling <b>+{upLevel(s, "till") * 6}%</b></span>
-                    <span>Belt <b>{s.farm.belt.length}/{slots} tools</b></span>
+                    <span>Belt <b>{fmtInt(s.farm.belt.length)}/{slots} tools</b></span>
                     <span>To the game <b>+{fmtPct(HOE_CLICK * s.farm.hoe)} click</b></span>
                 </div>
             </div>
