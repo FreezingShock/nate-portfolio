@@ -146,6 +146,7 @@ export function FracturedIdle() {
     const dRef = useRef<Derived | null>(null); // latest derived stats, for the popup scheduler
     const lastTiers = useRef<number[]>([]);
     const lastLooks = useRef<string[]>([]);
+    const lastAutoRb = useRef(0);
     const lastIslands = useRef<string[]>([]);
     const lastOre = useRef<{ open: string[]; tiers: Record<string, number> }>({ open: [], tiers: {} });
     const lastCrop = useRef<{ open: string[]; tiers: Record<string, number> }>({ open: [], tiers: {} });
@@ -256,6 +257,12 @@ export function FracturedIdle() {
                     say(`New button look: ${fresh.slice(0, 2).map(lookName).join(", ")}${fresh.length > 2 ? ` and ${fresh.length - 2} more` : ""}`);
                 }
                 lastLooks.current = keys;
+                const rbAt = s.autoT.rbAt || 0;
+                if (rbAt > lastAutoRb.current) {
+                    say(`Auto-rebirth: +${s.autoT.rbCount} level${s.autoT.rbCount > 1 ? "s" : ""}, +${s.autoT.rbTokens} tokens`);
+                    sfx("rebirth");
+                    lastAutoRb.current = rbAt;
+                }
                 const isl = openIslands(s).map((i) => i.id);
                 if (isl.length > lastIslands.current.length) {
                     const fresh = isl.filter((id) => !lastIslands.current.includes(id)).map((id) => ISLAND_BY_ID[id].name);

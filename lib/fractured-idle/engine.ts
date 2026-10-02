@@ -1069,7 +1069,12 @@ function tickAuto(s: State, d: Derived, dt: number) {
             if (b) buyPrestige(s, "tokens", b.id, 1);
         } else {
             const plan = rebirthPlan(s);
-            if (plan.count >= Math.max(1, Math.min(s.auto.rbN, rebirthCap(s)))) rebirth(s, plan.count);
+            if (plan.count >= Math.max(1, Math.min(s.auto.rbN, rebirthCap(s))) && rebirth(s, plan.count)) {
+                // Leave a note for the UI so it can announce the rebirth that just happened.
+                s.autoT.rbAt = Date.now();
+                s.autoT.rbCount = plan.count;
+                s.autoT.rbTokens = plan.tokens;
+            }
         }
     }
 }
