@@ -47,6 +47,9 @@ import { masteryInfo, openIslands } from "@/lib/fractured-idle/island-logic";
 import { FXP_PER_LEVEL, fxpTotal, hasReward, levelColor, levelUpText, prefixOf, recentGains, rewardFor, rewardText, symbolOf, updateFxp } from "@/lib/fractured-idle/fxp";
 import { LEVEL_CSS, LevelBadge, XpGain } from "./level-badge";
 import { LevelTab } from "./tab-level";
+import { InventoryTab } from "./tab-inventory";
+import { ShopTab } from "./tab-shop";
+import { INV_CSS } from "./inv-parts";
 import { kick, shake, spawnBurst, spawnCrit, spawnNumber } from "./button-fx";
 import { BUTTON_TAB_CSS, ButtonTab } from "./tab-button";
 import { Orbit } from "./orbit";
@@ -88,7 +91,7 @@ import { SettingsTab, SoonTab } from "./tab-misc";
 // 100ms re-render keeps the UI live, so clicking never waits on React.
 // To add a tab: write a component that takes Ctx and register it in TABS.
 
-type TabId = "minions" | "upgrades" | "button" | "pets" | "islands" | "skills" | "mine" | "farm" | "enchant" | "stats" | "rebirth" | "ascension" | "trophies" | "level" | "soon" | "settings";
+type TabId = "minions" | "upgrades" | "button" | "pets" | "inventory" | "shop" | "islands" | "skills" | "mine" | "farm" | "enchant" | "stats" | "rebirth" | "ascension" | "trophies" | "level" | "soon" | "settings";
 
 const GROUPS: TabGroup[] = [
     { id: "play", label: "Play", color: "var(--mc-aqua)" },
@@ -103,6 +106,8 @@ const TABS: TabItem<TabId>[] = [
     { id: "button", label: "Button", symbol: "speed", group: "play", color: "var(--mc-aqua)", blurb: "Customize your button: shapes, skins, effects and loadouts." },
     { id: "pets", label: "Pets", symbol: "petLuck", group: "play", color: "#ff8fc7", blurb: "Hatch eggs, equip pets and level them." },
     { id: "level", label: "Level", symbol: "flag", group: "play", color: "#7dffb8", blurb: "Your Fractured Level and the sagas: chapters for every skill that pay permanent buffs, plus the milestone timeline." },
+    { id: "inventory", label: "Inventory", symbol: "square", group: "play", color: "#7dd3ff", blurb: "Everything you own in one grid: eggs, pet items, boosters, ore, crops and more. Sort, lock, sell and auto-sell." },
+    { id: "shop", label: "Shop", symbol: "scales", group: "play", color: "#ffd24a", blurb: "Buy eggs, pet items, boosters and inventory upgrades. Daily deals rotate at midnight UTC." },
     { id: "islands", label: "Islands", symbol: "location", group: "world", color: "#6fb4ff", blurb: "Travel between islands and master their perks." },
     { id: "skills", label: "Skills", symbol: "wisdom", group: "world", color: "var(--mc-yellow)", blurb: "Six skills with milestone rewards." },
     { id: "mine", label: "Mine", symbol: "pick", group: "world", color: "#e0b070", blurb: "Dig ore, forge drill parts and pickaxes, enchant your tool and crack geodes. The Mining skill lives here." },
@@ -235,6 +240,8 @@ export function FracturedIdle() {
 
             if (sinceAch >= 1) {
                 sinceAch = 0;
+                // Notices from the inventory clock (a booster ran out...).
+                while (s.inv.news.length) say(s.inv.news.shift()!);
                 const fresh = checkTrophies(s);
                 if (fresh.length) {
                     say(`Trophy unlocked: ${fresh.join(", ")}`);
@@ -577,6 +584,12 @@ export function FracturedIdle() {
             if (e.code === "Space") {
                 e.preventDefault();
                 if (!e.repeat) press("space", buttonCenter());
+            } else if (e.key === "e" || e.key === "E") {
+                sfx("tab");
+                setTab("inventory");
+            } else if (e.key === "s" || e.key === "S") {
+                sfx("tab");
+                setTab("shop");
             } else if (e.key === "i" || e.key === "I") {
                 sfx("open");
                 setMenu("");
@@ -668,7 +681,7 @@ export function FracturedIdle() {
                 backgroundColor: "color-mix(in oklch, var(--background) 92%, black)",
             }}
         >
-            <style>{CSS}{BTN_CSS}{SKIN_CSS}{BUTTON_TAB_CSS}{COMBO_CSS}{POPUP_CSS}{ISLAND_CSS}{MENU_CSS}{LEVEL_CSS}{ENCH_CSS}{GLINT_CSS}{SKILL_TOAST_CSS}{TABBAR_CSS}{STATS_CSS}{MINE_CSS}{FARM_CSS}{DOCK_CSS}{BUTTON_DOCK_CSS}{GOALS_CSS}{PS_CSS}{PET_CSS}{PB_CSS}{EGG_CSS}{TIP_CSS}{SCROLL_CSS}{FONT_CSS}</style>
+            <style>{CSS}{BTN_CSS}{SKIN_CSS}{BUTTON_TAB_CSS}{COMBO_CSS}{POPUP_CSS}{ISLAND_CSS}{MENU_CSS}{LEVEL_CSS}{ENCH_CSS}{GLINT_CSS}{SKILL_TOAST_CSS}{TABBAR_CSS}{STATS_CSS}{MINE_CSS}{FARM_CSS}{DOCK_CSS}{BUTTON_DOCK_CSS}{GOALS_CSS}{INV_CSS}{PS_CSS}{PET_CSS}{PB_CSS}{EGG_CSS}{TIP_CSS}{SCROLL_CSS}{FONT_CSS}</style>
             <TipProvider hostRef={tipHost}>
 
             {/* HUD */}
@@ -991,7 +1004,9 @@ export function FracturedIdle() {
                         {tab === "minions" && <MinionsTab {...ctx} />}
                         {tab === "upgrades" && <UpgradesTab {...ctx} />}
                         {tab === "button" && <ButtonTab {...ctx} />}
-                        {tab === "pets" && <PetsTab {...ctx} />}
+                        {tab === "inventory" && <InventoryTab {...ctx} go={(id) => setTab(id as TabId)} />}
+                        {tab === "shop" && <ShopTab {...ctx} go={(id) => setTab(id as TabId)} />}
+                        {tab === "pets" && <PetsTab {...ctx} go={(id) => setTab(id as TabId)} />}
                         {tab === "islands" && <IslandsTab {...ctx} openMenu={(id) => setMenu(id)} />}
                         {tab === "skills" && <SkillsTab {...ctx} open={(id) => setTab(id as TabId)} />}
                         {tab === "mine" && <MineTab {...ctx} open={(id) => setTab(id as TabId)} />}

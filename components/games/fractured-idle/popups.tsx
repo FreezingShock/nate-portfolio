@@ -12,6 +12,7 @@ import { addDust } from "@/lib/fractured-idle/enchant";
 import { eventBurst, eventLabel } from "./button-fx";
 import { dustPop } from "./enchant-fx";
 import { QteCard } from "./qte";
+import { BOOST_BY_ID, BOOST_LABEL, boostLeft } from "@/lib/fractured-idle/boosters";
 import { Tip, TipCard, type TipNote, type TipRow } from "./tooltip";
 
 // Popup events around the button. This component owns the scheduler (a slow
@@ -289,9 +290,25 @@ const fmtLeft = (t: number) => (t < 90 ? `${Math.ceil(t)}s` : `${Math.floor(t / 
 
 /** Active boons and curses, as small pills with a countdown line. */
 export function BuffBar({ s }: { s: State }) {
-    if (!s.buffs.length) return null;
+    const now = Date.now();
+    const boosts = s.inv.active.filter((a) => a.end > now);
+    if (!s.buffs.length && !boosts.length) return null;
     return (
         <div className="fi-buffs">
+            {boosts.map((a) => {
+                const def = BOOST_BY_ID.get(a.id);
+                if (!def) return null;
+                return (
+                    <Tip key={a.id} tip={() => <TipCard title={def.name} color={def.color} tag="Booster" lines={[def.desc]} rows={[["Effect", `+${Math.round(def.amount * 100)}% ${BOOST_LABEL[def.stat]}`, "var(--mc-green)"], ["Time left", fmtLeft(boostLeft(a))]]} foot="Switched on from your inventory." />}>
+                        <div className="fi-buff" data-term="long" style={{ ["--bc" as string]: def.color }}>
+                            <McSymbol name={def.symbol} />
+                            <span>{def.name}</span>
+                            <b className="font-minecraft font-normal">{fmtLeft(boostLeft(a))}</b>
+                            <i className="fi-buff-bar" style={{ width: `${Math.max(0, Math.min(1, (a.end - now) / a.dur)) * 100}%` }} />
+                        </div>
+                    </Tip>
+                );
+            })}
             {s.buffs.map((b) => {
                 const def = BUFF_BY_ID[b.id];
                 if (!def) return null;

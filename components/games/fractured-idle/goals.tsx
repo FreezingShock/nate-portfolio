@@ -1,5 +1,6 @@
 "use client";
 
+import { heldEggs } from "@/lib/fractured-idle/inv-core";
 import { fmtPct } from "@/lib/fractured-idle/format";
 import { fmtInt } from "@/lib/fractured-idle/format";
 import { useMemo, useState } from "react";
@@ -166,21 +167,22 @@ export function Goals({ s, d, F, open, render, say }: Pick<Ctx, "s" | "d" | "F" 
     }
 
     // ---- A pet egg you can hatch right now ----
+    const held = heldEggs(s);
     const egg = [...EGGS].reverse().find((e) => eggCan(s, e));
-    if ((s.freeEggs > 0 || egg) && Object.keys(s.pets).length < PETS.length) {
+    if ((held > 0 || egg) && Object.keys(s.pets).length < PETS.length) {
         goals.push({
             key: "egg",
-            tab: "pets",
+            tab: held > 0 ? "pets" : "shop",
             symbol: "petLuck",
             color: "var(--mc-dark-aqua)",
-            title: s.freeEggs > 0 ? "Free egg to hatch!" : `${egg!.name} ready to hatch`,
-            chip: s.freeEggs > 0 ? `x${fmtInt(s.freeEggs)}` : `${F(eggPrice(s, egg!))} ${EGG_CUR[egg!.cur].one}s`,
+            title: held > 0 ? (held === 1 ? "An egg to hatch!" : `${fmtInt(held)} eggs to hatch!`) : `${egg!.name} ready to buy`,
+            chip: held > 0 ? `x${fmtInt(held)}` : `${F(eggPrice(s, egg!))} ${EGG_CUR[egg!.cur].one}s`,
             chipHot: true,
             pct: 1,
             ready: true,
             prio: 0,
             left: `${Object.keys(s.pets).length}/${PETS.length} pets found`,
-            right: "Click to open Pets",
+            right: held > 0 ? "Click to open Pets" : "Click to open the Shop",
         });
     }
 

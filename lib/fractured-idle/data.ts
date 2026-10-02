@@ -4,6 +4,7 @@ import type { McSymbolName } from "@/components/mc-symbol";
 import { PETS, petLevel } from "./pets-data";
 import type { MineState } from "./mine";
 import type { FarmState } from "./farm";
+import type { InvState } from "./inv-core";
 import type { BtnPrefs } from "./button";
 import { ISLANDS } from "./islands";
 import type { ActiveBuff, EventStats } from "./events";
@@ -88,6 +89,7 @@ export interface State {
     evs: EventStats; // popup event counters
     mine: MineState; // Mining: ore, pickaxe, upgrades, drills, collections (see mine.ts)
     farm: FarmState; // Farming: plots, crops, hoe, farmhands, cookhouse, collections (see farm.ts)
+    inv: InvState; // Inventory and Shop: item stock, layout, boosters, shop upgrades (see inv-core.ts)
 }
 
 export interface MinionDef {

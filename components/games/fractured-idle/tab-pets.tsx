@@ -7,7 +7,6 @@ import { Check, Lock } from "lucide-react";
 import { McSymbol } from "@/components/mc-symbol";
 import {
     EGGS,
-    EGG_CUR,
     PETS,
     PET_BY_ID,
     PET_DIMS,
@@ -26,7 +25,9 @@ import {
     type Rarity,
     type State,
 } from "@/lib/fractured-idle/data";
-import { eggBalance, eggLocked, eggPrice, eggPriceInfo, eggsAffordable, equipBest, equipPetAt, feedCost, feedEquipped, feedPet, hatch, hatchMany, petBonds, petScore, petSlots, unequipPet, type HatchResult } from "@/lib/fractured-idle/engine";
+import { eggLocked, equipBest, equipPetAt, feedCost, feedEquipped, feedPet, petBonds, petScore, petSlots, unequipPet, type HatchResult } from "@/lib/fractured-idle/engine";
+import { hatchFromInv } from "@/lib/fractured-idle/inv-actions";
+import { itemCount } from "@/lib/fractured-idle/items";
 import { PetTipBody } from "./pet-tip";
 import { Tip, TipCard } from "./tooltip";
 import { lift, tint, type Ctx } from "./ui";
@@ -69,23 +70,7 @@ const PetTile = memo(function PetTile({ p, own, lv, n, on, sel, s, onPick }: { p
     );
 });
 
-function EggCost({ s, e, F }: { s: State; e: EggDef; F: (n: number) => string }) {
-    const cur = EGG_CUR[e.cur];
-    const info = eggPriceInfo(s, e);
-    const bal = eggBalance(s, e.cur);
-    const rows: [string, string, string?][] = [
-        ["You have", `${F(bal)} ${cur.one}${bal === 1 ? "" : "s"}`, bal >= info.price ? "var(--mc-green)" : "var(--mc-red)"],
-        e.cur === "shards"
-            ? ["Base", info.flooredBy ? `${F(info.floor)} (minimum)` : `${+(info.secs / 60).toFixed(0)} min of your best income = ${F(info.income)}`]
-            : ["Base price", `${F(info.base)} ${cur.one}s`],
-        ["Eggs hatched", `x${info.growth.toFixed(2)} (${info.hatched} so far${info.capped ? ", capped" : ""})`, info.growth > 1.01 ? "var(--mc-gold)" : undefined],
-        ["Egg Fluency", info.nest ? `-${fmtPct((1 - info.disc), 0)} (level ${info.nest})` : "none (Ascension gem upgrade)", info.nest ? "var(--mc-green)" : undefined],
-        ["Price now", `${F(info.price)} ${cur.one}${info.price === 1 ? "" : "s"}`, cur.color],
-    ];
-    return <TipCard title={e.name} color={e.color} tag={cur.name} lines={cur.how} rows={rows} foot={e.cur === "shards" ? "Shard prices follow the best income you have ever reached." : "Prices rise a little with every egg you hatch."} />;
-}
-
-export function PetsTab({ s, d, F, act, say, eggFx }: Ctx) {
+export function PetsTab({ s, d, F, act, say, eggFx, go }: Ctx & { go: (id: string) => void }) {
     const slots = petSlots(s);
     const owned = PETS.filter((p) => s.pets[p.id]);
     const [view, setView] = useState<View>("eggs");
@@ -112,38 +97,16 @@ export function PetsTab({ s, d, F, act, say, eggFx }: Ctx) {
         [act, say, s, target],
     );
 
-    const open = (egg: EggDef, n: number, free = false) => {
+    /** Hatch eggs of one kind from the inventory (the reveal plays; more than three use the compact Hatch all reveal). */
+    const open = (egg: EggDef, n: number) => {
         let res: HatchResult[] = [];
         act(() => {
-            if (free) {
-                for (let i = 0; i < n; i++) {
-                    const r = hatch(s, "wood", true);
-                    if (!r) break;
-                    res.push(r);
-                }
-            } else res = hatchMany(s, egg.id, n);
+            res = hatchFromInv(s, egg.id, n);
             return res.length > 0;
         });
         if (!res.length) return;
         if (eggFx) eggFx(egg, res);
         else say(`Hatched ${res.map((r) => PET_BY_ID.get(r.id)?.name).join(", ")}`);
-    };
-
-    /** Hatch a big stack in one go: one egg shakes, then the unique pets land in a grid. */
-    const openAll = (egg: EggDef, free = false) => {
-        const res: HatchResult[] = [];
-        act(() => {
-            const n = free ? s.freeEggs : 500;
-            for (let i = 0; i < n; i++) {
-                const r = free ? hatch(s, "wood", true) : hatch(s, egg.id, false);
-                if (!r) break;
-                res.push(r);
-            }
-            return res.length > 0;
-        });
-        if (!res.length) return;
-        if (eggFx) eggFx(egg, res);
-        else say(`Hatched ${res.length} eggs`);
     };
 
     const shown = useMemo(
@@ -241,16 +204,12 @@ export function PetsTab({ s, d, F, act, say, eggFx }: Ctx) {
 
             {view === "eggs" && (
                 <>
-                    {s.freeEggs > 0 && (
-                        <div className="pt-free fi-afford" style={{ ["--c" as string]: "var(--mc-gold)" } as CSSProperties}>
-                            <McSymbol name="flower" />
-                            <span className="pt-free-n">Free Wooden Egg x{s.freeEggs}</span>
-                            <span className="flex-1 text-[11px] text-muted-foreground">Found by a treasure bobber.</span>
-                            <button type="button" className="pt-hatch" onClick={() => open(EGGS[0], 1, true)}>Hatch</button>
-                            {s.freeEggs >= 3 && <button type="button" className="pt-hatch" onClick={() => open(EGGS[0], 3, true)}>x3</button>}
-                            {s.freeEggs > 3 && <button type="button" className="pt-hatch" onClick={() => openAll(EGGS[0], true)}>Hatch all ({fmtInt(s.freeEggs)})</button>}
-                        </div>
-                    )}
+                    <div className="pt-stock">
+                        <McSymbol name="flower" />
+                        <span>Eggs live in your inventory now. Buy them in the Shop, find them from bobbers, pods and geodes, and hatch them here or from the inventory.</span>
+                        <button type="button" className="pt-hatch" onClick={() => go("shop")}>Open Shop</button>
+                        <button type="button" className="pt-hatch" onClick={() => go("inventory")}>Inventory</button>
+                    </div>
                     {PET_DIMS.map((dim) => {
                         const list = EGGS.filter((e) => e.dim === dim.id);
                         const have = PETS.filter((p) => p.dim === dim.id && s.pets[p.id]).length;
@@ -265,13 +224,9 @@ export function PetsTab({ s, d, F, act, say, eggFx }: Ctx) {
                                 </div>
                                 <div className="pt-eggs">
                                     {list.map((e) => {
-                                        const price = eggPrice(s, e);
                                         const lock = eggLocked(s, e);
-                                        const bal = eggBalance(s, e.cur);
-                                        const can = !lock && bal >= price;
-                                        const affAll = eggsAffordable(s, e, 500);
-                                        const aff = Math.min(3, affAll);
-                                        const cur = EGG_CUR[e.cur];
+                                        const have = itemCount(s, `egg:${e.id}`);
+                                        const can = have > 0;
                                         const total = RARITY_ORDER.reduce((a, r) => a + (e.odds[r] || 0), 0);
                                         const rarities = RARITY_ORDER.filter((r) => e.odds[r]);
                                         const pool = PETS.filter((p) => p.dim === e.dim && e.odds[p.rarity]);
@@ -298,20 +253,19 @@ export function PetsTab({ s, d, F, act, say, eggFx }: Ctx) {
                                                     ))}
                                                 </div>
                                                 <div className="pt-buy">
-                                                    <Tip tip={() => <EggCost s={s} e={e} F={F} />}>
-                                                        <span className="pt-price" tabIndex={0} style={{ color: can ? cur.color : undefined }}>
-                                                            <McSymbol name={cur.symbol} /> {F(price)}
+                                                    <Tip tip={<TipCard title={`${e.name}s you own`} color={e.color} lines={["Buy eggs in the Shop. The Hatch buttons use eggs from your inventory."]} rows={[["In inventory", fmtInt(have)]]} />}>
+                                                        <span className="pt-price" tabIndex={0} style={{ color: can ? e.color : undefined }}>
+                                                            <McSymbol name={e.symbol} /> x{fmtInt(have)}
                                                         </span>
                                                     </Tip>
-                                                    <button type="button" className="pt-hatch" disabled={!can} onClick={() => open(e, 1)}>Hatch</button>
-                                                    <Tip tip={<TipCard title="Hatch three" color={e.color} lines={["Opens three eggs at once on one screen."]} rows={[["Total", `${F(price * 3)} ${cur.one}s`], ["You can afford", `${aff} egg${aff === 1 ? "" : "s"}`]]} />}>
-                                                        <button type="button" className="pt-hatch" disabled={aff < 3} onClick={() => open(e, 3)}>x3</button>
-                                                    </Tip>
-                                                    {affAll > 3 && (
-                                                        <Tip tip={<TipCard title="Hatch all" color={e.color} lines={["Hatches every egg you can pay for in one short animation, then lists every pet you got."]} rows={[["About", `${affAll >= 500 ? "500+" : affAll} egg${affAll === 1 ? "" : "s"}`], ["Stops", "when you run out or at 500"]]} />}>
-                                                            <button type="button" className="pt-hatch" onClick={() => openAll(e)}>Hatch all</button>
+                                                    <button type="button" className="pt-hatch" disabled={have < 1} onClick={() => open(e, 1)}>Hatch</button>
+                                                    {have >= 3 && <button type="button" className="pt-hatch" onClick={() => open(e, 3)}>x3</button>}
+                                                    {have > 3 && (
+                                                        <Tip tip={<TipCard title="Hatch all" color={e.color} lines={["Hatches every egg of this kind in one short animation, then lists every pet you got."]} rows={[["Eggs", fmtInt(have)]]} />}>
+                                                            <button type="button" className="pt-hatch" onClick={() => open(e, 500)}>Hatch all</button>
                                                         </Tip>
                                                     )}
+                                                    <button type="button" className="pt-hatch" disabled={!!lock} onClick={() => go("shop")}>Buy</button>
                                                 </div>
                                             </div>
                                         );
@@ -320,7 +274,7 @@ export function PetsTab({ s, d, F, act, say, eggFx }: Ctx) {
                             </section>
                         );
                     })}
-                    <p className="pt-note">Each egg only hatches pets from its own dimension. Hover a price to see what it costs and where to get that currency. Prices rise a little with every egg you open.</p>
+                    <p className="pt-note">Each egg only hatches pets from its own dimension. Hover a price to see what it costs and where to get that currency. Eggs you hold make new ones a little dearer, so stockpiling is never free.</p>
                 </>
             )}
 
@@ -466,6 +420,8 @@ export const PET_CSS = `
 .pt-hatch:hover:not(:disabled){filter:brightness(1.25);transform:translateY(-1px)}
 .pt-hatch:active:not(:disabled){transform:scale(.94)}
 .pt-hatch:disabled{opacity:.4;cursor:not-allowed}
+.pt-stock{display:flex;flex-wrap:wrap;align-items:center;gap:.5rem;padding:.5rem .75rem;border-radius:.9rem;border:1px solid color-mix(in oklch,var(--mc-gold) 40%,transparent);background:color-mix(in oklch,var(--mc-gold) 8%,rgba(0,0,0,.2));font-family:var(--font-rubik,inherit);font-size:.7rem;color:var(--muted-foreground)}
+.pt-stock span{flex:1;min-width:12rem}
 .pt-note{margin:0;font-family:var(--font-rubik,inherit);font-size:.66rem;color:var(--muted-foreground)}
 .pt-target{display:flex;align-items:center;gap:.5rem;padding:.45rem .7rem;border-radius:.8rem;border:1px solid var(--mc-yellow);background:color-mix(in oklch,var(--mc-yellow) 10%,transparent);font-family:var(--font-rubik,inherit);font-size:.72rem;color:var(--mc-yellow)}
 .pt-target b{font-family:var(--font-minecraft,inherit)}

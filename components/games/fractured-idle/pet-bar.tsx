@@ -1,5 +1,6 @@
 "use client";
 
+import { heldEggs } from "@/lib/fractured-idle/inv-core";
 import { fmtPct } from "@/lib/fractured-idle/format";
 import { type CSSProperties } from "react";
 import { McSymbol } from "@/components/mc-symbol";
@@ -25,13 +26,13 @@ const frac = (s: State, id: string) => {
 };
 
 /** Whether the tracker column shows anything (the button screen adds a little left padding when it does). */
-export const petBarVisible = (s: State) => s.equip.length > 0 || Object.keys(s.pets).length > 0 || s.freeEggs > 0 || EGGS.some((e) => eggCan(s, e));
+export const petBarVisible = (s: State) => s.equip.length > 0 || Object.keys(s.pets).length > 0 || heldEggs(s) > 0 || EGGS.some((e) => eggCan(s, e));
 
 export function PetBar({ s, onOpen }: { s: State; onOpen: () => void }) {
     if (!petBarVisible(s)) return null;
     const slots = petSlots(s);
     const bonds = petBonds(s);
-    const egg = s.freeEggs > 0 || EGGS.some((e) => eggCan(s, e));
+    const egg = heldEggs(s) > 0;
     const empty = Math.max(0, slots - s.equip.length);
 
     return (

@@ -1,3 +1,5 @@
+import { dayNow, heldEggs, slotCap } from "@/lib/fractured-idle/inv-core";
+import { ownedIds } from "@/lib/fractured-idle/items";
 import { fmtInt } from "@/lib/fractured-idle/format";
 import { CATS, isUnlocked, lookKey } from "@/lib/fractured-idle/button";
 import { EGGS, MINIONS, MINION_GROWTH, PETS, SKILLS, UPGRADES, type State } from "@/lib/fractured-idle/data";
@@ -54,9 +56,12 @@ function scan(s: State, since: (tab: string, cur: number) => number): Record<str
     for (const c of CATS) for (const l of c.list) if (l.need && isUnlocked(s, l) && !s.btn.seen.includes(lookKey(c.id, l.id))) fresh++;
     if (fresh) add("button", { text: `${plural(fresh, "new look")} unlocked`, color: A, act: true });
 
-    const eggs = s.freeEggs;
-    if (eggs > 0) add("pets", { text: `${plural(eggs, "free egg")} to hatch`, color: P, act: true });
-    if (Object.keys(s.pets).length < PETS.length && EGGS.some((e) => eggCan(s, e))) add("pets", { text: "You can afford an egg", color: O, act: true });
+    const eggs = heldEggs(s);
+    if (eggs > 0) add("pets", { text: `${plural(eggs, "egg")} to hatch`, color: P, act: true });
+    if (Object.keys(s.pets).length < PETS.length && EGGS.some((e) => eggCan(s, e))) add("shop", { text: "You can afford an egg", color: O, act: true });
+    const day = since("shop", dayNow());
+    if (day) add("shop", { text: "1 fresh shelf of daily deals", color: Y, act: true });
+    if (ownedIds(s).length > slotCap(s)) add("inventory", { text: "Your inventory is full: free a slot or buy a page", color: O, act: true, n: 1 });
 
     const geodes = geodeCount(s);
     if (geodes > 0) add("mine", { text: `${plural(geodes, "geode")} to crack`, color: "var(--mc-light-purple)", act: true });

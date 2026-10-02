@@ -1,4 +1,7 @@
 import { fmt, fmtPct } from "./format";
+import { boostFx } from "./boosters";
+import { cleanInv, heldEggs, newInv, tickInventory } from "./inv-core";
+import { itemTake } from "./items";
 import { DEFAULT_BTN, btnBonus, cleanBtn } from "./button";
 import { COMBO_BASE_MAX, COMBO_CPS_SHARE, SURGE_BASE_CHANCE } from "./combo";
 import { buffFx, newEventStats, tickBuffs } from "./events";
@@ -123,6 +126,7 @@ export function newState(): State {
         evs: newEventStats(),
         mine: newMine(),
         farm: newFarm(),
+        inv: newInv(),
     };
 }
 
@@ -356,12 +360,13 @@ export function derive(s: State): Derived {
     const bonus = trophyBonus(s);
     const bb = btnBonus(s);
     const bf = buffFx(s); // popup boons and curses, plus Fracture Fragments
+    const bx = boostFx(s); // boosters switched on from the inventory
     const isl = islandFx(s); // perks of the island you are on (islands.ts)
     const X = allFx(s); // worn enchants, the Codex and skill milestone perks (enchant.ts)
     const foraging = skillLevel(s.foraging, "foraging");
     const enchanting = skillLevel(s.enchanting, "enchanting");
-    clickMult *= (1 + bonus.click) * (1 + ce.click) * (1 + pb.click) * (1 + bb.click) * (1 + 0.05 * (s.rups.might || 0)) * (1 + 0.02 * (s.rups.surge || 0)) * bf.click * isl.click * isl.affinity;
-    minionMult *= (1 + bonus.minion) * (1 + pb.minion) * (1 + 0.05 * (s.rups.engine || 0)) * (1 + 0.25 * (s.aups.union || 0)) * (1 + 0.02 * (s.rups.swarm || 0)) * bf.minion * isl.minionAll;
+    clickMult *= (1 + bonus.click) * (1 + ce.click) * (1 + pb.click) * (1 + bb.click) * (1 + 0.05 * (s.rups.might || 0)) * (1 + 0.02 * (s.rups.surge || 0)) * bf.click * isl.click * isl.affinity * (1 + bx.click);
+    minionMult *= (1 + bonus.minion) * (1 + pb.minion) * (1 + 0.05 * (s.rups.engine || 0)) * (1 + 0.25 * (s.aups.union || 0)) * (1 + 0.02 * (s.rups.swarm || 0)) * bf.minion * isl.minionAll * (1 + bx.minion);
     critChance += bonus.critChance + ce.crit + pb.critChance + bb.crit + bf.crit + isl.crit + 0.01 * (s.rups.luck || 0);
     critDmg += bonus.critDmg + ce.critDmg + pb.critDmg + bb.critDmg + bf.critDmg + isl.critDmg + 0.03 * (s.rups.edge || 0);
     clickMult *= 1 + X.click;
@@ -386,7 +391,7 @@ export function derive(s: State): Derived {
     const islandMult = tierMult(s);
     const achMult = 1 + bonus.all;
     const am = ascMult(s);
-    const all = rMult * islandMult * achMult * allUp * bf.all * (1 + ce.all + pb.all) * (1 + 0.01 * fishing * isl.eff.fishing) * am * isl.all * (1 + visitBonus(s)) * (1 + LEVEL_BONUS * s.lvl) * (1 + X.all) * (1 + 0.01 * (s.rups.fort || 0)) * (1 + 0.03 * (s.aups.nova || 0));
+    const all = rMult * islandMult * achMult * allUp * bf.all * (1 + bx.all) * (1 + ce.all + pb.all) * (1 + 0.01 * fishing * isl.eff.fishing) * am * isl.all * (1 + visitBonus(s)) * (1 + LEVEL_BONUS * s.lvl) * (1 + X.all) * (1 + 0.01 * (s.rups.fort || 0)) * (1 + 0.03 * (s.aups.nova || 0));
 
     const shared = minionMult * (1 + 0.03 * farming * isl.eff.farming) * all;
     let cps = 0;
@@ -411,8 +416,8 @@ export function derive(s: State): Derived {
         rMult,
         islandMult,
         achMult,
-        xpMult: 1 + bonus.skillXp + pb.skillXp + bb.xp + X.xp,
-        bobberMult: (1 + bonus.bobber + pb.bobber + bb.bobber + ev.loot) * isl.loot * (1 + X.bobber),
+        xpMult: 1 + bonus.skillXp + pb.skillXp + bb.xp + X.xp + bx.xp,
+        bobberMult: (1 + bonus.bobber + pb.bobber + bb.bobber + ev.loot + bx.bobber) * isl.loot * (1 + X.bobber),
         bonus,
         all,
         mining,
@@ -591,7 +596,7 @@ export const tokensFor = (shards: number, r: number, asc = 0) =>
     Math.max(2, Math.floor(2 + Math.log10(shards / rebirthCost(r, asc)) * 2.5));
 
 export const rebirthCap = (s: State) => 1 + (s.rups.stack || 0);
-export const tokenMult = (s: State) => 1 + trophyBonus(s).tokens + collectionEffects(s).tokens + petBonus(s).tokens + 0.25 * (s.aups.well || 0) + 0.25 * (s.rups.magnet || 0) + 0.1 * (s.rups.bank || 0) + allFx(s).tokens;
+export const tokenMult = (s: State) => 1 + trophyBonus(s).tokens + collectionEffects(s).tokens + petBonus(s).tokens + 0.25 * (s.aups.well || 0) + 0.25 * (s.rups.magnet || 0) + 0.1 * (s.rups.bank || 0) + allFx(s).tokens + boostFx(s).tokens;
 export const milestoneTokens = (level: number) => REBIRTH_MILESTONES[level] || 0;
 
 /** Tokens for taking rebirth number `level` (1-based) while holding `shards`. */
@@ -721,21 +726,23 @@ export function checkTrophies(s: State): string[] {
 // ---- Pets ----
 
 /** What an egg costs, in its own currency. Shard prices follow your best income; the rest are flat. Both creep up a little with every egg. */
-export function eggPrice(s: State, egg: EggDef): number {
-    const disc = Math.max(0.2, 1 - 0.08 * (s.aups.nest || 0));
-    if (egg.cur === "shards") return Math.max(egg.min ?? 1, s.peakInc * (egg.secs ?? 300)) * Math.min(25, Math.pow(1.02, s.hatched)) * disc;
-    return Math.max(1, Math.ceil((egg.price ?? 1) * Math.min(6, Math.pow(1.015, s.hatched)) * disc));
+export function eggPrice(s: State, egg: EggDef, extra = 0): number {
+    const disc = Math.max(0.2, 1 - 0.08 * (s.aups.nest || 0)) * (1 - 0.03 * (s.inv.sup.haggle || 0));
+    const n = s.hatched + heldEggs(s) + extra;
+    if (egg.cur === "shards") return Math.max(egg.min ?? 1, s.peakInc * (egg.secs ?? 300)) * Math.min(25, Math.pow(1.02, n)) * disc;
+    return Math.max(1, Math.ceil((egg.price ?? 1) * Math.min(6, Math.pow(1.015, n)) * disc));
 }
 
 /** Everything that goes into an egg's price, for the cost tooltip. */
 export function eggPriceInfo(s: State, egg: EggDef) {
-    const disc = Math.max(0.2, 1 - 0.08 * (s.aups.nest || 0));
+    const disc = Math.max(0.2, 1 - 0.08 * (s.aups.nest || 0)) * (1 - 0.03 * (s.inv.sup.haggle || 0));
     const shards = egg.cur === "shards";
-    const growth = shards ? Math.min(25, Math.pow(1.02, s.hatched)) : Math.min(6, Math.pow(1.015, s.hatched));
+    const n = s.hatched + heldEggs(s);
+    const growth = shards ? Math.min(25, Math.pow(1.02, n)) : Math.min(6, Math.pow(1.015, n));
     const income = s.peakInc * (egg.secs ?? 300);
     const floor = egg.min ?? 1;
     const base = shards ? Math.max(floor, income) : (egg.price ?? 1);
-    return { base, growth, disc, price: eggPrice(s, egg), income, floor, flooredBy: shards && floor > income, secs: egg.secs ?? 0, hatched: s.hatched, nest: s.aups.nest || 0, capped: shards ? growth >= 25 : growth >= 6 };
+    return { base, growth, disc, price: eggPrice(s, egg), income, floor, flooredBy: shards && floor > income, secs: egg.secs ?? 0, hatched: n, nest: s.aups.nest || 0, capped: shards ? growth >= 25 : growth >= 6 };
 }
 
 export const eggBalance = (s: State, cur: EggDef["cur"]) => (cur === "shards" ? s.shards : cur === "tokens" ? s.tokens : cur === "gems" ? s.ap : s.enc.dust);
@@ -761,12 +768,14 @@ export interface HatchResult {
     equipped: boolean; // it went straight into an empty slot
 }
 
-function roll(egg: EggDef): { rarity: Rarity; pet: PetDef } {
-    const total = RARITY_ORDER.reduce((a, r) => a + (egg.odds[r] || 0), 0);
+function roll(egg: EggDef, luck = 0): { rarity: Rarity; pet: PetDef } {
+    // Luck (Lucky Clover) leans the odds toward the rarer end without removing any outcome.
+    const wt = (r: Rarity) => (egg.odds[r] || 0) * (1 + (luck * RARITY_ORDER.indexOf(r)) / 3);
+    const total = RARITY_ORDER.reduce((a, r) => a + wt(r), 0);
     let r = Math.random() * total;
     let rarity: Rarity = RARITY_ORDER.find((x) => egg.odds[x]) ?? "common";
     for (const k of RARITY_ORDER) {
-        const w = egg.odds[k] || 0;
+        const w = wt(k);
         if (w && r < w) {
             rarity = k;
             break;
@@ -779,7 +788,7 @@ function roll(egg: EggDef): { rarity: Rarity; pet: PetDef } {
 }
 
 function giveFrom(s: State, egg: EggDef): HatchResult {
-    const { rarity, pet } = roll(egg);
+    const { rarity, pet } = roll(egg, boostFx(s).luck);
     const cur = s.pets[pet.id];
     let xp = 0;
     let equipped = false;
@@ -798,19 +807,12 @@ function giveFrom(s: State, egg: EggDef): HatchResult {
     return { id: pet.id, egg: egg.id, rarity, isNew: !cur, xp, copies: s.pets[pet.id].n, equipped };
 }
 
-/** Hatch a free Wooden Egg (from a treasure bobber) or buy and hatch one egg. */
-export function hatch(s: State, eggId: string, free = false): HatchResult | null {
+/** Hatch one egg from the inventory. Eggs are bought in the Shop (or found) and kept as items. */
+export function hatch(s: State, eggId: string): HatchResult | null {
     const egg = EGG_BY_ID.get(eggId);
     if (!egg) return null;
-    if (free) {
-        if (s.freeEggs < 1 || egg.id !== "wood") return null;
-        s.freeEggs--;
-    } else {
-        if (eggLocked(s, egg)) return null;
-        const cost = eggPrice(s, egg);
-        if (eggBalance(s, egg.cur) < cost) return null;
-        spendEgg(s, egg.cur, cost);
-    }
+    if (itemTake(s, `egg:${egg.id}`, 1) < 1) return null;
+    s.inv.stats.hatched++;
     return giveFrom(s, egg);
 }
 
@@ -821,11 +823,11 @@ function spendEgg(s: State, cur: EggDef["cur"], n: number) {
     else s.enc.dust -= n;
 }
 
-/** Buy and hatch up to `count` eggs at once, stopping when you cannot pay for the next. */
+/** Hatch up to `count` eggs of one kind from the inventory. */
 export function hatchMany(s: State, eggId: string, count: number): HatchResult[] {
     const out: HatchResult[] = [];
     for (let i = 0; i < count; i++) {
-        const r = hatch(s, eggId, false);
+        const r = hatch(s, eggId);
         if (!r) break;
         out.push(r);
     }
@@ -989,6 +991,7 @@ export function advance(s: State, d: Derived, dt: number) {
     const inc = d.cps + d.auto * d.avgClick;
     if (inc > s.peakInc) s.peakInc = inc;
     tickAuto(s, d, dt);
+    tickInventory(s, d, dt);
 }
 
 // ---- Auto-buyers (unlocked with gems, switched on in the Ascension shop) ----
@@ -1121,6 +1124,7 @@ export function parseSave(raw: string): State | null {
         s.enc = cleanEnc(o.enc);
         s.mine = cleanMine(o.mine);
         s.farm = cleanFarm(o.farm);
+        s.inv = cleanInv(o.inv);
         if (!o.enc) {
             // A save from before Enchanting: welcome gift scaled to how far you are.
             const gift = Math.min(400, 40 + 15 * Math.min(25, s.rebirths));
