@@ -1,7 +1,7 @@
 "use client";
 
 import { fmtInt } from "@/lib/fractured-idle/format";
-import { useMemo, useState, type CSSProperties } from "react";
+import { useMemo, useState, type CSSProperties, type ReactNode } from "react";
 import { Lock, Star } from "lucide-react";
 import { McSymbol } from "@/components/mc-symbol";
 import type { State } from "@/lib/fractured-idle/data";
@@ -218,14 +218,14 @@ const AUTOS: { key: "min" | "up" | "tok" | "rb"; up: string; name: string; blurb
 type AutoKey = "min" | "up" | "tok" | "rb";
 
 /** Compact auto-buyer switches. Shown at the top of the shop tabs (all four) and on the tabs they act on (`only`). */
-export function AutoBar({ s, act, only }: Pick<Ctx, "s" | "act"> & { only?: AutoKey[] }) {
+export function AutoBar({ s, act, only, children, sticky }: Pick<Ctx, "s" | "act"> & { only?: AutoKey[]; children?: ReactNode; sticky?: boolean }) {
     const cap = Math.min(15, rebirthCap(s));
     const list = AUTOS.filter((a) => !only || only.includes(a.key));
     // On a tab they act on, hide the bar until one is unlocked; on the shops always show it so the unlock is discoverable.
-    if (only && !list.some((a) => (s.aups[a.up] || 0) > 0)) return null;
+    if (only && !children && !list.some((a) => (s.aups[a.up] || 0) > 0)) return null;
     const rbN = Math.max(1, Math.min(s.auto.rbN, cap));
     return (
-        <div className="ps-ab" role="group" aria-label="Auto-buyers">
+        <div className="ps-ab" data-sticky={!!sticky} role="group" aria-label="Auto-buyers">
             <span className="ps-ab-h"><McSymbol name="attackSpeed" /> Auto</span>
             {list.map((a) => {
                 const lv = s.aups[a.up] || 0;
@@ -265,6 +265,7 @@ export function AutoBar({ s, act, only }: Pick<Ctx, "s" | "act"> & { only?: Auto
                 );
             })}
             {!only && <span className="ps-ab-t">Unlock with gems in Ascension.</span>}
+            {children && <span className="ps-ab-x">{children}</span>}
         </div>
     );
 }
@@ -322,6 +323,8 @@ export const PS_CSS = `
 .ps-need{font-family:var(--font-rubik,inherit);font-size:.62rem;color:var(--muted-foreground)}
 .ps-ab{display:flex;flex-wrap:wrap;align-items:center;gap:.35rem;padding:.3rem .4rem;border-radius:.8rem;border:1px solid color-mix(in oklch,var(--mc-red) 28%,transparent);background:color-mix(in oklch,var(--mc-red) 5%,rgba(0,0,0,.2))}
 .ps-ab-h{display:inline-flex;align-items:center;gap:.3rem;padding:0 .3rem;font-family:var(--font-minecraft,inherit);font-size:.68rem;font-weight:700;color:var(--mc-red)}
+.ps-ab[data-sticky="true"]{position:sticky;top:.4rem;z-index:20;backdrop-filter:blur(14px);background:color-mix(in oklch,var(--card) 86%,var(--mc-red) 6%);box-shadow:0 8px 20px -14px #000}
+.ps-ab-x{margin-left:auto;display:inline-flex;align-items:center;gap:.35rem}
 .ps-ab-t{margin-left:auto;font-family:var(--font-rubik,inherit);font-size:.58rem;color:var(--muted-foreground)}
 .ps-abc{--c:var(--mc-green);display:inline-flex;align-items:center;gap:.25rem;padding-right:.2rem;border-radius:.65rem;border:1px solid color-mix(in oklch,var(--c) 25%,transparent);background:rgba(255,255,255,.03);transition:border-color .15s,box-shadow .2s,background .15s}
 .ps-abc[data-on="true"]{border-color:var(--c);background:color-mix(in oklch,var(--c) 12%,transparent);box-shadow:0 0 12px -6px var(--c)}

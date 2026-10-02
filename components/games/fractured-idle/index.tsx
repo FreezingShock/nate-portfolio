@@ -59,7 +59,7 @@ import { PET_CSS, PetsTab } from "./tab-pets";
 import { PB_CSS, PetBar, petBarVisible } from "./pet-bar";
 import { EGG_CSS, EggReveal } from "./egg-reveal";
 import { AscensionTab } from "./tab-ascension";
-import { UpgradeTip, UpgradesTab } from "./tab-upgrades";
+import { UPG_CSS, UpgradeTip, UpgradesTab } from "./tab-upgrades";
 import { TrophiesTab, TrophyTip } from "./tab-trophies";
 import { IslandsTab } from "./tab-islands";
 import { SkillsTab } from "./tab-skills";
@@ -681,7 +681,7 @@ export function FracturedIdle() {
                 backgroundColor: "color-mix(in oklch, var(--background) 92%, black)",
             }}
         >
-            <style>{CSS}{BTN_CSS}{SKIN_CSS}{BUTTON_TAB_CSS}{COMBO_CSS}{POPUP_CSS}{ISLAND_CSS}{MENU_CSS}{LEVEL_CSS}{ENCH_CSS}{GLINT_CSS}{SKILL_TOAST_CSS}{TABBAR_CSS}{STATS_CSS}{MINE_CSS}{FARM_CSS}{DOCK_CSS}{BUTTON_DOCK_CSS}{GOALS_CSS}{INV_CSS}{PS_CSS}{PET_CSS}{PB_CSS}{EGG_CSS}{TIP_CSS}{SCROLL_CSS}{FONT_CSS}</style>
+            <style>{CSS}{BTN_CSS}{SKIN_CSS}{BUTTON_TAB_CSS}{COMBO_CSS}{POPUP_CSS}{ISLAND_CSS}{MENU_CSS}{LEVEL_CSS}{ENCH_CSS}{GLINT_CSS}{SKILL_TOAST_CSS}{TABBAR_CSS}{STATS_CSS}{MINE_CSS}{FARM_CSS}{DOCK_CSS}{BUTTON_DOCK_CSS}{GOALS_CSS}{INV_CSS}{UPG_CSS}{PS_CSS}{PET_CSS}{PB_CSS}{EGG_CSS}{TIP_CSS}{SCROLL_CSS}{FONT_CSS}</style>
             <TipProvider hostRef={tipHost}>
 
             {/* HUD */}
