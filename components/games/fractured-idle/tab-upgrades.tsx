@@ -5,6 +5,7 @@ import { ShoppingCart } from "lucide-react";
 import { McSymbol } from "@/components/mc-symbol";
 import { MINIONS, UPGRADES, type UpgradeDef } from "@/lib/fractured-idle/data";
 import { buyUpgrade, upAvailable, upgradeInfo, upCost } from "@/lib/fractured-idle/engine";
+import { AutoBar } from "./prestige-shop";
 import { ActionBtn, SectionTitle, tint, type Ctx } from "./ui";
 
 // A dense grid of symbol tiles. Hovering (or focusing, or tapping once on
@@ -107,6 +108,7 @@ export function UpgradesTab({ s, act, render, tip }: Ctx) {
 
     return (
         <>
+            <AutoBar s={s} act={act} only={["up"]} />
             <div className="flex items-center justify-between gap-2">
                 <p className="font-rubik text-[11px] text-muted-foreground">Hover an upgrade for details. Glowing tiles are affordable.</p>
                 <ActionBtn icon={<ShoppingCart className="size-3.5" />} onClick={buyAll}>Buy all affordable</ActionBtn>

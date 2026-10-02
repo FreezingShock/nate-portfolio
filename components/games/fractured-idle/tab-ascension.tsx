@@ -4,7 +4,7 @@ import { useState } from "react";
 import { McSymbol } from "@/components/mc-symbol";
 import { ASC_BASE, ASC_COST, ASC_UPS } from "@/lib/fractured-idle/data";
 import { ascMult, ascPlan, ascend, aupCost } from "@/lib/fractured-idle/engine";
-import { AutoPanel, PrestigeShop } from "./prestige-shop";
+import { AutoBar, PrestigeShop } from "./prestige-shop";
 import { SectionTitle, lift, tint, type Ctx } from "./ui";
 
 // Ascension: the second prestige layer. It resets rebirths, tokens and token
@@ -95,8 +95,8 @@ export function AscensionTab({ s, d, F, act, say }: Ctx) {
             </div>
 
             <SectionTitle color={G}>Gem upgrades</SectionTitle>
+            <AutoBar s={s} act={act} />
             <PrestigeShop cur="gems" s={s} F={F} act={act} say={say} />
-            <AutoPanel s={s} act={act} />
             <p className="font-rubik text-[10px] text-muted-foreground">Current all-shards multiplier from other sources: x{F(d.all / multNow)}.</p>
         </>
     );

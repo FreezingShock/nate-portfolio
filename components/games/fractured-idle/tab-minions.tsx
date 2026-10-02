@@ -5,6 +5,7 @@ import { Check, ChevronDown, Lock, Sparkles } from "lucide-react";
 import { McSymbol } from "@/components/mc-symbol";
 import { COL_AT, COL_ITEM, MILESTONES, MINIONS, MINION_COL, MINION_UPS_BY, colRewardText, colTier } from "@/lib/fractured-idle/data";
 import { bestBuys, buyInfo, buyMinion, buyUpgrade, fmtEta, income, milestoneMult, upAvailable, upCost } from "@/lib/fractured-idle/engine";
+import { AutoBar } from "./prestige-shop";
 import { BUY_OPTIONS, Teaser, lift, tint, type Ctx } from "./ui";
 
 // Minions tab: a sticky buy-amount bar, a "best value" ribbon, and one card
@@ -118,6 +119,7 @@ export function MinionsTab({ s, d, F, act, render }: Ctx) {
     return (
         <>
             <BuyBar s={s} render={render} />
+            <AutoBar s={s} act={act} only={["min"]} />
 
             {top.length > 0 && (
                 <div>

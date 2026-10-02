@@ -4,7 +4,7 @@ import { useMemo, useState, type CSSProperties } from "react";
 import { Lock, Star } from "lucide-react";
 import { McSymbol } from "@/components/mc-symbol";
 import type { State } from "@/lib/fractured-idle/data";
-import { bestPrestige, buyPrestige, rebirthCap } from "@/lib/fractured-idle/engine";
+import { bestPrestige, buyPrestige, rebirthCap, rebirthPlan } from "@/lib/fractured-idle/engine";
 import { GEM_UPS, PRESTIGE_CATS, autoEvery, bulkBuy, levelsOf, lockedBy, priceAt, upsFor, valueOf, type Currency, type PrestigeCat, type PrestigeUp } from "@/lib/fractured-idle/prestige";
 import { Tip, TipCard } from "./tooltip";
 import type { Ctx } from "./ui";
@@ -214,40 +214,55 @@ const AUTOS: { key: "min" | "up" | "tok" | "rb"; up: string; name: string; blurb
     { key: "rb", up: "autoRb", name: "Rebirth Cycle", blurb: "Rebirths by itself once enough levels are ready.", color: "var(--mc-red)", symbol: "portal" as never },
 ];
 
-/** Switches for every auto-buyer. Unlock them with gems in the Ascension shop. */
-export function AutoPanel({ s, act }: Pick<Ctx, "s" | "act">) {
+type AutoKey = "min" | "up" | "tok" | "rb";
+
+/** Compact auto-buyer switches. Shown at the top of the shop tabs (all four) and on the tabs they act on (`only`). */
+export function AutoBar({ s, act, only }: Pick<Ctx, "s" | "act"> & { only?: AutoKey[] }) {
     const cap = Math.min(15, rebirthCap(s));
+    const list = AUTOS.filter((a) => !only || only.includes(a.key));
+    // On a tab they act on, hide the bar until one is unlocked; on the shops always show it so the unlock is discoverable.
+    if (only && !list.some((a) => (s.aups[a.up] || 0) > 0)) return null;
+    const rbN = Math.max(1, Math.min(s.auto.rbN, cap));
     return (
-        <div className="ps-auto">
-            <div className="ps-auto-h"><McSymbol name="attackSpeed" /> Auto-buyers <span>Unlock with gems in Ascension. They only spend what you already have.</span></div>
-            <div className="ps-auto-g">
-                {AUTOS.map((a) => {
-                    const lv = s.aups[a.up] || 0;
-                    const max = GEM_UPS.find((g) => g.id === a.up)?.max ?? 1;
-                    const on = s.auto[a.key] && lv > 0;
-                    const lock = lv < 1;
-                    const missing = a.key === "rb" && lv < 1 && !(s.aups.autoTok > 0) ? "Needs Token Steward first." : null;
-                    return (
-                        <Tip key={a.key} box tip={<TipCard title={a.name} color={a.color} tag={lock ? "Locked" : `Level ${lv} / ${max}`} lines={[a.blurb, lock ? "Buy it with gems in the Ascension tab." : on ? "It is running." : "Switch it on to start."]} rows={lock ? undefined : [["Fires every", `${autoEvery(a.key, lv)}s`], ...(lv < max ? ([["Next level", `${autoEvery(a.key, lv + 1)}s`, "var(--mc-green)"]] as [string, string, string][]) : [])]} notes={missing ? [{ text: missing, color: "var(--mc-gold)" }] : undefined} />}>
-                            <div className="ps-au" data-on={on} data-lock={lock} style={{ ["--c" as string]: a.color } as CSSProperties}>
-                                <span className="ps-au-i"><McSymbol name={a.symbol} /></span>
-                                <span className="min-w-0 flex-1">
-                                    <span className="ps-au-n">{a.name}</span>
-                                    <span className="ps-au-s">{lock ? "locked" : on ? `on · every ${autoEvery(a.key, lv)}s` : `off · lvl ${lv}`}</span>
+        <div className="ps-ab" role="group" aria-label="Auto-buyers">
+            <span className="ps-ab-h"><McSymbol name="attackSpeed" /> Auto</span>
+            {list.map((a) => {
+                const lv = s.aups[a.up] || 0;
+                const max = GEM_UPS.find((g) => g.id === a.up)?.max ?? 1;
+                const lock = lv < 1;
+                const on = s.auto[a.key] && !lock;
+                const rb = a.key === "rb";
+                const ready = rb && !lock ? rebirthPlan(s).count : 0;
+                const status = lock
+                    ? "locked"
+                    : !on
+                      ? "off"
+                      : rb
+                        ? ready >= rbN ? "firing" : `${ready}/${rbN} ready`
+                        : `every ${autoEvery(a.key, lv)}s`;
+                const missing = rb && lock && !(s.aups.autoTok > 0) ? "Needs Token Steward first." : null;
+                const lines = [a.blurb, lock ? "Buy it with gems in the Ascension tab." : on ? "It is running." : "Click to switch it on."];
+                if (rb && !lock) lines.push(`Rebirths once ${rbN} level${rbN > 1 ? "s are" : " is"} ready, checked every ${autoEvery("rb", lv)}s. Use - and + to change the number.`);
+                return (
+                    <Tip key={a.key} box tip={<TipCard title={a.name} color={a.color} tag={lock ? "Locked" : `Level ${lv} / ${max}`} lines={lines} rows={lock ? undefined : [["Fires every", `${autoEvery(a.key, lv)}s`], ...(lv < max ? ([["Next level", `${autoEvery(a.key, lv + 1)}s`, "var(--mc-green)"]] as [string, string, string][]) : [])]} notes={missing ? [{ text: missing, color: "var(--mc-gold)" }] : undefined} />}>
+                        <span className="ps-abc" data-on={on} data-lock={lock} data-fire={rb && on && ready >= rbN} style={{ ["--c" as string]: a.color } as CSSProperties}>
+                            <button type="button" role="switch" aria-checked={on} aria-label={a.name} disabled={lock} onClick={() => act(() => { s.auto[a.key] = !s.auto[a.key]; return true; })} className="ps-abb">
+                                <McSymbol name={a.symbol} />
+                                <span className="ps-abn">{a.name.split(" ")[0]}</span>
+                                <span className="ps-abs">{status}</span>
+                            </button>
+                            {rb && !lock && (
+                                <span className="ps-step">
+                                    <button type="button" aria-label="Fewer levels" onClick={() => act(() => { s.auto.rbN = Math.max(1, s.auto.rbN - 1); return true; })}>-</button>
+                                    <b>{rbN}</b>
+                                    <button type="button" aria-label="More levels" onClick={() => act(() => { s.auto.rbN = Math.min(cap, s.auto.rbN + 1); return true; })}>+</button>
                                 </span>
-                                {a.key === "rb" && !lock && (
-                                    <span className="ps-step">
-                                        <button type="button" aria-label="Fewer levels" onClick={() => act(() => { s.auto.rbN = Math.max(1, s.auto.rbN - 1); return true; })}>-</button>
-                                        <b>{Math.min(s.auto.rbN, cap)}</b>
-                                        <button type="button" aria-label="More levels" onClick={() => act(() => { s.auto.rbN = Math.min(cap, s.auto.rbN + 1); return true; })}>+</button>
-                                    </span>
-                                )}
-                                <button type="button" role="switch" aria-checked={on} aria-label={a.name} disabled={lock} onClick={() => act(() => { s.auto[a.key] = !s.auto[a.key]; return true; })} className="ps-sw" data-on={on}><i /></button>
-                            </div>
-                        </Tip>
-                    );
-                })}
-            </div>
+                            )}
+                        </span>
+                    </Tip>
+                );
+            })}
+            {!only && <span className="ps-ab-t">Unlock with gems in Ascension.</span>}
         </div>
     );
 }
@@ -303,24 +318,23 @@ export const PS_CSS = `
 .ps-sub{font-family:var(--font-rubik,inherit);font-size:.6rem;color:var(--muted-foreground)}
 .ps-max{font-family:var(--font-minecraft,inherit);font-size:.8rem;color:var(--mc-gold);text-shadow:0 0 10px color-mix(in oklch,var(--mc-gold) 50%,transparent)}
 .ps-need{font-family:var(--font-rubik,inherit);font-size:.62rem;color:var(--muted-foreground)}
-.ps-auto{padding:.7rem;border-radius:1rem;border:1px solid color-mix(in oklch,var(--mc-red) 30%,transparent);background:color-mix(in oklch,var(--mc-red) 5%,rgba(0,0,0,.2))}
-.ps-auto-h{display:flex;flex-wrap:wrap;align-items:center;gap:.4rem;margin-bottom:.5rem;font-family:var(--font-minecraft,inherit);font-size:.78rem;font-weight:700;color:var(--mc-red)}
-.ps-auto-h span{font-family:var(--font-rubik,inherit);font-size:.62rem;font-weight:400;color:var(--muted-foreground)}
-.ps-auto-g{display:grid;grid-template-columns:repeat(auto-fill,minmax(16rem,1fr));gap:.4rem}
-.ps-au{--c:var(--mc-green);display:flex;align-items:center;gap:.55rem;padding:.45rem .6rem;border-radius:.8rem;border:1px solid color-mix(in oklch,var(--c) 28%,transparent);background:color-mix(in oklch,var(--c) 6%,rgba(0,0,0,.2));transition:border-color .15s,box-shadow .2s}
-.ps-au[data-on="true"]{border-color:var(--c);box-shadow:0 0 16px -8px var(--c)}
-.ps-au[data-lock="true"]{opacity:.5}
-.ps-au-i{display:grid;place-items:center;flex:none;width:1.9rem;height:1.9rem;border-radius:.6rem;font-size:1rem;color:var(--c);background:color-mix(in oklch,var(--c) 18%,transparent)}
-.ps-au-n{display:block;font-family:var(--font-minecraft,inherit);font-size:.72rem;font-weight:700;color:var(--c)}
-.ps-au-s{display:block;font-family:var(--font-rubik,inherit);font-size:.6rem;color:var(--muted-foreground)}
+.ps-ab{display:flex;flex-wrap:wrap;align-items:center;gap:.35rem;padding:.3rem .4rem;border-radius:.8rem;border:1px solid color-mix(in oklch,var(--mc-red) 28%,transparent);background:color-mix(in oklch,var(--mc-red) 5%,rgba(0,0,0,.2))}
+.ps-ab-h{display:inline-flex;align-items:center;gap:.3rem;padding:0 .3rem;font-family:var(--font-minecraft,inherit);font-size:.68rem;font-weight:700;color:var(--mc-red)}
+.ps-ab-t{margin-left:auto;font-family:var(--font-rubik,inherit);font-size:.58rem;color:var(--muted-foreground)}
+.ps-abc{--c:var(--mc-green);display:inline-flex;align-items:center;gap:.25rem;padding-right:.2rem;border-radius:.65rem;border:1px solid color-mix(in oklch,var(--c) 25%,transparent);background:rgba(255,255,255,.03);transition:border-color .15s,box-shadow .2s,background .15s}
+.ps-abc[data-on="true"]{border-color:var(--c);background:color-mix(in oklch,var(--c) 12%,transparent);box-shadow:0 0 12px -6px var(--c)}
+.ps-abc[data-fire="true"]{animation:ps-fire 1s ease-in-out infinite}
+@keyframes ps-fire{50%{box-shadow:0 0 16px -2px var(--c)}}
+.ps-abc[data-lock="true"]{opacity:.5}
+.ps-abb{display:inline-flex;align-items:center;gap:.35rem;height:1.8rem;padding:0 .5rem;border-radius:.6rem;color:var(--c);outline:none}
+.ps-abb:focus-visible{outline:2px solid var(--c);outline-offset:1px}
+.ps-abb:disabled{cursor:not-allowed}
+.ps-abn{font-family:var(--font-minecraft,inherit);font-size:.66rem;font-weight:700}
+.ps-abs{font-family:var(--font-rubik,inherit);font-size:.58rem;color:var(--muted-foreground)}
+.ps-abc[data-on="true"] .ps-abs{color:var(--c)}
 .ps-step{display:inline-flex;align-items:center;gap:.2rem;font-family:var(--font-minecraft,inherit);font-size:.72rem}
 .ps-step button{width:1.35rem;height:1.35rem;border-radius:.4rem;background:rgba(255,255,255,.1);color:var(--foreground)}
 .ps-step button:hover{background:rgba(255,255,255,.2)}
-.ps-sw{position:relative;flex:none;width:2.4rem;height:1.35rem;border-radius:999px;border:1px solid rgba(255,255,255,.2);background:rgba(255,255,255,.08);transition:background .2s,border-color .2s;outline:none}
-.ps-sw i{position:absolute;left:.12rem;top:.12rem;width:1rem;height:1rem;border-radius:50%;background:#cfc8dd;transition:transform .2s cubic-bezier(.2,1.5,.4,1),background .2s}
-.ps-sw[data-on="true"]{background:color-mix(in oklch,var(--c) 30%,transparent);border-color:var(--c)}
-.ps-sw[data-on="true"] i{transform:translateX(1.05rem);background:var(--c);box-shadow:0 0 10px var(--c)}
-.ps-sw:disabled{cursor:not-allowed}
-@media (prefers-reduced-motion:reduce){.ps-card,.ps-qty button,.ps-act,.ps-chips button,.ps-sw i{transition:none}}
+@media (prefers-reduced-motion:reduce){.ps-card,.ps-qty button,.ps-act,.ps-chips button{transition:none}}
 `;
 

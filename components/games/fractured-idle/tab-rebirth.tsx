@@ -16,7 +16,7 @@ import {
     tokenMult,
     tokensAt,
 } from "@/lib/fractured-idle/engine";
-import { AutoPanel, PrestigeShop } from "./prestige-shop";
+import { AutoBar, PrestigeShop } from "./prestige-shop";
 import { SectionTitle, tint, type Ctx } from "./ui";
 
 // Rebirth view. The path previews the next max(5, stack cap) rebirth levels
@@ -268,8 +268,8 @@ export function RebirthTab({ s, d, F, act, say }: Ctx) {
             </div>
 
             <SectionTitle color="var(--mc-yellow)">Token upgrades</SectionTitle>
+            <AutoBar s={s} act={act} />
             <PrestigeShop cur="tokens" s={s} F={F} act={act} say={say} />
-            <AutoPanel s={s} act={act} />
         </>
     );
 }
