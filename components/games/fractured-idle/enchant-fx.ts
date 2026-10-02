@@ -21,12 +21,13 @@ function spawn(host: HTMLElement, el: HTMLElement, frames: Keyframe[], opts: Key
     el.style.top = "0";
     el.style.pointerEvents = "none";
     el.style.willChange = "transform,opacity";
+    el.style.opacity = "0"; // never visible at the corner while a delay is pending
     host.appendChild(el);
     const done = () => {
         alive--;
         el.remove();
     };
-    const a = el.animate(frames, { fill: "forwards", ...opts });
+    const a = el.animate(frames, { fill: "both", ...opts });
     a.onfinish = done;
     a.oncancel = done;
 }
