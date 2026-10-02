@@ -41,6 +41,8 @@ interface Props<T extends string> {
     onSelect: (id: T) => void;
     /** Screen-reader name for the bar. */
     label?: string;
+    /** Plain single-row bars show every label ("always", the default) or only the active one ("active"). */
+    labels?: "always" | "active";
     /** Show "key N" in the tooltips (only the main switcher has number keys). */
     keys?: boolean;
     /** Called when a tab's badge is read (hovered, focused or marked read). */
@@ -61,7 +63,7 @@ const actSig = (notes: TipNote[] | undefined) => (notes ?? []).filter((x) => x.a
 const NO_NOTES = {};
 const FLAT: TabGroup[] = [{ id: "", label: "", color: "var(--mc-aqua)" }];
 
-function Bar<T extends string>({ tabs, groups, current, notes = NO_NOTES, onSelect, label = "Game sections", keys = true, onRead, onReadAll }: Props<T>) {
+function Bar<T extends string>({ tabs, groups, current, notes = NO_NOTES, onSelect, label = "Game sections", labels = "always", keys = true, onRead, onReadAll }: Props<T>) {
     const flat = !groups;
     const rows = groups ?? FLAT;
     const pick = useRef(onSelect);
@@ -77,7 +79,7 @@ function Bar<T extends string>({ tabs, groups, current, notes = NO_NOTES, onSele
     };
     const total = tabs.reduce((a, t) => a + shown(t.id), 0);
     return (
-        <nav className="fi-tabs" data-flat={flat} aria-label={label}>
+        <nav className="fi-tabs" data-flat={flat} data-labels={labels} aria-label={label}>
             {rows.map((g) => {
                 const list = flat ? tabs : tabs.filter((t) => t.group === g.id);
                 const hot = list.some((t) => shown(t.id) > 0);
@@ -168,7 +170,7 @@ function Bar<T extends string>({ tabs, groups, current, notes = NO_NOTES, onSele
     );
 }
 
-export const TabBar = memo(Bar, (a, b) => a.current === b.current && a.tabs === b.tabs && a.groups === b.groups && sigOf(a.notes ?? NO_NOTES) === sigOf(b.notes ?? NO_NOTES)) as typeof Bar;
+export const TabBar = memo(Bar, (a, b) => a.current === b.current && a.labels === b.labels && a.tabs === b.tabs && a.groups === b.groups && sigOf(a.notes ?? NO_NOTES) === sigOf(b.notes ?? NO_NOTES)) as typeof Bar;
 
 export const TABBAR_CSS = `
 .fi-tabs{display:flex;flex-wrap:wrap;gap:.4rem .55rem;padding:.55rem .6rem;border-bottom:1px solid rgba(255,255,255,.1);background:linear-gradient(180deg,rgba(255,255,255,.035),transparent)}
@@ -203,9 +205,9 @@ export const TABBAR_CSS = `
 @keyframes fi-tab-ring{0%{transform:scale(1);opacity:.8}100%{transform:scale(1.9);opacity:0}}
 .fi-tabs[data-flat="true"]{padding:.3rem 0;border-bottom:0;background:none}
 .fi-tabs[data-flat="true"] .fi-tg-row{padding:.2rem;flex-wrap:wrap}
-.fi-tabs[data-flat="true"] .fi-tab-l{max-width:8rem;opacity:1;margin-left:.4rem}
-.fi-tabs[data-flat="true"] .fi-tab{padding:0 .65rem}
-.fi-tabs[data-flat="true"] .fi-tab[data-on="false"] .fi-tab-l{color:color-mix(in oklch,var(--c) 70%,var(--muted-foreground))}
+.fi-tabs[data-flat="true"][data-labels="always"] .fi-tab-l{max-width:8rem;opacity:1;margin-left:.4rem}
+.fi-tabs[data-flat="true"][data-labels="always"] .fi-tab{padding:0 .65rem}
+.fi-tabs[data-flat="true"][data-labels="always"] .fi-tab[data-on="false"] .fi-tab-l{color:color-mix(in oklch,var(--c) 70%,var(--muted-foreground))}
 @media (max-width:480px){.fi-tabs{gap:.3rem;padding:.4rem}.fi-tg-l{display:none}.fi-tab{height:2.3rem;min-width:2.3rem;padding:0 .5rem}}
 @media (prefers-reduced-motion:reduce){.fi-tab,.fi-tab-i,.fi-tab-l{transition:none;animation:none!important}.fi-tab-n,.fi-tab-n::before{animation:none}}
 `;
