@@ -1,3 +1,4 @@
+import type { EStat } from "./enchant";
 import type { McSymbolName } from "@/components/mc-symbol";
 import { PETS, petLevel } from "./pets-data";
 import type { MineState } from "./mine";
@@ -214,7 +215,7 @@ export function colRewardText(r: ColReward, minion: string, next?: string): stri
     }
 }
 
-export type UpKind = "click" | "minion" | "all" | "auto" | "critChance" | "critDmg" | "synergy" | "mown" | "comboMax" | "comboGain" | "comboLuck" | "evRate" | "evBobber" | "evLoot" | "evGolden" | "evLife" | "evPower" | "evCurse" | "qteSize" | "qteTime" | "qteReward";
+export type UpKind = "click" | "minion" | "all" | "auto" | "critChance" | "critDmg" | "synergy" | "mown" | "comboMax" | "comboGain" | "comboLuck" | "evRate" | "evBobber" | "evLoot" | "evGolden" | "evLife" | "evPower" | "evCurse" | "qteSize" | "qteTime" | "qteReward" | "fx";
 
 export interface UpgradeDef {
     id: string;
@@ -231,6 +232,8 @@ export interface UpgradeDef {
     minion?: number;
     req?: number;
     extra?: { col?: number; disc?: number };
+    /** kind "fx": the stat it feeds (per level: `value`), read by upFx in upfx.ts. */
+    stat?: EStat;
 }
 
 const once = (
@@ -311,6 +314,34 @@ const BASE_UPGRADES: UpgradeDef[] = [
     once("tal7", "Hunter Ring", "all", 1.75, 2e17, "wisdom", "var(--mc-red)"),
     once("tal8", "Ender Artifact", "all", 2, 1e19, "wisdom", "var(--mc-light-purple)"),
     once("tal9", "Fractured Relic", "all", 3, 1e21, "wisdom", "var(--mc-blue)"),
+    // The late game: the old lists stopped at 1e21, these keep the climb going.
+    once("fuel7", "Fractured Fuel", "minion", 3, 5e13, "heat", "var(--mc-light-purple)"),
+    once("fuel8", "Starfire Cell", "minion", 4, 5e16, "heat", "var(--mc-aqua)"),
+    once("drill5", "Fractured Drill", "click", 25, 1e25, "forge", "var(--mc-light-purple)"),
+    once("tal10", "Saga Charm", "all", 2.5, 5e23, "wisdom", "var(--mc-gold)"),
+    once("tal11", "Mythic Idol", "all", 4, 1e27, "wisdom", "var(--mc-red)"),
+];
+
+
+// New systems: study and pets, the Mine, the Forge, the Farm and the Market. Each one feeds a stat through upFx (upfx.ts).
+// Prices are spread over the whole game, so there is always something worth saving for, and all of them restart with a rebirth.
+const fx = (id: string, name: string, desc: string, stat: EStat, value: number, cost: number, growth: number, max: number, symbol: McSymbolName, color: string): UpgradeDef =>
+    ({ id, name, desc, kind: "fx", stat, value, cost, growth, max, symbol, color });
+const FX_UPGRADES: UpgradeDef[] = [
+    fx("study", "Study Habit", "+4% skill XP", "xp", 0.04, 6e4, 2.3, 20, "wisdom", "var(--mc-aqua)"),
+    fx("treats", "Pet Treats", "+6% pet experience", "petXp", 0.06, 2.5e5, 2.35, 15, "petLuck", "var(--mc-dark-aqua)"),
+    fx("motes", "Dust Collector", "+5% arcane dust", "dust", 0.05, 5e5, 2.4, 15, "intelligence", "var(--mc-light-purple)"),
+    fx("charm", "Four-Leaf Charm", "+3% enchant luck", "luck", 0.03, 3e6, 2.6, 15, "fortune", "var(--mc-green)"),
+    fx("lantern", "Night Lantern", "+4% offline earnings", "offline", 0.04, 8e6, 2.6, 15, "night", "var(--mc-blue)"),
+    fx("tithe", "Token Tithe", "+2% rebirth tokens", "tokens", 0.02, 5e9, 3, 10, "portal", "var(--mc-yellow)"),
+    fx("detect", "Ore Detector", "+4% ore from mining", "ore", 0.04, 3e5, 2.3, 25, "pick", "var(--mc-gold)"),
+    fx("stoke", "Stoked Furnaces", "+4% forge speed", "forge", 0.04, 2e6, 2.4, 20, "heat", "var(--mc-red)"),
+    fx("spindle", "Diamond Spindle", "+4% drill swing speed", "drill", 0.04, 2e7, 2.5, 20, "forge", "var(--mc-aqua)"),
+    fx("compost", "Compost Heaps", "+4% crops per harvest", "crop", 0.04, 3e5, 2.3, 25, "flower", "var(--mc-green)"),
+    fx("lamps", "Grow Lamps", "+4% crop growth speed", "grow", 0.04, 1.5e6, 2.4, 20, "day", "var(--mc-yellow)"),
+    fx("hearth", "Stone Hearths", "+4% cooking speed", "cook", 0.04, 6e6, 2.4, 20, "heat", "var(--mc-gold)"),
+    fx("seedvault", "Golden Seed Vault", "+0.4% golden crop chance", "goldCrop", 0.004, 4e7, 2.8, 20, "magicFind", "var(--mc-gold)"),
+    fx("stall", "Roadside Stall", "+3% crop sale price", "sale", 0.03, 1.5e8, 2.7, 20, "scales", "var(--mc-green)"),
 ];
 
 // Three upgrades per minion. Price is a multiple of that minion's base price
@@ -357,7 +388,7 @@ export const MINION_UPS: UpgradeDef[] = MINIONS.flatMap((m, i) =>
 
 export const MINION_UPS_BY: UpgradeDef[][] = MINIONS.map((_, i) => MINION_UPS.filter((u) => u.minion === i));
 
-export const UPGRADES: UpgradeDef[] = [...BASE_UPGRADES, ...MINION_UPS];
+export const UPGRADES: UpgradeDef[] = [...BASE_UPGRADES, ...FX_UPGRADES, ...MINION_UPS];
 
 export interface AutoPrefs {
     min: boolean;
@@ -381,6 +412,8 @@ export interface RebirthUpDef {
     /** Another token upgrade that must reach `needsLvl` (default 1) before this one can be bought. */
     needs?: string;
     needsLvl?: number;
+    /** A stat it feeds, and how much per level (read by upFx in upfx.ts). */
+    fx?: [EStat, number];
 }
 
 export const REBIRTH_UPS: RebirthUpDef[] = [
@@ -403,10 +436,24 @@ export const REBIRTH_UPS: RebirthUpDef[] = [
     { id: "swarm", name: "Minion Swarm", desc: "+2% minion output, per level", cost: 5, growth: 1.2, max: 30, symbol: "forge", color: "var(--mc-green)", needs: "engine", needsLvl: 5 },
     { id: "edge", name: "Keen Edge", desc: "+3% crit damage, per level", cost: 4, growth: 1.2, max: 25, symbol: "critDamage", color: "var(--mc-red)", needs: "luck", needsLvl: 5 },
     { id: "bank", name: "Token Bank", desc: "+10% rebirth tokens, per level", cost: 8, growth: 1.3, max: 15, symbol: "pristine", color: "var(--mc-yellow)", needs: "magnet", needsLvl: 5 },
-    { id: "heir", name: "Heirloom", desc: "Keep 2% more of your training upgrade levels through rebirth, per level", cost: 8, growth: 1.5, max: 10, symbol: "check", color: "var(--mc-gold)", needs: "keep", needsLvl: 3 },    // Farming and Mining: bigger gardens and richer rock.
+    { id: "heir", name: "Heirloom", desc: "Keep 2% more of your training upgrade levels through rebirth, per level", cost: 8, growth: 1.5, max: 10, symbol: "check", color: "var(--mc-gold)", needs: "keep", needsLvl: 3 },
+    // Farming and Mining: bigger gardens and richer rock.
     { id: "acres", name: "Acres", desc: "+2 plots in every garden, per level", cost: 2, growth: 1.55, max: 12, symbol: "fortune", color: "var(--mc-green)" },
     { id: "loam", name: "Rich Loam", desc: "+5% crops from every harvest, per level", cost: 3, growth: 1.4, max: 15, symbol: "flower", color: "var(--mc-green)", needs: "acres", needsLvl: 2 },
     { id: "lode", name: "Mother Lode", desc: "+5% ore from everything you mine, per level", cost: 3, growth: 1.4, max: 15, symbol: "pick", color: "var(--mc-gold)", needs: "acres", needsLvl: 2 },
+    // The systems that came later: study, pets, the Forge, the Market and the deep Mine and Farm.
+    { id: "scholar", name: "Scholar's Mind", desc: "+6% skill XP, per level", cost: 3, growth: 1.45, max: 15, symbol: "wisdom", color: "var(--mc-aqua)", fx: ["xp", 0.06] },
+    { id: "whisper", name: "Pet Whisperer", desc: "+6% pet experience, per level", cost: 2, growth: 1.4, max: 15, symbol: "petLuck", color: "var(--mc-dark-aqua)", fx: ["petXp", 0.06] },
+    { id: "dustw", name: "Dust Whisperer", desc: "+6% arcane dust, per level", cost: 3, growth: 1.45, max: 12, symbol: "intelligence", color: "var(--mc-light-purple)", fx: ["dust", 0.06] },
+    { id: "star", name: "Lucky Star", desc: "+2% enchant luck, per level", cost: 4, growth: 1.5, max: 12, symbol: "fortune", color: "var(--mc-green)", fx: ["luck", 0.02] },
+    { id: "thumbs", name: "Green Thumbs", desc: "+4% crop growth speed, per level", cost: 3, growth: 1.4, max: 15, symbol: "day", color: "var(--mc-yellow)", needs: "acres", needsLvl: 2, fx: ["grow", 0.04] },
+    { id: "savvy", name: "Market Savvy", desc: "+4% crop sale price, per level", cost: 4, growth: 1.45, max: 15, symbol: "scales", color: "var(--mc-green)", needs: "loam", needsLvl: 3, fx: ["sale", 0.04] },
+    { id: "seedl", name: "Seed Luck", desc: "+0.6% golden crop chance, per level", cost: 5, growth: 1.5, max: 12, symbol: "magicFind", color: "var(--mc-gold)", needs: "loam", needsLvl: 3, fx: ["goldCrop", 0.006] },
+    { id: "hearth2", name: "Hearth Wisdom", desc: "+5% cooking speed, per level", cost: 3, growth: 1.4, max: 12, symbol: "heat", color: "var(--mc-gold)", needs: "loam", needsLvl: 1, fx: ["cook", 0.05] },
+    { id: "hotf", name: "Hot Forge", desc: "+5% forge speed, per level", cost: 3, growth: 1.4, max: 15, symbol: "heat", color: "var(--mc-red)", needs: "lode", needsLvl: 2, fx: ["forge", 0.05] },
+    { id: "torque", name: "Drill Torque", desc: "+4% drill swing speed, per level", cost: 4, growth: 1.45, max: 15, symbol: "forge", color: "var(--mc-aqua)", needs: "lode", needsLvl: 3, fx: ["drill", 0.04] },
+    { id: "veins", name: "Deep Veins", desc: "+5% ore from mining, per level", cost: 5, growth: 1.5, max: 15, symbol: "pick", color: "var(--mc-gold)", needs: "lode", needsLvl: 5, fx: ["ore", 0.05] },
+    { id: "bounty", name: "Bountiful Harvest", desc: "+4% crops per harvest, per level", cost: 5, growth: 1.5, max: 15, symbol: "flower", color: "var(--mc-green)", needs: "loam", needsLvl: 5, fx: ["crop", 0.04] },
 ];
 
 /** Bonus tokens for reaching a rebirth level (level -> tokens). */
@@ -550,6 +597,7 @@ export interface AscUpDef {
     color: string;
     needs?: string; // another upgrade that must be bought first
     needsLvl?: number; // ...to at least this level (default 1)
+    fx?: [EStat, number]; // a stat it feeds, per level (read by upFx in upfx.ts)
 }
 
 export const ASC_UPS: AscUpDef[] = [
@@ -577,6 +625,18 @@ export const ASC_UPS: AscUpDef[] = [
     { id: "autoRb", name: "Rebirth Cycle", desc: "Automatically rebirths once the number of levels you set is ready", cost: 20, growth: 1, max: 1, symbol: "portal", color: "var(--mc-red)", needs: "autoTok", needsLvl: 1 },
     { id: "estate", name: "Estate", desc: "+6 plots in every garden, per level", cost: 3, growth: 1.5, max: 10, symbol: "fortune", color: "var(--mc-green)" },
     { id: "bedrock", name: "Bedrock Rig", desc: "+20% drill swings, per level", cost: 3, growth: 1.5, max: 10, symbol: "pick", color: "var(--mc-gold)" },
+    // Deep gem upgrades for the Mine, the Farm, the Market and study.
+    { id: "tome", name: "Ancient Tome", desc: "+12% skill XP, per level", cost: 2, growth: 1.4, max: 12, symbol: "wisdom", color: "var(--mc-aqua)", fx: ["xp", 0.12] },
+    { id: "harvg", name: "Harvest Gods", desc: "+10% crops per harvest, per level", cost: 3, growth: 1.45, max: 12, symbol: "flower", color: "var(--mc-green)", needs: "estate", needsLvl: 2, fx: ["crop", 0.1] },
+    { id: "age", name: "Golden Age", desc: "+1% golden crop chance, per level", cost: 4, growth: 1.5, max: 10, symbol: "magicFind", color: "var(--mc-gold)", needs: "harvg", needsLvl: 1, fx: ["goldCrop", 0.01] },
+    { id: "broker", name: "Market Maker", desc: "+8% crop sale price, per level", cost: 3, growth: 1.45, max: 12, symbol: "scales", color: "var(--mc-green)", needs: "estate", needsLvl: 3, fx: ["sale", 0.08] },
+    { id: "feast", name: "Endless Feast", desc: "+10% cooking speed, per level", cost: 3, growth: 1.45, max: 10, symbol: "heat", color: "var(--mc-gold)", needs: "estate", needsLvl: 1, fx: ["cook", 0.1] },
+    { id: "coretap", name: "Core Tap", desc: "+10% ore from mining, per level", cost: 3, growth: 1.45, max: 12, symbol: "pick", color: "var(--mc-gold)", needs: "bedrock", needsLvl: 2, fx: ["ore", 0.1] },
+    { id: "spindle2", name: "Drill Spindle", desc: "+10% drill swing speed, per level", cost: 4, growth: 1.5, max: 10, symbol: "forge", color: "var(--mc-aqua)", needs: "bedrock", needsLvl: 3, fx: ["drill", 0.1] },
+    { id: "bellows2", name: "Eternal Bellows", desc: "+10% forge speed, per level", cost: 3, growth: 1.45, max: 12, symbol: "heat", color: "var(--mc-red)", needs: "bedrock", needsLvl: 1, fx: ["forge", 0.1] },
+    { id: "dusk", name: "Eternal Night", desc: "+10% offline earnings, per level", cost: 3, growth: 1.5, max: 10, symbol: "night", color: "var(--mc-blue)", fx: ["offline", 0.1] },
+    { id: "fate", name: "Cosmic Fortune", desc: "+6% enchant luck, per level", cost: 3, growth: 1.5, max: 10, symbol: "fortune", color: "var(--mc-green)", fx: ["luck", 0.06] },
+    { id: "vortex", name: "Dust Vortex", desc: "+10% arcane dust, per level", cost: 3, growth: 1.45, max: 10, symbol: "intelligence", color: "var(--mc-light-purple)", fx: ["dust", 0.1] },
 ];
 
 export type SkillId = "mining" | "farming" | "combat" | "fishing" | "foraging" | "enchanting";

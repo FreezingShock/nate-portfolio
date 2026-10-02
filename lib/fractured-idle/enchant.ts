@@ -5,6 +5,7 @@ import { skillPerks } from "./skills";
 import { mineFx } from "./mine";
 import { farmFx } from "./farm";
 import { journeyFx } from "./sagas";
+import { upFx } from "./upfx";
 
 // Enchanting: roll random enchants onto four things (the button, your minions,
 // popup events and a universal tome), Terraria-reforge and Sol's-RNG style.
@@ -26,13 +27,15 @@ export const SLOT_IDS: SlotId[] = ["button", "minions", "events", "tome"];
 export type EStat =
     | "click" | "minion" | "all" | "crit" | "critDmg" | "comboMax" | "comboGain" | "bobber" | "xp" | "offline" | "col" | "cost"
     | "synergy" | "auto" | "petXp" | "evFreq" | "evLife" | "evPower" | "evGolden" | "evBobber" | "evPay" | "qteSize" | "qteTime"
-    | "curse" | "luck" | "dust" | "tokens" | "evDust" | "bolt" | "midas" | "echo" | "chain";
+    | "curse" | "luck" | "dust" | "tokens" | "evDust" | "bolt" | "midas" | "echo" | "chain"
+    | "ore" | "drill" | "forge" | "crop" | "grow" | "goldCrop" | "sale" | "cook";
 
 export type EnchFx = Record<EStat, number>;
 export const STAT_IDS: EStat[] = [
     "click", "minion", "all", "crit", "critDmg", "comboMax", "comboGain", "bobber", "xp", "offline", "col", "cost",
     "synergy", "auto", "petXp", "evFreq", "evLife", "evPower", "evGolden", "evBobber", "evPay", "qteSize", "qteTime",
     "curse", "luck", "dust", "tokens", "evDust", "bolt", "midas", "echo", "chain",
+    "ore", "drill", "forge", "crop", "grow", "goldCrop", "sale", "cook",
 ];
 export const zeroFx = (): EnchFx => Object.fromEntries(STAT_IDS.map((k) => [k, 0])) as EnchFx;
 
@@ -70,6 +73,14 @@ export const STAT_META: Record<EStat, { label: string; fmt: Fmt }> = {
     midas: { label: "Midas chance per click", fmt: "chance" },
     echo: { label: "Echo chance per click", fmt: "chance" },
     chain: { label: "chain-popup chance", fmt: "chance" },
+    ore: { label: "ore from mining", fmt: "pct" },
+    drill: { label: "drill swing speed", fmt: "pct" },
+    forge: { label: "forge speed", fmt: "pct" },
+    crop: { label: "crops per harvest", fmt: "pct" },
+    grow: { label: "crop growth speed", fmt: "pct" },
+    goldCrop: { label: "golden crop chance", fmt: "pct" },
+    sale: { label: "crop sale price", fmt: "pct" },
+    cook: { label: "cooking speed", fmt: "pct" },
 };
 
 const trim = (n: number, d: number) => n.toFixed(d).replace(/\.?0+$/, "");
@@ -451,6 +462,8 @@ export function allFx(s: State): EnchFx {
     for (const k of STAT_IDS) fx[k] += mf[k] ?? 0;
     const ff = farmFx(s); // Farming: hoe tiers, crop collections, scarecrows and feats
     for (const k of STAT_IDS) fx[k] += ff[k] ?? 0;
+    const uf = upFx(s); // Shard, token and gem upgrades that feed the whole game
+    for (const k of STAT_IDS) fx[k] += uf[k] ?? 0;
     const jf = journeyFx(s); // The Level page: saga chapters, finales and level milestone perks
     for (const k of STAT_IDS) fx[k] += jf[k] ?? 0;
     return fx;

@@ -1,6 +1,7 @@
 // Sanity run for the Mine engine: tools, the drill and its parts, per-tool enchants, the forge, milestones and old-save migration.
 import { newState, parseSave, serialize, derive } from "../lib/fractured-idle/engine";
 import * as MN from "../lib/fractured-idle/mine";
+import { ASC_UPS, REBIRTH_UPS, UPGRADES } from "../lib/fractured-idle/data";
 
 let fails = 0;
 const ok = (c: boolean, m: string) => {
@@ -92,6 +93,18 @@ ok(MN.claimFeat(s, got[0].id) === null, "a milestone cannot be claimed twice");
 ok(MN.ORE_LADDERS.length === MN.ORES.length && MN.INGOT_LADDERS.length === MN.INGOTS.length, "an item ladder for every ore and ingot");
 ok(MN.COL_AT.length === 10, "ten collection tiers");
 ok(s.tokens >= tok, "grants were paid");
+
+// New-system upgrades feed the Mine through upStat
+const y0 = MN.yieldMult(s);
+s.ups.detect = 10;
+s.rups.veins = 2;
+s.aups.coretap = 1;
+ok(Math.abs(MN.yieldMult(s) / y0 - 1.6) < 1e-9, "Ore Detector, Deep Veins and Core Tap raise ore");
+const f0 = MN.forgeSpeed(s);
+s.aups.bellows2 = 2;
+ok(MN.forgeSpeed(s) > f0, "Eternal Bellows speeds the forge");
+ok(UPGRADES.filter((u) => u.kind === "fx").every((u) => u.stat && u.cost > 0 && u.max > 1), "every fx upgrade names a stat");
+ok(REBIRTH_UPS.concat(ASC_UPS as never[]).every((u) => !u.needs || [...REBIRTH_UPS, ...ASC_UPS].some((x) => x.id === u.needs)), "every prerequisite exists");
 
 // Save round trip
 const back = parseSave(serialize(s));

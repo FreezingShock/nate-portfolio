@@ -60,7 +60,7 @@ import { ISLAND_BY_ID } from "@/lib/fractured-idle/islands";
 import { CostRow, CropTip, amt, col, fmtPct, C } from "./farm-bits";
 import { Tip, TipCard } from "./tooltip";
 import { SectionTitle, type Ctx } from "./ui";
-import { ItemIcon } from "./skill-kit";
+import { ItemIcon, RecentFinds } from "./skill-kit";
 import { SAGA_BY_ID, chapterFrac, chapterReady, currentChapter, tasksDone } from "@/lib/fractured-idle/sagas";
 
 // The Garden: one garden per dimension (a biome), every open one growing at once, with a tab for each. Tap an empty
@@ -486,16 +486,7 @@ export function Garden({ s, d, F, render, say, openSaga }: P & { openSaga: () =>
                 </div>
             )}
 
-            {f.log.length > 0 && (
-                <>
-                    <SectionTitle color={C}>Recent finds</SectionTitle>
-                    <ul className="fi-mn-log" aria-live="polite">
-                        {f.log.slice(0, 5).map((l, i) => (
-                            <li key={`${i}:${l.text}`} style={{ color: l.color }}>{l.text}</li>
-                        ))}
-                    </ul>
-                </>
-            )}
+            <RecentFinds log={f.log} color={C} noun="harvests" />
         </>
     );
 }

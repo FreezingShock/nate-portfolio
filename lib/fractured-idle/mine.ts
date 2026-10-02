@@ -3,6 +3,7 @@ import type { McSymbolName } from "@/components/mc-symbol";
 import { fmtStat, type EStat } from "./enchant";
 import { colSteps, collectionRewards, craftRewards, milestonesOf, type Ladder, type Milestone, type MsReward } from "./milestones";
 import { activeIsland } from "./island-logic";
+import { upStat } from "./upfx";
 import type { Dim } from "./islands";
 import type { GrantKind } from "./skills";
 
@@ -416,6 +417,8 @@ export interface Job {
 export interface LogEntry {
     text: string;
     color: string;
+    t?: number; // when it last happened (ms)
+    n?: number; // how many times in a row
 }
 
 export interface MineState {
@@ -500,7 +503,7 @@ export function cleanMine(raw: unknown): MineState {
     out.crafted = Math.max(0, Math.floor(num(o.crafted)));
     out.log = (Array.isArray(o.log) ? (o.log as Record<string, unknown>[]) : [])
         .filter((e) => e && typeof e.text === "string" && typeof e.color === "string")
-        .map((e) => ({ text: String(e.text).slice(0, 80), color: String(e.color).slice(0, 40) }))
+        .map((e) => ({ text: String(e.text).slice(0, 80), color: String(e.color).slice(0, 40), t: Number(e.t) > 0 ? Number(e.t) : undefined, n: Number(e.n) > 1 ? Math.min(999, Math.floor(Number(e.n))) : undefined }))
         .slice(0, 8);
 
     // Tools. A save from before the Drill update has `pick` (an index), hand and rig upgrades, and ore-built drills: they become a
@@ -675,7 +678,7 @@ export const pickPower = (s: State) => heldTool(s).power * (1 + 0.08 * en(s, "ef
 export const comboFactor = (combo: number) => 1 + 0.45 * Math.max(0, combo - 1);
 /** Ore from everything you mine. */
 export const yieldMult = (s: State) =>
-    dimFx(s).yield * (1 + 0.05 * (s.rups.lode || 0)) * (1 + 0.08 * en(s, "fort")) * (1 + (heldTool(s).trait.yield ?? 0)) * (1 + (coreFx(s).yield ?? 0)) * (hasRelic(s, "lamp") ? 1.06 : 1) * (hasRelic(s, "lens") ? 1.1 : 1);
+    dimFx(s).yield * (1 + 0.05 * (s.rups.lode || 0)) * (1 + upStat(s, "ore")) * (1 + 0.08 * en(s, "fort")) * (1 + (heldTool(s).trait.yield ?? 0)) * (1 + (coreFx(s).yield ?? 0)) * (hasRelic(s, "lamp") ? 1.06 : 1) * (hasRelic(s, "lens") ? 1.1 : 1);
 export const luckyChance = (s: State) => 0.015 * en(s, "lucky") + (heldTool(s).trait.lucky ?? 0) + (hasRelic(s, "pebble") ? 0.06 : 0);
 export const explosiveChance = (s: State) => 0.012 * en(s, "explosive");
 export const geodeChance = (s: State) => dimFx(s).geode * 0.0008 * (1 + 0.1 * en(s, "seeker") + (heldTool(s).trait.geode ?? 0) + (coreFx(s).geode ?? 0) + (hasRelic(s, "pan") ? 0.2 : 0));
@@ -684,7 +687,7 @@ export const rushLen = (s: State) => 8 + 2 * en(s, "rush") + (heldTool(s).trait.
 export const rushMult = (s: State) => 3 * (1 + 0.1 * en(s, "rush")) * (1 + (coreFx(s).rushYield ?? 0));
 export const mineXpMult = (s: State) => (1 + 0.06 * en(s, "scholar")) * (1 + (heldTool(s).trait.xp ?? 0)) * (1 + (coreFx(s).xp ?? 0)) * dimFx(s).xp;
 export const forgeSlots = (s: State) => 1 + upLevel(s, "furnace");
-export const forgeSpeed = (s: State) => 1 + 0.08 * upLevel(s, "bellows") + (hasRelic(s, "heart") ? 0.1 : 0);
+export const forgeSpeed = (s: State) => 1 + upStat(s, "forge") + 0.08 * upLevel(s, "bellows") + (hasRelic(s, "heart") ? 0.1 : 0);
 export const crackEvery = (s: State) => (en(s, "cracker") > 0 ? 36 / en(s, "cracker") : Infinity);
 export const smeltCut = (s: State) => Math.pow(0.97, upLevel(s, "smelter"));
 
@@ -693,7 +696,7 @@ export const drillDmg = (s: State) => pickPower(s);
 /** Output multiplier on everything the drill mines by itself (Ore Magnet and the Steel Heart). */
 export const drillMult = (s: State) => (1 + 0.05 * en(s, "magnet")) * (hasRelic(s, "heart") ? 1.25 : 1) * (hasRelic(s, "dcore") ? 1.2 : 1);
 /** Swings per second the drill makes: its engine, Turbo Motor, the Overclock Core and the dimension. */
-export const drillSwings = (s: State) => (drillHeld(s) ? (rigPart(s, "engine")?.swings ?? 0) * (1 + 0.06 * en(s, "motor") + (coreFx(s).speed ?? 0) + (hasRelic(s, "dcore") ? 0.1 : 0)) * dimFx(s).drill * (1 + 0.2 * (s.aups.bedrock || 0)) : 0);
+export const drillSwings = (s: State) => (drillHeld(s) ? (rigPart(s, "engine")?.swings ?? 0) * (1 + 0.06 * en(s, "motor") + (coreFx(s).speed ?? 0) + (hasRelic(s, "dcore") ? 0.1 : 0)) * dimFx(s).drill * (1 + 0.2 * (s.aups.bedrock || 0)) * (1 + upStat(s, "drill")) : 0);
 /** 1 when the drill is in your hands. */
 export const totalDrills = (s: State) => (drillHeld(s) ? 1 : 0);
 /** Mining never stops: a trickle of swings even with nothing pressed. */
@@ -889,8 +892,15 @@ export const onSwing = (fn: (e: SwingOut) => void) => {
 };
 
 export function pushLog(s: State, text: string, color: string) {
-    s.mine.log.unshift({ text, color });
-    if (s.mine.log.length > 8) s.mine.log.length = 8;
+    const log = s.mine.log;
+    const top = log[0];
+    if (top && top.text === text) {
+        top.n = (top.n ?? 1) + 1;
+        top.t = Date.now();
+        return;
+    }
+    log.unshift({ text, color, t: Date.now(), n: 1 });
+    if (log.length > 10) log.length = 10;
 }
 
 const addOre = (s: State, id: OreId, units: number) => {

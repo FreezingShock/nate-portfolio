@@ -87,8 +87,9 @@ import { SAGA_BY_ID, chapterFrac, chapterReady, currentChapter, tasksDone } from
 import { Forge, FORGE_CSS } from "./mine-forge";
 import { MINE_TOOL_CSS, ToolView } from "./mine-tool";
 import { mineNeeds } from "./mine-bits";
-import { MilestoneBoard, NeedTile, SKILL_KIT_CSS } from "./skill-kit";
+import { MilestoneBoard, NeedTile, RecentFinds, SKILL_KIT_CSS } from "./skill-kit";
 import { wantLevel } from "./level-nav";
+import { TabBar, type TabGroup, type TabItem } from "./tab-bar";
 import { Tip, TipCard } from "./tooltip";
 import { Progress, SectionTitle, type Ctx } from "./ui";
 
@@ -102,6 +103,18 @@ import { Progress, SectionTitle, type Ctx } from "./ui";
 
 const C = "#e0b070";
 type View = "dig" | "tool" | "forge" | "ores" | "worlds" | "milestones";
+const MINE_TABS: TabItem<View>[] = [
+    { id: "dig", label: "Mine", symbol: "pick", group: "work", color: "#e0b070", blurb: "The rock face: swing, crack geodes and watch what drops." },
+    { id: "tool", label: "Tool", symbol: "strength", group: "work", color: "#ffd23a", blurb: "Pickaxes, the drill, its parts and your enchants." },
+    { id: "forge", label: "Forge", symbol: "forge", group: "work", color: "#ff9a4d", blurb: "Smelt ingots and craft drill parts, pickaxes and relics." },
+    { id: "ores", label: "Ores", symbol: "gem", group: "know", color: "#55ffff", blurb: "Every ore, where it drops and what it makes." },
+    { id: "worlds", label: "Worlds", symbol: "portal", group: "know", color: "#c58bff", blurb: "What each island and dimension gives." },
+    { id: "milestones", label: "Milestones", symbol: "pristine", group: "know", color: "#55ff55", blurb: "Tiers for every item and action, with permanent rewards." },
+];
+const MINE_GROUPS: TabGroup[] = [
+    { id: "work", label: "Work", color: "#ff9a4d" },
+    { id: "know", label: "Know", color: "#55ffff" },
+];
 
 const fmtPct = (n: number) => `${+(n * 100).toFixed(1)}%`;
 const amt = (F: (n: number) => string, n: number) => (n >= 1000 ? F(Math.floor(n)) : n >= 100 ? String(Math.floor(n)) : String(+n.toFixed(n < 10 ? 2 : 1)));
@@ -140,16 +153,18 @@ export function MineTab({ s, d, F, render, say, open }: Ctx & { open: (tab: stri
 
             <QuickBar s={s} d={d} render={render} say={say} />
 
-            <div className="fi-mn-seg" role="tablist">
-                {([["dig", "Mine"], ["tool", "Tool"], ["forge", "Forge"], ["ores", "Ores"], ["worlds", "Worlds"], ["milestones", "Milestones"]] as const).map(([v, label]) => (
-                    <button key={v} type="button" role="tab" aria-selected={view === v} data-on={view === v} onClick={() => setView(v)}>
-                        {label}
-                        {v === "forge" && ready > 0 && <i className="fi-mn-dot">{ready}</i>}
-                        {v === "dig" && geodes > 0 && <i className="fi-mn-dot gem">{geodes}</i>}
-                        {v === "milestones" && featsReady(s).length > 0 && <i className="fi-mn-dot feat">{featsReady(s).length}</i>}
-                    </button>
-                ))}
-            </div>
+            <TabBar
+                tabs={MINE_TABS}
+                groups={MINE_GROUPS}
+                current={view}
+                keys={false}
+                notes={{
+                    forge: ready > 0 ? [{ text: `${ready} craft${ready === 1 ? "" : "s"} ready to collect`, color: "#ff9a4d", act: true, n: ready }] : [],
+                    dig: geodes > 0 ? [{ text: `${geodes} geode${geodes === 1 ? "" : "s"} to crack`, color: "#c58bff", act: true, n: geodes }] : [],
+                    milestones: featsReady(s).length > 0 ? [{ text: `${featsReady(s).length} milestone reward${featsReady(s).length === 1 ? "" : "s"} to claim`, color: "#ffd23a", act: true, n: featsReady(s).length }] : [],
+                }}
+                onSelect={setView}
+            />
 
             {view === "dig" && <DigView s={s} d={d} F={F} render={render} say={say} />}
             {view === "tool" && <ToolView s={s} F={F} render={render} say={say} goForge={() => setView("forge")} />}
@@ -558,16 +573,7 @@ function DigView({ s, d, F, render, say }: { s: Ctx["s"]; d: Ctx["d"]; F: (n: nu
                 </div>
             )}
 
-            {m.log.length > 0 && (
-                <>
-                    <SectionTitle color={C}>Recent finds</SectionTitle>
-                    <ul className="fi-mn-log" aria-live="polite">
-                        {m.log.slice(0, 5).map((l, i) => (
-                            <li key={`${i}:${l.text}`} style={{ color: l.color }}>{l.text}</li>
-                        ))}
-                    </ul>
-                </>
-            )}
+            <RecentFinds log={m.log} color={C} noun="digging" />
         </>
     );
 }

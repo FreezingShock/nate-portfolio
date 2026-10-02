@@ -11,11 +11,17 @@ import { ActionBtn, SectionTitle, tint, type Ctx } from "./ui";
 // touch) opens a Minecraft-style tooltip that follows the cursor. Anything
 // bought out moves into the Owned section at the bottom.
 
-const GROUPS: { title: string; color: string; kinds: UpgradeDef["kind"][] }[] = [
+const FX_STUDY = ["xp", "petXp", "dust", "luck", "offline", "tokens"];
+const FX_MINE = ["ore", "drill", "forge"];
+const FX_FARM = ["crop", "grow", "goldCrop", "sale", "cook"];
+const GROUPS: { title: string; color: string; kinds: UpgradeDef["kind"][]; stats?: string[] }[] = [
     { title: "Training", color: "var(--mc-red)", kinds: ["auto", "critChance", "critDmg", "synergy", "comboMax", "comboGain", "comboLuck"] },
     { title: "Pickaxes and Drills", color: "var(--mc-gold)", kinds: ["click"] },
     { title: "Minion Upgrades", color: "var(--mc-blue)", kinds: ["minion", "mown"] },
     { title: "Talismans", color: "var(--mc-green)", kinds: ["all"] },
+    { title: "Study and Pets", color: "var(--mc-aqua)", kinds: ["fx"], stats: FX_STUDY },
+    { title: "Mining and the Forge", color: "var(--mc-gold)", kinds: ["fx"], stats: FX_MINE },
+    { title: "Farming and the Market", color: "var(--mc-green)", kinds: ["fx"], stats: FX_FARM },
     { title: "Events", color: "var(--mc-gold)", kinds: ["evRate", "evBobber", "evLoot", "evGolden", "evLife", "evPower", "evCurse", "qteSize", "qteTime", "qteReward"] },
 ];
 
@@ -108,7 +114,7 @@ export function UpgradesTab({ s, act, render, tip }: Ctx) {
 
             {GROUPS.map((g) => {
                 // Minion-specific upgrades show once you own at least one of that minion.
-                const list = UPGRADES.filter((u) => g.kinds.includes(u.kind) && !isOwned(u) && (u.minion === undefined || s.minions[u.minion] > 0)).sort((a, b) => a.cost - b.cost);
+                const list = UPGRADES.filter((u) => g.kinds.includes(u.kind) && (!g.stats || g.stats.includes(u.stat ?? "")) && !isOwned(u) && (u.minion === undefined || s.minions[u.minion] > 0)).sort((a, b) => a.cost - b.cost);
                 if (!list.length) return null;
                 return (
                     <div key={g.title}>
@@ -144,7 +150,7 @@ export function UpgradeTip({ id, s, d, F }: { id: string } & Pick<Ctx, "s" | "d"
     const cost = upCost(s, u.id, lvl);
     const can = s.shards >= cost;
     const avail = upAvailable(s, u);
-    const info = upgradeInfo(d, u, s.sci);
+    const info = upgradeInfo(d, u, s.sci, lvl);
     return (
         <>
             <TL c={u.color}>

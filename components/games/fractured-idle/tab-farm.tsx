@@ -93,6 +93,7 @@ import { CREW_CSS, Crew } from "./farm-crew";
 import { CraftBoard, ItemIcon, MilestoneBoard, Slots, SKILL_KIT_CSS, iconOf, type CraftItem, type SlotView } from "./skill-kit";
 import { GARDEN_CSS, Garden } from "./farm-garden";
 import { wantLevel } from "./level-nav";
+import { TabBar, type TabGroup, type TabItem } from "./tab-bar";
 import { Market, MARKET_CSS } from "./farm-market";
 import { CREW as CREW_LIST, canBuyCrew as canBuyCrewLevel, crewCost } from "@/lib/fractured-idle/farm";
 import { TOOLS_CSS, Tools } from "./farm-tools";
@@ -105,6 +106,21 @@ import { TOOLS_CSS, Tools } from "./farm-tools";
 // Mine's layout classes (fi-mn-*); the pieces live in farm-garden.tsx, farm-tools.tsx and farm-market.tsx.
 
 type View = FarmView;
+const FARM_TABS: TabItem<View>[] = [
+    { id: "garden", label: "Garden", symbol: "flower", group: "grow", color: "#9be04a", blurb: "Your plots: plant, tend and harvest." },
+    { id: "tools", label: "Tools", symbol: "strength", group: "grow", color: "#ffd23a", blurb: "Hoes and the tools you wear for each crop type." },
+    { id: "crew", label: "Crew", symbol: "intelligence", group: "grow", color: "#6fb4ff", blurb: "Hire hands that plant, pack, cook and sell for you." },
+    { id: "market", label: "Market", symbol: "magicFind", group: "sell", color: "#ffaa00", blurb: "Enchant and sell crops, and follow the demand." },
+    { id: "kitchen", label: "Kitchen", symbol: "heat", group: "sell", color: "#ff9a4d", blurb: "Cook goods that feed tools, upgrades and goals." },
+    { id: "crops", label: "Crops", symbol: "fortune", group: "know", color: "#55ff55", blurb: "The crop codex with ten collection tiers each." },
+    { id: "biomes", label: "Biomes", symbol: "location", group: "know", color: "#55ffff", blurb: "What each dimension's garden grows." },
+    { id: "milestones", label: "Milestones", symbol: "pristine", group: "know", color: "#c58bff", blurb: "Tiers for every crop and action, with permanent rewards." },
+];
+const FARM_GROUPS: TabGroup[] = [
+    { id: "grow", label: "Grow", color: "#9be04a" },
+    { id: "sell", label: "Sell", color: "#ffaa00" },
+    { id: "know", label: "Know", color: "#55ffff" },
+];
 
 export function FarmTab({ s, d, F, render, say, open }: Ctx & { open: (tab: string) => void }) {
     const f = s.farm;
@@ -131,16 +147,18 @@ export function FarmTab({ s, d, F, render, say, open }: Ctx & { open: (tab: stri
 
             <QuickBar s={s} d={d} render={render} say={say} />
 
-            <div className="fi-mn-seg" role="tablist">
-                {([["garden", "Garden"], ["tools", "Tools"], ["market", "Market"], ["crew", "Crew"], ["kitchen", "Kitchen"], ["crops", "Crops"], ["biomes", "Biomes"], ["milestones", "Milestones"]] as const).map(([v, label]) => (
-                    <button key={v} type="button" role="tab" aria-selected={view === v} data-on={view === v} onClick={() => setView(v)}>
-                        {label}
-                        {v === "kitchen" && ready > 0 && <i className="fi-mn-dot">{ready}</i>}
-                        {v === "garden" && readyCount(s) > 0 && <i className="fi-mn-dot feat">{readyCount(s)}</i>}
-                        {v === "milestones" && featsReady(s).length > 0 && <i className="fi-mn-dot feat">{featsReady(s).length}</i>}
-                    </button>
-                ))}
-            </div>
+            <TabBar
+                tabs={FARM_TABS}
+                groups={FARM_GROUPS}
+                current={view}
+                keys={false}
+                notes={{
+                    kitchen: ready > 0 ? [{ text: `${ready} dish${ready === 1 ? "" : "es"} ready to collect`, color: "#ff9a4d", act: true, n: ready }] : [],
+                    garden: readyCount(s) > 0 ? [{ text: `${readyCount(s)} plot${readyCount(s) === 1 ? "" : "s"} ripe`, color: "#9be04a", act: true, n: readyCount(s) }] : [],
+                    milestones: featsReady(s).length > 0 ? [{ text: `${featsReady(s).length} milestone reward${featsReady(s).length === 1 ? "" : "s"} to claim`, color: "#ffd23a", act: true, n: featsReady(s).length }] : [],
+                }}
+                onSelect={setView}
+            />
 
             {view === "garden" && <Garden s={s} d={d} F={F} render={render} say={say} openSaga={() => { wantLevel("sagas", "farming"); open("level"); }} />}
             {view === "tools" && <Tools s={s} F={F} render={render} say={say} />}

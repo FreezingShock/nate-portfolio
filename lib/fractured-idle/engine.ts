@@ -7,6 +7,7 @@ import { cleanFarm, farmCtx, newFarm, tickFarm } from "./farm";
 import { GEM_UPS, TOKEN_UPS, autoEvery, bulkBuy, lockedBy, priceAt, valueOf } from "./prestige";
 import { activeIsland, islandFx, openIslands, tierMult, visitBonus, type IslandFx } from "./island-logic";
 import type { SkillKey } from "./islands";
+import { fxText } from "./upfx";
 import {
     ASC_BASE,
     DEFAULT_AUTO,
@@ -657,7 +658,7 @@ export interface UpInfo {
 
 const pct = (n: number) => `${Math.round(n * 100)}%`;
 
-export function upgradeInfo(d: Derived, u: UpgradeDef, sci = false): UpInfo {
+export function upgradeInfo(d: Derived, u: UpgradeDef, sci = false, lvl = 0): UpInfo {
     const x = (n: number) => `x${fmt(n, sci)}`;
     switch (u.kind) {
         case "click":
@@ -700,6 +701,8 @@ export function upgradeInfo(d: Derived, u: UpgradeDef, sci = false): UpInfo {
             return { label: "Extra QTE time", cur: `+${d.qteTime.toFixed(1)}s`, next: `+${(d.qteTime + u.value).toFixed(1)}s` };
         case "qteReward":
             return { label: "QTE rewards", cur: pct(0.1 * d.qteRewardLvl), next: pct(0.1 * (d.qteRewardLvl + 1)) };
+        case "fx":
+            return { label: "Bonus", cur: fxText(u.stat!, u.value * lvl), next: fxText(u.stat!, u.value * (lvl + 1)) };
         case "mown": {
             const cur = d.upOwn[u.minion!];
             return { label: `${MINIONS[u.minion!].name.replace(" Minion", "")} output`, cur: x(cur), next: x(cur * u.value) };

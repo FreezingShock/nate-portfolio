@@ -134,7 +134,7 @@ function Toolbox({ s, render, say, goForge }: Pick<P, "s" | "render" | "say" | "
         }
     };
     return (
-        <div className="fi-cb-grid" style={col(C)}>
+        <div className="fi-cb-grid fi-tl-compact" style={col(C)}>
             <button type="button" className="fi-cb-tile" data-s={hasDrill(s) ? "owned" : "missing"} data-on={held === "drill" && hasDrill(s)} style={{ ["--k" as string]: "#7fd0ff" } as CSSProperties} onClick={() => (hasDrill(s) ? wield("drill", `Mk ${drillMk(s)} Drill`) : goForge())} title="The Drill">
                 <ItemIcon icon="cog" color="#7fd0ff" n={hasDrill(s) ? `Mk${drillMk(s)}` : undefined} dim={!hasDrill(s)} />
                 <span className="nm">{hasDrill(s) ? "The Drill" : "Drill"}</span>
@@ -184,27 +184,52 @@ function Rig({ s, render, say, goForge, F }: P) {
                     <button type="button" className="fi-lv-btn" onClick={goForge}>Open the Forge</button>
                 </div>
             )}
+            <div className="fi-tl-bar">
+                <small>Assembly</small>
+                {s.mine.parts.length > 0 && (
+                    <button
+                        type="button"
+                        className="fi-tl-auto"
+                        title="Install the best engine and head you own and take the drill in hand"
+                        onClick={() => {
+                            const n = autoRig(s);
+                            if (n) {
+                                say("Best engine and head installed and the drill is in your hands.");
+                                render();
+                            }
+                        }}
+                    >
+                        ⚙ Best parts
+                    </button>
+                )}
+            </div>
             <div className="fi-tl-rig">
-                {kinds.map(({ k, list }) => {
+                {kinds.map(({ k }, i) => {
                     const cur = rigPart(s, k);
                     return (
-                        <div key={k} className="fi-tl-slot" data-empty={!cur} style={col(cur?.color ?? "#6b6580")}>
-                            <ItemIcon icon={k === "engine" ? "cog" : k === "head" ? "pick" : "atom"} color={cur?.color ?? "#6b6580"} dim={!cur} />
-                            <span className="tx">
-                                <small>{PART_KIND_LABEL[k]}{k === "core" ? " (optional)" : ""}</small>
-                                <b>{cur ? cur.name : "Empty"}</b>
-                                <em>{cur ? cur.desc : k === "core" ? "A special core adds a perk" : "Needed for the drill"}</em>
-                            </span>
-                            {k === "core" && cur && (
-                                <button type="button" className="fi-tl-x" onClick={() => { removeCore(s); render(); }} aria-label="Remove the core">✕</button>
-                            )}
+                        <div key={k} className="fi-tl-step">
+                            {i > 0 && <span className="fi-tl-ar" aria-hidden="true">➜</span>}
+                            <div className="fi-tl-slot" data-empty={!cur} style={col(cur?.color ?? "#6b6580")}>
+                                <ItemIcon icon={k === "engine" ? "cog" : k === "head" ? "pick" : "atom"} color={cur?.color ?? "#6b6580"} dim={!cur} />
+                                <span className="tx">
+                                    <small>{PART_KIND_LABEL[k]}{k === "core" ? " (optional)" : ""}</small>
+                                    <b>{cur ? cur.name : "Empty"}</b>
+                                    <em>{cur ? cur.desc : k === "core" ? "A core adds a perk" : "Needed for the drill"}</em>
+                                </span>
+                                {k === "core" && cur && (
+                                    <button type="button" className="fi-tl-x" onClick={() => { removeCore(s); render(); }} aria-label="Remove the core">✕</button>
+                                )}
+                            </div>
                         </div>
                     );
                 })}
-                <div className="fi-tl-mk">
-                    <small>Drill</small>
-                    <b>{mk ? `Mk ${mk}` : "none"}</b>
-                    {mk > 0 && <em>{drillSwings({ ...s, mine: { ...s.mine, held: "drill" } } as Ctx["s"]).toFixed(2)} swings/s</em>}
+                <div className="fi-tl-step">
+                    <span className="fi-tl-ar" aria-hidden="true">➜</span>
+                    <div className="fi-tl-mk" data-on={mk > 0}>
+                        <small>Drill</small>
+                        <b>{mk ? `Mk ${mk}` : "none"}</b>
+                        {mk > 0 && <em>{drillSwings({ ...s, mine: { ...s.mine, held: "drill" } } as Ctx["s"]).toFixed(2)}/s</em>}
+                    </div>
                 </div>
             </div>
             {kinds.map(({ k, list }) => (
@@ -228,21 +253,6 @@ function Rig({ s, render, say, goForge, F }: P) {
                     </div>
                 </div>
             ))}
-            {s.mine.parts.length > 0 && (
-                <button
-                    type="button"
-                    className="fi-lv-btn ghost"
-                    onClick={() => {
-                        const n = autoRig(s);
-                        if (n) {
-                            say("Best engine and head installed and the drill is in your hands.");
-                            render();
-                        }
-                    }}
-                >
-                    Install my best parts
-                </button>
-            )}
             {coreFx(s).all ? <p className="fi-mn-note">The Singularity Core also adds +5% to all shards while it is installed.</p> : null}
         </>
     );
@@ -365,7 +375,21 @@ export const MINE_TOOL_CSS = `
 .fi-tl-guide b{font-family:var(--font-minecraft,inherit);font-size:.85rem;color:#7fd0ff}
 .fi-tl-guide span{font-family:var(--font-rubik,inherit);font-size:.7rem;line-height:1.45;color:#cfc8de}
 .fi-tl-guide em{font-style:normal;color:#fff;font-weight:700}
-.fi-tl-rig{display:grid;grid-template-columns:repeat(auto-fit,minmax(11rem,1fr));gap:.4rem}
+.fi-tl-bar{display:flex;align-items:center;justify-content:space-between;gap:.5rem}
+.fi-tl-bar small{font-family:var(--font-rubik,inherit);font-size:.58rem;letter-spacing:.14em;text-transform:uppercase;color:var(--muted-foreground)}
+.fi-tl-auto{padding:.15rem .55rem;border-radius:999px;border:1px solid color-mix(in oklch,#7fd0ff 50%,transparent);background:color-mix(in oklch,#7fd0ff 10%,transparent);color:#7fd0ff;font-family:var(--font-rubik,inherit);font-size:.6rem;font-weight:700;transition:background .15s,transform .1s}
+.fi-tl-auto:hover{background:color-mix(in oklch,#7fd0ff 22%,transparent)}
+.fi-tl-auto:active{transform:scale(.94)}
+.fi-tl-rig{display:flex;flex-wrap:wrap;align-items:stretch;gap:.35rem 0}
+.fi-tl-step{display:flex;align-items:center;gap:.35rem;margin-right:.35rem}
+.fi-tl-step:last-child{margin-right:0}
+.fi-tl-ar{color:var(--muted-foreground);font-size:.85rem;opacity:.8}
+.fi-tl-slot{min-width:10.5rem;max-width:14rem}
+.fi-tl-mk[data-on="true"]{box-shadow:0 0 16px -6px #7fd0ff}
+.fi-tl-parts{display:grid;grid-template-columns:4.6rem minmax(0,1fr);align-items:center;gap:.4rem}
+.fi-tl-compact,.fi-tl-parts .fi-cb-grid{grid-template-columns:repeat(auto-fill,minmax(4.5rem,5rem));gap:.3rem}
+.fi-tl-compact .fi-cb-tile,.fi-tl-parts .fi-cb-tile{padding:.4rem .2rem .35rem;gap:.2rem}
+@media (max-width:520px){.fi-tl-parts{grid-template-columns:1fr}.fi-tl-slot{max-width:none}}
 .fi-tl-slot{position:relative;display:flex;align-items:center;gap:.6rem;padding:.55rem .6rem;border-radius:.95rem;border:1px solid color-mix(in oklch,var(--oc) 50%,transparent);background:linear-gradient(135deg,color-mix(in oklch,var(--oc) 12%,transparent),rgba(0,0,0,.2))}
 .fi-tl-slot[data-empty="true"]{border-style:dashed;opacity:.8}
 .fi-tl-slot .tx{display:flex;flex-direction:column;min-width:0}
@@ -377,7 +401,7 @@ export const MINE_TOOL_CSS = `
 .fi-tl-mk small{font-family:var(--font-rubik,inherit);font-size:.54rem;letter-spacing:.14em;text-transform:uppercase;color:var(--muted-foreground)}
 .fi-tl-mk b{font-family:var(--font-minecraft,inherit);font-size:1.15rem;color:#7fd0ff}
 .fi-tl-mk em{font-style:normal;font-family:var(--font-rubik,inherit);font-size:.6rem;color:#cfc8de}
-.fi-tl-parts{display:flex;flex-direction:column;gap:.25rem}
+
 .fi-tl-parts>small{font-family:var(--font-rubik,inherit);font-size:.6rem;letter-spacing:.12em;text-transform:uppercase;color:var(--muted-foreground)}
 .fi-tl-ench{display:grid;grid-template-columns:repeat(auto-fill,minmax(17rem,1fr));gap:.4rem}
 .fi-tl-en{display:grid;grid-template-columns:auto minmax(0,1fr);gap:.5rem .65rem;align-items:center;padding:.55rem .65rem;border-radius:.95rem;border:1px solid rgba(255,255,255,.1);background:rgba(0,0,0,.2)}

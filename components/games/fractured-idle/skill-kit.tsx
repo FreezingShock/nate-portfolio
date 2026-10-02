@@ -3,11 +3,12 @@
 import { useMemo, useState, type CSSProperties, type ReactNode } from "react";
 import { Lock } from "lucide-react";
 import { McSymbol, type McSymbolName } from "@/components/mc-symbol";
-import { fmtTime } from "@/lib/fractured-idle/engine";
+import { fmt, fmtTime } from "@/lib/fractured-idle/engine";
 import { fmtStat } from "@/lib/fractured-idle/enchant";
 import { msId, tierOf, type Ladder, type MsReward } from "@/lib/fractured-idle/milestones";
 import { GRANT_LABEL } from "@/lib/fractured-idle/skills";
 import type { State } from "@/lib/fractured-idle/data";
+import { Tip, TipCard } from "./tooltip";
 
 // The pieces the Mine and the Farm share: item icon tiles, a grid craft board (Forge and Kitchen),
 // furnace / oven slots and the Milestones board. Everything is a grid of tiles with an icon, so a
@@ -41,12 +42,10 @@ export interface Need {
     have: number;
     need: number;
 }
-const SUF = ["", "K", "M", "B", "T", "Qa", "Qi", "Sx", "Sp", "Oc", "No", "Dc"];
 const short = (n: number) => {
     if (n < 100) return String(+n.toFixed(n < 10 ? 1 : 0));
     if (n < 1e4) return String(Math.floor(n));
-    const e = Math.min(SUF.length - 1, Math.floor(Math.log10(n) / 3));
-    return `${+(n / Math.pow(1000, e)).toFixed(1)}${SUF[e]}`;
+    return fmt(n);
 };
 
 export function NeedTile({ n }: { n: Need }) {
@@ -234,11 +233,71 @@ export function MilestoneBoard({ s, F, ladders, claimed, color, cats, onClaim, o
     const inGroup = ladders.filter((l) => l.group === group && (cat === "all" || cats[group].find((c) => c.id === cat)?.test(l)));
     const totalReady = (g: "item" | "action") => ladders.filter((l) => l.group === g).reduce((a, l) => a + info(l).ready.length, 0);
     const list = inGroup.slice().sort((a, b) => info(b).ready.length - info(a).ready.length);
-    const cur = ladders.find((l) => l.key === sel && l.group === group) ?? list[0];
+    const cur = sel ? ladders.find((l) => l.key === sel) : undefined;
     const ci = cur ? info(cur) : null;
     const all = totalReady("item") + totalReady("action");
+    const back = () => { setSel(""); };
+    if (cur && ci) {
+        const nextAt = cur.at[ci.tier];
+        const prevAt = cur.at[ci.tier - 1] ?? 0;
+        const done = ci.tier >= cur.at.length;
+        const pct = done ? 100 : Math.min(100, Math.max(0, ((ci.v - prevAt) / (nextAt - prevAt)) * 100));
+        const claimable = ci.ready.length;
+        return (
+            <div className="fi-ms fi-ms-page" key={cur.key} style={css({ "--k": cur.color })}>
+                <div className="fi-ms-bar">
+                    <button type="button" className="fi-ms-back" onClick={back} aria-label="Back to milestones"><span className="ar">←</span> Back</button>
+                    <span className="fi-ms-crumb">{cur.group === "item" ? "Item milestones" : "Action milestones"}</span>
+                    {claimable > 0 && (
+                        <button type="button" className="fi-cb-go slim" data-snd="off" onClick={() => ci.ready.forEach(({ i }) => onClaim(msId(cur, i)))}>Claim {claimable}</button>
+                    )}
+                </div>
+                <div className="fi-ms-hero">
+                    <ItemIcon icon={cur.icon} color={cur.color} size="lg" />
+                    <div className="tx">
+                        <b>{cur.name}</b>
+                        <span>{F(Math.floor(ci.v))} {cur.unit}</span>
+                        {cur.note && <em>{cur.note}</em>}
+                    </div>
+                    <div className="tier"><small>Tier</small><b>{ci.tier}<i>/{cur.at.length}</i></b></div>
+                </div>
+                <div className="fi-ms-prog">
+                    <span className="bar"><i style={{ width: `${pct}%` }} /></span>
+                    <em>{done ? "Every tier reached" : `${F(Math.floor(ci.v))} / ${F(nextAt)} for tier ${ci.tier + 1}`}</em>
+                </div>
+                <div className="fi-ms-tiers tall">
+                    {cur.at.map((at, k) => {
+                        const rw = cur.rewards[k] ?? [];
+                        const got = ci.v >= at;
+                        const isClaimed = claimed.includes(msId(cur, k));
+                        const canClaim = got && rw.length > 0 && !isClaimed;
+                        return (
+                            <div key={k} className="fi-ms-t" data-got={got} data-ready={canClaim} data-next={!got && k === ci.tier} style={{ animationDelay: `${Math.min(k, 12) * 30}ms` }}>
+                                <span className="no">{got ? "✔" : k + 1}</span>
+                                <span className="tx">
+                                    <b>{F(at)} <small>{cur.unit}</small></b>
+                                    <span className="fi-lv-chips">
+                                        {cur.auto && <span className="fi-lv-chip buff" style={css({ "--k": "var(--mc-green)" })}>{cur.auto(k + 1)} (automatic)</span>}
+                                        {rw.map((r, x) => (
+                                            <span key={x} className="fi-lv-chip" style={css({ "--k": r.stat ? "var(--mc-green)" : "#ffd23a" })}>{rewardLine(r)}</span>
+                                        ))}
+                                        {!cur.auto && rw.length === 0 && <span className="fi-lv-chip dim">no reward</span>}
+                                    </span>
+                                </span>
+                                {canClaim ? (
+                                    <button type="button" className="fi-cb-go slim" data-snd="off" onClick={() => onClaim(msId(cur, k))}>Claim</button>
+                                ) : (
+                                    <em>{rw.length === 0 ? (got ? "reached" : "") : isClaimed ? "claimed" : got ? "" : k === ci.tier ? "next" : "locked"}</em>
+                                )}
+                            </div>
+                        );
+                    })}
+                </div>
+            </div>
+        );
+    }
     return (
-        <div className="fi-ms" style={css({ "--k": color })}>
+        <div className="fi-ms fi-ms-list" style={css({ "--k": color })}>
             <div className="fi-ms-top">
                 <span className="fi-cb-groups" role="tablist">
                     {(["item", "action"] as const).map((g) => (
@@ -254,8 +313,8 @@ export function MilestoneBoard({ s, F, ladders, claimed, color, cats, onClaim, o
             </div>
             <p className="fi-ms-note">
                 {group === "item"
-                    ? "One card for every item. Its bonus grows on its own with each tier; some tiers also pay a reward you claim."
-                    : "Everything you do, in tiers. Each tier you reach pays a reward you claim."}
+                    ? "One card for every item. Open one to see every tier. Its bonus grows on its own; some tiers also pay a reward you claim."
+                    : "Everything you do, in tiers. Open one to see what each tier pays."}
             </p>
             <div className="fi-cb-groups">
                 <button type="button" data-on={cat === "all"} onClick={() => setCat("all")}>All</button>
@@ -268,7 +327,7 @@ export function MilestoneBoard({ s, F, ladders, claimed, color, cats, onClaim, o
                     const i = info(l);
                     const done = i.tier >= l.at.length;
                     return (
-                        <button key={l.key} type="button" className="fi-ms-card" data-on={cur?.key === l.key} data-ready={i.ready.length > 0} data-done={done} style={css({ "--k": l.color })} onClick={() => setSel(l.key)}>
+                        <button key={l.key} type="button" className="fi-ms-card" data-ready={i.ready.length > 0} data-done={done} style={css({ "--k": l.color })} onClick={() => setSel(l.key)}>
                             <ItemIcon icon={l.icon} color={l.color} size="md" />
                             <span className="tx">
                                 <b>{l.name}</b>
@@ -285,51 +344,70 @@ export function MilestoneBoard({ s, F, ladders, claimed, color, cats, onClaim, o
                     );
                 })}
             </div>
-            {cur && ci && (
-                <div className="fi-ms-detail">
-                    <div className="fi-cb-dh">
-                        <ItemIcon icon={cur.icon} color={cur.color} size="lg" />
-                        <div className="fi-cb-dt">
-                            <b style={{ color: cur.color }}>{cur.name}</b>
-                            <span>{F(Math.floor(ci.v))} {cur.unit}</span>
-                            {cur.note && <em>{cur.note}</em>}
-                        </div>
-                    </div>
-                    <div className="fi-ms-tiers">
-                        {cur.at.map((at, k) => {
-                            const rw = cur.rewards[k] ?? [];
-                            const got = ci.v >= at;
-                            const isClaimed = claimed.includes(msId(cur, k));
-                            const canClaim = got && rw.length > 0 && !isClaimed;
-                            return (
-                                <div key={k} className="fi-ms-t" data-got={got} data-ready={canClaim}>
-                                    <span className="no">{k + 1}</span>
-                                    <span className="tx">
-                                        <b>{F(at)}</b>
-                                        <span className="fi-lv-chips">
-                                            {cur.auto && <span className="fi-lv-chip buff" style={css({ "--k": "var(--mc-green)" })}>{cur.auto(k + 1)} (automatic)</span>}
-                                            {rw.map((r, x) => (
-                                                <span key={x} className="fi-lv-chip" style={css({ "--k": r.stat ? "var(--mc-green)" : "#ffd23a" })}>{rewardLine(r)}</span>
-                                            ))}
-                                            {!cur.auto && rw.length === 0 && <span className="fi-lv-chip dim">no reward</span>}
-                                        </span>
-                                    </span>
-                                    {canClaim ? (
-                                        <button type="button" className="fi-cb-go slim" data-snd="off" onClick={() => onClaim(msId(cur, k))}>Claim</button>
-                                    ) : (
-                                        <em>{rw.length === 0 ? (got ? "reached" : "") : isClaimed ? "claimed" : got ? "" : "locked"}</em>
-                                    )}
-                                </div>
-                            );
-                        })}
-                    </div>
-                </div>
-            )}
         </div>
     );
 }
 
-export const Hint = ({ children }: { children: ReactNode }) => <p className="fi-sk-hint">{children}</p>;
+// ---- Recent finds: what just dropped, as icon rows with a time and a tooltip ----
+
+interface FindEntry {
+    text: string;
+    color: string;
+    t?: number;
+    n?: number;
+}
+const FIND_ICONS: [RegExp, McSymbolName, string][] = [
+    [/geode|pod/i, "gem", "A drop from a geode or a seed pod"],
+    [/forged|made the|double batch|^\d+x /i, "forge", "Something you crafted"],
+    [/dynamite|rush|tonic|bumper/i, "bolt", "A boost firing"],
+    [/fertilizer|jumped/i, "flower", "A garden boost"],
+    [/egg/i, "petLuck", "An egg"],
+    [/token/i, "portal", "Rebirth tokens"],
+    [/dust/i, "intelligence", "Arcane dust"],
+    [/shard/i, "magicFind", "Shards"],
+    [/fragment/i, "comet", "A Fracture Fragment"],
+];
+const ago = (t: number | undefined, now: number) => {
+    if (!t) return "";
+    const sec = Math.max(0, Math.floor((now - t) / 1000));
+    return sec < 5 ? "just now" : sec < 60 ? `${sec}s ago` : sec < 3600 ? `${Math.floor(sec / 60)}m ago` : `${Math.floor(sec / 3600)}h ago`;
+};
+
+export function RecentFinds({ log, color, title = "Recent finds", noun }: { log: FindEntry[]; color: string; title?: string; noun: string }) {
+    const now = Date.now();
+    if (!log.length) return null;
+    return (
+        <section className="fi-rf" style={css({ "--k": color })} aria-label={title}>
+            <header>
+                <b>{title}</b>
+                <small>last {Math.min(log.length, 6)} of your {noun}</small>
+            </header>
+            <ul aria-live="polite">
+                {log.slice(0, 6).map((l, i) => {
+                    const [head, ...rest] = l.text.split(": ");
+                    const hit = FIND_ICONS.find(([re]) => re.test(l.text));
+                    const fresh = !!l.t && now - l.t < 4000;
+                    const sub = rest.join(": ");
+                    return (
+                        <Tip key={`${l.text}:${l.t ?? i}`} box tip={<TipCard title={head} color={l.color} lines={[sub || l.text, hit?.[2] ?? "A find"]} rows={[["Seen", `${l.n ?? 1} time${(l.n ?? 1) === 1 ? "" : "s"} in a row`], ["Last", ago(l.t, now) || "a while ago"]]} />}>
+                            <li data-fresh={fresh} style={css({ "--c": l.color })}>
+                                <ItemIcon icon={hit?.[1] ?? "star"} color={l.color} size="sm" />
+                                <span className="tx">
+                                    <b>{head}</b>
+                                    {sub && <em>{sub}</em>}
+                                </span>
+                                {(l.n ?? 1) > 1 && <i className="n">x{l.n}</i>}
+                                <time>{ago(l.t, now)}</time>
+                            </li>
+                        </Tip>
+                    );
+                })}
+            </ul>
+        </section>
+    );
+}
+
+export const Hint =({ children }: { children: ReactNode }) => <p className="fi-sk-hint">{children}</p>;
 
 export const SKILL_KIT_CSS = `
 .fi-lv-chips{display:flex;flex-wrap:wrap;gap:.25rem}
@@ -441,5 +519,51 @@ export const SKILL_KIT_CSS = `
 .fi-ms-t .tx{display:flex;flex-direction:column;gap:.2rem;min-width:0}
 .fi-ms-t .tx>b{font-family:var(--font-minecraft,inherit);font-size:.72rem}
 .fi-ms-t>em{font-style:normal;font-family:var(--font-rubik,inherit);font-size:.6rem;color:var(--muted-foreground)}
+@keyframes fi-ms-in{from{opacity:0;transform:translateX(26px)}to{opacity:1;transform:none}}
+@keyframes fi-ms-row{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+@keyframes fi-ms-pop{0%{transform:scale(.6);opacity:0}70%{transform:scale(1.08)}100%{transform:scale(1);opacity:1}}
+@keyframes fi-ms-list-in{from{opacity:0;transform:translateX(-18px)}to{opacity:1;transform:none}}
+.fi-ms-page{animation:fi-ms-in .28s cubic-bezier(.2,.8,.2,1) both}
+.fi-ms-list{animation:fi-ms-list-in .25s ease both}
+.fi-ms-bar{display:flex;align-items:center;gap:.6rem}
+.fi-ms-back{display:inline-flex;align-items:center;gap:.4rem;padding:.35rem .8rem .35rem .65rem;border-radius:.7rem;border:1px solid color-mix(in oklch,var(--k) 50%,transparent);background:color-mix(in oklch,var(--k) 12%,transparent);color:#fff;font-family:var(--font-minecraft,inherit);font-size:.72rem;font-weight:700;transition:transform .12s,background .15s}
+.fi-ms-back .ar{display:inline-block;transition:transform .18s;font-size:.95rem;line-height:1}
+.fi-ms-back:hover{background:color-mix(in oklch,var(--k) 24%,transparent)}
+.fi-ms-back:hover .ar{transform:translateX(-4px)}
+.fi-ms-back:active{transform:scale(.95)}
+.fi-ms-crumb{flex:1;font-family:var(--font-rubik,inherit);font-size:.62rem;letter-spacing:.1em;text-transform:uppercase;color:var(--muted-foreground)}
+.fi-ms-hero{display:flex;align-items:center;gap:.9rem;padding:.8rem .9rem;border-radius:1.1rem;border:1px solid color-mix(in oklch,var(--k) 45%,transparent);background:radial-gradient(120% 140% at 0% 0%,color-mix(in oklch,var(--k) 20%,transparent),rgba(0,0,0,.25) 70%)}
+.fi-ms-hero .fi-ik{animation:fi-ms-pop .45s .1s cubic-bezier(.2,1.4,.4,1) both}
+.fi-ms-hero .tx{flex:1;min-width:0;display:flex;flex-direction:column;gap:.15rem}
+.fi-ms-hero .tx b{font-family:var(--font-minecraft,inherit);font-size:1.15rem;color:var(--k);line-height:1.1}
+.fi-ms-hero .tx span{font-family:var(--font-rubik,inherit);font-size:.72rem;color:#cfc8de}
+.fi-ms-hero .tx em{font-style:normal;font-family:var(--font-rubik,inherit);font-size:.64rem;color:var(--mc-green)}
+.fi-ms-hero .tier{display:flex;flex-direction:column;align-items:flex-end;font-family:var(--font-rubik,inherit)}
+.fi-ms-hero .tier small{font-size:.56rem;letter-spacing:.12em;text-transform:uppercase;color:var(--muted-foreground)}
+.fi-ms-hero .tier b{font-family:var(--font-minecraft,inherit);font-size:1.4rem;color:#fff}
+.fi-ms-hero .tier b i{font-style:normal;font-size:.8rem;color:var(--muted-foreground)}
+.fi-ms-prog{display:flex;flex-direction:column;gap:.25rem}
+.fi-ms-prog .bar{display:block;height:.6rem;border-radius:999px;background:rgba(255,255,255,.1);overflow:hidden}
+.fi-ms-prog .bar i{display:block;height:100%;border-radius:999px;background:linear-gradient(90deg,color-mix(in oklch,var(--k) 55%,#000),var(--k));box-shadow:0 0 10px var(--k);transition:width .6s cubic-bezier(.2,.8,.2,1)}
+.fi-ms-prog em{font-style:normal;font-family:var(--font-rubik,inherit);font-size:.64rem;color:var(--muted-foreground)}
+.fi-ms-tiers.tall{max-height:none}
+.fi-ms-t{animation:fi-ms-row .3s ease both}
+.fi-ms-t[data-next="true"]{border-color:color-mix(in oklch,var(--k) 60%,transparent);border-style:dashed}
+.fi-ms-t .tx>b small{font-family:var(--font-rubik,inherit);font-size:.56rem;color:var(--muted-foreground);font-weight:500}
+.fi-rf{display:flex;flex-direction:column;gap:.4rem;padding:.6rem .7rem;border-radius:1rem;border:1px solid color-mix(in oklch,var(--k) 30%,transparent);background:linear-gradient(160deg,color-mix(in oklch,var(--k) 7%,transparent),rgba(0,0,0,.22) 70%)}
+.fi-rf header{display:flex;align-items:baseline;justify-content:space-between;gap:.5rem}
+.fi-rf header b{font-family:var(--font-minecraft,inherit);font-size:.8rem;color:var(--k)}
+.fi-rf header small{font-family:var(--font-rubik,inherit);font-size:.56rem;color:var(--muted-foreground)}
+.fi-rf ul{margin:0;padding:0;list-style:none;display:grid;grid-template-columns:repeat(auto-fill,minmax(15rem,1fr));gap:.3rem}
+.fi-rf li{display:flex;align-items:center;gap:.5rem;min-width:0;padding:.3rem .5rem .3rem .35rem;border-radius:.75rem;border:1px solid rgba(255,255,255,.08);background:rgba(0,0,0,.2);transition:border-color .2s,background .2s}
+.fi-rf li:hover{border-color:color-mix(in oklch,var(--c) 55%,transparent)}
+.fi-rf li[data-fresh="true"]{border-color:color-mix(in oklch,var(--c) 70%,transparent);background:color-mix(in oklch,var(--c) 10%,rgba(0,0,0,.2));animation:fi-rf-in .5s cubic-bezier(.2,1.2,.4,1)}
+@keyframes fi-rf-in{from{opacity:0;transform:translateY(-8px) scale(.96)}to{opacity:1;transform:none}}
+.fi-rf .tx{flex:1;min-width:0;display:flex;flex-direction:column;line-height:1.15}
+.fi-rf .tx b{font-family:var(--font-rubik,inherit);font-size:.7rem;font-weight:700;color:var(--c);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.fi-rf .tx em{font-style:normal;font-family:var(--font-rubik,inherit);font-size:.6rem;color:#cfc8de;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.fi-rf .n{font-style:normal;flex:none;padding:0 .35rem;border-radius:999px;background:color-mix(in oklch,var(--c) 25%,transparent);font-family:var(--font-rubik,inherit);font-size:.58rem;font-weight:800;color:#fff}
+.fi-rf time{flex:none;font-family:var(--font-rubik,inherit);font-size:.54rem;color:var(--muted-foreground)}
+@media (prefers-reduced-motion:reduce){.fi-rf li{animation:none!important}}
 .fi-sk-hint{margin:0;font-family:var(--font-rubik,inherit);font-size:.68rem;line-height:1.45;color:var(--muted-foreground)}
 `;

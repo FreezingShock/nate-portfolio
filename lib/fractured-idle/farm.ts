@@ -5,6 +5,7 @@ import { colSteps, collectionRewards, craftRewards, milestonesOf, type Ladder, t
 import { activeIsland, openIslands } from "./island-logic";
 import type { Dim } from "./islands";
 import type { GrantKind } from "./skills";
+import { upStat } from "./upfx";
 
 // Farming: the second skill page, built on the same template as Mining (see the
 // comment at the top of mine.ts). The Garden is a set of plots that grow real
@@ -360,6 +361,8 @@ export interface Job {
 export interface LogEntry {
     text: string;
     color: string;
+    t?: number; // when it last happened (ms)
+    n?: number; // how many times in a row
 }
 export interface Plot {
     c: string; // crop id, "" = empty
@@ -519,7 +522,7 @@ export function cleanFarm(raw: unknown): FarmState {
     out.crafted = Math.max(0, Math.floor(num(o.crafted)));
     out.log = (Array.isArray(o.log) ? (o.log as Record<string, unknown>[]) : [])
         .filter((e) => e && typeof e.text === "string" && typeof e.color === "string")
-        .map((e) => ({ text: String(e.text).slice(0, 80), color: String(e.color).slice(0, 40) }))
+        .map((e) => ({ text: String(e.text).slice(0, 80), color: String(e.color).slice(0, 40), t: Number(e.t) > 0 ? Number(e.t) : undefined, n: Number(e.n) > 1 ? Math.min(999, Math.floor(Number(e.n))) : undefined }))
         .slice(0, 8);
     return out;
 }
@@ -599,9 +602,9 @@ export const toolSpecial = (s: State, kind: CropKind) => beltTool(s, kind)?.spec
 export const hoePower = (s: State) => hoeOf(s).power * (1 + 0.06 * upLevel(s, "till") + (hasRelic(s, "gloves") ? 0.1 : 0) + (hasRelic(s, "lantern") ? 0.15 : 0));
 /** Hoe power helps crops, but with a softening curve. */
 export const hoeFactor = (s: State) => Math.pow(hoePower(s), 0.55);
-export const yieldMult = (s: State, dim: Dim = activeIsland(s).dim) => DIM_FX[dim].yield * (1 + 0.05 * (s.rups.loam || 0)) * (1 + 0.08 * upLevel(s, "fert")) * (hasRelic(s, "straw") ? 1.06 : 1) * (hasRelic(s, "lens") ? 1.1 : 1);
+export const yieldMult = (s: State, dim: Dim = activeIsland(s).dim) => DIM_FX[dim].yield * (1 + 0.05 * (s.rups.loam || 0)) * (1 + upStat(s, "crop")) * (1 + 0.08 * upLevel(s, "fert")) * (hasRelic(s, "straw") ? 1.06 : 1) * (hasRelic(s, "lens") ? 1.1 : 1);
 export const luckyChance = (s: State, kind?: CropKind) => 0.015 * upLevel(s, "lucky") + (hasRelic(s, "clover") ? 0.06 : 0) + (kind === "fruit" ? toolSpecial(s, "fruit") : 0);
-export const goldenChance = (s: State) => 0.01 + 0.01 * upLevel(s, "golden") + 0.005 * crewLevel(s, "agron") + (hasRelic(s, "clover") ? 0.01 : 0);
+export const goldenChance = (s: State) => 0.01 + 0.01 * upLevel(s, "golden") + 0.005 * crewLevel(s, "agron") + upStat(s, "goldCrop") + (hasRelic(s, "clover") ? 0.01 : 0);
 export const podChance = (s: State, dim: Dim = activeIsland(s).dim, kind?: CropKind) => DIM_FX[dim].pod * 0.003 * (1 + 0.1 * upLevel(s, "seeker") + (hasRelic(s, "shears") ? 0.2 : 0) + (kind === "fungus" ? toolSpecial(s, "fungus") : 0));
 export const bloomNeed = (s: State) => 90;
 export const bumperLen = (s: State) => 6 + 2 * upLevel(s, "bumper") + (hasRelic(s, "lantern") ? 5 : 0) + (hasRelic(s, "totem") ? 6 : 0) + dimFx(s).bumper;
@@ -609,7 +612,7 @@ export const bumperMult = (s: State) => 3 * (1 + 0.1 * upLevel(s, "bumper"));
 export const farmXpMult = (s: State, dim: Dim = activeIsland(s).dim, kind?: CropKind) => (1 + 0.06 * upLevel(s, "scholar")) * DIM_FX[dim].xp * (kind === "root" ? 1 + toolSpecial(s, "root") : 1);
 export const hasReaper = (s: State) => upLevel(s, "reaper") > 0;
 export const ovenSlots = (s: State) => 1 + upLevel(s, "oven");
-export const cookSpeed = (s: State) => 1 + 0.08 * upLevel(s, "stoker") + 0.03 * crewLevel(s, "cooks") + (hasRelic(s, "hearth") ? 0.1 : 0);
+export const cookSpeed = (s: State) => 1 + upStat(s, "cook") + 0.08 * upLevel(s, "stoker") + 0.03 * crewLevel(s, "cooks") + (hasRelic(s, "hearth") ? 0.1 : 0);
 export const openEvery = (s: State) => (upLevel(s, "cracker") > 0 ? 36 / upLevel(s, "cracker") : Infinity);
 /** Seconds of growth a press of the big button gives a plot. */
 export const waterBoost = (s: State, combo: number) => 0.35 * (1 + 0.45 * Math.max(0, combo - 1)) * (1 + 0.08 * upLevel(s, "water"));
@@ -631,7 +634,7 @@ export function handBoost(s: State, c: CropDef): number {
 }
 /** Growth speed of a crop right now. */
 export const growSpeed = (s: State, c: CropDef) =>
-    DIM_FX[c.dim].speed * (1 + 0.05 * upLevel(s, "sprinkler")) * (1 + handBoost(s, c)) * (1 + 0.03 * crewLevel(s, "tenders")) * (hasRelic(s, "sundial") ? 1.1 : 1) * (1 + toolSpeed(s, c.kind));
+    DIM_FX[c.dim].speed * (1 + 0.05 * upLevel(s, "sprinkler")) * (1 + handBoost(s, c)) * (1 + 0.03 * crewLevel(s, "tenders")) * (hasRelic(s, "sundial") ? 1.1 : 1) * (1 + toolSpeed(s, c.kind)) * (1 + upStat(s, "grow"));
 /** Crops one harvest gives before bumper, luck, streak and gold. */
 export const cropUnits = (s: State, c: CropDef, field = 1) => c.yield * hoeFactor(s) * yieldMult(s, c.dim) * (1 + toolYield(s, c.kind)) * (1 + fieldBonus(s, field));
 
@@ -942,8 +945,15 @@ export const onWater = (fn: (e: WaterOut) => void) => {
 };
 
 export function pushLog(s: State, text: string, color: string) {
-    s.farm.log.unshift({ text, color });
-    if (s.farm.log.length > 8) s.farm.log.length = 8;
+    const log = s.farm.log;
+    const top = log[0];
+    if (top && top.text === text) {
+        top.n = (top.n ?? 1) + 1;
+        top.t = Date.now();
+        return;
+    }
+    log.unshift({ text, color, t: Date.now(), n: 1 });
+    if (log.length > 10) log.length = 10;
 }
 
 const addCrop = (s: State, id: CropId, units: number) => {
@@ -1623,7 +1633,7 @@ export const demandLeft = (now = Date.now()) => DEMAND_MS - (now % DEMAND_MS);
 
 export const enchNeed = (s: State) => Math.max(60, ENCH_BASE - 6 * upLevel(s, "table") - crewLevel(s, "packers") - rankOf(s).cut);
 export const sellMult = (s: State, c?: CropDef, now = Date.now()) =>
-    (1 + 0.06 * upLevel(s, "market")) * (1 + rankOf(s).sell) * (1 + 0.02 * crewLevel(s, "traders")) * (c?.kind === "bloom" ? 1 + toolSpecial(s, "bloom") : 1) * (c && demandKind(now) === c.kind ? DEMAND_MULT : 1);
+    (1 + 0.06 * upLevel(s, "market")) * (1 + rankOf(s).sell) * (1 + 0.02 * crewLevel(s, "traders")) * (1 + upStat(s, "sale")) * (c?.kind === "bloom" ? 1 + toolSpecial(s, "bloom") : 1) * (c && demandKind(now) === c.kind ? DEMAND_MULT : 1);
 export const enchStock = (s: State, id: CropId) => s.farm.ench[id] || 0;
 const income = (ctx: FarmCtx) => Math.max(ctx.cps, ctx.avgClick);
 /** Shards one harvest of this crop is worth, as the sale formulas see it (income counts clicks early on). */
