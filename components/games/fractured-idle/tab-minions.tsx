@@ -12,11 +12,7 @@ import { BUY_OPTIONS, Teaser, lift, tint, type Ctx } from "./ui";
 // per minion. Each card opens into that minion's collection (resets on
 // rebirth) and its own upgrades.
 
-const RANKS = [
-    { label: "Best value", color: "var(--mc-gold)" },
-    { label: "#2 value", color: "#d8d8ea" },
-    { label: "#3 value", color: "#e0955a" },
-];
+const RANKS = ["Best value", "#2 value", "#3 value"];
 
 const clamp01 = (n: number) => Math.max(0, Math.min(1, isFinite(n) ? n : 0));
 const pctOf = (a: number, b: number) => {
@@ -51,57 +47,32 @@ function SegTrack({ at, value, color, h = 6, labels }: { at: number[]; value: nu
     );
 }
 
-function BuyBar({ s, render }: Pick<Ctx, "s" | "render">) {
-    const order = BUY_OPTIONS.map((o) => o.v);
-    const cycle = () => {
-        s.buy = order[(order.indexOf(s.buy) + 1) % order.length];
-        render();
-    };
+function BuyBar({ s, act, render }: Pick<Ctx, "s" | "act" | "render">) {
     const aqua = "var(--mc-aqua)";
     return (
-        <div className="sticky -top-3 z-10 -mx-3 -mt-3 px-3 pb-2 pt-3 backdrop-blur-md" style={{ backgroundColor: "color-mix(in oklch, var(--background) 45%, transparent)" }}>
-            <div
-                role="button"
-                tabIndex={0}
-                title="Click to change how many you buy at once (B)"
-                onClick={cycle}
-                onKeyDown={(e) => {
-                    if (e.key === "Enter") {
-                        e.preventDefault();
-                        cycle();
-                    }
-                }}
-                className="flex cursor-pointer select-none items-center gap-3 rounded-xl border px-3 py-2 transition-colors hover:bg-white/5"
-                style={{ borderColor: tint(aqua, 60), backgroundImage: `linear-gradient(110deg, ${tint(aqua, 26)}, ${tint(aqua, 8)} 70%)`, boxShadow: `0 0 22px -8px ${aqua}, inset 0 1px 0 rgba(255,255,255,0.12)` }}
-            >
-                <div className="w-16 leading-none">
-                    <div className="font-minecraft text-[10px] uppercase tracking-widest text-muted-foreground">Buying</div>
-                    <div className="font-minecraft font-bold text-3xl" style={{ color: aqua, textShadow: `0 0 12px ${tint(aqua, 60)}` }}>
-                        {s.buy === -1 ? "MAX" : `x${s.buy}`}
-                    </div>
-                </div>
-                <div className="flex flex-1 gap-1">
-                    {BUY_OPTIONS.map((o) => {
-                        const on = s.buy === o.v;
-                        return (
-                            <button
-                                key={o.v}
-                                type="button"
-                                onClick={(e) => {
-                                    e.stopPropagation();
-                                    s.buy = o.v;
-                                    render();
-                                }}
-                                className="flex-1 rounded-lg border py-1.5 font-minecraft font-bold text-xs transition-colors hover:bg-white/10"
-                                style={on ? { borderColor: aqua, backgroundColor: tint(aqua, 22), color: aqua } : { borderColor: "rgba(255,255,255,0.12)", color: "var(--muted-foreground)" }}
-                            >
-                                {o.label}
-                            </button>
-                        );
-                    })}
-                </div>
-                <span className="hidden font-rubik text-[10px] text-muted-foreground sm:block">Click to cycle</span>
+        <div className="sticky -top-3 z-10 -mx-3 -mt-3 flex flex-wrap items-center gap-2 px-3 pb-2 pt-3 backdrop-blur-md" style={{ backgroundColor: "color-mix(in oklch, var(--background) 45%, transparent)" }}>
+            <div role="group" aria-label="Buy amount" title="How many you buy at once (B cycles)" className="inline-flex items-center gap-0.5 rounded-lg border p-0.5" style={{ borderColor: tint(aqua, 45), backgroundColor: tint(aqua, 8) }}>
+                <span className="px-1.5 font-minecraft text-[9px] uppercase tracking-widest text-muted-foreground">Buy</span>
+                {BUY_OPTIONS.map((o) => {
+                    const on = s.buy === o.v;
+                    return (
+                        <button
+                            key={o.v}
+                            type="button"
+                            aria-pressed={on}
+                            onClick={() => {
+                                s.buy = o.v;
+                                render();
+                            }}
+                            className="h-6 min-w-8 rounded-md px-1.5 font-minecraft font-bold text-[10px] transition-colors hover:bg-white/10"
+                            style={on ? { backgroundColor: tint(aqua, 28), color: aqua, boxShadow: `inset 0 0 0 1px ${aqua}` } : { color: "var(--muted-foreground)" }}
+                        >
+                            {o.label}
+                        </button>
+                    );
+                })}
             </div>
+            <AutoBar s={s} act={act} only={["min"]} />
         </div>
     );
 }
@@ -118,18 +89,20 @@ export function MinionsTab({ s, d, F, act, render }: Ctx) {
 
     return (
         <>
-            <BuyBar s={s} render={render} />
-            <AutoBar s={s} act={act} only={["min"]} />
+            <BuyBar s={s} act={act} render={render} />
 
             {top.length > 0 && (
-                <div>
-                    <div className="mb-1.5 flex items-center gap-1.5 font-minecraft text-[10px] uppercase tracking-widest" style={{ color: RANKS[0].color }}>
-                        <Sparkles className="size-3" /> Best value at {stack}
+                <div className="rounded-2xl border p-2" style={{ borderColor: "rgba(255,255,255,0.1)", backgroundColor: "rgba(0,0,0,0.18)" }}>
+                    <div className="mb-2 flex items-center justify-between px-1">
+                        <span className="flex items-center gap-1.5 font-minecraft text-[11px] font-bold uppercase tracking-widest text-foreground">
+                            <Sparkles className="size-3.5" style={{ color: "var(--mc-aqua)" }} /> Best value
+                        </span>
+                        <span className="rounded-full border px-2 py-px font-rubik text-[10px] text-muted-foreground" style={{ borderColor: "rgba(255,255,255,0.12)" }}>at {stack}</span>
                     </div>
-                    <div className="grid grid-cols-3 gap-1.5">
+                    <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
                         {top.map((t, r) => {
                             const m = MINIONS[t.i];
-                            const c = RANKS[r].color;
+                            const c = m.color;
                             const buy = () => t.info.can && act(() => buyMinion(s, t.i), s.buy === 1 ? undefined : "bulk");
                             return (
                                 <div
@@ -145,22 +118,22 @@ export function MinionsTab({ s, d, F, act, render }: Ctx) {
                                         }
                                     }}
                                     title={`${m.name}: pays itself back in ${fmtEta(t.info.payback)}`}
-                                    style={{ ["--c" as string]: c, borderColor: tint(c, t.info.can ? 75 : 40), backgroundColor: tint(c, 10) }}
-                                    className={`fi-afford relative min-w-0 select-none overflow-hidden rounded-xl border px-2 py-1.5 text-left transition-transform ${t.info.can ? "cursor-pointer hover:-translate-y-px" : "cursor-not-allowed opacity-75"}`}
+                                    style={{ ["--c" as string]: c, borderColor: tint(c, t.info.can ? 75 : 35), backgroundImage: `linear-gradient(150deg, ${tint(c, t.info.can ? 24 : 12)}, ${tint(c, 4)} 75%)`, boxShadow: t.info.can ? `0 0 18px -10px ${c}` : undefined }}
+                                    className={`group relative min-w-0 select-none overflow-hidden rounded-xl border p-2 text-left transition-transform ${t.info.can ? "fi-afford cursor-pointer hover:-translate-y-px" : "cursor-not-allowed opacity-80"}`}
                                 >
-                                    <span className="fi-shine pointer-events-none absolute inset-0" aria-hidden="true" />
-                                    <span className="relative flex items-center gap-1.5">
-                                        <span className="grid size-5 shrink-0 place-items-center rounded-full font-minecraft text-[10px] text-black" style={{ backgroundColor: c }}>{r + 1}</span>
-                                        <span className="truncate font-minecraft font-bold text-xs" style={{ color: lift(m.color) }}>{m.name.replace(" Minion", "")}</span>
-                                    </span>
-                                    <span className="relative mt-0.5 block truncate font-rubik text-[10px] text-muted-foreground">
-                                        {t.info.n > 1 ? `x${t.info.n} · ` : ""}back in {fmtEta(t.info.payback)}
+                                    <span className="pointer-events-none absolute -right-1 -top-2 leading-none opacity-15" style={{ fontSize: "3.6rem", color: c }} aria-hidden="true"><McSymbol name={m.symbol} /></span>
+                                    <span className="relative flex items-center gap-2">
+                                        <span className="grid size-7 shrink-0 place-items-center rounded-lg font-minecraft font-bold text-sm text-black" style={{ backgroundColor: c, boxShadow: `0 0 10px -2px ${c}` }}>{r + 1}</span>
+                                        <span className="min-w-0">
+                                            <span className="block truncate font-minecraft font-bold text-xs leading-tight" style={{ color: lift(c) }}>{m.name.replace(" Minion", "")}</span>
+                                            <span className="block truncate font-rubik text-[10px] text-muted-foreground">{t.info.n > 1 ? `x${t.info.n} · ` : ""}pays back in {fmtEta(t.info.payback)}</span>
+                                        </span>
                                     </span>
                                     <span
-                                        className="relative mt-1 flex items-center justify-between rounded-md border px-1.5 py-0.5 font-minecraft font-bold text-[11px]"
-                                        style={{ borderColor: tint(m.color, t.info.can ? 70 : 30), backgroundColor: tint(m.color, t.info.can ? 22 : 6), color: m.color }}
+                                        className="relative mt-2 flex items-center justify-between rounded-lg border px-2 py-1 font-minecraft font-bold text-[11px]"
+                                        style={{ borderColor: tint(c, t.info.can ? 70 : 30), backgroundColor: tint(c, t.info.can ? 24 : 6), color: c }}
                                     >
-                                        <span className="uppercase tracking-wider">Buy</span>
+                                        <span className="uppercase tracking-wider">{t.info.can ? "Buy" : "Need"}</span>
                                         <span style={{ color: t.info.can ? "var(--mc-yellow)" : undefined }}>{F(t.info.cost)}</span>
                                     </span>
                                 </div>
@@ -184,7 +157,7 @@ export function MinionsTab({ s, d, F, act, render }: Ctx) {
                 const tier = colTier(items);
                 const isOpen = !!open[i];
                 const rate = owned * d.colSpeed[i];
-                const rk = rank >= 0 ? RANKS[rank] : null;
+                const rk = rank >= 0 ? { label: RANKS[rank], color: m.color } : null;
                 const next = MINIONS[i + 1]?.name;
 
                 return (
