@@ -83,42 +83,6 @@ function EggCost({ s, e, F }: { s: State; e: EggDef; F: (n: number) => string })
     return <TipCard title={e.name} color={e.color} tag={cur.name} lines={cur.how} rows={rows} foot={e.cur === "shards" ? "Shard prices follow the best income you have ever reached." : "Prices rise a little with every egg you hatch."} />;
 }
 
-function HatchSummary({ egg, res, onClose }: { egg: EggDef; res: HatchResult[]; onClose: () => void }) {
-    const by = RARITY_ORDER.map((r) => ({ r, n: res.filter((x) => x.rarity === r).length })).filter((x) => x.n > 0);
-    const fresh = res.filter((x) => x.isNew);
-    const xp = res.reduce((a, x) => a + x.xp, 0);
-    const seen = new Map<string, number>();
-    for (const x of res) seen.set(x.id, (seen.get(x.id) ?? 0) + 1);
-    const top = [...seen.entries()].sort((a, b) => RARITY_ORDER.indexOf(PET_BY_ID.get(b[0])!.rarity) - RARITY_ORDER.indexOf(PET_BY_ID.get(a[0])!.rarity) || b[1] - a[1]);
-    return (
-        <div className="pt-sum" style={{ ["--ec" as string]: egg.color } as CSSProperties}>
-            <div className="pt-sum-h">
-                <span className="pt-sum-t">Opened {res.length} {egg.name}{res.length === 1 ? "" : "s"}</span>
-                <button type="button" className="pt-sum-x" onClick={onClose} aria-label="Dismiss summary">Dismiss</button>
-            </div>
-            <div className="pt-sum-r">
-                {by.map(({ r, n }) => (
-                    <span key={r} className="pt-sum-c" style={{ color: lift(RARITIES[r].color), borderColor: tint(RARITIES[r].color, 55) }}>{RARITIES[r].name} x{n}</span>
-                ))}
-            </div>
-            <div className="pt-sum-l">
-                {top.map(([id, n]) => {
-                    const p = PET_BY_ID.get(id)!;
-                    const isNew = fresh.some((x) => x.id === id);
-                    return (
-                        <span key={id} className="pt-sum-p" style={{ color: lift(RARITIES[p.rarity].color) }}>
-                            {p.name} x{n}{isNew && <b>NEW</b>}
-                        </span>
-                    );
-                })}
-            </div>
-            <div className="pt-sum-f">
-                {fresh.length ? `${fresh.length} new species` : "No new species"}{xp > 0 ? ` · duplicates gave ${Math.round(xp).toLocaleString()} xp` : ""}{res.some((x) => x.equipped) ? " · filled an empty slot" : ""}
-            </div>
-        </div>
-    );
-}
-
 export function PetsTab({ s, d, F, act, say, eggFx }: Ctx) {
     const slots = petSlots(s);
     const owned = PETS.filter((p) => s.pets[p.id]);
@@ -128,7 +92,6 @@ export function PetsTab({ s, d, F, act, say, eggFx }: Ctx) {
     const [fDim, setFDim] = useState<PetDim | "all">("all");
     const [fRar, setFRar] = useState<Rarity | "all">("all");
     const [onlyOwned, setOnlyOwned] = useState(false);
-    const [summary, setSummary] = useState<{ egg: EggDef; res: HatchResult[] } | null>(null);
 
     const score = petScore(s);
     const bonds = petBonds(s);
@@ -176,7 +139,9 @@ export function PetsTab({ s, d, F, act, say, eggFx }: Ctx) {
             }
             return res.length > 0;
         });
-        if (res.length) setSummary({ egg, res });
+        if (!res.length) return;
+        if (eggFx) eggFx(egg, res);
+        else say(`Opened ${res.length} eggs`);
     };
 
     const shown = useMemo(
@@ -274,7 +239,6 @@ export function PetsTab({ s, d, F, act, say, eggFx }: Ctx) {
 
             {view === "eggs" && (
                 <>
-                    {summary && <HatchSummary egg={summary.egg} res={summary.res} onClose={() => setSummary(null)} />}
                     {s.freeEggs > 0 && (
                         <div className="pt-free fi-afford" style={{ ["--c" as string]: "var(--mc-gold)" } as CSSProperties}>
                             <McSymbol name="flower" />
@@ -500,15 +464,6 @@ export const PET_CSS = `
 .pt-hatch:hover:not(:disabled){filter:brightness(1.25);transform:translateY(-1px)}
 .pt-hatch:active:not(:disabled){transform:scale(.94)}
 .pt-hatch:disabled{opacity:.4;cursor:not-allowed}
-.pt-sum{display:flex;flex-direction:column;gap:.4rem;padding:.6rem .75rem;border-radius:.9rem;border:1px solid color-mix(in oklch,var(--ec) 60%,transparent);background:color-mix(in oklch,var(--ec) 8%,rgba(0,0,0,.25))}
-.pt-sum-h{display:flex;align-items:center;justify-content:space-between;gap:.5rem}
-.pt-sum-t{font-family:var(--font-minecraft,inherit);font-size:.76rem;font-weight:700;color:color-mix(in oklch,var(--ec) 70%,#fff)}
-.pt-sum-x{font-family:var(--font-rubik,inherit);font-size:.62rem;color:var(--muted-foreground);text-decoration:underline}
-.pt-sum-r,.pt-sum-l{display:flex;flex-wrap:wrap;gap:.3rem}
-.pt-sum-c{padding:.05rem .5rem;border-radius:999px;border:1px solid;font-family:var(--font-rubik,inherit);font-size:.64rem}
-.pt-sum-p{display:inline-flex;align-items:center;gap:.3rem;padding:.1rem .45rem;border-radius:.5rem;background:rgba(255,255,255,.05);font-family:var(--font-minecraft,inherit);font-size:.66rem}
-.pt-sum-p b{padding:0 .3rem;border-radius:999px;background:var(--mc-green);color:#000;font-size:.55rem}
-.pt-sum-f{font-family:var(--font-rubik,inherit);font-size:.62rem;color:var(--muted-foreground)}
 .pt-note{margin:0;font-family:var(--font-rubik,inherit);font-size:.66rem;color:var(--muted-foreground)}
 .pt-target{display:flex;align-items:center;gap:.5rem;padding:.45rem .7rem;border-radius:.8rem;border:1px solid var(--mc-yellow);background:color-mix(in oklch,var(--mc-yellow) 10%,transparent);font-family:var(--font-rubik,inherit);font-size:.72rem;color:var(--mc-yellow)}
 .pt-target b{font-family:var(--font-minecraft,inherit)}

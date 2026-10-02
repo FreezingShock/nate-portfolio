@@ -1,10 +1,11 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties, type MutableRefObject } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties, type MutableRefObject } from "react";
 import { McSymbol } from "@/components/mc-symbol";
-import { EGG_CUR, PET_BY_ID, PET_DIM_BY_ID, RARITIES, petStatValue, PET_LABEL, rarityIdx, type EggDef, type Rarity } from "@/lib/fractured-idle/data";
+import { EGG_CUR, PET_BY_ID, PET_DIM_BY_ID, RARITIES, RARITY_ORDER, petStatValue, PET_LABEL, rarityIdx, type EggDef, type Rarity } from "@/lib/fractured-idle/data";
 import type { HatchResult } from "@/lib/fractured-idle/engine";
 import { chargeFx, flashScreen, revealFx } from "./enchant-fx";
+import { lift } from "./ui";
 
 // The egg opening. It covers the screen with a 3D particle tunnel whose colors follow the best rarity in the batch
 // (it drifts from the egg's color toward that rarity while the eggs shake, then locks in on the crack). Each egg
@@ -157,7 +158,259 @@ function Particles({ fx }: { fx: MutableRefObject<Fx> }) {
     return <canvas ref={cv} className="fi-eg-cv" aria-hidden="true" />;
 }
 
-export function EggReveal({ egg, results, onClose, fixed = false }: { egg: EggDef; results: HatchResult[]; onClose: () => void; fixed?: boolean }) {
+type RevealProps = { egg: EggDef; results: HatchResult[]; onClose: () => void; fixed?: boolean };
+
+/** Up to three eggs open one by one; bigger batches (Open all) use the compact bulk reveal. */
+export function EggReveal(props: RevealProps) {
+    return props.results.length > 3 ? <BulkReveal {...props} /> : <RowReveal {...props} />;
+}
+
+type Phase = "charge" | "pour" | "done";
+
+/** Open all: one egg shakes under an "xN" badge, cracks, and every unique pet flies out of it into a grid with its count. */
+function BulkReveal({ egg, results, onClose, fixed = false }: RevealProps) {
+    const host = useRef<HTMLDivElement>(null);
+    const eggEl = useRef<HTMLDivElement>(null);
+    const tiles = useRef<(HTMLDivElement | null)[]>([]);
+    const anims = useRef<Animation[]>([]);
+    const timers = useRef<ReturnType<typeof setTimeout>[]>([]);
+    const [phase, setPhase] = useState<Phase>("charge");
+    const phaseRef = useRef<Phase>("charge");
+    const fast = useRef(false);
+    const doneAt = useRef(0);
+    const alive = useRef(true);
+    const fx = useRef<Fx>({ rgb: [200, 200, 220], rainbow: false, speed: 0.8, pulse: 0 });
+
+    const go = useCallback((ph: Phase) => {
+        phaseRef.current = ph;
+        setPhase(ph);
+    }, []);
+
+    const { groups, best, fresh, xp, byRarity } = useMemo(() => {
+        const m = new Map<string, { id: string; n: number; isNew: boolean; rarity: Rarity }>();
+        let xpSum = 0;
+        for (const r of results) {
+            const g = m.get(r.id);
+            if (g) {
+                g.n++;
+                g.isNew = g.isNew || r.isNew;
+            } else m.set(r.id, { id: r.id, n: 1, isNew: r.isNew, rarity: r.rarity });
+            xpSum += r.xp;
+        }
+        const list = [...m.values()].sort((a, b) => rarityIdx(b.rarity) - rarityIdx(a.rarity) || b.n - a.n);
+        return {
+            groups: list,
+            best: list[0].rarity,
+            fresh: list.filter((g) => g.isNew).length,
+            xp: xpSum,
+            byRarity: RARITY_ORDER.map((r) => ({ r, n: results.filter((x) => x.rarity === r).length })).filter((x) => x.n > 0).reverse(),
+        };
+    }, [results]);
+
+    const center = useCallback(() => {
+        const h = host.current;
+        const e = eggEl.current;
+        if (!h || !e) return null;
+        const rc = e.getBoundingClientRect();
+        const hr = h.getBoundingClientRect();
+        if (!rc.width || !hr.width) return null;
+        return { x: rc.left - hr.left + rc.width / 2, y: rc.top - hr.top + rc.height / 2 };
+    }, []);
+
+    const startPour = useCallback(() => {
+        if (!alive.current || phaseRef.current !== "charge") return;
+        timers.current.forEach(clearTimeout);
+        timers.current = [];
+        const c = center();
+        const h = host.current;
+        const r = rarityIdx(best);
+        if (c && h) {
+            revealFx(h, c.x, c.y, Math.min(7, r + 1));
+            flashScreen(h, Math.min(7, r + 1), true);
+        }
+        fx.current.rgb = RARITY_RGB[best];
+        fx.current.rainbow = best === "divine";
+        fx.current.speed = 1.6;
+        fx.current.pulse = 1;
+        go("pour");
+    }, [best, center, go]);
+
+    // Charge: the egg shakes while the tunnel drifts toward the best rarity, then it cracks open.
+    useEffect(() => {
+        alive.current = true;
+        const h = host.current;
+        const eggRgb = h ? resolveRgb(h, egg.color, [200, 200, 220]) : ([200, 200, 220] as RGB);
+        const bestRgb = RARITY_RGB[best];
+        const ms = reduced() ? 300 : 1000;
+        fx.current.rgb = eggRgb;
+        for (let k = 1; k <= 4; k++) {
+            const m = (k / 5) * 0.85;
+            timers.current.push(
+                setTimeout(() => {
+                    if (phaseRef.current === "charge") {
+                        fx.current.rgb = [0, 1, 2].map((c) => eggRgb[c] + (bestRgb[c] - eggRgb[c]) * m) as RGB;
+                        fx.current.speed = 0.8 + m * 1.4;
+                    }
+                }, (ms * k) / 5),
+            );
+        }
+        const c = center();
+        if (h && c) chargeFx(h, c.x, c.y, rarityIdx(best), ms);
+        timers.current.push(setTimeout(startPour, ms));
+        const list = timers.current;
+        const running = anims.current;
+        return () => {
+            alive.current = false;
+            list.forEach(clearTimeout);
+            timers.current.forEach(clearTimeout);
+            running.forEach((a) => a.cancel());
+        };
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
+
+    // Pour: each pet tile flies from the egg to its spot in the grid, rarest first.
+    useLayoutEffect(() => {
+        if (phase !== "pour") return;
+        const c = center();
+        const hr = host.current?.getBoundingClientRect();
+        const step = fast.current ? 12 : Math.max(24, Math.min(90, Math.round(1100 / groups.length)));
+        let end = 0;
+        tiles.current.forEach((el, i) => {
+            if (!el || !c || !hr) return;
+            const rc = el.getBoundingClientRect();
+            const dx = c.x + hr.left - (rc.left + rc.width / 2);
+            const dy = c.y + hr.top - (rc.top + rc.height / 2);
+            const delay = i * step;
+            const dur = reduced() ? 1 : 560;
+            end = Math.max(end, delay + dur);
+            anims.current.push(
+                el.animate(
+                    [
+                        { transform: `translate(${dx}px,${dy}px) scale(.15) rotate(${i % 2 ? 40 : -40}deg)`, opacity: 0 },
+                        { opacity: 1, offset: 0.2 },
+                        { transform: "translate(0,0) scale(1.12) rotate(0deg)", opacity: 1, offset: 0.78 },
+                        { transform: "translate(0,0) scale(1) rotate(0deg)", opacity: 1 },
+                    ],
+                    { duration: dur, delay, easing: "cubic-bezier(.25,.8,.35,1)", fill: "both" },
+                ),
+            );
+        });
+        timers.current.push(
+            setTimeout(() => {
+                if (!alive.current || phaseRef.current !== "pour") return;
+                doneAt.current = Date.now();
+                go("done");
+            }, end + 150),
+        );
+    }, [phase, center, go, groups.length]);
+
+    const skip = useCallback(() => {
+        const ph = phaseRef.current;
+        if (ph === "charge") {
+            fast.current = true;
+            startPour();
+        } else if (ph === "pour") {
+            timers.current.forEach(clearTimeout);
+            timers.current = [];
+            anims.current.forEach((a) => a.finish());
+            doneAt.current = Date.now();
+            go("done");
+        } else if (Date.now() - doneAt.current > 350) onClose();
+    }, [go, onClose, startPour]);
+
+    useEffect(() => {
+        const key = (e: KeyboardEvent) => {
+            if (e.key === "Escape" || e.key === " " || e.key === "Enter") {
+                e.preventDefault();
+                e.stopPropagation();
+                skip();
+            }
+        };
+        window.addEventListener("keydown", key, true);
+        return () => window.removeEventListener("keydown", key, true);
+    }, [skip]);
+
+    const cur = EGG_CUR[egg.cur];
+    const bestColor = RARITIES[best].color;
+    return (
+        <div
+            ref={host}
+            role="dialog"
+            aria-modal="true"
+            aria-label={`Opening ${results.length} ${egg.name}s`}
+            className="fi-eg-ov fi-bk-ov"
+            data-fixed={fixed}
+            data-n="1"
+            style={{ ["--gc" as string]: phase === "charge" ? egg.color : bestColor, ["--ec" as string]: egg.color } as CSSProperties}
+            onMouseDown={(e) => e.preventDefault()}
+            onDoubleClick={(e) => e.preventDefault()}
+            onContextMenu={(e) => e.preventDefault()}
+            onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                skip();
+            }}
+        >
+            <Particles fx={fx} />
+            <div className="fi-eg-top">
+                <span className="fi-eg-title" style={{ color: egg.color }}>
+                    <McSymbol name={egg.symbol} /> Opening all {egg.name}s
+                </span>
+                <span className="fi-eg-sub">{PET_DIM_BY_ID[egg.dim].name} · paid with {cur.name.toLowerCase()}</span>
+            </div>
+
+            <div className="fi-bk">
+                <div className="fi-bk-l">
+                    <div className="fi-bk-mult" style={{ color: egg.color }}>x{results.length.toLocaleString()}</div>
+                    <div ref={eggEl} className="fi-bk-egg" data-ph={phase}>
+                        <div className="fi-eg">
+                            <span className="fi-eg-sym"><McSymbol name={egg.symbol} /></span>
+                            {phase === "charge" && (
+                                <svg className="fi-eg-crack" viewBox="0 0 100 130" aria-hidden="true" style={{ ["--sd" as string]: "1000ms" } as CSSProperties}>
+                                    <path d="M52 0 L44 24 L58 40 L40 62 L56 82 L46 104 L54 130" fill="none" stroke="#fff" strokeWidth="3" strokeLinejoin="round" pathLength={100} />
+                                </svg>
+                            )}
+                        </div>
+                    </div>
+                </div>
+
+                <div className="fi-bk-g" data-done={phase === "done"}>
+                    {phase === "charge" ? (
+                        <div className="fi-bk-ph">Opening {results.length.toLocaleString()} eggs…</div>
+                    ) : (
+                        groups.map((g, i) => {
+                            const p = PET_BY_ID.get(g.id)!;
+                            const rc = RARITIES[g.rarity].color;
+                            return (
+                                <div key={g.id} ref={(el) => { tiles.current[i] = el; }} className="fi-bk-t" data-r={rarityIdx(g.rarity)} title={`${p.name} (${RARITIES[g.rarity].name}) x${g.n}`} style={{ ["--rc" as string]: rc, ["--pc" as string]: p.color } as CSSProperties}>
+                                    <span className="fi-bk-i"><McSymbol name={p.symbol} /></span>
+                                    <span className="fi-bk-n">{p.name}</span>
+                                    <b className="fi-bk-c">x{g.n}</b>
+                                    {g.isNew && <i className="fi-bk-new">NEW</i>}
+                                </div>
+                            );
+                        })
+                    )}
+                </div>
+            </div>
+
+            <div className="fi-bk-f" data-show={phase === "done"}>
+                <div className="fi-bk-chips">
+                    {byRarity.map(({ r, n }) => (
+                        <span key={r} style={{ color: lift(RARITIES[r].color), borderColor: RARITIES[r].color }}>{RARITIES[r].name} x{n}</span>
+                    ))}
+                </div>
+                <div className="fi-bk-s">
+                    {groups.length} species · {fresh ? `${fresh} new` : "none new"}
+                    {xp > 0 ? ` · duplicates gave ${Math.round(xp).toLocaleString()} xp` : ""}
+                </div>
+            </div>
+            <div className="fi-eg-hint">{phase === "done" ? "Tap anywhere to continue" : "Tap to skip"}</div>
+        </div>
+    );
+}
+
+function RowReveal({ egg, results, onClose, fixed = false }: RevealProps) {
     const host = useRef<HTMLDivElement>(null);
     const eggs = useRef<(HTMLDivElement | null)[]>([]);
     const timers = useRef<ReturnType<typeof setTimeout>[]>([]);
@@ -394,6 +647,32 @@ export const EGG_CSS = `
 .fi-eg-stat{font-family:var(--font-rubik,inherit);font-size:clamp(.5rem,2.2vw,.68rem);color:#a59fb8}
 .fi-eg-eq{font-family:var(--font-minecraft,inherit);font-size:clamp(.55rem,2.4vw,.7rem);color:var(--mc-green);text-shadow:0 0 10px var(--mc-green)}
 .fi-eg-hint{font-family:var(--font-rubik,inherit);font-size:clamp(.55rem,2.2vw,.7rem);letter-spacing:.14em;text-transform:uppercase;color:#8f89a3;animation:fi-pulse 2s ease-in-out infinite}
+.fi-bk-ov{padding-left:max(clamp(1rem,5vw,3rem),env(safe-area-inset-left));padding-right:max(clamp(1rem,5vw,3rem),env(safe-area-inset-right))}
+.fi-bk{position:relative;z-index:1;display:flex;flex-direction:row;align-items:center;justify-content:center;gap:clamp(.8rem,3vw,2.2rem);width:100%;max-width:56rem}
+.fi-bk-l{display:flex;flex-direction:column;align-items:center;gap:.5rem;flex:none;--es:clamp(5rem,16vw,8rem)}
+.fi-bk-mult{font-family:var(--font-minecraft,inherit);font-size:clamp(1.6rem,6vw,2.6rem);line-height:1;text-shadow:0 0 18px currentColor,0 3px 0 rgba(0,0,0,.65);animation:fi-bk-pop 1.1s ease-in-out infinite}
+@keyframes fi-bk-pop{50%{transform:scale(1.12)}}
+.fi-bk-egg{position:relative;width:var(--es);height:calc(var(--es)*1.27)}
+.fi-bk-egg[data-ph="charge"] .fi-eg{animation:fi-bk-shake 1s cubic-bezier(.45,0,.55,1) both,fi-eg-glow .35s ease-in-out infinite alternate}
+.fi-bk-egg[data-ph="pour"] .fi-eg{animation:fi-bk-jit .09s linear infinite,fi-eg-glow .25s ease-in-out infinite alternate}
+.fi-bk-egg[data-ph="done"] .fi-eg{animation:none;filter:brightness(.7) saturate(.7);transform:scale(.94);transition:filter .5s,transform .5s}
+@keyframes fi-bk-shake{0%,100%{transform:rotate(0) scale(1)}12%{transform:rotate(-5deg)}24%{transform:rotate(5deg)}36%{transform:rotate(-8deg) scale(1.03)}48%{transform:rotate(8deg)}60%{transform:rotate(-11deg) scale(1.06)}72%{transform:rotate(11deg)}84%{transform:rotate(-14deg) scale(1.1)}95%{transform:rotate(2deg) scale(1.15)}}
+@keyframes fi-bk-jit{0%{transform:translate(-2px,1px) rotate(-3deg) scale(1.06)}50%{transform:translate(2px,-1px) rotate(3deg) scale(1.1)}100%{transform:translate(-1px,-2px) rotate(-2deg) scale(1.06)}}
+.fi-bk-g{flex:1 1 0;min-width:0;display:grid;grid-template-columns:repeat(auto-fill,minmax(4.6rem,1fr));gap:.4rem;align-content:start;max-height:min(58vh,26rem);overflow-y:auto;overscroll-behavior:contain;padding:.3rem;border-radius:1rem;background:rgba(0,0,0,.22);border:1px solid rgba(255,255,255,.08);scrollbar-width:thin}
+.fi-bk-ph{grid-column:1/-1;display:grid;place-items:center;min-height:6rem;font-family:var(--font-rubik,inherit);font-size:.75rem;letter-spacing:.1em;text-transform:uppercase;color:#8f89a3;animation:fi-pulse 1s ease-in-out infinite}
+.fi-bk-t{position:relative;display:flex;flex-direction:column;align-items:center;gap:.1rem;padding:.4rem .2rem .3rem;border-radius:.7rem;border:1px solid color-mix(in oklch,var(--rc) 60%,transparent);background:color-mix(in oklch,var(--rc) 12%,rgba(8,6,18,.75));box-shadow:0 0 14px -6px var(--rc);will-change:transform,opacity}
+.fi-bk-t[data-r="4"],.fi-bk-t[data-r="5"],.fi-bk-t[data-r="6"]{box-shadow:0 0 18px -2px var(--rc),inset 0 0 12px -6px var(--rc)}
+.fi-bk-i{font-size:1.5rem;color:var(--pc);line-height:1}
+.fi-bk-n{max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-family:var(--font-rubik,inherit);font-size:.52rem;color:#d8d3e6}
+.fi-bk-c{font-family:var(--font-minecraft,inherit);font-size:.72rem;color:#fff;text-shadow:0 1px 0 #000}
+.fi-bk-new{position:absolute;top:-.3rem;right:-.2rem;padding:0 .3rem;border-radius:999px;background:var(--mc-yellow);color:#000;font-family:var(--font-minecraft,inherit);font-style:normal;font-size:.48rem}
+.fi-bk-f{position:relative;z-index:1;display:flex;flex-direction:column;align-items:center;gap:.3rem;opacity:0;transform:translateY(6px);transition:opacity .35s,transform .35s;pointer-events:none}
+.fi-bk-f[data-show="true"]{opacity:1;transform:none}
+.fi-bk-chips{display:flex;flex-wrap:wrap;justify-content:center;gap:.3rem}
+.fi-bk-chips span{padding:.05rem .5rem;border-radius:999px;border:1px solid;background:rgba(0,0,0,.35);font-family:var(--font-rubik,inherit);font-size:clamp(.5rem,2.3vw,.66rem)}
+.fi-bk-s{font-family:var(--font-rubik,inherit);font-size:clamp(.55rem,2.4vw,.7rem);color:#a59fb8;text-align:center}
+@media (max-width:640px){.fi-bk{flex-direction:column;gap:.6rem}.fi-bk-l{--es:clamp(4rem,22vw,5.5rem);flex-direction:row;gap:.8rem}.fi-bk-g{flex:0 1 auto;width:100%;max-height:42vh;grid-template-columns:repeat(auto-fill,minmax(4.1rem,1fr))}}
+@media (max-height:520px){.fi-bk{flex-direction:row}.fi-bk-l{flex-direction:column;--es:clamp(3rem,16vh,4.5rem)}.fi-bk-g{max-height:56vh}}
 @media (max-height:520px){.fi-eg-ov{gap:.3rem}.fi-eg-ov[data-n] {--es:clamp(3.2rem,16vh,5.5rem)}.fi-eg-sub{display:none}}
-@media (prefers-reduced-motion:reduce){.fi-eg[data-ph="shake"],.fi-eg-crack,.fi-eg-pet,.fi-eg-hint,.fi-eg-new,.fi-eg-rays{animation:none}.fi-eg-crack{stroke-dashoffset:0}.fi-eg-l,.fi-eg-r{animation-duration:.01s}}
+@media (prefers-reduced-motion:reduce){.fi-eg[data-ph="shake"],.fi-eg-crack,.fi-eg-pet,.fi-eg-hint,.fi-eg-new,.fi-eg-rays{animation:none}.fi-eg-crack{stroke-dashoffset:0}.fi-eg-l,.fi-eg-r{animation-duration:.01s}.fi-bk-mult,.fi-bk-ph,.fi-bk-egg .fi-eg{animation:none!important}}
 `;
