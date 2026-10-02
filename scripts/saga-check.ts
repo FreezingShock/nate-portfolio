@@ -25,7 +25,7 @@ ok(SG.readyChapters(s).length === 0, "nothing ready on a fresh save");
 const x = SG.SAGA_BY_ID.mining;
 ok(SG.currentChapter(s, x)?.n === 1, "current chapter starts at 1");
 ok(SG.claimChapter(s, "mining:1") === null, "cannot claim before the tasks are done");
-s.mine.nodes = 200; s.mine.broken = 30; s.mining = 1e5; s.mine.pick = 5;
+s.mine.nodes = 200; s.mine.broken = 30; s.mining = 1e5; s.mine.picks.push("stone");
 ok(SG.chapterReady(s, x.chapters[0]), "chapter 1 completes from state");
 const dust0 = s.enc.dust;
 const d0 = derive(s);

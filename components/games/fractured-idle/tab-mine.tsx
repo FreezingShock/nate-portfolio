@@ -8,83 +8,56 @@ import { McSymbol } from "@/components/mc-symbol";
 import { SKILL_CAP, fmtTime, skillXpFor } from "@/lib/fractured-idle/engine";
 import { ISLANDS, ISLAND_BY_ID, type Dim } from "@/lib/fractured-idle/islands";
 import { activeIsland, openIslands } from "@/lib/fractured-idle/island-logic";
-import { fmtStat } from "@/lib/fractured-idle/enchant";
-import { GRANT_LABEL } from "@/lib/fractured-idle/skills";
 import {
     COL_AT,
     DIMS,
     DIM_FX,
-    FEATS,
-    FEAT_LADDERS,
     GEODE_TOKENS,
     GEODE_W,
     ISLAND_ORES,
+    LADDERS,
+    MILESTONES,
+    ORE_BY_ID,
     bottleneck,
-    buildDrillsAll,
     claimAllFeats,
     claimFeat,
     crackAll,
     digHit,
     digHits,
-    equipRelic,
-    featClaimed,
-    featReady,
+    drillHeld,
+    ENCHANTS,
+    PARTS,
+    canBuyEnch,
     featsReady,
     goalOf,
     isOre,
-    ownsRelic,
+    autoRig,
+    enchantAll,
+    heldTool,
+    canCraft,
     queueGoal,
-    relicSlots,
-    toggleLoop,
-    unequipRelic,
-    upgradeAll,
     DIM_LABEL,
     DIM_ORES,
     GEODES,
-    INGOTS,
     ITEMS,
-    MINE_UPS,
     ORES,
-    ORE_BY_ID,
-    PICKS,
-    PICK_CLICK,
     RECIPES,
-    RELICS,
+    RECIPE_BY_ID,
     SET_STEPS,
-    buyDrill,
-    buyMineUp,
-    buyPick,
-    canAfford,
-    canBuyDrill,
-    canBuyPick,
-    canBuyUp,
-    canCraft,
     collectAll,
-    collectJob,
     colTierOf,
     comboFactor,
-    crackGeode,
     dimSet,
-    drillBoost,
-    drillCost,
-    drillDmg,
-    drillMult,
+    drillMk,
     drillSwings,
-    eff,
-    forgeSlots,
-    forgeSpeed,
     geodeChance,
     geodeCount,
     have,
     haveOre,
-    hasRelic,
+    hasDrill,
     idleSwings,
     itemCount,
-    jobLeft,
-    jobSeconds,
     jobsReady,
-    luckyChance,
-    maxBatch,
     mineCtx,
     mineLevel,
     onSwing,
@@ -92,9 +65,7 @@ import {
     oreTable,
     oreXp,
     passiveSwings,
-    pickOf,
     pickPower,
-    pushLog,
     resInfo,
     rushLen,
     rushMult,
@@ -102,23 +73,22 @@ import {
     slotsFree,
     startCraft,
     swingShards,
-    totalCost,
-    totalDrills,
-    upCost,
-    upLevel,
     consumeItem,
     veinNeed,
     yieldMult,
-    type Cost,
-    type FeatReward,
     type ItemId,
-    type MineUpDef,
     type OreDef,
     type OreId,
-    type RecipeDef,
     type ResId,
     type SwingOut,
 } from "@/lib/fractured-idle/mine";
+import { colSteps } from "@/lib/fractured-idle/milestones";
+import { SAGA_BY_ID, chapterFrac, chapterReady, currentChapter, tasksDone } from "@/lib/fractured-idle/sagas";
+import { Forge, FORGE_CSS } from "./mine-forge";
+import { MINE_TOOL_CSS, ToolView } from "./mine-tool";
+import { mineNeeds } from "./mine-bits";
+import { MilestoneBoard, NeedTile, SKILL_KIT_CSS } from "./skill-kit";
+import { wantLevel } from "./level-nav";
 import { Tip, TipCard } from "./tooltip";
 import { Progress, SectionTitle, type Ctx } from "./ui";
 
@@ -131,7 +101,7 @@ import { Progress, SectionTitle, type Ctx } from "./ui";
 // they are while numbers change, like the Roll button in Enchant.
 
 const C = "#e0b070";
-type View = "dig" | "gear" | "drills" | "forge" | "ores" | "worlds" | "feats";
+type View = "dig" | "tool" | "forge" | "ores" | "worlds" | "milestones";
 
 const fmtPct = (n: number) => `${+(n * 100).toFixed(1)}%`;
 const amt = (F: (n: number) => string, n: number) => (n >= 1000 ? F(Math.floor(n)) : n >= 100 ? String(Math.floor(n)) : String(+n.toFixed(n < 10 ? 2 : 1)));
@@ -143,7 +113,7 @@ const BLOBS: [number, number, number][] = [
     [14, 82, 7], [48, 80, 9], [90, 16, 7], [36, 34, 6], [70, 84, 7], [58, 46, 6], [82, 80, 6], [26, 40, 6],
 ];
 
-export function MineTab({ s, d, F, render, say }: Ctx) {
+export function MineTab({ s, d, F, render, say, open }: Ctx & { open: (tab: string) => void }) {
     const m = s.mine;
     const lvl = mineLevel(s);
     const [view, setView] = useState<View>("dig");
@@ -151,41 +121,42 @@ export function MineTab({ s, d, F, render, say }: Ctx) {
     const hi = skillXpFor(lvl + 1, undefined);
     const lo = skillXpFor(lvl, undefined);
     const pp = pickPower(s);
-    const ctx = mineCtx(d);
     const idle = idleSwings(s, d.auto);
+    const tool = heldTool(s);
     const mined = ORES.reduce((a, o) => a + (m.mined[o.id] || 0), 0);
     const geodes = geodeCount(s);
 
     return (
         <div className="fi-mn">
             <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
-                <Stat label="Pick power" value={`x${pp.toFixed(pp < 10 ? 2 : 1)}`} sub={pickOf(s).name} color={pickOf(s).color} tip={<TipCard title="Pick power" color={pickOf(s).color} lines={["Damage of every swing. Hard ore needs a strong pick to give a whole ore per swing."]} rows={[["Pickaxe", pickOf(s).name], ["Efficiency", `+${upLevel(s, "eff") * 6}%`], ["Relics", `+${(hasRelic(s, "grip") ? 10 : 0) + (hasRelic(s, "anchor") ? 15 : 0)}%`], ["Each pickaxe tier", `+${fmtPct(PICK_CLICK)} click power`]]} />} />
-                <Stat label="Idle swings" value={`${idle.toFixed(idle < 10 ? 1 : 0)}/s`} sub={`${F(totalDrills(s))} drills, always on`} color="var(--mc-aqua)" tip={<IdleTip s={s} auto={d.auto} />} />
+                <Stat label="Tool" value={`x${pp.toFixed(pp < 10 ? 2 : 1)}`} sub={tool.name} color={tool.color} tip={<TipCard title={tool.name} color={tool.color} lines={["Damage of every swing. Hard ore needs a strong tool to give a whole ore per swing."]} rows={[["Power", `x${pp.toFixed(2)}`], ["Tier", String(tool.tier)], ["Trait", tool.traitText]]} foot="Wield or build tools on the Tool tab" />} />
+                <Stat label="Idle swings" value={`${idle.toFixed(idle < 10 ? 1 : 0)}/s`} sub={drillHeld(s) ? `Mk ${drillMk(s)} drill, always on` : hasDrill(s) ? "drill is in your toolbox" : "forge a drill to boost it"} color="var(--mc-aqua)" tip={<IdleTip s={s} auto={d.auto} />} />
                 <Stat label="Ore mined" value={F(Math.floor(mined))} sub={`${F(Math.floor(m.nodes))} swings`} color={C} tip={<TipCard title="Ore mined" color={C} lines={["Everything you have mined, by hand, by auto-click or by drill."]} rows={[["Swings", F(Math.floor(m.nodes))], ["Ore Rushes", F(m.rushes)], ["Crafts collected", F(m.crafted)]]} />} />
                 <Stat label="Geodes" value={String(geodes)} sub={`${F(m.cracked)} cracked`} color="var(--mc-light-purple)" tip={<TipCard title="Geodes" color="var(--mc-light-purple)" lines={["Swings sometimes drop one. The Nether and the End drop richer ones."]} rows={[["Chance per swing", fmtPct(geodeChance(s))], ...DIMS.map((dm) => [GEODES[dm].name, String(m.geodes[dm] || 0), GEODES[dm].color] as [string, string, string])]} />} />
             </div>
             <Progress label={`Mining ${lvl}`} color={C} pct={lvl >= SKILL_CAP ? 1 : (s.mining - lo) / (hi - lo)} right={lvl >= SKILL_CAP ? "MAX" : `${Math.floor(Math.max(0, (s.mining - lo) / (hi - lo)) * 100)}% to ${lvl + 1}`} />
 
+            <SagaNudge s={s} open={() => { wantLevel("sagas", "mining"); open("level"); }} />
+
             <QuickBar s={s} d={d} render={render} say={say} />
 
             <div className="fi-mn-seg" role="tablist">
-                {([["dig", "Mine"], ["gear", "Gear"], ["drills", "Drills"], ["forge", "Forge"], ["ores", "Ores"], ["worlds", "Worlds"], ["feats", "Feats"]] as const).map(([v, label]) => (
+                {([["dig", "Mine"], ["tool", "Tool"], ["forge", "Forge"], ["ores", "Ores"], ["worlds", "Worlds"], ["milestones", "Milestones"]] as const).map(([v, label]) => (
                     <button key={v} type="button" role="tab" aria-selected={view === v} data-on={view === v} onClick={() => setView(v)}>
                         {label}
                         {v === "forge" && ready > 0 && <i className="fi-mn-dot">{ready}</i>}
                         {v === "dig" && geodes > 0 && <i className="fi-mn-dot gem">{geodes}</i>}
-                        {v === "feats" && featsReady(s).length > 0 && <i className="fi-mn-dot feat">{featsReady(s).length}</i>}
+                        {v === "milestones" && featsReady(s).length > 0 && <i className="fi-mn-dot feat">{featsReady(s).length}</i>}
                     </button>
                 ))}
             </div>
 
             {view === "dig" && <DigView s={s} d={d} F={F} render={render} say={say} />}
-            {view === "gear" && <Gear s={s} F={F} render={render} say={say} />}
-            {view === "drills" && <Drills s={s} d={d} F={F} render={render} />}
-            {view === "forge" && <Forge s={s} d={d} F={F} render={render} say={say} ctx={ctx} />}
-            {view === "ores" && <Ores s={s} F={F} />}
+            {view === "tool" && <ToolView s={s} F={F} render={render} say={say} goForge={() => setView("forge")} />}
+            {view === "forge" && <Forge s={s} F={F} render={render} say={say} />}
+            {view === "ores" && <Ores s={s} F={F} go={() => setView("milestones")} />}
             {view === "worlds" && <Worlds s={s} F={F} />}
-            {view === "feats" && <Feats s={s} F={F} render={render} say={say} />}
+            {view === "milestones" && <Milestones s={s} F={F} render={render} say={say} />}
         </div>
     );
 }
@@ -215,90 +186,6 @@ function IdleTip({ s, auto }: { s: Ctx["s"]; auto: number }) {
             rows={[["Drills", `${dr.toFixed(2)}/s`], ["Auto-clicks", `${auto.toFixed(2)}/s`], ["Pocket miner (level)", `${pa.toFixed(2)}/s`]]}
             notes={[{ text: "Each one hits a random ore from your island", color: "var(--mc-aqua)" }]}
         />
-    );
-}
-
-function ResChip({ s, id, n, small = true }: { s: Ctx["s"]; id: ResId; n: number; small?: boolean }) {
-    const r = resInfo(id);
-    const ok = have(s, id) >= n;
-    return (
-        <span className={`fi-mn-chip${small ? " small" : ""}`} data-ok={ok} style={col(r.color)}>
-            <i />
-            {n} {r.name}
-        </span>
-    );
-}
-
-function CostRow({ s, cost }: { s: Ctx["s"]; cost: Cost }) {
-    return (
-        <span className="fi-mn-cost">
-            {(Object.entries(cost) as [ResId, number][]).map(([id, n]) => (
-                <ResChip key={id} s={s} id={id} n={n} />
-            ))}
-        </span>
-    );
-}
-
-function upEffect(u: MineUpDef, l: number): string {
-    switch (u.id) {
-        case "eff": return `+${l * 6}% pick power`;
-        case "fort": return `+${l * 8}% ore`;
-        case "lucky": return `${+(l * 1.5).toFixed(1)}% triple haul`;
-        case "seismic": return `vein: ${Math.max(25, Math.round(70 * Math.pow(0.96, l)))} swings`;
-        case "seeker": return `+${l * 10}% geodes`;
-        case "prosp": return l ? `rarer ore, level ${l}` : "off";
-        case "rush": return `${8 + l * 2} swings, +${l * 10}% yield`;
-        case "scholar": return `+${l * 6}% Mining XP`;
-        case "deep": return `+${l}% all shards`;
-        case "ancient": return `+${+(l * 1.5).toFixed(1)}% shards, +${l * 2}% tokens`;
-        case "bit": return `+${l * 15}% drill damage`;
-        case "motor": return `+${l * 6}% drill swings`;
-        case "magnet": return `+${l * 5}% drill ore`;
-        case "sifter": return `+${l * 12}% drill geodes`;
-        case "cracker": return l ? `cracks one every ${Math.round(36 / l)}s` : "off";
-        case "furnace": return `${1 + l} furnaces`;
-        case "bellows": return `+${l * 8}% craft speed`;
-        default: return `${l * 8}% double batches`;
-    }
-}
-
-function UpgradeList({ s, cat, render }: { s: Ctx["s"]; cat: MineUpDef["cat"]; render: () => void }) {
-    const lvl = mineLevel(s);
-    return (
-        <div className="grid grid-cols-1 gap-1.5 sm:grid-cols-2">
-            {MINE_UPS.filter((u) => u.cat === cat).map((u) => {
-                const l = upLevel(s, u.id);
-                const locked = lvl < u.need;
-                const maxed = l >= u.max;
-                const c = canBuyUp(s, u);
-                const first = Object.keys(u.cost)[0] as ResId;
-                return (
-                    <div key={u.id} className="fi-mn-up" data-locked={locked} data-ready={c.ok} style={{ ["--c" as string]: resInfo(first).color } as CSSProperties}>
-                        <div className="fi-mn-up-h">
-                            <b>{u.name}</b>
-                            <span>{l}/{u.max}</span>
-                        </div>
-                        <div className="fi-mn-up-d">{locked ? <><Lock className="mr-1 inline size-3" />Opens at Mining {u.need}</> : u.desc}</div>
-                        <div className="fi-mn-up-e">
-                            {l > 0 ? upEffect(u, l) : "no bonus yet"} <em>▸</em> <b>{maxed ? "max" : upEffect(u, l + 1)}</b>
-                        </div>
-                        <div className="fi-mn-up-f">
-                            {maxed ? <span className="fi-mn-maxed">Maxed</span> : <CostRow s={s} cost={upCost(s, u)} />}
-                            <button
-                                type="button"
-                                disabled={!c.ok}
-                                onClick={() => {
-                                    if (buyMineUp(s, u.id)) render();
-                                }}
-                                className="fi-mn-buy small"
-                            >
-                                Upgrade
-                            </button>
-                        </div>
-                    </div>
-                );
-            })}
-        </div>
     );
 }
 
@@ -537,7 +424,7 @@ function DigView({ s, d, F, render, say }: { s: Ctx["s"]; d: Ctx["d"]; F: (n: nu
 
     return (
         <>
-            <div ref={face} className="fi-mn-face" data-rush={rush} data-dim={isl.dim} style={{ ["--pc" as string]: pickOf(s).color, ["--dc" as string]: isl.dim === "overworld" ? "#8a7a60" : isl.dim === "nether" ? "#b5483f" : "#c48ae0" } as CSSProperties}>
+            <div ref={face} className="fi-mn-face" data-rush={rush} data-dim={isl.dim} style={{ ["--pc" as string]: heldTool(s).color, ["--dc" as string]: isl.dim === "overworld" ? "#8a7a60" : isl.dim === "nether" ? "#b5483f" : "#c48ae0" } as CSSProperties}>
                 {BLOBS.map(([x, y, r], i) => {
                     const o = ORE_BY_ID[blobs[i] ?? "coal"];
                     return (
@@ -562,8 +449,8 @@ function DigView({ s, d, F, render, say }: { s: Ctx["s"]; d: Ctx["d"]; F: (n: nu
                         />
                     );
                 })}
-                <span className="fi-mn-pickfx" style={{ ["--pc" as string]: pickOf(s).color } as CSSProperties} aria-hidden="true">
-                    <McSymbol name="pick" />
+                <span className="fi-mn-pickfx" style={{ ["--pc" as string]: heldTool(s).color } as CSSProperties} aria-hidden="true">
+                    <McSymbol name={drillHeld(s) ? "cog" : "pick"} />
                 </span>
                 <span className="fi-mn-where" style={{ color: dim.color }}>
                     {isl.name} <em>· {dim.name}</em>
@@ -639,7 +526,7 @@ function DigView({ s, d, F, render, say }: { s: Ctx["s"]; d: Ctx["d"]; F: (n: nu
                     );
                 })}
             </div>
-            <p className="fi-mn-note">{lvlOpen(s) ? "Tap a star to prospect: that ore gets 35% of your swings. " : ""}Other islands and dimensions carry other ore: see the Worlds tab, and travel with I.</p>
+            <p className="fi-mn-note">{lvlOpen(s) ? "Tap a star to prospect: that ore gets half of your swings, so one ore fills its collection fast. " : ""}Other islands and dimensions carry other ore: see the Worlds tab, and travel with I.</p>
 
             {(geodes > 0 || itemCount(s) > 0) && (
                 <div className="fi-mn-actions">
@@ -686,13 +573,14 @@ function DigView({ s, d, F, render, say }: { s: Ctx["s"]; d: Ctx["d"]; F: (n: nu
 }
 
 /** What you are working toward, what is missing, and one-tap ways to get it. */
-function GoalCard({ s, goal, F, render, say }: { s: Ctx["s"]; goal: NonNullable<ReturnType<typeof goalOf>>; F: (n: number) => string; render: () => void; say: (m: string) => void }) {
+function GoalCard({ s, goal, render, say }: { s: Ctx["s"]; goal: NonNullable<ReturnType<typeof goalOf>>; F: (n: number) => string; render: () => void; say: (m: string) => void }) {
     const lvlOk = mineLevel(s) >= goal.need;
     const short = bottleneck(s, goal);
     const ore = short ? ORE_BY_ID[short] : null;
     const missing = Object.entries(goal.cost).some(([k, v]) => have(s, k as ResId) < (v ?? 0));
     const startable = Object.entries(goal.cost).some(([k]) => RECIPES.find((r) => r.id === k && r.kind === "ingot") && have(s, k as ResId) < (goal.cost[k as ResId] ?? 0));
-    void F;
+    const rec = RECIPE_BY_ID[goal.id];
+    const can = !!rec && canCraft(s, rec, 1).ok;
     return (
         <div className="fi-mn-goal" style={{ ["--c" as string]: goal.color } as CSSProperties}>
             <div className="fi-mn-goal-h">
@@ -700,15 +588,29 @@ function GoalCard({ s, goal, F, render, say }: { s: Ctx["s"]; goal: NonNullable<
                 <b>{goal.title}</b>
                 {!lvlOk && <em><Lock className="inline size-3" /> Mining {goal.need}</em>}
             </div>
-            <CostRow s={s} cost={goal.cost} />
+            <span className="fi-cb-needs">{mineNeeds(s, goal.cost).map((n) => <NeedTile key={n.id} n={n} />)}</span>
             <div className="fi-mn-goal-f">
+                {can && (
+                    <button
+                        type="button"
+                        className="fi-mn-buy small"
+                        onClick={() => {
+                            if (startCraft(s, goal.id)) {
+                                say(`${goal.title} is in the furnace.`);
+                                render();
+                            }
+                        }}
+                    >
+                        Forge it now
+                    </button>
+                )}
                 {ore && missing && (
                     <button
                         type="button"
                         className="fi-mn-buy small ghost"
                         onClick={() => {
                             setFocus(s, ore.id);
-                            say(`Prospecting ${ore.name}: it now gets 35% of your swings.`);
+                            say(`Prospecting ${ore.name}: it now gets half of your swings.`);
                             render();
                         }}
                     >
@@ -734,6 +636,22 @@ function GoalCard({ s, goal, F, render, say }: { s: Ctx["s"]; goal: NonNullable<
     );
 }
 
+/** The current Spelunking Saga chapter, with a way into the Level page. */
+function SagaNudge({ s, open }: { s: Ctx["s"]; open: () => void }) {
+    const saga = SAGA_BY_ID.mining;
+    const ch = currentChapter(s, saga);
+    if (!ch) return null;
+    const ready = chapterReady(s, ch);
+    const next = ch.tasks.find((t) => t.prog(s)[0] < t.prog(s)[1]);
+    return (
+        <button type="button" className="fi-fg fi-mn-saga" data-ready={ready} onClick={open} style={{ textAlign: "left" }}>
+            <span className="fi-fg-h"><span>Spelunking Saga · Chapter {ch.n}</span><b>{tasksDone(s, ch)} of {ch.tasks.length} tasks</b></span>
+            <span className="fi-fg-bar"><i style={{ width: `${chapterFrac(s, ch) * 100}%` }} /></span>
+            <span className="fi-fg-t"><span className="fi-fg-mark">{ready ? "✔" : "➜"}</span>{ready ? `${ch.name} is ready to claim` : next?.text}<em>{ready ? "Open the Level page" : ch.name}</em></span>
+        </button>
+    );
+}
+
 // ---- Quick actions ----
 
 function QuickBar({ s, d, render, say }: { s: Ctx["s"]; d: Ctx["d"]; render: () => void; say: (m: string) => void }) {
@@ -741,10 +659,12 @@ function QuickBar({ s, d, render, say }: { s: Ctx["s"]; d: Ctx["d"]; render: () 
     const ready = jobsReady(s);
     const geodes = geodeCount(s);
     const feats = featsReady(s).length;
-    const ups = MINE_UPS.filter((u) => canBuyUp(s, u).ok && Object.keys(u.cost).every((k) => isOre(k))).length;
-    const dr = ORES.filter((o) => canBuyDrill(s, o).ok && drillCost(s, o) <= haveOre(s, o.id) * 0.6).length;
-    const pick = canBuyPick(s).ok;
+    const tool = heldTool(s);
     const goal = goalOf(s);
+    const rec = goal ? RECIPE_BY_ID[goal.id] : undefined;
+    const make = !!rec && canCraft(s, rec, 1).ok;
+    const ench = ORES.length > 0 && enchantableNow(s);
+    const rig = s.mine.parts.length > 0 && (!drillHeld(s) || PART_BEST(s));
     const smelt = !!goal && slotsFree(s) > 0 && Object.entries(goal.cost).some(([k, v]) => {
         const r = RECIPES.find((x) => x.id === k && x.kind === "ingot");
         return !!r && have(s, k as ResId) + s.mine.jobs.filter((j) => j.r === k).reduce((a, j) => a + j.n, 0) < (v ?? 0) && canCraft(s, r, 1).ok;
@@ -762,21 +682,14 @@ function QuickBar({ s, d, render, say }: { s: Ctx["s"]; d: Ctx["d"]; render: () 
         },
         claim: () => {
             const got = claimAllFeats(s);
-            return got.length ? `Claimed ${got.length} feat${got.length > 1 ? "s" : ""}.` : "";
+            return got.length ? `Claimed ${got.length} milestone${got.length > 1 ? "s" : ""}.` : "";
         },
-        pick: () => {
-            if (!canBuyPick(s).ok) return "";
-            const nm = PICKS[s.mine.pick + 1].name;
-            return buyPick(s) ? `Made the ${nm}!` : "";
+        make: () => (goal && make && startCraft(s, goal.id) ? `${goal.title} is in the furnace.` : ""),
+        ench: () => {
+            const n = enchantAll(s);
+            return n ? `Bought ${n} enchant level${n > 1 ? "s" : ""}.` : "";
         },
-        ups: () => {
-            const n = upgradeAll(s);
-            return n ? `Bought ${n} upgrade${n > 1 ? "s" : ""}.` : "";
-        },
-        drills: () => {
-            const n = buildDrillsAll(s);
-            return n ? `Built ${n} drill${n > 1 ? "s" : ""}.` : "";
-        },
+        rig: () => (autoRig(s) ? "Best parts installed, drill in hand." : ""),
         smelt: () => {
             const n = queueGoal(s);
             return n ? `Started ${n} craft${n > 1 ? "s" : ""} for your goal.` : "";
@@ -790,14 +703,13 @@ function QuickBar({ s, d, render, say }: { s: Ctx["s"]; d: Ctx["d"]; render: () 
             render();
         }
     };
-    const all = ready + geodes + feats + ups + dr + (pick ? 1 : 0) + (smelt ? 1 : 0) > 0;
     const acts: QuickAct[] = [
         { k: "collect", label: "Collect", icon: "forge", tip: "Collect every finished Forge craft.", on: ready > 0, n: ready },
         { k: "crack", label: "Crack", icon: "gem", tip: "Crack every geode you are holding.", on: geodes > 0, n: geodes },
-        { k: "claim", label: "Claim", icon: "crown", tip: "Claim every feat you have earned.", on: feats > 0, n: feats },
-        { k: "pick", label: "Pickaxe", icon: "pick", tip: "Make the next pickaxe, if you have everything for it.", on: pick },
-        { k: "ups", label: "Upgrade", icon: "plus", tip: "Buy every ore-priced upgrade you can afford, cheapest first.", on: ups > 0, n: ups },
-        { k: "drills", label: "Drills", icon: "cog", tip: "Build drills while they cost under 60% of that ore's stock.", on: dr > 0, n: dr },
+        { k: "claim", label: "Claim", icon: "crown", tip: "Claim every milestone you have earned.", on: feats > 0, n: feats },
+        { k: "make", label: "Make", icon: "pick", tip: goal ? `Start the ${goal.title} if you have everything for it.` : "Nothing to make.", on: make },
+        { k: "ench", label: "Enchant", icon: "intelligence", tip: `Buy every ore-priced enchant you can afford for your ${tool.name}.`, on: ench },
+        { k: "rig", label: "Rig", icon: "cog", tip: "Install your best engine and head and take the drill in hand.", on: rig },
         { k: "smelt", label: "Smelt", icon: "heat", tip: "Start crafts for the ingots your next goal is short of.", on: smelt },
         { k: "rush", label: "Rush", icon: "bolt", tip: "Drink a Rush Potion to start an Ore Rush now.", on: rushPot },
     ];
@@ -808,15 +720,27 @@ function QuickBar({ s, d, render, say }: { s: Ctx["s"]; d: Ctx["d"]; render: () 
                 actions={acts}
                 color={C}
                 allIcon="sunburst"
-                allTip="Collect, crack, claim, upgrade, build drills and smelt for your goal, all in one press."
+                allTip="Collect, crack, claim, make your goal, enchant, rig the drill and smelt for your goal, all in one press."
                 onRun={(k) => {
                     sfx("collect");
                     go([k as keyof typeof run]);
                 }}
-                onAll={() => go(["collect", "crack", "claim", "pick", "ups", "drills", "smelt"])}
+                onAll={() => go(["collect", "crack", "claim", "make", "ench", "rig", "smelt"])}
             />
         </>
     );
+}
+
+/** Whether Enchant All would buy something. */
+function enchantableNow(s: Ctx["s"]): boolean {
+    return ENCHANTS.some((e) => canBuyEnch(s, heldTool(s).id, e).ok && Object.keys(e.cost).every((k) => isOre(k)));
+}
+/** Whether a better engine or head is waiting to be installed. */
+function PART_BEST(s: Ctx["s"]): boolean {
+    return (["engine", "head"] as const).some((k) => {
+        const best = PARTS.filter((p) => p.kind === k && s.mine.parts.includes(p.id)).sort((a, b) => b.tier - a.tier)[0];
+        return !!best && s.mine.rig[k] !== best.id;
+    });
 }
 
 const lvlOpen = (s: Ctx["s"]) => mineLevel(s) >= 5;
@@ -828,7 +752,7 @@ function OreTip({ s, d, o, p, F, brief }: { s: Ctx["s"]; d?: Ctx["d"]; o: OreDef
     const tier = colTierOf(s.mine.mined[o.id] || 0);
     const dmg = pickPower(s) * comboFactor(Math.max(1, s.combo));
     const ratio = dmg / o.hard;
-    const perSwing = (ratio <= 3 ? ratio : 3 + Math.pow(ratio - 3, 0.6)) * yieldMult(s) * (1 + drillBoost(s, o) * 0.5);
+    const perSwing = (ratio <= 3 ? ratio : 3 + Math.pow(ratio - 3, 0.6)) * yieldMult(s);
     const ctx = d ? mineCtx(d) : null;
     return (
         <TipCard
@@ -849,326 +773,18 @@ function OreTip({ s, d, o, p, F, brief }: { s: Ctx["s"]; d?: Ctx["d"]; o: OreDef
                           ["Collection", `tier ${tier}/${COL_AT.length}`, o.color],
                       ]
             }
-            notes={[{ text: `Collection pays +${fmtPct(o.col[1])} ${o.colText} per tier`, color: o.color }, { text: `Found on: ${oreIslands(o.id).map((id) => ISLAND_BY_ID[id]?.name ?? id).slice(0, 5).join(", ")}`, color: "var(--mc-aqua)" }]}
+            notes={[{ text: `Collection pays +${fmtPct(o.col[1])} ${o.colText} per tier (half rate after tier 5)`, color: o.color }, { text: `Found on: ${oreIslands(o.id).map((id) => ISLAND_BY_ID[id]?.name ?? id).slice(0, 5).join(", ")}`, color: "var(--mc-aqua)" }]}
             foot={p > 0 ? undefined : "Travel to an island that has it"}
         />
     );
 }
 
-// ---- Gear: pickaxes and hand tools ----
-
-function Gear({ s, F, render, say }: { s: Ctx["s"]; F: (n: number) => string; render: () => void; say: (m: string) => void }) {
-    const cur = pickOf(s);
-    const next = PICKS[s.mine.pick + 1];
-    const can = canBuyPick(s);
-    const lvl = mineLevel(s);
-    return (
-        <>
-            <div className="fi-mn-pick" style={{ ["--c" as string]: (next ?? cur).color } as CSSProperties}>
-                <span className="fi-mn-pick-i"><McSymbol name="pick" /></span>
-                <div className="min-w-0 flex-1">
-                    <div className="fi-mn-pick-t">{next ? next.name : cur.name}</div>
-                    <div className="fi-mn-pick-s">
-                        {next ? (
-                            <>
-                                Power x{cur.power} <em>▸</em> <b>x{next.power}</b> · +{fmtPct(PICK_CLICK)} click power forever
-                            </>
-                        ) : (
-                            "The best pickaxe there is."
-                        )}
-                    </div>
-                    {next && <CostRow s={s} cost={next.cost} />}
-                    {next && !can.ok && lvl >= next.need && <div className="fi-mn-pick-h">Ingots come from the Forge tab.</div>}
-                </div>
-                {next && (
-                    <Tip box tip={<TipCard title={`Forge ${next.name}`} color={next.color} lines={["Consumes the materials shown and replaces your pickaxe."]} foot={can.ok ? "Click to forge!" : can.why} />}>
-                        <button
-                            type="button"
-                            disabled={!can.ok}
-                            onClick={() => {
-                                if (buyPick(s)) {
-                                    say(`Forged the ${next.name}!`);
-                                    render();
-                                }
-                            }}
-                            className="fi-mn-buy"
-                        >
-                            {lvl < next.need ? <><Lock className="mr-1 inline size-3" />Mining {next.need}</> : "Make"}
-                        </button>
-                    </Tip>
-                )}
-            </div>
-            <Loadout s={s} render={render} say={say} />
-            <SectionTitle color={C}>Hand tools</SectionTitle>
-            <UpgradeList s={s} cat="hand" render={render} />
-            <p className="fi-mn-note">Everything here is permanent: rebirths and ascensions never touch your mine. Ore in stock: {F(Math.floor(ORES.reduce((a, o) => a + haveOre(s, o.id), 0)))}.</p>
-        </>
-    );
-}
-
-// ---- Drills ----
-
-function Drills({ s, d, F, render }: { s: Ctx["s"]; d: Ctx["d"]; F: (n: number) => string; render: () => void }) {
-    const lvl = mineLevel(s);
-    const dr = drillSwings(s);
-    const pa = passiveSwings(s);
-    const total = totalDrills(s);
-    return (
-        <>
-            <div className="fi-mn-sum">
-                <div>
-                    <b>{(dr + pa + d.auto).toFixed(1)}</b> idle swings a second <span>= drills {dr.toFixed(1)} + auto-clicks {d.auto.toFixed(1)} + pocket miner {pa.toFixed(2)}</span>
-                </div>
-                <small>Each one hits a random ore on your island with drill damage x{drillDmg(s).toFixed(1)}. They run while you play, in other tabs, and while you are away. Every drill also boosts the ore it is named for, and big drills boost the smaller ores before them too.</small>
-            </div>
-            {DIMS.map((dm) => {
-                const list = DIM_ORES[dm];
-                const shown = list.filter((o, i) => lvl >= o.need || (i > 0 && lvl >= list[i - 1].need) || i === 0);
-                if (!dimOpen(s, dm)) return null;
-                return (
-                    <div key={dm} className="fi-mn-dimblock">
-                        <SectionTitle color={DIM_LABEL[dm].color}>{DIM_LABEL[dm].name} drills</SectionTitle>
-                        <div className="fi-mn-drills">
-                            {shown.map((o) => (
-                                <DrillRow key={o.id} s={s} o={o} F={F} render={render} />
-                            ))}
-                        </div>
-                    </div>
-                );
-            })}
-            <SectionTitle color="var(--mc-aqua)">Rig parts</SectionTitle>
-            <UpgradeList s={s} cat="rig" render={render} />
-            <p className="fi-mn-note">{F(total)} drills built. A drill&apos;s ore comes from your island, so the End&apos;s ore needs a trip to the End. Drills lose a little power the more you stack: ten act like seven.</p>
-        </>
-    );
-}
-
-function DrillRow({ s, o, F, render }: { s: Ctx["s"]; o: OreDef; F: (n: number) => string; render: () => void }) {
-    const n = s.mine.drills[o.id] || 0;
-    const open = mineLevel(s) >= o.need;
-    const c = canBuyDrill(s, o);
-    const covers = DIM_ORES[o.dim].filter((x, i) => i >= DIM_ORES[o.dim].indexOf(o) - o.reach && i <= DIM_ORES[o.dim].indexOf(o));
-    const buy = (k: number) => {
-        if (buyDrill(s, o.id, k) > 0) render();
-    };
-    return (
-        <div className="fi-mn-drill" data-locked={!open} style={col(o.color)}>
-            <span className="fi-mn-chip big">
-                <i />
-            </span>
-            <div className="min-w-0 flex-1">
-                <div className="fi-mn-drill-t">
-                    {o.name} <span>x{n}</span>
-                </div>
-                <div className="fi-mn-drill-s">
-                    {open ? (
-                        <>
-                            +{fmtPct(0.06 * (eff(n + 1) - eff(n)))} ore from the next one{covers.length > 1 ? `, to ${covers.map((x) => x.name).join(", ")}` : ""}
-                        </>
-                    ) : (
-                        <>
-                            <Lock className="mr-1 inline size-3" />Opens at Mining {o.need}
-                        </>
-                    )}
-                </div>
-            </div>
-            {open && <ResChip s={s} id={o.id} n={drillCost(s, o)} />}
-            <button type="button" disabled={!c.ok} onClick={() => buy(1)} className="fi-mn-buy small">
-                Build
-            </button>
-            {open && (
-                <button type="button" disabled={!c.ok} onClick={() => buy(10)} className="fi-mn-buy small ghost" aria-label={`Build up to 10 ${o.name} drills`}>
-                    x10
-                </button>
-            )}
-        </div>
-    );
-}
-
-// ---- Forge ----
-
-function Forge({ s, d, F, render, say, ctx }: { s: Ctx["s"]; d: Ctx["d"]; F: (n: number) => string; render: () => void; say: (m: string) => void; ctx: ReturnType<typeof mineCtx> }) {
-    void d;
-    void ctx;
-    const m = s.mine;
-    const lvl = mineLevel(s);
-    const now = Date.now();
-    const slots = forgeSlots(s);
-    const tongs = upLevel(s, "tongs") > 0;
-    const ready = jobsReady(s, now);
-    const [kind, setKind] = useState<RecipeDef["kind"]>("ingot");
-    const list = RECIPES.filter((r) => r.kind === kind);
-    const doneText = (t: string) => {
-        say(t);
-        render();
-    };
-    return (
-        <>
-            <div className="fi-mn-sum">
-                <div>
-                    <b>{slots}</b> {slots === 1 ? "furnace" : "furnaces"} · crafts finish <b>{Math.round((forgeSpeed(s) - 1) * 100)}%</b> faster <span>and keep cooking while you are away</span>
-                </div>
-                <small>Smelt ore into ingots, brew consumables and forge permanent relics. A finished craft waits in its furnace until you collect it, and a furnace is busy until you do.</small>
-            </div>
-
-            <div className="fi-mn-slots">
-                {Array.from({ length: slots }, (_, i) => {
-                    const ji = m.jobs.findIndex((x) => x.slot === i);
-                    const j = ji >= 0 ? m.jobs[ji] : undefined;
-                    const r = j ? RECIPES.find((x) => x.id === j.r) : null;
-                    if (!j || !r) {
-                        return (
-                            <div key={i} className="fi-mn-slot" data-empty>
-                                <span className="fi-mn-slot-n">Furnace {i + 1}</span>
-                                <span className="fi-mn-slot-s">Idle: start a craft below</span>
-                            </div>
-                        );
-                    }
-                    const total = jobSeconds(s, r, j.n);
-                    const left = jobLeft(j, now);
-                    const done = left <= 0;
-                    return (
-                        <div key={i} className="fi-mn-slot" data-done={done} style={col(r.color)}>
-                            <span className="fi-mn-slot-n">{j.n > 1 ? `${j.n}x ` : ""}{r.name}</span>
-                            <span className="fi-mn-slot-s">{done ? "Ready!" : `${fmtTime(left)} left`}</span>
-                            <span className="fi-mn-slot-bar">
-                                <i style={{ width: `${Math.min(100, (1 - left / Math.max(1, total)) * 100)}%` }} />
-                            </span>
-                            <button
-                                type="button"
-                                disabled={!done}
-                                className="fi-mn-buy small"
-                                onClick={() => {
-                                    const c = collectJob(s, ji, Date.now());
-                                    if (c) doneText(c.text);
-                                }}
-                            >
-                                Collect
-                            </button>
-                            {tongs && r.kind !== "relic" && (
-                                <button type="button" className="fi-mn-loop" data-on={!!j.loop} aria-pressed={!!j.loop} onClick={() => { toggleLoop(s, i); render(); }}>
-                                    {j.loop ? "Repeating" : "Repeat"}
-                                </button>
-                            )}
-                        </div>
-                    );
-                })}
-            </div>
-            {ready > 1 && (
-                <button
-                    type="button"
-                    className="fi-mn-buy wide"
-                    onClick={() => {
-                        const got = collectAll(s, Date.now());
-                        if (got.length) doneText(`Collected ${got.length} crafts.`);
-                    }}
-                >
-                    Collect all {ready}
-                </button>
-            )}
-
-            <div className="fi-mn-stock">
-                {INGOTS.filter((g) => (m.ingots[g.id] || 0) > 0).map((g) => (
-                    <span key={g.id} className="fi-mn-chip" style={col(g.color)}>
-                        <i />
-                        {g.name} <b>{m.ingots[g.id]}</b>
-                    </span>
-                ))}
-                {Object.keys(m.ingots).length === 0 && <span className="fi-mn-chip locked">No ingots yet: smelt copper first</span>}
-            </div>
-
-            {slotsFree(s) <= 0 && <p className="fi-mn-note warn">Every furnace is busy. Collect a finished craft to free one.</p>}
-            <div className="fi-mn-seg small" role="tablist">
-                {([["ingot", "Ingots"], ["item", "Consumables"], ["relic", "Relics"]] as const).map(([k, label]) => (
-                    <button key={k} type="button" role="tab" aria-selected={kind === k} data-on={kind === k} onClick={() => setKind(k)}>
-                        {label}
-                    </button>
-                ))}
-            </div>
-            <div className="grid grid-cols-1 gap-1.5 sm:grid-cols-2">
-                {list.map((r) => (
-                    <RecipeCard key={r.id} s={s} r={r} F={F} lvl={lvl} onDone={doneText} />
-                ))}
-            </div>
-            {kind === "relic" && <RelicShelf s={s} />}
-
-            <SectionTitle color="#ff9a4d">Forge parts</SectionTitle>
-            <UpgradeList s={s} cat="forge" render={render} />
-        </>
-    );
-}
-
-function RecipeCard({ s, r, F, lvl, onDone }: { s: Ctx["s"]; r: RecipeDef; F: (n: number) => string; lvl: number; onDone: (t: string) => void }) {
-    const locked = lvl < r.need;
-    const owned = r.kind === "relic" && ownsRelic(s, r.out);
-    const batch = maxBatch(s, r);
-    const one = canCraft(s, r, 1);
-    const five = Math.min(5, batch);
-    const many = canCraft(s, r, five);
-    const stock = r.kind === "ingot" ? s.mine.ingots[r.out] || 0 : r.kind === "item" ? s.mine.items[r.out] || 0 : 0;
-    const go = (n: number) => {
-        if (startCraft(s, r.id, n)) onDone(`${n > 1 ? `${n}x ` : ""}${r.name} is cooking.`);
-    };
-    const reason = !one.ok ? one.why : undefined;
-    return (
-        <div className="fi-mn-rec" data-locked={locked} data-owned={owned} style={col(r.color)}>
-            <div className="fi-mn-rec-h">
-                <i className="fi-mn-sw" />
-                <b>{r.name}</b>
-                {stock > 0 && <span className="fi-mn-rec-n">x{stock}</span>}
-                {owned && <span className="fi-mn-rec-n owned">Forged</span>}
-            </div>
-            <div className="fi-mn-up-d">{locked ? <><Lock className="mr-1 inline size-3" />Opens at Mining {r.need}</> : r.desc}</div>
-            <CostRow s={s} cost={r.inputs} />
-            <div className="fi-mn-up-f">
-                <span className="fi-mn-time">{fmtTime(jobSeconds(s, r, 1))}{owned ? "" : " each"}</span>
-                {!owned && (
-                    <span className="fi-mn-btns">
-                        <Tip box tip={<TipCard title={r.name} color={r.color} lines={[r.desc]} rows={[["Takes", fmtTime(jobSeconds(s, r, 1))], ["Slots", reason === "Furnaces busy" ? "all busy" : "free"]]} foot={one.ok ? "Click to start!" : reason} />}>
-                            <button type="button" disabled={!one.ok} onClick={() => go(1)} className="fi-mn-buy small">
-                                {r.kind === "relic" ? "Forge" : "Start"}
-                            </button>
-                        </Tip>
-                        {r.kind !== "relic" && five > 1 && (
-                            <Tip box tip={<TipCard title={`${five}x ${r.name}`} color={r.color} rows={[["Takes", fmtTime(jobSeconds(s, r, five))]]} notes={[{ text: `Costs ${Object.entries(totalCost(r, five)).map(([k, v]) => `${v} ${resInfo(k as ResId).name}`).join(", ")}`, color: r.color }]} foot={many.ok ? "Click to start!" : many.why} />}>
-                                <button type="button" disabled={!many.ok} onClick={() => go(five)} className="fi-mn-buy small ghost" aria-label={`Start ${five} ${r.name}`}>
-                                    x{five}
-                                </button>
-                            </Tip>
-                        )}
-                    </span>
-                )}
-            </div>
-        </div>
-    );
-}
-
-function RelicShelf({ s }: { s: Ctx["s"] }) {
-    return (
-        <>
-            <SectionTitle color="var(--mc-yellow)">Relic shelf ({s.mine.relics.length}/{RELICS.length})</SectionTitle>
-            <div className="fi-mn-shelf">
-                {RELICS.map((r) => {
-                    const own = ownsRelic(s, r.out);
-                    return (
-                        <Tip key={r.id} tip={<TipCard title={own ? r.name : mineLevel(s) >= r.need ? r.name : "???"} color={r.color} lines={[own || mineLevel(s) >= r.need ? r.desc : `Opens at Mining ${r.need}`]} tag={own ? "Forged" : undefined} />}>
-                            <span className="fi-mn-relic" data-own={own} style={col(r.color)}>
-                                <McSymbol name="gem" />
-                            </span>
-                        </Tip>
-                    );
-                })}
-            </div>
-        </>
-    );
-}
-
 // ---- Ores: collections ----
 
-function Ores({ s, F }: { s: Ctx["s"]; F: (n: number) => string }) {
+function Ores({ s, F, go }: { s: Ctx["s"]; F: (n: number) => string; go: () => void }) {
     return (
         <>
-            <p className="fi-mn-note">Every ore you mine fills its collection, and each tier pays a permanent bonus for the rest of the game. Finish a whole dimension to earn a set bonus on top.</p>
+            <p className="fi-mn-note">Every ore you mine fills its collection: ten tiers, each paying a permanent bonus for the rest of the game. Finish a whole dimension to earn a set bonus on top. <button type="button" className="fi-lv-btn ghost" onClick={go}>Claim rewards in Milestones</button></p>
             {DIMS.map((dm) => {
                 const set = dimSet(s, dm);
                 const list = DIM_ORES[dm];
@@ -1219,8 +835,8 @@ function OreCard({ s, o, F }: { s: Ctx["s"]; o: OreDef; F: (n: number) => string
             <div className="fi-mn-col-r">
                 {open ? (
                     <>
-                        <span style={{ color: o.color }}>+{fmtPct(o.col[1] * tier)}</span> {o.colText}
-                        {next ? <em> · next tier +{fmtPct(o.col[1])} at {F(next)}</em> : <em> · complete</em>}
+                        <span style={{ color: o.color }}>+{fmtPct(o.col[1] * colSteps(tier))}</span> {o.colText}
+                        {next ? <em> · next tier +{fmtPct(o.col[1] * (tier < 5 ? 1 : 0.5))} at {F(next)}</em> : <em> · complete</em>}
                     </>
                 ) : (
                     <>Opens at Mining {o.need}</>
@@ -1232,58 +848,6 @@ function OreCard({ s, o, F }: { s: Ctx["s"]; o: OreDef; F: (n: number) => string
     );
 }
 
-
-// ---- Loadout: which relics are switched on ----
-
-function Loadout({ s, render, say }: { s: Ctx["s"]; render: () => void; say: (m: string) => void }) {
-    const slots = relicSlots(s);
-    const eq = s.mine.equipped;
-    const owned = s.mine.relics.map((id) => RELICS.find((r) => r.out === id)).filter((r): r is RecipeDef => !!r);
-    const off = owned.filter((r) => !eq.includes(r.out));
-    const toggle = (r: RecipeDef) => {
-        if (hasRelic(s, r.out)) unequipRelic(s, r.out);
-        else if (!equipRelic(s, r.out)) {
-            say("Every slot is full. Take a relic off first.");
-            return;
-        }
-        render();
-    };
-    return (
-        <>
-            <SectionTitle color="var(--mc-yellow)">Relic loadout ({eq.length}/{slots})</SectionTitle>
-            <div className="fi-mn-loadout">
-                {Array.from({ length: slots }, (_, i) => {
-                    const r = RELICS.find((x) => x.out === eq[i]);
-                    return r ? (
-                        <Tip key={i} box tip={<TipCard title={r.name} color={r.color} lines={[r.desc]} foot="Click to take off" />}>
-                            <button type="button" className="fi-mn-slotr" data-on style={col(r.color)} onClick={() => toggle(r)}>
-                                <McSymbol name="gem" />
-                                <b>{r.name}</b>
-                                <small>{r.desc}</small>
-                            </button>
-                        </Tip>
-                    ) : (
-                        <div key={i} className="fi-mn-slotr" data-empty>
-                            <small>Empty slot</small>
-                        </div>
-                    );
-                })}
-            </div>
-            {off.length > 0 && (
-                <div className="fi-mn-shelf">
-                    {off.map((r) => (
-                        <Tip key={r.id} box tip={<TipCard title={r.name} color={r.color} lines={[r.desc]} foot={eq.length < slots ? "Click to equip" : "Every slot is full"} />}>
-                            <button type="button" className="fi-mn-relic" data-own="true" data-off style={col(r.color)} onClick={() => toggle(r)} aria-label={`Equip ${r.name}`}>
-                                <McSymbol name="gem" />
-                            </button>
-                        </Tip>
-                    ))}
-                </div>
-            )}
-            <p className="fi-mn-note">Relics only work while equipped. {slots < 4 ? `More slots open at Mining ${mineLevel(s) < 25 ? 25 : 45}.` : "Every slot is open."} {owned.length === 0 ? "Forge your first relic in the Forge tab." : ""}</p>
-        </>
-    );
-}
 
 // ---- Worlds: the dimensions ----
 
@@ -1378,83 +942,52 @@ function Worlds({ s, F }: { s: Ctx["s"]; F: (n: number) => string }) {
     );
 }
 
-// ---- Feats ----
+// ---- Milestones ----
 
-const rewardText = (r: FeatReward) => (r.stat ? fmtStat(r.stat[0], r.stat[1]) : r.grant ? `+${r.grant[1]} ${GRANT_LABEL[r.grant[0]]}` : "");
+const OW_ORES = new Set(DIM_ORES.overworld.map((o) => `o:${o.id}`));
+const NE_ORES = new Set(DIM_ORES.nether.map((o) => `o:${o.id}`));
+const EN_ORES = new Set(DIM_ORES.end.map((o) => `o:${o.id}`));
+const MS_CATS = {
+    item: [
+        { id: "ow", label: "Overworld ores", test: (l: { key: string }) => OW_ORES.has(l.key) },
+        { id: "ne", label: "Nether ores", test: (l: { key: string }) => NE_ORES.has(l.key) },
+        { id: "en", label: "End ores", test: (l: { key: string }) => EN_ORES.has(l.key) },
+        { id: "ig", label: "Ingots", test: (l: { key: string }) => l.key.startsWith("i:") },
+    ],
+    action: [],
+};
 
-function Feats({ s, F, render, say }: { s: Ctx["s"]; F: (n: number) => string; render: () => void; say: (m: string) => void }) {
-    const ready = featsReady(s);
-    const done = s.mine.claimed.length;
+function Milestones({ s, F, render, say }: { s: Ctx["s"]; F: (n: number) => string; render: () => void; say: (m: string) => void }) {
     return (
-        <>
-            <div className="fi-mn-sum">
-                <div>
-                    <b>{done}</b> of {FEATS.length} feats claimed <span>{ready.length ? `${ready.length} ready` : "keep mining"}</span>
-                </div>
-                <small>Every kind of thing you do in the mine has a ladder of feats. Each one pays tokens, eggs, dust or a permanent stat, and some pay a gem.</small>
-            </div>
-            <button
-                type="button"
-                className="fi-mn-buy wide"
-                disabled={ready.length === 0}
-                onClick={() => {
-                    const got = claimAllFeats(s);
-                    if (got.length) {
-                        say(`Claimed ${got.length} feat${got.length > 1 ? "s" : ""}: ${got.slice(0, 2).map((f) => `${f.ladder.name} ${f.tier + 1}`).join(", ")}${got.length > 2 ? "..." : ""}`);
-                        render();
-                    }
-                }}
-            >
-                {ready.length ? `Claim all ${ready.length}` : "Nothing to claim"}
-            </button>
-            <div className="grid grid-cols-1 gap-1.5 sm:grid-cols-2">
-                {FEAT_LADDERS.map((l) => {
-                    const v = l.metric(s);
-                    const nextIdx = l.at.findIndex((a, i) => !s.mine.claimed.includes(`${l.key}:${i}`) && v < a);
-                    const prev = nextIdx > 0 ? l.at[nextIdx - 1] : 0;
-                    return (
-                        <div key={l.key} className="fi-mn-feat" style={{ ["--c" as string]: l.color } as CSSProperties}>
-                            <div className="fi-mn-up-h">
-                                <b>{l.name}</b>
-                                <span>{F(Math.floor(v))} {l.unit}</span>
-                            </div>
-                            <div className="fi-mn-tiers">
-                                {l.at.map((a, i) => {
-                                    const f = FEATS.find((x) => x.id === `${l.key}:${i}`)!;
-                                    const claimed = featClaimed(s, f);
-                                    const rdy = featReady(s, f);
-                                    return (
-                                        <Tip key={a} box tip={<TipCard title={`${l.name} ${i + 1}`} color={l.color} lines={[`${F(a)} ${l.unit}`]} notes={f.rewards.map((r) => ({ text: rewardText(r), color: l.color }))} foot={claimed ? "Claimed" : rdy ? "Click to claim!" : `${F(Math.max(0, Math.ceil(a - v)))} to go`} />}>
-                                            <button
-                                                type="button"
-                                                className="fi-mn-tier"
-                                                data-state={claimed ? "done" : rdy ? "ready" : "locked"}
-                                                disabled={!rdy}
-                                                onClick={() => {
-                                                    const c = claimFeat(s, f.id);
-                                                    if (c) {
-                                                        say(`${l.name} ${i + 1}: ${c.rewards.map(rewardText).join(", ")}`);
-                                                        render();
-                                                    }
-                                                }}
-                                            >
-                                                {claimed ? "✓" : F(a)}
-                                            </button>
-                                        </Tip>
-                                    );
-                                })}
-                            </div>
-                            {nextIdx >= 0 && <div className="fi-mn-col-bar"><i style={{ width: `${Math.min(1, Math.max(0, (v - prev) / (l.at[nextIdx] - prev))) * 100}%` }} /></div>}
-                            <div className="fi-mn-up-d">{nextIdx >= 0 ? `Next: ${l.rewards[nextIdx].map(rewardText).join(", ")}` : "Every tier claimed"}</div>
-                        </div>
-                    );
-                })}
-            </div>
-        </>
+        <MilestoneBoard
+            s={s}
+            F={F}
+            ladders={LADDERS}
+            claimed={s.mine.claimed}
+            color={C}
+            cats={MS_CATS}
+            onClaim={(id) => {
+                const c = claimFeat(s, id);
+                if (c) {
+                    sfx("trophy");
+                    say(`${c.ladder.name}, tier ${c.tier + 1}: ${c.rewards.map((r) => (r.grant ? `+${r.grant[1]} ${r.grant[0]}` : "")).filter(Boolean).join(", ")}`);
+                    render();
+                }
+            }}
+            onAll={() => {
+                const got = claimAllFeats(s);
+                if (got.length) {
+                    sfx("bulk");
+                    say(`Claimed ${got.length} milestone${got.length > 1 ? "s" : ""}.`);
+                    render();
+                }
+            }}
+        />
     );
 }
+void MILESTONES;
 
-export const MINE_CSS = `
+export const MINE_CSS = SKILL_KIT_CSS + MINE_TOOL_CSS + FORGE_CSS + `
 .fi-mn{display:flex;flex-direction:column;gap:.55rem}
 .fi-mn-stat{display:flex;flex-direction:column;border-radius:.75rem;border:1px solid color-mix(in oklch,var(--c) 40%,transparent);background:linear-gradient(140deg,color-mix(in oklch,var(--c) 10%,transparent),transparent);padding:.4rem .6rem;min-width:0}
 .fi-mn-stat span{font-family:var(--font-minecraft,inherit);font-size:.6rem;letter-spacing:.14em;text-transform:uppercase;color:var(--muted-foreground)}

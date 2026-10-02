@@ -34,14 +34,17 @@ import {
     have as farmHave,
     jobsReady as farmJobs,
     openAll,
+    resInfo as farmRes,
     allPlots,
     readyCount,
     podCount,
     type ResId as FarmRes,
 } from "@/lib/fractured-idle/farm";
 import {
-    buyPick,
-    canBuyPick,
+    RECIPE_BY_ID as MINE_RECIPES,
+    canCraft as mineCanCraft,
+    startCraft as mineStart,
+    resInfo as mineRes,
     claimAllFeats as mineClaim,
     collectAll as mineCollect,
     crackAll,
@@ -294,12 +297,13 @@ export function Goals({ s, d, F, open, render, say }: Pick<Ctx, "s" | "d" | "F" 
     if (forgeReady > 0)
         goals.push({ key: "forge", tab: "mine", symbol: "forge", color: "#ff9a4d", title: `${forgeReady} forge craft${forgeReady === 1 ? "" : "s"} ready`, chip: "Collect", chipHot: true, pct: 1, ready: true, prio: 0, left: "ingots, items, relics", right: "Click to open the Mine", act: { label: `Collect ${forgeReady}`, run: () => { const got = mineCollect(s); return got.length ? `Collected ${got.length} craft${got.length > 1 ? "s" : ""}.` : ""; } } });
     if (mg) {
-        const ok = mg.kind === "pick" && canBuyPick(s).ok;
+        const mrec = MINE_RECIPES[mg.id];
+        const ok = !!mrec && mineCanCraft(s, mrec, 1).ok;
         const frac = COST_FRAC(mg.cost as Record<string, number>, (id) => mineHave(s, id as MineRes));
-        goals.push({ key: "minegoal", tab: "mine", symbol: "pick", color: mg.color, title: `${mg.kind === "pick" ? "Pickaxe" : "Relic"}: ${mg.title}`, chip: ok ? "Make" : mineLevel(s) < mg.need ? `Mining ${mg.need}` : `${Math.round(frac * 100)}%`, chipHot: ok, pct: ok ? 1 : frac, ready: ok, prio: ok ? 0 : 3.5, left: Object.entries(mg.cost).map(([k, v]) => `${v} ${k}`).slice(0, 3).join(", ") || "free", right: ok ? "Everything is ready" : mineLevel(s) < mg.need ? `Needs Mining ${mg.need}` : "Mine and smelt what is missing", act: ok ? { label: "Make it", run: () => (buyPick(s) ? `Made the ${mg.title}!` : "") } : undefined });
+        goals.push({ key: "minegoal", tab: "mine", symbol: "pick", color: mg.color, title: `${mg.kind === "part" ? "Drill part" : mg.kind === "pick" ? "Pickaxe" : "Relic"}: ${mg.title}`, chip: ok ? "Make" : mineLevel(s) < mg.need ? `Mining ${mg.need}` : `${Math.round(frac * 100)}%`, chipHot: ok, pct: ok ? 1 : frac, ready: ok, prio: ok ? 0 : 3.5, left: Object.entries(mg.cost).map(([k, v]) => `${v} ${mineRes(k as MineRes).name}`).slice(0, 3).join(", ") || "free", right: ok ? "Everything is ready" : mineLevel(s) < mg.need ? `Needs Mining ${mg.need}` : "Mine and smelt what is missing", act: ok ? { label: "Forge it", run: () => (mineStart(s, mg.id) ? `${mg.title} is in the furnace.` : "") } : undefined });
     }
     if (mfeats > 0)
-        goals.push({ key: "minefeats", tab: "mine", symbol: "star", color: "#ffd23a", title: `${mfeats} mining feat${mfeats === 1 ? "" : "s"} to claim`, chip: "Claim", chipHot: true, pct: 1, ready: true, prio: 0, left: "tokens, eggs, dust, stats", right: "Click to open the Mine", act: { label: `Claim ${mfeats}`, run: () => { const g = mineClaim(s); return g.length ? `Claimed ${g.length} mining feat${g.length > 1 ? "s" : ""}.` : ""; } } });
+        goals.push({ key: "minefeats", tab: "mine", symbol: "star", color: "#ffd23a", title: `${mfeats} mining milestone${mfeats === 1 ? "" : "s"} to claim`, chip: "Claim", chipHot: true, pct: 1, ready: true, prio: 0, left: "tokens, eggs, dust, stats", right: "Click to open the Mine", act: { label: `Claim ${mfeats}`, run: () => { const g = mineClaim(s); return g.length ? `Claimed ${g.length} mining milestone${g.length > 1 ? "s" : ""}.` : ""; } } });
 
     // ---- Farming ----
     const fctx = farmCtx(d);
@@ -316,10 +320,10 @@ export function Goals({ s, d, F, open, render, say }: Pick<Ctx, "s" | "d" | "F" 
     if (fg) {
         const ok = fg.kind === "hoe" && canBuyHoe(s).ok;
         const frac = COST_FRAC(fg.cost as Record<string, number>, (id) => farmHave(s, id as FarmRes));
-        goals.push({ key: "farmgoal", tab: "farm", symbol: "fortune", color: fg.color, title: `${fg.kind === "hoe" ? "Hoe" : "Scarecrow"}: ${fg.title}`, chip: ok ? "Make" : farmLevel(s) < fg.need ? `Farming ${fg.need}` : `${Math.round(frac * 100)}%`, chipHot: ok, pct: ok ? 1 : frac, ready: ok, prio: ok ? 0 : 3.6, left: Object.entries(fg.cost).map(([k, v]) => `${v} ${k}`).slice(0, 3).join(", ") || "free", right: ok ? "Everything is ready" : farmLevel(s) < fg.need ? `Needs Farming ${fg.need}` : "Grow and cook what is missing", act: ok ? { label: "Make it", run: () => (buyHoe(s) ? `Made the ${fg.title}!` : "") } : undefined });
+        goals.push({ key: "farmgoal", tab: "farm", symbol: "fortune", color: fg.color, title: `${fg.kind === "hoe" ? "Hoe" : "Scarecrow"}: ${fg.title}`, chip: ok ? "Make" : farmLevel(s) < fg.need ? `Farming ${fg.need}` : `${Math.round(frac * 100)}%`, chipHot: ok, pct: ok ? 1 : frac, ready: ok, prio: ok ? 0 : 3.6, left: Object.entries(fg.cost).map(([k, v]) => `${v} ${farmRes(k as FarmRes).name}`).slice(0, 3).join(", ") || "free", right: ok ? "Everything is ready" : farmLevel(s) < fg.need ? `Needs Farming ${fg.need}` : "Grow and cook what is missing", act: ok ? { label: "Make it", run: () => (buyHoe(s) ? `Made the ${fg.title}!` : "") } : undefined });
     }
     if (ffeats > 0)
-        goals.push({ key: "farmfeats", tab: "farm", symbol: "star", color: "#ffd23a", title: `${ffeats} farming feat${ffeats === 1 ? "" : "s"} to claim`, chip: "Claim", chipHot: true, pct: 1, ready: true, prio: 0, left: "tokens, eggs, dust, stats", right: "Click to open the Farm", act: { label: `Claim ${ffeats}`, run: () => { const g = farmClaim(s); return g.length ? `Claimed ${g.length} farming feat${g.length > 1 ? "s" : ""}.` : ""; } } });
+        goals.push({ key: "farmfeats", tab: "farm", symbol: "star", color: "#ffd23a", title: `${ffeats} farming milestone${ffeats === 1 ? "" : "s"} to claim`, chip: "Claim", chipHot: true, pct: 1, ready: true, prio: 0, left: "tokens, eggs, dust, stats", right: "Click to open the Farm", act: { label: `Claim ${ffeats}`, run: () => { const g = farmClaim(s); return g.length ? `Claimed ${g.length} farming milestone${g.length > 1 ? "s" : ""}.` : ""; } } });
 
     // ---- Enchanting ----
     const rollable = SLOT_IDS.filter((id) => slotOpen(s, id) && !s.enc.pend[id] && canRoll(s, id).ok).length;

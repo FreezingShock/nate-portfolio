@@ -59,11 +59,10 @@ function mineBot(s: State, d: Derived, now: number) {
     MN.collectAll(s, now);
     MN.crackAll(s, ctx);
     MN.claimAllFeats(s);
-    if (MN.canBuyPick(s).ok) MN.buyPick(s);
-    MN.upgradeAll(s);
-    MN.buildDrillsAll(s);
+    MN.enchantAll(s);
+    MN.autoRig(s);
     for (const r of MN.RECIPES) {
-        if (r.kind === "relic" && MN.canCraft(s, r, 1).ok) MN.startCraft(s, r.id, 1, now);
+        if (r.kind !== "ingot" && r.kind !== "item" && MN.canCraft(s, r, 1).ok) MN.startCraft(s, r.id, 1, now);
     }
     MN.queueGoal(s, now);
     for (const r of s.mine.relics) MN.equipRelic(s, r);
@@ -84,6 +83,12 @@ function farmBot(s: State, d: Derived, now: number) {
     if (FM.canBuyHoe(s).ok) FM.buyHoe(s);
     FM.upgradeAll(s);
     FM.hireAll(s);
+    FM.hireCrewAll(s);
+    if (!process.env.NOFARMENCH) {
+        FM.enchantAll(s);
+        for (const tl of FM.TOOLS) if (FM.canBuyTool(s, tl).ok) FM.buyTool(s, tl.id);
+        if (FM.canBuyHoe(s).ok) FM.buyHoe(s);
+    }
     for (const r of FM.RECIPES) if (r.kind === "relic" && FM.canCraft(s, r, 1).ok) FM.startCraft(s, r.id, 1, now);
     FM.queueGoal(s, now);
     for (const r of s.farm.relics) FM.equipRelic(s, r);

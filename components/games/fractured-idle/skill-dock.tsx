@@ -6,7 +6,7 @@ import { skillLevel, skillXpFor, type State } from "@/lib/fractured-idle/data";
 import { CODEX_TOTAL, DUST_BASE, DUST_CLICK, DUST_CRIT, ENCH_BY_ID, PITY_EPIC, PITY_LEGEND, RARITIES, SLOTS, canRoll, codexCount, dustMult, enchLevel, luckOf, rarityColor, rollCost, slotOpen } from "@/lib/fractured-idle/enchant";
 import { SKILL_CAP, fmt, fmtTime } from "@/lib/fractured-idle/engine";
 import { activeIsland } from "@/lib/fractured-idle/island-logic";
-import { allPlots, openDims, readyCount, CROP_BY_ID, DIM_FX as FARM_DIM, FEATS as FARM_FEATS, bumperLen, bumperMult, cropRate, cropTable, farmLevel, goalOf as farmGoal, growSpeed, hasReaper, hoeOf, hoePower, onWater, ovenSlots, plotReady, podCount, relicSlots as farmSlots, totalHands, type WaterOut } from "@/lib/fractured-idle/farm";
+import { allPlots, openDims, readyCount, CROP_BY_ID, DIM_FX as FARM_DIM, FEATS as FARM_FEATS, bumperLen, bumperMult, cropRate, cropTable, farmLevel, goalOf as farmGoal, growSpeed, hasReaper, hoeOf, hoePower, onWater, ovenSlots, plotReady, podCount, relicSlots as farmSlots, totalHands, crewTotal, type WaterOut } from "@/lib/fractured-idle/farm";
 import { DIM_FX as MINE_DIM, FEATS as MINE_FEATS, comboFactor, drillSwings, forgeSlots, geodeCount, goalOf as mineGoal, idleSwings, mineLevel, onSwing, oreTable, passiveSwings, pickOf, pickPower, relicSlots as mineSlots, rushLen, rushMult, totalDrills, veinNeed, type SwingOut } from "@/lib/fractured-idle/mine";
 import { ORE_BY_ID } from "@/lib/fractured-idle/mine";
 import { dockBus } from "./dock-bus";
@@ -157,14 +157,14 @@ export function SkillDock({ s, d, notes, onOpen }: { s: State; d: Derived; notes
                     ["Pick power", `x${pp.toFixed(pp < 10 ? 2 : 1)}`, pickOf(s).color],
                     ["Swing damage now", `x${(pp * comboFactor(s.combo)).toFixed(1)} at combo x${s.combo.toFixed(1)}`],
                     ["Idle swings", `${idle.toFixed(idle < 10 ? 1 : 0)}/s`],
-                    ["Drills / auto / passive", `${totalDrills(s)} (${drillSwings(s).toFixed(1)}/s) / ${d.auto.toFixed(1)}/s / ${passiveSwings(s).toFixed(2)}/s`],
+                    ["Drill / auto / passive", `${totalDrills(s) ? "in hand" : "none"} (${drillSwings(s).toFixed(1)}/s) / ${d.auto.toFixed(1)}/s / ${passiveSwings(s).toFixed(2)}/s`],
                     [rush ? "Ore Rush" : "Vein", rush ? `x${rushMult(s).toFixed(1)} ore, ${s.mine.rush} of ${rushLen(s)} swings left` : `${Math.floor(s.mine.vein * 100)}% (${Math.ceil((1 - s.mine.vein) * veinNeed(s))} swings to go)`, "#ffd23a"],
                     ...rows.slice(0, 4).map((r): [string, string, string] => [`${r.ore.name} on ${isl.name}`, pc(r.p), r.ore.color]),
                     [`${dfx.tag} ${isl.dim}`, dfx.lines.join(", ")],
                     ["Geodes waiting", String(geodeCount(s))],
                     ["Forge", `${s.mine.jobs.length}/${forgeSlots(s)} busy`],
                     ["Relics worn", `${s.mine.equipped.length}/${mineSlots(s)}`],
-                    ["Feats claimed", `${s.mine.claimed.length}/${MINE_FEATS.length}`],
+                    ["Milestones claimed", `${s.mine.claimed.length}/${MINE_FEATS.length}`],
                     ...(goal ? ([["Next goal", goal.title, goal.color]] as [string, string, string][]) : []),
                 ]}
                 notes={notes.mine}
@@ -202,11 +202,11 @@ export function SkillDock({ s, d, notes, onOpen }: { s: State; d: Derived; notes
                     [bump ? "Bumper Crop" : "Bloom", bump ? `x${bumperMult(s).toFixed(1)} crops, ${s.farm.bumper} of ${bumperLen(s)} harvests left` : `${Math.floor(s.farm.bloom * 100)}% to a Bumper Crop`, "#ffd23a"],
                     ...rows.slice(0, 4).map((r): [string, string, string] => [`${r.crop.name} on ${isl.name}`, pc(r.p), r.crop.color]),
                     [`${dfx.tag} ${isl.dim}`, dfx.lines.join(", ")],
-                    ["Farmhands", String(totalHands(s))],
+                    ["Crew levels / specialists", `${crewTotal(s)} / ${totalHands(s)}`],
                     ["Seed pods waiting", String(podCount(s))],
                     ["Kitchen", `${s.farm.jobs.length}/${ovenSlots(s)} busy`],
                     ["Scarecrows up", `${s.farm.equipped.length}/${farmSlots(s)}`],
-                    ["Feats claimed", `${s.farm.claimed.length}/${FARM_FEATS.length}`],
+                    ["Milestones claimed", `${s.farm.claimed.length}/${FARM_FEATS.length}`],
                     ...(goal ? ([["Next goal", goal.title, goal.color]] as [string, string, string][]) : []),
                 ]}
                 notes={notes.farm}

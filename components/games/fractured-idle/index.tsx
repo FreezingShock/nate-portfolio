@@ -103,8 +103,8 @@ const TABS: TabItem<TabId>[] = [
     { id: "level", label: "Level", symbol: "flag", group: "play", color: "#7dffb8", blurb: "Your Fractured Level and the sagas: chapters for every skill that pay permanent buffs, plus the milestone timeline." },
     { id: "islands", label: "Islands", symbol: "location", group: "world", color: "#6fb4ff", blurb: "Travel between islands and master their perks." },
     { id: "skills", label: "Skills", symbol: "wisdom", group: "world", color: "var(--mc-yellow)", blurb: "Six skills with milestone rewards." },
-    { id: "mine", label: "Mine", symbol: "pick", group: "world", color: "#e0b070", blurb: "Break ore, forge pickaxes, build drills and crack geodes. The Mining skill lives here." },
-    { id: "farm", label: "Farm", symbol: "fortune", group: "world", color: "#9be04a", blurb: "Grow crops on real timers, cook them, hire farmhands and open seed pods. The Farming skill lives here." },
+    { id: "mine", label: "Mine", symbol: "pick", group: "world", color: "#e0b070", blurb: "Dig ore, forge drill parts and pickaxes, enchant your tool and crack geodes. The Mining skill lives here." },
+    { id: "farm", label: "Farm", symbol: "fortune", group: "world", color: "#9be04a", blurb: "Grow fields of crops across three dimensions, hire a crew, enchant and sell them, cook and open seed pods. The Farming skill lives here." },
     { id: "enchant", label: "Enchant", symbol: "intelligence", group: "world", color: "#c58bff", blurb: "Roll enchants for your button, minions, popups and more." },
     { id: "rebirth", label: "Rebirth", symbol: "portal", group: "prog", color: "var(--mc-red)", blurb: "Reset for tokens and a permanent multiplier." },
     { id: "ascension", label: "Ascension", symbol: "comet", group: "prog", color: "var(--mc-light-purple)", blurb: "The prestige above rebirth." },
@@ -279,12 +279,12 @@ export function FracturedIdle() {
                 lc.open = nowCrops.map((c) => c.id);
                 for (const c of CROPS) {
                     const tier = cropTierOf(s.farm.grown[c.id] || 0);
-                    if (tier > (lc.tiers[c.id] ?? 0) && tier <= CROP_COL_AT.length) say(`${CROP_BY_ID[c.id].name} collection tier ${tier}: +${+(c.col[1] * 100).toFixed(1)}% ${c.colText}!`);
+                    if (tier > (lc.tiers[c.id] ?? 0) && tier <= CROP_COL_AT.length) say(`${CROP_BY_ID[c.id].name} collection tier ${tier}: +${+(0.4 * c.col[1] * (tier <= 5 ? 1 : 0.5) * 100).toFixed(2)}% ${c.colText}!`);
                     lc.tiers[c.id] = tier;
                 }
                 for (const o of ORES) {
                     const tier = colTierOf(s.mine.mined[o.id] || 0);
-                    if (tier > (lo.tiers[o.id] ?? 0) && tier <= COL_AT.length) say(`${o.name} collection tier ${tier}: +${+(o.col[1] * 100).toFixed(1)}% ${o.colText}!`);
+                    if (tier > (lo.tiers[o.id] ?? 0) && tier <= COL_AT.length) say(`${o.name} collection tier ${tier}: +${+(o.col[1] * (tier <= 5 ? 1 : 0.5) * 100).toFixed(2)}% ${o.colText}!`);
                     lo.tiers[o.id] = tier;
                 }
             }
@@ -984,7 +984,7 @@ export function FracturedIdle() {
                         {tab === "pets" && <PetsTab {...ctx} />}
                         {tab === "islands" && <IslandsTab {...ctx} openMenu={(id) => setMenu(id)} />}
                         {tab === "skills" && <SkillsTab {...ctx} open={(id) => setTab(id as TabId)} />}
-                        {tab === "mine" && <MineTab {...ctx} />}
+                        {tab === "mine" && <MineTab {...ctx} open={(id) => setTab(id as TabId)} />}
                         {tab === "farm" && <FarmTab {...ctx} open={(id) => setTab(id as TabId)} />}
                         {tab === "enchant" && <EnchantTab {...ctx} />}
                         {tab === "stats" && <StatsTab {...ctx} />}

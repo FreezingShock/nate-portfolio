@@ -22,8 +22,14 @@ import {
     bumperLen,
     bumperMult,
     consumeItem,
+    cropIcon,
     cropTable,
     cropUnits,
+    fieldBonus,
+    fieldCap,
+    fieldSize,
+    recommend,
+    crewLevel,
     farmCtx,
     gardenOpen,
     goalOf,
@@ -54,6 +60,7 @@ import { ISLAND_BY_ID } from "@/lib/fractured-idle/islands";
 import { CostRow, CropTip, amt, col, fmtPct, C } from "./farm-bits";
 import { Tip, TipCard } from "./tooltip";
 import { SectionTitle, type Ctx } from "./ui";
+import { ItemIcon } from "./skill-kit";
 import { SAGA_BY_ID, chapterFrac, chapterReady, currentChapter, tasksDone } from "@/lib/fractured-idle/sagas";
 
 // The Garden: one garden per dimension (a biome), every open one growing at once, with a tab for each. Tap an empty
@@ -236,6 +243,8 @@ export function Garden({ s, d, F, render, say, openSaga }: P & { openSaga: () =>
         }
     };
     const goal = goalOf(s);
+    const rec = recommend(s, dim);
+    const fld = sow ? fieldSize(s, dim, sow.id) : 0;
     const ripe = readyCount(s, dim);
     const empty = plots.filter((p) => !p.c).length;
     const sn = streakNow(s);
@@ -284,6 +293,30 @@ export function Garden({ s, d, F, render, say, openSaga }: P & { openSaga: () =>
             <div className="fi-fm-head" style={{ color: lab.color }}>
                 {lab.name} <em>· {fx.tag} · {fx.lines.join(" · ")}</em>
             </div>
+
+            {rec && (
+                <div className="fi-fm-rec" style={col(rec.crop.color)}>
+                    <ItemIcon icon={cropIcon[rec.crop.id]} color={rec.crop.color} />
+                    <span className="tx">
+                        <small>Recommended crop</small>
+                        <b>{rec.crop.name}</b>
+                        <em>{rec.why}</em>
+                    </span>
+                    {sow?.id === rec.crop.id ? (
+                        <span className="fi-lv-chip" style={{ ["--k" as string]: rec.crop.color } as CSSProperties}>You are planting it</span>
+                    ) : (
+                        <button type="button" className="fi-lv-btn" onClick={() => { setSow(s, rec.crop.id, dim); say(`Planting ${rec.crop.name} in the ${lab.name}.`); render(); }}>
+                            Plant it here
+                        </button>
+                    )}
+                </div>
+            )}
+            {sow && fld > 0 && (
+                <div className="fi-fm-field">
+                    <b>Field of {sow.name}: {fld} plot{fld === 1 ? "" : "s"}</b>
+                    <span>+{Math.round(fieldBonus(s, fld) * 100)}% crops from each (cap +{Math.round(fieldCap(s) * 100)}%). {fld < plots.length ? "Plant the whole garden with one crop for the biggest bonus and the fastest collection." : "The whole garden is one field."}{crewLevel(s, "agron") > 0 ? " Your Agronomists keep it planted." : ""}</span>
+                </div>
+            )}
 
             <div className="fi-fm-streak" data-on={sn > 0} style={{ ["--w" as string]: win } as CSSProperties}>
                 <div className="fi-fm-streak-h">
@@ -395,7 +428,7 @@ export function Garden({ s, d, F, render, say, openSaga }: P & { openSaga: () =>
                         <Tip key={c.id} tip={<CropTip s={s} c={c} p={r.p} F={F} d={d} />}>
                             <div className="fi-mn-row" data-locked={!r.open} data-focus={picked} style={col(c.color)}>
                                 <i className="fi-mn-sw" />
-                                <span className="fi-mn-rn">{r.open ? c.name : "???"}</span>
+                                <span className="fi-mn-rn">{r.open ? c.name : "???"}{rec?.crop.id === c.id && <em className="fi-fm-recdot"> ◂ best now</em>}</span>
                                 <span className="fi-mn-bar">
                                     <i style={{ width: `${r.p * 100}%` }} />
                                 </span>
@@ -514,6 +547,15 @@ function GoalCard({ s, goal, render, say }: { s: Ctx["s"]; goal: NonNullable<Ret
 }
 
 export const GARDEN_CSS = `
+.fi-fm-rec{display:flex;align-items:center;gap:.6rem;padding:.5rem .65rem;border-radius:.95rem;border:1px solid color-mix(in oklch,var(--oc) 50%,transparent);background:linear-gradient(120deg,color-mix(in oklch,var(--oc) 14%,transparent),rgba(0,0,0,.2) 80%)}
+.fi-fm-rec .tx{flex:1;min-width:0;display:flex;flex-direction:column}
+.fi-fm-rec small{font-family:var(--font-rubik,inherit);font-size:.54rem;letter-spacing:.14em;text-transform:uppercase;color:var(--muted-foreground)}
+.fi-fm-rec b{font-family:var(--font-minecraft,inherit);font-size:.9rem;color:var(--oc)}
+.fi-fm-rec em{font-style:normal;font-family:var(--font-rubik,inherit);font-size:.64rem;color:#cfc8de}
+.fi-fm-field{display:flex;flex-direction:column;gap:.1rem;padding:.4rem .65rem;border-radius:.8rem;border:1px dashed color-mix(in oklch,var(--mc-green) 45%,transparent);background:color-mix(in oklch,var(--mc-green) 6%,transparent)}
+.fi-fm-field b{font-family:var(--font-minecraft,inherit);font-size:.74rem;color:var(--mc-green)}
+.fi-fm-field span{font-family:var(--font-rubik,inherit);font-size:.64rem;color:#cfc8de}
+.fi-fm-recdot{font-style:normal;color:var(--mc-green);font-size:.6rem}
 .fi-fg{display:flex;flex-direction:column;gap:.3rem;padding:.6rem .7rem;border-radius:1rem;border:1px solid color-mix(in oklch,${C} 45%,transparent);background:linear-gradient(135deg,color-mix(in oklch,${C} 12%,transparent),transparent 70%)}
 .fi-fg[data-ready="true"]{border-color:#ffd23a;box-shadow:0 0 22px -8px #ffd23a;animation:fi-qp-glow 2.2s ease-in-out infinite}
 .fi-fg[data-done]{opacity:.8}

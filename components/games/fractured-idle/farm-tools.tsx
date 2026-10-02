@@ -77,10 +77,10 @@ export function Tools({ s, F, render, say }: P) {
                         )}
                     </div>
                     {next && <CostRow s={s} cost={next.cost} />}
-                    {next && !can.ok && lvl >= next.need && <div className="fi-mn-pick-h">Goods come from the Kitchen tab.</div>}
+                    {next && !can.ok && lvl >= next.need && <div className="fi-mn-pick-h">Enchanted crops come from the Market tab.</div>}
                 </div>
                 {next && (
-                    <Tip box tip={<TipCard title={`Make ${next.name}`} color={next.color} lines={["Consumes the goods shown and replaces your hoe."]} foot={can.ok ? "Click to make!" : can.why} />}>
+                    <Tip box tip={<TipCard title={`Make ${next.name}`} color={next.color} lines={["Consumes the crops shown and replaces your hoe."]} foot={can.ok ? "Click to make!" : can.why} />}>
                         <button
                             type="button"
                             disabled={!can.ok}

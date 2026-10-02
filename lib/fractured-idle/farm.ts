@@ -1,5 +1,7 @@
 import { skillLevel, skillXpFor, type State } from "./data";
-import type { EStat } from "./enchant";
+import type { McSymbolName } from "@/components/mc-symbol";
+import { fmtStat, type EStat } from "./enchant";
+import { colSteps, collectionRewards, craftRewards, milestonesOf, type Ladder, type Milestone, type MsReward } from "./milestones";
 import { activeIsland, openIslands } from "./island-logic";
 import type { Dim } from "./islands";
 import type { GrantKind } from "./skills";
@@ -25,7 +27,9 @@ export type CropId =
 
 export type GoodId = "flour" | "stew" | "jam" | "cake" | "pie" | "feast" | "emberTart" | "voidTea" | "starCake";
 export type EnchId = `e_${CropId}`;
-export type ResId = CropId | GoodId | EnchId;
+/** Generic currencies, so recipes never need one particular crop: "any" is Enchanted crops of any kind, "k_stalk" and friends are Enchanted crops of one kind. */
+export type KindRes = `k_${"stalk" | "root" | "fruit" | "fungus" | "bloom"}`;
+export type ResId = CropId | GoodId | EnchId | KindRes | "any";
 export type Cost = Partial<Record<ResId, number>>;
 
 /** What a crop is, for tools: every tool is made for one kind of crop. */
@@ -123,6 +127,11 @@ export const isCrop = (id: string): id is CropId => CROP_IDS.has(id);
 export const isEnch = (id: string): id is EnchId => id.startsWith("e_") && CROP_IDS.has(id.slice(2));
 export const enchId = (id: CropId): EnchId => `e_${id}`;
 export const resInfo = (id: ResId): { name: string; color: string } => {
+    if (id === "any") return { name: "Enchanted crops (any)", color: "#d9a8ff" };
+    if (isKindRes(id)) {
+        const k = KIND_INFO[id.slice(2) as CropKind];
+        return { name: `Enchanted ${k.name.toLowerCase()} (any)`, color: k.color };
+    }
     if (isCrop(id)) return CROP_BY_ID[id];
     if (isEnch(id)) {
         const c = CROP_BY_ID[id.slice(2) as CropId];
@@ -164,7 +173,7 @@ const DIM_DEFAULT: Record<Dim, [CropId, number][]> = { overworld: ISLAND_CROPS.h
 export const cropIslands = (id: CropId): string[] => Object.entries(ISLAND_CROPS).filter(([, t]) => t.some(([c]) => c === id)).map(([k]) => k);
 
 /** Harvested-count thresholds for each collection tier. */
-export const COL_AT = [100, 400, 2000, 10000, 50000];
+export const COL_AT = [100, 400, 2000, 10000, 50000, 200000, 750000, 2500000, 10000000, 50000000];
 export const colTierOf = (n: number) => COL_AT.filter((x) => n >= x).length;
 
 // ---- Gear ----
@@ -180,14 +189,14 @@ export interface HoeDef {
 export const HOES: HoeDef[] = [
     { id: "wood", name: "Wooden Hoe", color: "#b98a4a", power: 1, need: 0, cost: {} },
     { id: "stone", name: "Stone Hoe", color: "#a0a0ac", power: 1.6, need: 1, cost: { wheat: 40 } },
-    { id: "copper", name: "Copper Hoe", color: "#e0874a", power: 2.5, need: 4, cost: { flour: 3, wheat: 120 } },
-    { id: "iron", name: "Iron Hoe", color: "#d8d8e6", power: 4, need: 9, cost: { stew: 4, flour: 4 } },
-    { id: "gold", name: "Golden Hoe", color: "#ffcc33", power: 6.5, need: 15, cost: { jam: 4, stew: 2 } },
-    { id: "diamond", name: "Diamond Hoe", color: "#55ffff", power: 10, need: 22, cost: { cake: 4, jam: 4 } },
-    { id: "nether", name: "Netherite Hoe", color: "#c98a9a", power: 16, need: 32, cost: { pie: 4, cake: 4 } },
-    { id: "ember", name: "Ember Hoe", color: "#ff8a5c", power: 26, need: 44, cost: { emberTart: 4, pie: 6 } },
-    { id: "void", name: "Void Hoe", color: "#8a7bff", power: 42, need: 52, cost: { voidTea: 4, emberTart: 4 } },
-    { id: "cosmic", name: "Cosmic Hoe", color: "#ffb3f2", power: 70, need: 58, cost: { starCake: 3, voidTea: 6 } },
+    { id: "copper", name: "Copper Hoe", color: "#e0874a", power: 2.5, need: 4, cost: { wheat: 120, any: 2 } },
+    { id: "iron", name: "Iron Hoe", color: "#d8d8e6", power: 4, need: 9, cost: { any: 6 } },
+    { id: "gold", name: "Golden Hoe", color: "#ffcc33", power: 6.5, need: 15, cost: { any: 14 } },
+    { id: "diamond", name: "Diamond Hoe", color: "#55ffff", power: 10, need: 22, cost: { any: 28 } },
+    { id: "nether", name: "Netherite Hoe", color: "#c98a9a", power: 16, need: 32, cost: { any: 55 } },
+    { id: "ember", name: "Ember Hoe", color: "#ff8a5c", power: 26, need: 44, cost: { any: 100 } },
+    { id: "void", name: "Void Hoe", color: "#8a7bff", power: 42, need: 52, cost: { any: 170 } },
+    { id: "cosmic", name: "Cosmic Hoe", color: "#ffb3f2", power: 70, need: 58, cost: { any: 280 } },
 ];
 /** Click power every hoe tier adds for the rest of the game. */
 export const HOE_CLICK = 0.008;
@@ -223,6 +232,7 @@ export const FARM_UPS: FarmUpDef[] = [
     { id: "sifter", name: "Pod Sifter", desc: "Auto-harvests find 12% more pods per level", cat: "rig", cost: { melon: 6 }, growth: 1.45, max: 15, need: 24 },
     { id: "cracker", name: "Pod Opener", desc: "Opens seed pods for you, faster every level", cat: "rig", cost: { stew: 2 }, growth: 1.8, max: 5, need: 22 },
     { id: "plots", name: "Extra Plot", desc: "One more plot in every garden", cat: "rig", cost: { potato: 40 }, growth: 2.4, max: 4, need: 6 },
+    { id: "field", name: "Field Rows", desc: "Plots of the same crop in a garden boost each other. +4% to the cap of that field bonus per level", cat: "rig", cost: { carrot: 40 }, growth: 1.45, max: 20, need: 6 },
     // Cookhouse parts
     { id: "oven", name: "Extra Oven", desc: "One more crafting slot", cat: "kitchen", cost: { flour: 6 }, growth: 2.2, max: 3, need: 10 },
     { id: "stoker", name: "Stoker", desc: "Crafts finish 8% sooner per level", cat: "kitchen", cost: { potato: 20 }, growth: 1.35, max: 20, need: 8 },
@@ -231,7 +241,7 @@ export const FARM_UPS: FarmUpDef[] = [
     { id: "rhythm", name: "Harvest Rhythm", desc: "Hand-picks chain into a streak: +0.5s window and +5% streak cap per level", cat: "hand", cost: { carrot: 30 }, growth: 1.42, max: 15, need: 8 },
     { id: "golden", name: "Golden Seeds", desc: "+1% chance that a planted crop turns golden (5x crops) per level", cat: "hand", cost: { melon: 10 }, growth: 1.5, max: 15, need: 26 },
     { id: "table", name: "Enchanting Table", desc: "Each Enchanted crop needs 6 fewer raw crops per level", cat: "market", cost: { wheat: 200 }, growth: 1.5, max: 10, need: 4 },
-    { id: "market", name: "Market Stall", desc: "+6% shards from every Enchanted crop you sell per level", cat: "market", cost: { e_wheat: 2 }, growth: 1.55, max: 20, need: 8 },
+    { id: "market", name: "Market Stall", desc: "+6% shards from every Enchanted crop you sell per level", cat: "market", cost: { any: 2 }, growth: 1.55, max: 20, need: 8 },
     { id: "chef", name: "Master Chef", desc: "8% chance per level to cook a double batch", cat: "kitchen", cost: { cake: 3 }, growth: 1.6, max: 10, need: 26 },
 ];
 export const FARM_UP_BY_ID = Object.fromEntries(FARM_UPS.map((u) => [u.id, u])) as Record<string, FarmUpDef>;
@@ -292,6 +302,8 @@ export const RECIPES: RecipeDef[] = [
 ];
 export const RECIPE_BY_ID = Object.fromEntries(RECIPES.map((r) => [r.id, r])) as Record<string, RecipeDef>;
 export const RELICS = RECIPES.filter((r) => r.kind === "relic");
+/** The recipes that use a resource, for "used in" lines. */
+export const usedInRecipes = (id: string) => RECIPES.filter((r) => id in r.inputs);
 const RELIC_IDS = new Set<string>(RELICS.map((r) => r.id));
 const RECIPE_IDS = new Set<string>(RECIPES.map((r) => r.id));
 
@@ -320,35 +332,18 @@ const TOOL_SPECIAL: Record<CropKind, number[]> = {
 };
 /** The stat a worn tool of each kind adds to the whole game, per tier. */
 export const TOOL_FX: Record<CropKind, [EStat, number]> = { stalk: ["minion", 0.006], root: ["click", 0.006], fruit: ["luck", 0.01], fungus: ["dust", 0.012], bloom: ["all", 0.004] };
-const TOOL_LINES: Record<CropKind, { names: string[]; need: number[]; cost: Cost[] }> = {
-    stalk: {
-        names: ["Bronze Scythe", "Iron Scythe", "Golden Scythe", "Diamond Scythe", "Cosmic Scythe"],
-        need: [5, 12, 24, 42, 54],
-        cost: [{ e_wheat: 2, flour: 2 }, { e_wheat: 6, stew: 2 }, { e_wheat: 10, e_sugarcane: 4, cake: 2 }, { e_sugarcane: 10, e_cocoa: 4, pie: 3 }, { e_cocoa: 10, e_wheat: 30, feast: 3 }],
-    },
-    root: {
-        names: ["Stone Trowel", "Iron Trowel", "Golden Trowel", "Diamond Trowel", "Cosmic Trowel"],
-        need: [6, 12, 20, 34, 50],
-        cost: [{ e_carrot: 2, flour: 2 }, { e_carrot: 4, e_potato: 3, stew: 2 }, { e_potato: 6, e_beetroot: 4, jam: 2 }, { e_beetroot: 10, e_potato: 12, cake: 3 }, { e_beetroot: 25, e_carrot: 25, pie: 4 }],
-    },
-    fruit: {
-        names: ["Fruit Pruners", "Iron Pruners", "Golden Pruners", "Diamond Pruners", "Cosmic Pruners"],
-        need: [12, 28, 36, 52, 60],
-        cost: [{ e_chorus: 4, flour: 2 }, { e_melon: 6, e_chorus: 8, cake: 2 }, { e_pumpkin: 6, e_melon: 8, pie: 2 }, { e_sweetberry: 8, e_starfruit: 6, voidTea: 2 }, { e_starfruit: 12, e_glowberry: 12, starCake: 2 }],
-    },
-    fungus: {
-        names: ["Bone Spore Knife", "Iron Spore Knife", "Golden Spore Knife", "Diamond Spore Knife", "Cosmic Spore Knife"],
-        need: [6, 26, 32, 44, 56],
-        cost: [{ e_netherwart: 3, flour: 2 }, { e_netherwart: 6, e_crimsonfungus: 3, stew: 2 }, { e_crimsonfungus: 6, e_warpedfungus: 4, jam: 3 }, { e_warpedfungus: 8, e_crimsonfungus: 10, emberTart: 2 }, { e_warpedfungus: 20, e_crimsonfungus: 20, emberTart: 5 }],
-    },
-    bloom: {
-        names: ["Petal Shears", "Iron Petal Shears", "Golden Petal Shears", "Diamond Petal Shears", "Cosmic Petal Shears"],
-        need: [36, 44, 56, 58, 60],
-        cost: [{ e_voidlily: 3, cake: 2 }, { e_voidlily: 8, emberTart: 2 }, { e_emberbloom: 4, e_voidlily: 10, voidTea: 2 }, { e_emberbloom: 8, e_voidlily: 15, voidTea: 3 }, { e_fracflower: 5, e_emberbloom: 12, starCake: 2 }],
-    },
+const TOOL_LINES: Record<CropKind, { names: string[]; need: number[] }> = {
+    stalk: { names: ["Bronze Scythe", "Iron Scythe", "Golden Scythe", "Diamond Scythe", "Cosmic Scythe"], need: [5, 12, 24, 42, 54] },
+    root: { names: ["Stone Trowel", "Iron Trowel", "Golden Trowel", "Diamond Trowel", "Cosmic Trowel"], need: [6, 12, 20, 34, 50] },
+    fruit: { names: ["Fruit Pruners", "Iron Pruners", "Golden Pruners", "Diamond Pruners", "Cosmic Pruners"], need: [12, 28, 36, 52, 60] },
+    fungus: { names: ["Bone Spore Knife", "Iron Spore Knife", "Golden Spore Knife", "Diamond Spore Knife", "Cosmic Spore Knife"], need: [6, 26, 32, 44, 56] },
+    bloom: { names: ["Petal Shears", "Iron Petal Shears", "Golden Petal Shears", "Diamond Petal Shears", "Cosmic Petal Shears"], need: [36, 44, 56, 58, 60] },
 };
+/** Enchanted crops of the tool's kind (any crop of it, any dimension) each tier costs. */
+export const TOOL_ENCH = [6, 18, 50, 130, 320];
+const toolCost = (kind: CropKind, i: number): Cost => ({ [`k_${kind}`]: TOOL_ENCH[i] } as Cost);
 export const TOOLS: ToolDef[] = KINDS.flatMap((kind) =>
-    TOOL_LINES[kind].names.map((name, i) => ({ id: `${kind}${i + 1}`, kind, tier: i + 1, name, need: TOOL_LINES[kind].need[i], cost: TOOL_LINES[kind].cost[i], yield: TOOL_YIELD[i], speed: TOOL_SPEED[i], special: TOOL_SPECIAL[kind][i] })),
+    TOOL_LINES[kind].names.map((name, i) => ({ id: `${kind}${i + 1}`, kind, tier: i + 1, name, need: TOOL_LINES[kind].need[i], cost: toolCost(kind, i), yield: TOOL_YIELD[i], speed: TOOL_SPEED[i], special: TOOL_SPECIAL[kind][i] })),
 );
 export const TOOL_BY_ID = Object.fromEntries(TOOLS.map((t) => [t.id, t])) as Record<string, ToolDef>;
 export const toolsOf = (kind: CropKind) => TOOLS.filter((t) => t.kind === kind);
@@ -411,6 +406,11 @@ export interface FarmState {
     jobs: Job[];
     crafted: number;
     log: LogEntry[];
+    made: Record<string, number>; // goods cooked, ever (milestones)
+    crew: Record<string, number>; // level of each crew department
+    auto: { pack: boolean; sell: boolean; cook: boolean; sow: "off" | "best" | "goal" }; // what the crew is allowed to do
+    acc: Record<string, number>; // crew work carried between ticks
+    soldRaw: number; // raw crops sold, ever
 }
 
 export const newFarm = (): FarmState => ({
@@ -423,6 +423,7 @@ export const newFarm = (): FarmState => ({
     sow: { overworld: "", nether: "", end: "" }, ench: {}, enchanted: 0, soldN: 0, sold: 0, tools: [], belt: [],
     streak: 0, streakAt: 0, bestStreak: 0, tends: 0, goldens: 0, waters: 0, harvests: 0, picked: 0, bumpers: 0,
     pods: {}, opened: 0, podFrac: {}, openT: 0, bloom: 0, bumper: 0, focus: "", jobs: [], crafted: 0, log: [],
+    made: {}, crew: {}, auto: { pack: true, sell: true, cook: true, sow: "best" }, acc: {}, soldRaw: 0,
 });
 
 const num = (v: unknown, d = 0) => (Number.isFinite(Number(v)) ? Number(v) : d);
@@ -441,13 +442,20 @@ export function cleanFarm(raw: unknown): FarmState {
     out.items = rec(o.items, (k) => ITEM_IDS.has(k), true);
     out.relics = (Array.isArray(o.relics) ? o.relics : []).filter((x, i, a): x is string => typeof x === "string" && RELIC_IDS.has(x) && a.indexOf(x) === i);
     out.equipped = (Array.isArray(o.equipped) ? o.equipped : out.relics).filter((x, i, a): x is string => typeof x === "string" && out.relics.includes(x) && a.indexOf(x) === i).slice(0, 4);
-    out.claimed = (Array.isArray(o.claimed) ? o.claimed : []).filter((x, i, a): x is string => typeof x === "string" && a.indexOf(x) === i).slice(0, 200);
+    out.claimed = (Array.isArray(o.claimed) ? o.claimed : []).filter((x, i, a): x is string => typeof x === "string" && a.indexOf(x) === i).slice(0, 500);
     out.hoe = Math.max(0, Math.min(HOES.length - 1, Math.floor(num(o.hoe))));
     out.ups = rec(o.ups, (k) => !!FARM_UP_BY_ID[k], true);
     for (const u of FARM_UPS) if (out.ups[u.id]) out.ups[u.id] = Math.min(u.max, out.ups[u.id]);
     out.hands = rec(o.hands, (k) => CROP_IDS.has(k), true);
+    out.made = rec(o.made, (k) => GOOD_IDS.has(k), true);
+    out.crew = rec(o.crew, (k) => !!CREW_BY_ID[k], true);
+    for (const c of CREW) if (out.crew[c.id]) out.crew[c.id] = Math.min(c.max, out.crew[c.id]);
+    const au = (o.auto && typeof o.auto === "object" ? o.auto : {}) as Record<string, unknown>;
+    out.auto = { pack: au.pack !== false, sell: au.sell !== false, cook: au.cook !== false, sow: au.sow === "off" || au.sow === "goal" ? au.sow : "best" };
+    out.acc = rec(o.acc, (k) => ["pack", "sell", "sowT", "cookT"].includes(k));
+    out.soldRaw = Math.max(0, Math.floor(num(o.soldRaw)));
     const parsePlots = (src: unknown): Plot[] =>
-        (Array.isArray(src) ? (src as Record<string, unknown>[]) : []).slice(0, 20).map((p) => {
+        (Array.isArray(src) ? (src as Record<string, unknown>[]) : []).slice(0, 80).map((p) => {
             const c = typeof p?.c === "string" && CROP_IDS.has(p.c) ? p.c : "";
             const pl: Plot = { c, p: c ? Math.max(0, Math.min(CROP_BY_ID[c as CropId].time * 4, num(p?.p))) : 0 };
             if (c && p?.g === true) pl.g = true;
@@ -543,7 +551,11 @@ export const farmLevel = (s: State) => skillLevel(s.farming);
 export const cropOpen = (s: State, c: CropDef) => farmLevel(s) >= c.need;
 export const upLevel = (s: State, id: string) => s.farm.ups[id] || 0;
 export const haveCrop = (s: State, id: CropId) => s.farm.crop[id] || 0;
-export const have = (s: State, id: ResId) => (isCrop(id) ? s.farm.crop[id] || 0 : isEnch(id) ? s.farm.ench[id.slice(2)] || 0 : s.farm.goods[id] || 0);
+export const isKindRes = (id: string): id is KindRes => id.startsWith("k_") && (KINDS as string[]).includes(id.slice(2));
+const enchOfKind = (s: State, kind: CropKind) => CROPS.filter((c) => c.kind === kind).reduce((a, c) => a + (s.farm.ench[c.id] || 0), 0);
+export const enchTotal = (s: State) => CROPS.reduce((a, c) => a + (s.farm.ench[c.id] || 0), 0);
+export const have = (s: State, id: ResId) =>
+    id === "any" ? enchTotal(s) : isKindRes(id) ? enchOfKind(s, id.slice(2) as CropKind) : isCrop(id) ? s.farm.crop[id] || 0 : isEnch(id) ? s.farm.ench[id.slice(2)] || 0 : s.farm.goods[id] || 0;
 export const hoeOf = (s: State) => HOES[s.farm.hoe];
 
 export const hasRelic = (s: State, id: string) => s.farm.equipped.includes(id);
@@ -564,7 +576,9 @@ export function unequipRelic(s: State, id: string): boolean {
 export const gardenOpen = (s: State, dim: Dim) =>
     dim === "overworld" || openIslands(s).some((i) => i.dim === dim) || s.farm.gardens[dim].some((p) => p.c) || DIM_CROPS[dim].some((c) => (s.farm.grown[c.id] || 0) > 0);
 export const openDims = (s: State): Dim[] => DIMS.filter((d) => gardenOpen(s, d));
-export const plotCount = (s: State, dim: Dim) => BASE_PLOTS[dim] + (farmLevel(s) >= 10 ? 2 : 0) + (farmLevel(s) >= 25 ? 2 : 0) + (farmLevel(s) >= 40 ? 2 : 0) + upLevel(s, "plots");
+/** Plots in a garden: the base, three level steps, Extra Plot, and the Acres (rebirth) and Estate (ascension) upgrades. */
+export const plotCount = (s: State, dim: Dim) =>
+    BASE_PLOTS[dim] + (farmLevel(s) >= 10 ? 2 : 0) + (farmLevel(s) >= 25 ? 2 : 0) + (farmLevel(s) >= 40 ? 2 : 0) + upLevel(s, "plots") + (s.rups.acres || 0) * 2 + (s.aups.estate || 0) * 6;
 export interface PlotRef {
     dim: Dim;
     i: number;
@@ -585,9 +599,9 @@ export const toolSpecial = (s: State, kind: CropKind) => beltTool(s, kind)?.spec
 export const hoePower = (s: State) => hoeOf(s).power * (1 + 0.06 * upLevel(s, "till") + (hasRelic(s, "gloves") ? 0.1 : 0) + (hasRelic(s, "lantern") ? 0.15 : 0));
 /** Hoe power helps crops, but with a softening curve. */
 export const hoeFactor = (s: State) => Math.pow(hoePower(s), 0.55);
-export const yieldMult = (s: State, dim: Dim = activeIsland(s).dim) => DIM_FX[dim].yield * (1 + 0.08 * upLevel(s, "fert")) * (hasRelic(s, "straw") ? 1.06 : 1) * (hasRelic(s, "lens") ? 1.1 : 1);
+export const yieldMult = (s: State, dim: Dim = activeIsland(s).dim) => DIM_FX[dim].yield * (1 + 0.05 * (s.rups.loam || 0)) * (1 + 0.08 * upLevel(s, "fert")) * (hasRelic(s, "straw") ? 1.06 : 1) * (hasRelic(s, "lens") ? 1.1 : 1);
 export const luckyChance = (s: State, kind?: CropKind) => 0.015 * upLevel(s, "lucky") + (hasRelic(s, "clover") ? 0.06 : 0) + (kind === "fruit" ? toolSpecial(s, "fruit") : 0);
-export const goldenChance = (s: State) => 0.01 + 0.01 * upLevel(s, "golden") + (hasRelic(s, "clover") ? 0.01 : 0);
+export const goldenChance = (s: State) => 0.01 + 0.01 * upLevel(s, "golden") + 0.005 * crewLevel(s, "agron") + (hasRelic(s, "clover") ? 0.01 : 0);
 export const podChance = (s: State, dim: Dim = activeIsland(s).dim, kind?: CropKind) => DIM_FX[dim].pod * 0.003 * (1 + 0.1 * upLevel(s, "seeker") + (hasRelic(s, "shears") ? 0.2 : 0) + (kind === "fungus" ? toolSpecial(s, "fungus") : 0));
 export const bloomNeed = (s: State) => 90;
 export const bumperLen = (s: State) => 6 + 2 * upLevel(s, "bumper") + (hasRelic(s, "lantern") ? 5 : 0) + (hasRelic(s, "totem") ? 6 : 0) + dimFx(s).bumper;
@@ -595,7 +609,7 @@ export const bumperMult = (s: State) => 3 * (1 + 0.1 * upLevel(s, "bumper"));
 export const farmXpMult = (s: State, dim: Dim = activeIsland(s).dim, kind?: CropKind) => (1 + 0.06 * upLevel(s, "scholar")) * DIM_FX[dim].xp * (kind === "root" ? 1 + toolSpecial(s, "root") : 1);
 export const hasReaper = (s: State) => upLevel(s, "reaper") > 0;
 export const ovenSlots = (s: State) => 1 + upLevel(s, "oven");
-export const cookSpeed = (s: State) => 1 + 0.08 * upLevel(s, "stoker") + (hasRelic(s, "hearth") ? 0.1 : 0);
+export const cookSpeed = (s: State) => 1 + 0.08 * upLevel(s, "stoker") + 0.03 * crewLevel(s, "cooks") + (hasRelic(s, "hearth") ? 0.1 : 0);
 export const openEvery = (s: State) => (upLevel(s, "cracker") > 0 ? 36 / upLevel(s, "cracker") : Infinity);
 /** Seconds of growth a press of the big button gives a plot. */
 export const waterBoost = (s: State, combo: number) => 0.35 * (1 + 0.45 * Math.max(0, combo - 1)) * (1 + 0.08 * upLevel(s, "water"));
@@ -616,9 +630,29 @@ export function handBoost(s: State, c: CropDef): number {
     return 0.06 * eff(n) * (hasRelic(s, "hearth") ? 1.25 : 1) * (hasRelic(s, "sundial") ? 1.2 : 1);
 }
 /** Growth speed of a crop right now. */
-export const growSpeed = (s: State, c: CropDef) => DIM_FX[c.dim].speed * (1 + 0.05 * upLevel(s, "sprinkler")) * (1 + handBoost(s, c)) * (hasRelic(s, "sundial") ? 1.1 : 1) * (1 + toolSpeed(s, c.kind));
+export const growSpeed = (s: State, c: CropDef) =>
+    DIM_FX[c.dim].speed * (1 + 0.05 * upLevel(s, "sprinkler")) * (1 + handBoost(s, c)) * (1 + 0.03 * crewLevel(s, "tenders")) * (hasRelic(s, "sundial") ? 1.1 : 1) * (1 + toolSpeed(s, c.kind));
 /** Crops one harvest gives before bumper, luck, streak and gold. */
-export const cropUnits = (s: State, c: CropDef) => c.yield * hoeFactor(s) * yieldMult(s, c.dim) * (1 + toolYield(s, c.kind));
+export const cropUnits = (s: State, c: CropDef, field = 1) => c.yield * hoeFactor(s) * yieldMult(s, c.dim) * (1 + toolYield(s, c.kind)) * (1 + fieldBonus(s, field));
+
+// ---- Fields: plots of one crop in a garden boost each other ----
+
+/** The bonus a field of `n` plots of the same crop gives each of them, up to a cap Field Rows raises. */
+export const FIELD_STEP = 0.012;
+export const fieldCap = (s: State) => 0.3 + 0.04 * upLevel(s, "field");
+export const fieldBonus = (s: State, n: number) => Math.min(fieldCap(s), FIELD_STEP * Math.max(0, n - 1));
+/** Plots of this crop in a garden. */
+export const fieldSize = (s: State, dim: Dim, id: string) => s.farm.gardens[dim].filter((p) => p.c === id).length;
+/** The biggest field you have right now (for milestones and the Garden header). */
+export function biggestField(s: State): { dim: Dim; crop: CropDef; n: number } | null {
+    let best: { dim: Dim; crop: CropDef; n: number } | null = null;
+    for (const dim of openDims(s)) {
+        const counts: Record<string, number> = {};
+        for (const p of s.farm.gardens[dim]) if (p.c) counts[p.c] = (counts[p.c] || 0) + 1;
+        for (const [id, n] of Object.entries(counts)) if (!best || n > best.n) best = { dim, crop: CROP_BY_ID[id as CropId], n };
+    }
+    return best;
+}
 /** The hand-pick streak: picks in a row, each inside the window of the last. */
 export const streakWindow = (s: State) => 4 + 0.5 * upLevel(s, "rhythm");
 export const streakCap = (s: State) => 0.5 + 0.05 * upLevel(s, "rhythm");
@@ -644,9 +678,22 @@ const afford = (s: State, cost: Cost): Blocker => {
     for (const [id, n] of Object.entries(cost)) if (have(s, id as ResId) < (n ?? 0)) return { ok: false, why: `Needs ${resInfo(id as ResId).name}` };
     return { ok: true };
 };
+/** Spend `n` Enchanted crops from a list of crops, the cheapest first (the valuable ones stay for selling). */
+const spendEnch = (s: State, list: CropDef[], n: number) => {
+    for (const c of list.slice().sort((a, b) => a.vm - b.vm)) {
+        const k = Math.min(n, s.farm.ench[c.id] || 0);
+        if (k > 0) {
+            s.farm.ench[c.id] = (s.farm.ench[c.id] || 0) - k;
+            n -= k;
+        }
+        if (n <= 0) break;
+    }
+};
 const spend = (s: State, cost: Cost) => {
     for (const [id, n] of Object.entries(cost)) {
-        if (isCrop(id)) s.farm.crop[id] = haveCrop(s, id) - (n ?? 0);
+        if (id === "any") spendEnch(s, CROPS, n ?? 0);
+        else if (isKindRes(id)) spendEnch(s, CROPS.filter((c) => c.kind === id.slice(2)), n ?? 0);
+        else if (isCrop(id)) s.farm.crop[id] = haveCrop(s, id) - (n ?? 0);
         else if (isEnch(id)) s.farm.ench[id.slice(2)] = (s.farm.ench[id.slice(2)] || 0) - (n ?? 0);
         else s.farm.goods[id] = (s.farm.goods[id] || 0) - (n ?? 0);
     }
@@ -723,8 +770,8 @@ export interface DimSet {
     next: number;
     bonus: number;
 }
-const SET_BONUS = [0, 0.005, 0.01, 0.02];
-const SET_TIERS = [1, 3, 5];
+const SET_BONUS = [0, 0.005, 0.01, 0.02, 0.03, 0.045];
+const SET_TIERS = [1, 3, 5, 8, 10];
 export function dimSet(s: State, dim: Dim): DimSet {
     const low = Math.min(...DIM_CROPS[dim].map((c) => colTierOf(s.farm.grown[c.id] || 0)));
     const got = SET_TIERS.filter((t) => low >= t).length;
@@ -740,7 +787,8 @@ export function farmFx(s: State): Partial<Record<EStat, number>> {
     };
     add("click", HOE_CLICK * s.farm.hoe + (hasRelic(s, "sickle") ? 0.08 : 0));
     add("minion", 0.005 * s.farm.hoe + (hasRelic(s, "lens") ? 0.1 : 0));
-    for (const c of CROPS) add(c.col[0], 0.4 * c.col[1] * colTierOf(s.farm.grown[c.id] || 0));
+    for (const c of CROPS) add(c.col[0], 0.4 * c.col[1] * colSteps(colTierOf(s.farm.grown[c.id] || 0)));
+    add("minion", 0.0015 * Math.min(200, crewTotal(s))); // a big crew helps the whole game
     add("all", 0.01 * upLevel(s, "deep") + 0.015 * upLevel(s, "ancient") + (hasRelic(s, "almanac") ? 0.025 : 0) + (hasRelic(s, "plenty") ? 0.06 : 0));
     add("tokens", 0.02 * upLevel(s, "ancient") + (hasRelic(s, "plenty") ? 0.08 : 0));
     for (const dim of DIMS) add("all", dimSet(s, dim).bonus);
@@ -789,6 +837,55 @@ export function sowCrop(s: State, dim: Dim = activeIsland(s).dim): CropDef | nul
 }
 
 type Rng = () => number;
+
+// ---- What to plant: the recommendation ----
+
+export interface Rec {
+    crop: CropDef;
+    dim: Dim;
+    why: string;
+}
+const worth = (c: CropDef) => c.yield * c.vm;
+/** The best crop for a garden's kind of need: a raw crop the goal is short of, else the most valuable crop open. */
+export function recommend(s: State, dim: Dim): Rec | null {
+    const open = DIM_CROPS[dim].filter((c) => farmLevel(s) >= c.need);
+    if (!open.length) return null;
+    const best = open.slice().sort((a, b) => worth(b) - worth(a))[0];
+    const goal = goalOf(s);
+    if (goal) {
+        const raw = bottleneck(s, goal);
+        if (raw && CROP_BY_ID[raw].dim === dim && farmLevel(s) >= CROP_BY_ID[raw].need) return { crop: CROP_BY_ID[raw], dim, why: `${goal.title} is short of ${CROP_BY_ID[raw].name}` };
+        const need = Object.entries(goal.cost).find(([k]) => k === "any" || isKindRes(k));
+        if (need && have(s, need[0] as ResId) < (need[1] ?? 0)) {
+            const kind = need[0] === "any" ? null : (need[0].slice(2) as CropKind);
+            const pool = kind ? open.filter((c) => c.kind === kind) : open;
+            if (pool.length) {
+                const pick = pool.slice().sort((a, b) => worth(b) - worth(a))[0];
+                return { crop: pick, dim, why: `Enchant it for the ${goal.title}` };
+            }
+        }
+    }
+    // Otherwise, whichever collection is closest to its next tier.
+    const near = open
+        .map((c) => ({ c, n: s.farm.grown[c.id] || 0, next: COL_AT.find((x) => x > (s.farm.grown[c.id] || 0)) }))
+        .filter((x) => x.next)
+        .sort((a, b) => b.n / (b.next as number) - a.n / (a.next as number))[0];
+    if (near && near.n / (near.next as number) > 0.6) return { crop: near.c, dim, why: `${Math.ceil((near.next as number) - near.n)} more for the next ${near.c.name} collection tier` };
+    return { crop: best, dim, why: "The most valuable crop you can plant here" };
+}
+/** Point every open garden at the crop the crew should plant (the best one, or the one the goal needs). */
+export function autoSow(s: State): number {
+    let n = 0;
+    for (const dim of openDims(s)) {
+        const r = s.farm.auto.sow === "goal" ? recommend(s, dim) : null;
+        const want = r ? r.crop.id : (sowCrop(s, dim)?.id ?? "");
+        if (s.farm.sow[dim] !== want) {
+            s.farm.sow[dim] = want;
+            n++;
+        }
+    }
+    return n;
+}
 
 // ---- Context and events ----
 
@@ -943,6 +1040,11 @@ export function plantAll(s: State, rng: Rng = Math.random, only?: Dim): number {
     return n;
 }
 
+/**
+ * Big gardens grow far more crops but must not print shards in proportion: past 14 plots, the shards a harvest, a sale
+ * or a cooked good pays shrink, so doubling your plots adds about 23% more shard income (crops, collections and tools still double).
+ */
+export const plotScale = (s: State) => Math.pow(Math.min(1, 14 / Math.max(1, allPlots(s).length)), 0.7);
 export const cropShards = (ctx: FarmCtx, c: CropDef) => ctx.cps * c.time * FARM_VALUE * c.vm;
 const shardMult = (s: State, c: CropDef) => (c.kind === "stalk" ? 1 + toolSpecial(s, "stalk") : 1);
 
@@ -965,7 +1067,7 @@ export function harvest(s: State, ctx: FarmCtx, dim: Dim, i: number, hand: boole
         streak = f.streak;
         sb = streakBonus(s);
     }
-    let units = cropUnits(s, c) * (1 + 0.05 * upLevel(s, "compost") * (hand ? 0 : 1)) * (hand ? 1.25 * (1 + sb) : 1);
+    let units = cropUnits(s, c, fieldSize(s, dim, c.id)) * (1 + 0.05 * upLevel(s, "compost") * (hand ? 0 : 1)) * (hand ? 1.25 * (1 + sb) : 1);
     if (bumper) {
         units *= bumperMult(s);
         f.bumper -= 1;
@@ -977,7 +1079,7 @@ export function harvest(s: State, ctx: FarmCtx, dim: Dim, i: number, hand: boole
     }
     addCrop(s, c.id, units);
     const xp = cropXp(c) * ctx.xp * farmXpMult(s, c.dim, c.kind);
-    const shards = cropShards(ctx, c) * shardMult(s, c) * (golden ? 3 : 1);
+    const shards = cropShards(ctx, c) * plotScale(s) * shardMult(s, c) * (golden ? 3 : 1);
     s.farming += xp;
     s.shards += shards;
     s.total += shards;
@@ -1016,7 +1118,9 @@ export function tickFarm(s: State, dt: number, ctx: FarmCtx, now = Date.now()) {
     syncPlots(s);
     if (dt <= 0) return;
     const f = s.farm;
-    for (const { pl } of allPlots(s)) {
+    const fields: Record<string, number> = {};
+    for (const { dim, pl } of allPlots(s)) if (pl.c) fields[`${dim}:${pl.c}`] = (fields[`${dim}:${pl.c}`] || 0) + 1;
+    for (const { dim, pl } of allPlots(s)) {
         if (!pl.c) continue;
         const c = CROP_BY_ID[pl.c as CropId];
         pl.p += dt * growSpeed(s, c);
@@ -1027,8 +1131,9 @@ export function tickFarm(s: State, dt: number, ctx: FarmCtx, now = Date.now()) {
         const n = Math.floor(pl.p / c.time);
         if (n <= 0) continue;
         pl.p -= n * c.time;
-        bulkHarvest(s, ctx, c, n);
+        bulkHarvest(s, ctx, c, n, fields[`${dim}:${c.id}`] || 1);
     }
+    crewTick(s, dt, ctx, now);
     // Pod Opener
     const every = openEvery(s);
     if (Number.isFinite(every) && podCount(s) > 0) {
@@ -1045,16 +1150,16 @@ export function tickFarm(s: State, dt: number, ctx: FarmCtx, now = Date.now()) {
 }
 
 /** The expected result of `n` automatic harvests of a crop. A Bumper Crop covers the first ones. */
-function bulkHarvest(s: State, ctx: FarmCtx, c: CropDef, n: number) {
+function bulkHarvest(s: State, ctx: FarmCtx, c: CropDef, n: number, field = 1) {
     const f = s.farm;
     const gc = goldenChance(s);
-    const base = cropUnits(s, c) * (1 + 0.05 * upLevel(s, "compost")) * (1 + 2 * luckyChance(s, c.kind)) * (1 + 4 * gc);
+    const base = cropUnits(s, c, field) * (1 + 0.05 * upLevel(s, "compost")) * (1 + 2 * luckyChance(s, c.kind)) * (1 + 4 * gc);
     const boosted = Math.min(n, f.bumper);
     f.bumper -= boosted;
     const units = base * (n + boosted * (bumperMult(s) - 1));
     addCrop(s, c.id, units);
     s.farming += n * cropXp(c) * ctx.xp * farmXpMult(s, c.dim, c.kind);
-    const sh = n * cropShards(ctx, c) * shardMult(s, c) * (1 + 2 * gc);
+    const sh = n * cropShards(ctx, c) * plotScale(s) * shardMult(s, c) * (1 + 2 * gc);
     s.shards += sh;
     s.total += sh;
     f.harvests += n;
@@ -1080,10 +1185,10 @@ export function idleXpRate(s: State, ctx: FarmCtx): number {
 /** Crops per second, per plot, summed (for the readout). */
 export function cropRate(s: State): number {
     let r = 0;
-    for (const { pl } of allPlots(s)) {
+    for (const { dim, pl } of allPlots(s)) {
         if (!pl.c) continue;
         const c = CROP_BY_ID[pl.c as CropId];
-        r += (growSpeed(s, c) / c.time) * cropUnits(s, c);
+        r += (growSpeed(s, c) / c.time) * cropUnits(s, c, fieldSize(s, dim, c.id));
     }
     return r;
 }
@@ -1171,8 +1276,10 @@ export function collectJob(s: State, i: number, now = Date.now(), rng: Rng = Mat
     }
     const double = rng() < 0.08 * upLevel(s, "chef");
     const n = j.n * (double ? 2 : 1);
-    if (r.kind === "good") s.farm.goods[r.out] = (s.farm.goods[r.out] || 0) + n;
-    else s.farm.items[r.out] = (s.farm.items[r.out] || 0) + n;
+    if (r.kind === "good") {
+        s.farm.goods[r.out] = (s.farm.goods[r.out] || 0) + n;
+        s.farm.made[r.out] = (s.farm.made[r.out] || 0) + n;
+    } else s.farm.items[r.out] = (s.farm.items[r.out] || 0) + n;
     pushLog(s, `${n}x ${r.name}${double ? " (double batch!)" : ""}`, r.color);
     return { text: `${n}x ${r.name}${double ? ", a double batch!" : ""}`, color: r.color };
 }
@@ -1269,56 +1376,80 @@ export function openPod(s: State, d: { avgClick: number; cps: number; dust: numb
     return { title: "Ascension Seed", sub: "+1 gem", color: "var(--mc-red)" };
 }
 
-// ---- Feats ----
+// ---- Milestones: item collections and the things you do ----
 
-export interface FeatReward {
-    grant?: [GrantKind, number];
-    stat?: [EStat, number];
-}
-export interface FeatLadder {
-    key: string;
-    name: string;
-    unit: string;
-    color: string;
-    metric: (s: State) => number;
-    at: number[];
-    rewards: FeatReward[][];
-}
-const g = (k: GrantKind, n: number): FeatReward => ({ grant: [k, n] });
-const st = (k: EStat, v: number): FeatReward => ({ stat: [k, v] });
+export type FeatReward = MsReward;
+export type FeatLadder = Ladder;
+export type Feat = Milestone;
 
-export const FEAT_LADDERS: FeatLadder[] = [
-    { key: "water", name: "Waterer", unit: "plots watered", color: "#6fb4ff", metric: (s) => s.farm.waters, at: [100, 1000, 10000, 50000, 250000], rewards: [[g("dust", 20)], [g("tokens", 1)], [g("eggs", 1)], [g("tokens", 2), st("click", 0.02)], [g("ap", 1)]] },
-    { key: "crop", name: "Gatherer", unit: "crops harvested", color: "#e6c85a", metric: (s) => CROPS.reduce((a, c) => a + (s.farm.grown[c.id] || 0), 0), at: [500, 5000, 50000, 500000, 5000000], rewards: [[g("dust", 25)], [g("tokens", 1)], [st("minion", 0.01)], [g("eggs", 1)], [st("all", 0.02)]] },
-    { key: "bumper", name: "Bumper Grower", unit: "Bumper Crops", color: "#ffd23a", metric: (s) => s.farm.bumpers, at: [5, 50, 250, 1000], rewards: [[g("dust", 30)], [g("tokens", 1)], [st("comboMax", 0.1)], [g("tokens", 2)]] },
-    { key: "hand", name: "Picker", unit: "plots harvested by hand", color: "#ff9a4d", metric: (s) => s.farm.picked, at: [25, 250, 1500, 8000], rewards: [[g("dust", 25)], [g("tokens", 1)], [st("click", 0.02)], [g("frag", 1)]] },
-    { key: "harv", name: "Reaper", unit: "harvests in all", color: "#9be08a", metric: (s) => s.farm.harvests, at: [50, 500, 5000, 50000], rewards: [[g("dust", 25)], [g("tokens", 1)], [st("minion", 0.02)], [g("frag", 1)]] },
-    { key: "pod", name: "Seed Collector", unit: "pods opened", color: "#c58bff", metric: (s) => s.farm.opened, at: [5, 25, 100, 400], rewards: [[g("dust", 30)], [g("eggs", 1)], [g("tokens", 2)], [g("frag", 1)]] },
-    { key: "cook", name: "Cook", unit: "crafts collected", color: "#ff8a5c", metric: (s) => s.farm.crafted, at: [3, 25, 100, 400], rewards: [[g("dust", 25)], [g("tokens", 1)], [st("minion", 0.03)], [g("eggs", 1)]] },
-    { key: "hands", name: "Foreman", unit: "farmhands hired", color: "#7fd0ff", metric: (s) => totalHands(s), at: [10, 50, 150, 400], rewards: [[g("dust", 30)], [g("tokens", 1)], [st("auto", 0.2)], [g("tokens", 2)]] },
-    { key: "crow", name: "Scarecrow Maker", unit: "scarecrows made", color: "#ffe29a", metric: (s) => s.farm.relics.length, at: [1, 4, 8, 12], rewards: [[g("dust", 40)], [g("tokens", 1)], [g("eggs", 1)], [g("frag", 2)]] },
-    { key: "disc", name: "Botanist", unit: "different crops grown", color: "#55ff77", metric: (s) => CROPS.filter((c) => (s.farm.grown[c.id] || 0) > 0).length, at: [6, 12, 18], rewards: [[g("dust", 40)], [g("tokens", 1)], [st("all", 0.02)]] },
-    { key: "ench", name: "Enchanter", unit: "Enchanted crops made", color: "#d9a8ff", metric: (s) => s.farm.enchanted, at: [5, 50, 250, 1000, 5000], rewards: [[g("dust", 30)], [g("tokens", 1)], [st("click", 0.02)], [g("eggs", 1)], [st("all", 0.02)]] },
-    { key: "sold", name: "Merchant", unit: "Enchanted crops sold", color: "#ffd23a", metric: (s) => s.farm.soldN, at: [10, 100, 500, 2500], rewards: [[g("dust", 30)], [g("tokens", 1)], [st("minion", 0.02)], [g("ap", 1)]] },
-    { key: "streak", name: "Rhythm", unit: "best hand-pick streak", color: "#ff9a4d", metric: (s) => s.farm.bestStreak, at: [10, 25, 50, 100], rewards: [[g("dust", 30)], [g("tokens", 1)], [st("click", 0.02)], [g("frag", 1)]] },
-    { key: "tend", name: "Green Thumb", unit: "plots tended", color: "#6fb4ff", metric: (s) => s.farm.tends, at: [100, 1000, 10000, 50000], rewards: [[g("dust", 25)], [g("tokens", 1)], [st("minion", 0.02)], [g("eggs", 1)]] },
-    { key: "gold", name: "Gilder", unit: "golden crops harvested", color: "#ffcc33", metric: (s) => s.farm.goldens, at: [1, 10, 50, 250], rewards: [[g("dust", 30)], [g("tokens", 1)], [st("all", 0.01)], [g("frag", 1)]] },
-    { key: "tool", name: "Smith", unit: "farm tools made", color: "#c8d0e0", metric: (s) => s.farm.tools.length, at: [1, 5, 12, 25], rewards: [[g("dust", 30)], [g("tokens", 1)], [g("eggs", 1)], [g("ap", 1)]] },
-    { key: "gard", name: "Landowner", unit: "gardens open", color: "#55ff77", metric: (s) => openDims(s).length, at: [2, 3], rewards: [[g("tokens", 2)], [st("all", 0.02)]] },
-    { key: "hoe", name: "Toolmaker", unit: "hoe tiers", color: "#55ffff", metric: (s) => s.farm.hoe, at: [3, 6, 9], rewards: [[g("dust", 40)], [g("eggs", 1)], [g("tokens", 3)]] },
+const g = (k: GrantKind, n: number): MsReward => ({ grant: [k, n] });
+const st = (k: EStat, v: number): MsReward => ({ stat: [k, v] });
+const DIM_M: Record<Dim, number> = { overworld: 1, nether: 1.6, end: 2.4 };
+
+export const cropIcon: Record<CropId, McSymbolName> = {
+    wheat: "spark8", carrot: "triangle", potato: "ring", beetroot: "heartS", sugarcane: "pencil", melon: "ring", pumpkin: "sunburst", cocoa: "hex", sweetberry: "blossom",
+    netherwart: "atom", crimsonfungus: "spade", warpedfungus: "spade", glowberry: "sun", emberbloom: "bloom", chorus: "diamondS", voidlily: "daisy", starfruit: "star", fracflower: "comet",
+};
+
+/** One ladder per crop: how much you have harvested. The stat is automatic; some tiers also pay a grant to claim. */
+export const CROP_LADDERS: Ladder[] = CROPS.map((c) => ({
+    key: `c:${c.id}`,
+    group: "item" as const,
+    name: c.name,
+    unit: `${c.name} harvested`,
+    color: c.color,
+    icon: cropIcon[c.id],
+    note: `${c.colText} from every tier`,
+    metric: (s: State) => s.farm.grown[c.id] || 0,
+    at: COL_AT,
+    rewards: collectionRewards(DIM_M[c.dim] * (1 + c.need / 40), c.need >= 36),
+    auto: (tier: number) => fmtStat(c.col[0], 0.4 * c.col[1] * colSteps(tier)),
+}));
+/** One ladder per good: how many you have cooked. */
+export const GOOD_LADDERS: Ladder[] = GOODS.map((gd, n) => ({
+    key: `g:${gd.id}`,
+    group: "item" as const,
+    name: gd.name,
+    unit: `${gd.name} cooked`,
+    color: gd.color,
+    icon: "forge" as McSymbolName,
+    note: "Cooked in the Kitchen",
+    metric: (s: State) => s.farm.made[gd.id] || 0,
+    at: [10, 50, 250, 1000],
+    rewards: craftRewards(1 + n * 0.25),
+}));
+
+const ACTION_LADDERS: Ladder[] = [
+    { key: "water", group: "action", name: "Waterer", unit: "plots watered", color: "#6fb4ff", icon: "fishing", metric: (s) => s.farm.waters, at: [100, 1000, 10000, 50000, 250000], rewards: [[g("dust", 20)], [g("tokens", 1)], [g("eggs", 1)], [g("tokens", 2), st("click", 0.02)], [g("ap", 1)]] },
+    { key: "crop", group: "action", name: "Gatherer", unit: "crops harvested", color: "#e6c85a", icon: "sunburst", metric: (s) => CROPS.reduce((a, c) => a + (s.farm.grown[c.id] || 0), 0), at: [500, 5000, 50000, 500000, 5000000], rewards: [[g("dust", 25)], [g("tokens", 1)], [st("minion", 0.01)], [g("eggs", 1)], [st("all", 0.02)]] },
+    { key: "bumper", group: "action", name: "Bumper Grower", unit: "Bumper Crops", color: "#ffd23a", icon: "star", metric: (s) => s.farm.bumpers, at: [5, 50, 250, 1000], rewards: [[g("dust", 30)], [g("tokens", 1)], [st("comboMax", 0.1)], [g("tokens", 2)]] },
+    { key: "hand", group: "action", name: "Picker", unit: "plots harvested by hand", color: "#ff9a4d", icon: "spade", metric: (s) => s.farm.picked, at: [25, 250, 1500, 8000], rewards: [[g("dust", 25)], [g("tokens", 1)], [st("click", 0.02)], [g("frag", 1)]] },
+    { key: "harv", group: "action", name: "Reaper", unit: "harvests in all", color: "#9be08a", icon: "scissors", metric: (s) => s.farm.harvests, at: [50, 500, 5000, 50000], rewards: [[g("dust", 25)], [g("tokens", 1)], [st("minion", 0.02)], [g("frag", 1)]] },
+    { key: "pod", group: "action", name: "Seed Collector", unit: "pods opened", color: "#c58bff", icon: "gem", metric: (s) => s.farm.opened, at: [5, 25, 100, 400], rewards: [[g("dust", 30)], [g("eggs", 1)], [g("tokens", 2)], [g("frag", 1)]] },
+    { key: "cook", group: "action", name: "Cook", unit: "crafts collected", color: "#ff8a5c", icon: "forge", metric: (s) => s.farm.crafted, at: [3, 25, 100, 400], rewards: [[g("dust", 25)], [g("tokens", 1)], [st("minion", 0.03)], [g("eggs", 1)]] },
+    { key: "hands", group: "action", name: "Foreman", unit: "specialists hired", color: "#7fd0ff", icon: "smile", metric: (s) => totalHands(s), at: [10, 50, 150, 400], rewards: [[g("dust", 30)], [g("tokens", 1)], [st("auto", 0.2)], [g("tokens", 2)]] },
+    { key: "crew", group: "action", name: "Crew Boss", unit: "crew levels", color: "#6fb4ff", icon: "command", metric: (s) => crewTotal(s), at: [10, 40, 120, 300], rewards: [[g("dust", 40)], [g("tokens", 2)], [g("eggs", 1)], [g("ap", 1)]] },
+    { key: "crow", group: "action", name: "Scarecrow Maker", unit: "scarecrows made", color: "#ffe29a", icon: "ankh", metric: (s) => s.farm.relics.length, at: [1, 4, 8, 12], rewards: [[g("dust", 40)], [g("tokens", 1)], [g("eggs", 1)], [g("frag", 2)]] },
+    { key: "disc", group: "action", name: "Botanist", unit: "different crops grown", color: "#55ff77", icon: "flower", metric: (s) => CROPS.filter((c) => (s.farm.grown[c.id] || 0) > 0).length, at: [6, 12, 18], rewards: [[g("dust", 40)], [g("tokens", 1)], [st("all", 0.02)]] },
+    { key: "ench", group: "action", name: "Enchanter", unit: "Enchanted crops made", color: "#d9a8ff", icon: "intelligence", metric: (s) => s.farm.enchanted, at: [5, 50, 250, 1000, 5000], rewards: [[g("dust", 30)], [g("tokens", 1)], [st("click", 0.02)], [g("eggs", 1)], [st("all", 0.02)]] },
+    { key: "sold", group: "action", name: "Merchant", unit: "Enchanted crops sold", color: "#ffd23a", icon: "scales", metric: (s) => s.farm.soldN, at: [10, 100, 500, 2500], rewards: [[g("dust", 30)], [g("tokens", 1)], [st("minion", 0.02)], [g("ap", 1)]] },
+    { key: "streak", group: "action", name: "Rhythm", unit: "best hand-pick streak", color: "#ff9a4d", icon: "bolt", metric: (s) => s.farm.bestStreak, at: [10, 25, 50, 100], rewards: [[g("dust", 30)], [g("tokens", 1)], [st("click", 0.02)], [g("frag", 1)]] },
+    { key: "tend", group: "action", name: "Green Thumb", unit: "plots tended", color: "#6fb4ff", icon: "heartS", metric: (s) => s.farm.tends, at: [100, 1000, 10000, 50000], rewards: [[g("dust", 25)], [g("tokens", 1)], [st("minion", 0.02)], [g("eggs", 1)]] },
+    { key: "gold", group: "action", name: "Gilder", unit: "golden crops harvested", color: "#ffcc33", icon: "crown", metric: (s) => s.farm.goldens, at: [1, 10, 50, 250], rewards: [[g("dust", 30)], [g("tokens", 1)], [st("all", 0.01)], [g("frag", 1)]] },
+    { key: "field", group: "action", name: "Field Hand", unit: "plots in your biggest field", color: "#9be04a", icon: "hex", metric: (s) => biggestField(s)?.n ?? 0, at: [6, 12, 24, 48], rewards: [[g("dust", 30)], [g("tokens", 1)], [st("minion", 0.02)], [g("eggs", 1)]] },
+    { key: "plots", group: "action", name: "Landscaper", unit: "plots across your gardens", color: "#55ff77", icon: "daisy", metric: (s) => allPlots(s).length, at: [10, 20, 40, 80], rewards: [[g("dust", 30)], [g("tokens", 1)], [g("eggs", 1)], [g("ap", 1)]] },
+    { key: "tool", group: "action", name: "Smith", unit: "farm tools made", color: "#c8d0e0", icon: "cog", metric: (s) => s.farm.tools.length, at: [1, 5, 12, 25], rewards: [[g("dust", 30)], [g("tokens", 1)], [g("eggs", 1)], [g("ap", 1)]] },
+    { key: "gard", group: "action", name: "Landowner", unit: "gardens open", color: "#55ff77", icon: "location", metric: (s) => openDims(s).length, at: [2, 3], rewards: [[g("tokens", 2)], [st("all", 0.02)]] },
+    { key: "hoe", group: "action", name: "Toolmaker", unit: "hoe tiers", color: "#55ffff", icon: "fortune", metric: (s) => s.farm.hoe, at: [3, 6, 9], rewards: [[g("dust", 40)], [g("eggs", 1)], [g("tokens", 3)]] },
 ];
 
-export interface Feat {
-    id: string;
-    ladder: FeatLadder;
-    tier: number;
-    at: number;
-    rewards: FeatReward[];
-}
-export const FEATS: Feat[] = FEAT_LADDERS.flatMap((l) => l.at.map((at, tier) => ({ id: `${l.key}:${tier}`, ladder: l, tier, at, rewards: l.rewards[tier] })));
-export const featClaimed = (s: State, f: Feat) => s.farm.claimed.includes(f.id);
-export const featReady = (s: State, f: Feat) => !featClaimed(s, f) && f.ladder.metric(s) >= f.at;
-export const featsReady = (s: State) => FEATS.filter((f) => featReady(s, f));
+export const LADDERS: Ladder[] = [...CROP_LADDERS, ...GOOD_LADDERS, ...ACTION_LADDERS];
+export const MILESTONES: Milestone[] = milestonesOf(LADDERS);
+export const FEATS = MILESTONES;
+
+export const featClaimed = (s: State, f: Milestone) => s.farm.claimed.includes(f.id);
+export const featReady = (s: State, f: Milestone) => !featClaimed(s, f) && f.ladder.metric(s) >= f.at;
+export const featsReady = (s: State) => MILESTONES.filter((f) => featReady(s, f));
 
 function pay(s: State, kind: GrantKind, n: number) {
     if (kind === "dust") {
@@ -1329,20 +1460,20 @@ function pay(s: State, kind: GrantKind, n: number) {
     else if (kind === "ap") s.ap += n;
     else s.frag += n;
 }
-export function claimFeat(s: State, id: string): Feat | null {
-    const f = FEATS.find((x) => x.id === id);
+export function claimFeat(s: State, id: string): Milestone | null {
+    const f = MILESTONES.find((x) => x.id === id);
     if (!f || !featReady(s, f)) return null;
     s.farm.claimed.push(id);
     for (const r of f.rewards) if (r.grant) pay(s, r.grant[0], r.grant[1]);
     return f;
 }
-export function claimAllFeats(s: State): Feat[] {
-    return featsReady(s).map((f) => claimFeat(s, f.id)).filter((f): f is Feat => !!f);
+export function claimAllFeats(s: State): Milestone[] {
+    return featsReady(s).map((f) => claimFeat(s, f.id)).filter((f): f is Milestone => !!f);
 }
 export function featStats(s: State): Partial<Record<EStat, number>> {
     const out: Partial<Record<EStat, number>> = {};
     for (const id of s.farm.claimed) {
-        const f = FEATS.find((x) => x.id === id);
+        const f = MILESTONES.find((x) => x.id === id);
         if (f) for (const r of f.rewards) if (r.stat) out[r.stat[0]] = (out[r.stat[0]] ?? 0) + r.stat[1];
     }
     return out;
@@ -1369,6 +1500,7 @@ export function shortCrops(s: State, cost: Cost, mult = 1, out: Record<string, n
         const short = (n ?? 0) * mult - have(s, id as ResId);
         if (short <= 0) continue;
         if (isCrop(id)) out[id] = (out[id] || 0) + short;
+        else if (isEnch(id)) out[id.slice(2)] = (out[id.slice(2)] || 0) + short * enchNeed(s);
         else if (RECIPE_BY_ID[id]) shortCrops(s, RECIPE_BY_ID[id].inputs, short, out);
     }
     return out;
@@ -1428,6 +1560,18 @@ export function hireAll(s: State, limit = 60): number {
     }
     return n;
 }
+/** Hire the cheapest crew levels you can afford without spending more than 60% of your shards. */
+export function hireCrewAll(s: State, limit = 30): number {
+    let n = 0;
+    while (n < limit) {
+        const opts = CREW.filter((c) => canBuyCrew(s, c).ok && crewCost(s, c).shards <= s.shards * 0.6);
+        if (!opts.length) break;
+        opts.sort((a, b) => crewCost(s, a).shards - crewCost(s, b).shards);
+        if (buyCrew(s, opts[0].id, 1) < 1) break;
+        n++;
+    }
+    return n;
+}
 export function openAll(s: State, d: { avgClick: number; cps: number; dust: number }, one = false): { n: number; last: PodOut | null } {
     let n = 0;
     let last: PodOut | null = null;
@@ -1444,14 +1588,58 @@ export function openAll(s: State, d: { avgClick: number; cps: number; dust: numb
 }
 
 
-// ---- Enchanted crops and the market ----
+// ---- Enchanted crops, selling and the market ----
 
 export const ENCH_BASE = 160;
-export const ENCH_SELL = 0.04; // shards an Enchanted crop is worth: this share of the minions' output over its growing time
-export const enchNeed = (s: State) => Math.max(100, ENCH_BASE - 6 * upLevel(s, "table"));
-export const sellMult = (s: State, c?: CropDef) => (1 + 0.06 * upLevel(s, "market")) * (c?.kind === "bloom" ? 1 + toolSpecial(s, "bloom") : 1);
+/** An Enchanted crop is worth this many harvests' shards per raw crop it was made from (before your sale price bonuses): crops sold for shards pay about what harvesting them pays, more once enchanted. */
+export const ENCH_PREMIUM = 1.6;
+export const RAW_SHARE = 0.8; // what a raw crop sells for, per crop, as a share of its harvest's shards
+export const GOOD_PREMIUM = 1.25; // a cooked good sells for this much more than the crops it was made of
+
+/** Merchant ranks: they come from Enchanted crops sold, and each one pays more and asks less to enchant. */
+export interface Rank {
+    at: number;
+    name: string;
+    sell: number; // +sale price
+    cut: number; // raw crops fewer per Enchanted crop
+}
+export const RANKS: Rank[] = [
+    { at: 0, name: "Peddler", sell: 0, cut: 0 },
+    { at: 10, name: "Hawker", sell: 0.05, cut: 2 },
+    { at: 50, name: "Stallkeeper", sell: 0.1, cut: 5 },
+    { at: 200, name: "Trader", sell: 0.18, cut: 8 },
+    { at: 800, name: "Merchant", sell: 0.28, cut: 12 },
+    { at: 3000, name: "Magnate", sell: 0.4, cut: 16 },
+    { at: 12000, name: "Tycoon", sell: 0.6, cut: 22 },
+];
+export const rankIdx = (s: State) => RANKS.reduce((a, r, i) => (s.farm.soldN >= r.at ? i : a), 0);
+export const rankOf = (s: State): Rank => RANKS[rankIdx(s)];
+
+/** The market craves one kind of crop at a time, for twenty minutes, and pays a lot more for it. */
+export const DEMAND_MS = 20 * 60 * 1000;
+export const DEMAND_MULT = 1.6;
+export const demandKind = (now = Date.now()): CropKind => KINDS[(Math.imul(Math.floor(now / DEMAND_MS) + 7, 2654435761) >>> 0) % KINDS.length];
+export const demandLeft = (now = Date.now()) => DEMAND_MS - (now % DEMAND_MS);
+
+export const enchNeed = (s: State) => Math.max(60, ENCH_BASE - 6 * upLevel(s, "table") - crewLevel(s, "packers") - rankOf(s).cut);
+export const sellMult = (s: State, c?: CropDef, now = Date.now()) =>
+    (1 + 0.06 * upLevel(s, "market")) * (1 + rankOf(s).sell) * (1 + 0.02 * crewLevel(s, "traders")) * (c?.kind === "bloom" ? 1 + toolSpecial(s, "bloom") : 1) * (c && demandKind(now) === c.kind ? DEMAND_MULT : 1);
 export const enchStock = (s: State, id: CropId) => s.farm.ench[id] || 0;
-export const sellValue = (s: State, ctx: FarmCtx, c: CropDef) => Math.max(ctx.cps, ctx.avgClick) * c.time * ENCH_SELL * c.vm * sellMult(s, c);
+const income = (ctx: FarmCtx) => Math.max(ctx.cps, ctx.avgClick);
+/** Shards one harvest of this crop is worth, as the sale formulas see it (income counts clicks early on). */
+const harvestWorth = (s: State, ctx: FarmCtx, c: CropDef) => income(ctx) * c.time * FARM_VALUE * c.vm * plotScale(s);
+/** Per raw crop: a harvest's shards divided over the crops it gives, so more crops per harvest never means more shards per crop. */
+const perCrop = (s: State, ctx: FarmCtx, c: CropDef) => harvestWorth(s, ctx, c) / Math.max(1, c.yield * hoeFactor(s));
+export const sellValue = (s: State, ctx: FarmCtx, c: CropDef, now = Date.now()) => perCrop(s, ctx, c) * enchNeed(s) * ENCH_PREMIUM * sellMult(s, c, now);
+export const rawValue = (s: State, ctx: FarmCtx, c: CropDef, now = Date.now()) => perCrop(s, ctx, c) * RAW_SHARE * sellMult(s, c, now);
+/** A good is worth the raw crops (and goods) it is made of, plus a bonus for the cooking. */
+export function goodValue(s: State, ctx: FarmCtx, id: GoodId, now = Date.now()): number {
+    const r = RECIPE_BY_ID[id];
+    if (!r) return 0;
+    let v = 0;
+    for (const [k, n] of Object.entries(r.inputs)) v += (n ?? 0) * (isCrop(k) ? rawValue(s, ctx, CROP_BY_ID[k], now) / sellMult(s, CROP_BY_ID[k], now) : isEnch(k) ? 0 : goodValue(s, ctx, k as GoodId, now) / GOOD_PREMIUM);
+    return v * GOOD_PREMIUM * sellMult(s, undefined, now);
+}
 
 export function canEnchant(s: State, c: CropDef, n = 1): Blocker {
     if (!cropOpen(s, c) && !(s.farm.grown[c.id] > 0)) return { ok: false, why: `Farming ${c.need}` };
@@ -1469,6 +1657,10 @@ export function enchantCrop(s: State, id: CropId, n = 1): number {
     s.farm.enchanted += k;
     return k;
 }
+function shardsIn(s: State, shards: number) {
+    s.shards += shards;
+    s.total += shards;
+}
 export function sellEnchanted(s: State, ctx: FarmCtx, id: CropId, n = Infinity, keep = 0): { n: number; shards: number } {
     const c = CROP_BY_ID[id];
     const k = Math.min(n, Math.max(0, enchStock(s, id) - keep));
@@ -1477,22 +1669,55 @@ export function sellEnchanted(s: State, ctx: FarmCtx, id: CropId, n = Infinity, 
     s.farm.ench[id] = enchStock(s, id) - k;
     s.farm.soldN += k;
     s.farm.sold += shards;
-    s.shards += shards;
-    s.total += shards;
+    shardsIn(s, shards);
     return { n: k, shards };
 }
-/** Enchanted crops the next unmade tool of every kind still needs (so "sell extra" leaves them). */
-export function reservedEnch(s: State): Record<string, number> {
-    const out: Record<string, number> = {};
-    for (const kind of KINDS) {
-        const next = toolsOf(kind).find((t) => !ownsTool(s, t.id));
-        if (!next) continue;
-        for (const [k, v] of Object.entries(next.cost)) if (isEnch(k)) out[k.slice(2)] = Math.max(out[k.slice(2)] || 0, v ?? 0);
-    }
-    return out;
+export function sellRaw(s: State, ctx: FarmCtx, id: CropId, n = Infinity, keep = 0): { n: number; shards: number } {
+    const c = CROP_BY_ID[id];
+    const k = Math.floor(Math.min(n, Math.max(0, haveCrop(s, id) - keep)));
+    if (!c || k < 1) return { n: 0, shards: 0 };
+    const shards = rawValue(s, ctx, c) * k;
+    s.farm.crop[id] = haveCrop(s, id) - k;
+    s.farm.soldRaw += k;
+    s.farm.sold += shards;
+    shardsIn(s, shards);
+    return { n: k, shards };
 }
+export function sellGood(s: State, ctx: FarmCtx, id: GoodId, n = Infinity, keep = 0): { n: number; shards: number } {
+    const k = Math.floor(Math.min(n, Math.max(0, (s.farm.goods[id] || 0) - keep)));
+    if (k < 1) return { n: 0, shards: 0 };
+    const shards = goodValue(s, ctx, id) * k;
+    s.farm.goods[id] = (s.farm.goods[id] || 0) - k;
+    s.farm.sold += shards;
+    shardsIn(s, shards);
+    return { n: k, shards };
+}
+
+/** Enchanted crops to keep, per crop: what the next unmade tool of every kind and the next hoe will ask for (the cheapest crops are used first). */
+export function reserveMap(s: State): Record<string, number> {
+    const keep: Record<string, number> = {};
+    const take = (list: CropDef[], n: number) => {
+        for (const c of list.slice().sort((x, y) => x.vm - y.vm)) {
+            if (n <= 0) break;
+            const free = (s.farm.ench[c.id] || 0) - (keep[c.id] || 0);
+            const k = Math.min(n, Math.max(0, free));
+            if (k > 0) {
+                keep[c.id] = (keep[c.id] || 0) + k;
+                n -= k;
+            }
+        }
+    };
+    for (const kind of KINDS) {
+        const next = toolsOf(kind).find((x) => !ownsTool(s, x.id));
+        if (next) take(CROPS.filter((c) => c.kind === kind), Number(next.cost[`k_${kind}` as KindRes] ?? 0));
+    }
+    const hoe = HOES[s.farm.hoe + 1];
+    if (hoe?.cost.any) take(CROPS, hoe.cost.any);
+    return keep;
+}
+export const reservedEnch = reserveMap;
 export function sellAllEnchanted(s: State, ctx: FarmCtx, surplusOnly = true): { n: number; shards: number } {
-    const keep = surplusOnly ? reservedEnch(s) : {};
+    const keep = surplusOnly ? reserveMap(s) : {};
     let n = 0;
     let shards = 0;
     for (const c of CROPS) {
@@ -1506,6 +1731,149 @@ export function enchantAll(s: State): number {
     let n = 0;
     for (const c of CROPS) n += enchantCrop(s, c.id, Infinity);
     return n;
+}
+
+// ---- The crew: five departments that take the chores off you ----
+
+export interface CrewDef {
+    id: string;
+    name: string;
+    color: string;
+    icon: McSymbolName;
+    need: number; // Farming level
+    max: number;
+    base: number; // seconds of your best income the first level costs
+    growth: number;
+    raw: number; // raw crops (any) the first level costs
+    desc: string;
+    effect: (l: number) => string;
+}
+export const packRate = (l: number) => 0.1 * l; // Enchanted crops a second
+export const packFloor = (l: number) => Math.max(0, 500 - 20 * l); // raw crops of each kind it leaves alone
+export const sellRate = (l: number) => 0.5 * l;
+export const CREW: CrewDef[] = [
+    { id: "tenders", name: "Tenders", color: "#6fb4ff", icon: "snow", need: 4, max: 50, base: 15, growth: 1.17, raw: 25, desc: "Walk the rows and tend every growing plot, in every garden.", effect: (l) => `+${3 * l}% growth speed everywhere` },
+    { id: "agron", name: "Agronomists", color: "#9be04a", icon: "flower", need: 8, max: 30, base: 30, growth: 1.2, raw: 30, desc: "Choose what to plant and plant every empty plot, by themselves. Plant one crop in a garden and it becomes a field.", effect: (l) => `Auto-sow and auto-plant · +${(0.5 * l).toFixed(1)}% golden crop chance` },
+    { id: "cooks", name: "Cooks", color: "#ff9a4d", icon: "forge", need: 8, max: 30, base: 25, growth: 1.2, raw: 30, desc: "Start the goods your next goal is short of, whenever an oven is free.", effect: (l) => `Auto-cook for your goal · +${3 * l}% cooking speed` },
+    { id: "packers", name: "Packers", color: "#d9a8ff", icon: "intelligence", need: 10, max: 40, base: 45, growth: 1.2, raw: 40, desc: "Turn surplus raw crops into Enchanted crops. They leave a stock of each raw crop for upgrades, less as they get better.", effect: (l) => `Auto-enchant ${packRate(l).toFixed(1)}/s · leaves ${packFloor(l)} raw per crop · ${l} fewer raw per Enchanted crop` },
+    { id: "traders", name: "Traders", color: "#ffd23a", icon: "scales", need: 14, max: 40, base: 60, growth: 1.2, raw: 50, desc: "Sell surplus Enchanted crops for shards, keeping what your next tool and hoe will ask for.", effect: (l) => `Auto-sell ${sellRate(l).toFixed(1)}/s · +${2 * l}% sale price` },
+];
+export const CREW_BY_ID = Object.fromEntries(CREW.map((c) => [c.id, c])) as Record<string, CrewDef>;
+export const crewLevel = (s: State, id: string) => s.farm.crew[id] || 0;
+export const crewTotal = (s: State) => Object.values(s.farm.crew).reduce((a, b) => a + b, 0);
+export const CREW_MARKS = [10, 25, 50];
+export const crewCost = (s: State, c: CrewDef, lvl = crewLevel(s, c.id)) => ({
+    shards: Math.ceil(Math.max(s.peakInc, 20) * c.base * Math.pow(c.growth, lvl)),
+    raw: Math.ceil(c.raw * Math.pow(1.12, lvl)),
+});
+export const totalRaw = (s: State) => CROPS.reduce((a, c) => a + haveCrop(s, c.id), 0);
+export function canBuyCrew(s: State, c: CrewDef): Blocker {
+    if (farmLevel(s) < c.need) return { ok: false, why: `Farming ${c.need}` };
+    if (crewLevel(s, c.id) >= c.max) return { ok: false, why: "Maxed" };
+    const k = crewCost(s, c);
+    if (s.shards < k.shards) return { ok: false, why: "Not enough shards" };
+    if (totalRaw(s) < k.raw) return { ok: false, why: "Not enough crops" };
+    return { ok: true };
+}
+export function buyCrew(s: State, id: string, count = 1): number {
+    const c = CREW_BY_ID[id];
+    let n = 0;
+    while (c && n < count && canBuyCrew(s, c).ok) {
+        const k = crewCost(s, c);
+        s.shards -= k.shards;
+        let left = k.raw;
+        for (const cr of CROPS.slice().sort((x, y) => haveCrop(s, y.id) - haveCrop(s, x.id))) {
+            const take = Math.min(left, haveCrop(s, cr.id));
+            s.farm.crop[cr.id] = haveCrop(s, cr.id) - take;
+            left -= take;
+            if (left <= 0) break;
+        }
+        s.farm.crew[id] = crewLevel(s, id) + 1;
+        n++;
+    }
+    return n;
+}
+
+/** The raw crops a goal (or the goods it needs) is made of, so the Packers leave them alone. */
+export function goalRawIds(s: State): Set<string> {
+    const out = new Set<string>();
+    const goal = goalOf(s);
+    const walk = (cost: Cost) => {
+        for (const id of Object.keys(cost)) {
+            if (isCrop(id)) out.add(id);
+            else if (RECIPE_BY_ID[id]) walk(RECIPE_BY_ID[id].inputs);
+        }
+    };
+    if (goal) walk(goal.cost);
+    return out;
+}
+/** Enchant up to `k` crops from stock above the Packers' floor (the most valuable crops first). */
+export function autoPack(s: State, k: number): number {
+    const need = enchNeed(s);
+    const floor = packFloor(crewLevel(s, "packers"));
+    const keepRaw = goalRawIds(s);
+    let made = 0;
+    for (const c of CROPS.slice().sort((a, b) => b.vm - a.vm)) {
+        if (made >= k) break;
+        if (keepRaw.has(c.id)) continue;
+        const n = Math.min(Math.floor(k - made), Math.floor((haveCrop(s, c.id) - floor) / need));
+        if (n > 0) {
+            s.farm.crop[c.id] = haveCrop(s, c.id) - need * n;
+            s.farm.ench[c.id] = enchStock(s, c.id) + n;
+            s.farm.enchanted += n;
+            made += n;
+        }
+    }
+    return made;
+}
+/** Sell up to `k` Enchanted crops beyond what the next tool and hoe need. */
+export function autoSell(s: State, ctx: FarmCtx, k: number): number {
+    const keep = reserveMap(s);
+    let sold = 0;
+    for (const c of CROPS.slice().sort((a, b) => a.vm - b.vm)) {
+        if (sold >= k) break;
+        sold += sellEnchanted(s, ctx, c.id, Math.floor(k - sold), keep[c.id] || 0).n;
+    }
+    return sold;
+}
+
+/** What the crew does each tick: pick and plant crops, cook for the goal, pack and sell. Also catches up after time away. */
+function crewTick(s: State, dt: number, ctx: FarmCtx, now: number) {
+    const f = s.farm;
+    const acc = f.acc;
+    if (crewLevel(s, "agron") > 0 && f.auto.sow !== "off") {
+        acc.sowT = (acc.sowT || 0) + dt;
+        if (acc.sowT >= 2 || dt >= 2) {
+            acc.sowT = 0;
+            autoSow(s);
+            for (const dim of openDims(s)) if (f.gardens[dim].some((p) => !p.c)) plantAll(s, Math.random, dim);
+        }
+    }
+    if (crewLevel(s, "cooks") > 0 && f.auto.cook) {
+        acc.cookT = (acc.cookT || 0) + dt;
+        if (acc.cookT >= 3 || dt >= 3) {
+            acc.cookT = 0;
+            queueGoal(s, now);
+        }
+    }
+    const pk = crewLevel(s, "packers");
+    if (pk > 0 && f.auto.pack) {
+        acc.pack = (acc.pack || 0) + packRate(pk) * dt;
+        const k = Math.floor(acc.pack);
+        if (k > 0) {
+            const made = autoPack(s, k);
+            acc.pack = made < k ? 0 : acc.pack - k;
+        }
+    }
+    const tr = crewLevel(s, "traders");
+    if (tr > 0 && f.auto.sell) {
+        acc.sell = (acc.sell || 0) + sellRate(tr) * dt;
+        const k = Math.floor(acc.sell);
+        if (k > 0) {
+            const sold = autoSell(s, ctx, k);
+            acc.sell = sold < k ? 0 : acc.sell - k;
+        }
+    }
 }
 
 // ---- Tool belt ----
@@ -1542,4 +1910,4 @@ export function buyTool(s: State, id: string): boolean {
 
 // The step-by-step farming guide is the Farmhand Saga now (sagas.ts, shown on the Level page).
 
-export type FarmView = "garden" | "tools" | "market" | "hands" | "kitchen" | "crops" | "biomes" | "feats";
+export type FarmView = "garden" | "tools" | "market" | "crew" | "kitchen" | "crops" | "biomes" | "milestones";

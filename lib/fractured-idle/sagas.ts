@@ -1,8 +1,8 @@
 import type { McSymbolName } from "@/components/mc-symbol";
 import { skillLevel, type SkillId, type State } from "./data";
 import type { EStat } from "./enchant";
-import { DIMS, HOES, KINDS, TOOL_BY_ID, allPlots, dimSet, gardenOpen, totalHands, upLevel } from "./farm";
-import { FEATS as MINE_FEATS, PICKS } from "./mine";
+import { DIMS, HOES, KINDS, TOOL_BY_ID, allPlots, biggestField, crewTotal, dimSet, gardenOpen, totalHands, upLevel } from "./farm";
+import { FEATS as MINE_FEATS, drillHeld, drillMk, enchLevels, hasDrill } from "./mine";
 import type { GrantKind } from "./skills";
 
 // Sagas: one story per skill, four chapters each. A chapter is a short list of
@@ -81,7 +81,6 @@ const ch = (saga: string, n: number, name: string, blurb: string, tasks: SagaTas
 });
 
 const XP = [40, 70, 110, 160];
-const pickAt = (n: number) => Math.min(n, PICKS.length - 1);
 
 export const SAGAS: Saga[] = [
     {
@@ -97,12 +96,12 @@ export const SAGAS: Saga[] = [
                 cnt("swing100", "Swing the pickaxe 100 times", "mine", (s) => s.mine.nodes, 100),
                 cnt("hand25", "Break 25 ore nodes by hand", "mine", (s) => s.mine.broken, 25),
                 lvl("mining", 3, "mine", "Mining"),
-                cnt("pick1", `Forge the ${PICKS[pickAt(1)].name}`, "mine", (s) => s.mine.pick, pickAt(1)),
+                flag("pick1", "Forge a Stone Pickaxe in the Forge", "mine", (s) => s.mine.picks.includes("stone")),
             ], [["click", 0.04]], [["dust", 25]], XP[0]),
             ch("mining", 2, "Down the Shaft", "Go below the surface. Drills and geodes start paying.", [
                 lvl("mining", 10, "mine", "Mining"),
-                cnt("pick3", `Forge the ${PICKS[pickAt(3)].name}`, "mine", (s) => s.mine.pick, pickAt(3)),
-                cnt("drill5", "Build 5 drills", "mine", (s) => sum(s.mine.drills), 5),
+                flag("drill1", "Forge a drill: an engine and a head", "mine", hasDrill),
+                flag("hold", "Take the drill in your hands", "mine", drillHeld),
                 cnt("geode5", "Crack 5 geodes", "mine", (s) => s.mine.cracked, 5),
                 cnt("swing1k", "Swing the pickaxe 1,000 times", "mine", (s) => s.mine.nodes, 1000),
             ], [["click", 0.06], ["crit", 0.01]], [["tokens", 1]], XP[1]),
@@ -110,14 +109,14 @@ export const SAGAS: Saga[] = [
                 lvl("mining", 20, "mine", "Mining"),
                 cnt("craft15", "Collect 15 forge crafts", "mine", (s) => s.mine.crafted, 15),
                 cnt("relic1", "Craft a relic", "mine", (s) => s.mine.relics.length, 1),
-                cnt("ups20", "Buy 20 mine upgrade levels", "mine", (s) => sum(s.mine.ups), 20),
+                cnt("ench20", "Put 20 enchant levels on your tools", "mine", enchLevels, 20),
                 cnt("feat5", "Claim 5 mining feats", "mine", (s) => s.mine.claimed.length, 5),
             ], [["click", 0.08], ["comboMax", 0.3]], [["dust", 100]], XP[2]),
             ch("mining", 4, "Core Breaker", "The deepest vein. Only the dedicated reach the core.", [
                 lvl("mining", 35, "mine", "Mining"),
-                cnt("pickTop", `Forge the ${PICKS[pickAt(PICKS.length - 2)].name}`, "mine", (s) => s.mine.pick, pickAt(PICKS.length - 2)),
+                cnt("mk7", "Build a Mk 7 drill", "mine", drillMk, 7),
                 cnt("swing25k", "Swing the pickaxe 25,000 times", "mine", (s) => s.mine.nodes, 25000),
-                cnt("drill50", "Build 50 drills", "mine", (s) => sum(s.mine.drills), 50),
+                cnt("parts12", "Forge 12 drill parts", "mine", (s) => s.mine.parts.length, 12),
                 cnt("feat15", `Claim ${Math.min(15, MINE_FEATS.length)} mining feats`, "mine", (s) => s.mine.claimed.length, Math.min(15, MINE_FEATS.length)),
             ], [["click", 0.12], ["critDmg", 0.2]], [["ap", 1]], XP[3]),
         ],
@@ -146,6 +145,7 @@ export const SAGAS: Saga[] = [
                 cnt("ench1", "Enchant your first crop", "farm", (s) => s.farm.enchanted, 1),
                 cnt("sell1", "Sell an Enchanted crop", "farm", (s) => s.farm.soldN, 1),
                 cnt("tool1", "Make your first tool", "farm", (s) => s.farm.tools.length, 1),
+                cnt("crew1", "Hire your first crew member", "farm", crewTotal, 1),
             ], [["minion", 0.06], ["col", 0.05]], [["tokens", 1]], XP[1]),
             ch("farming", 3, "The Toolshed", "Tools, plots and rhythm. The farm gets serious.", [
                 cnt("belt2", "Wear two tools at once", "farm", (s) => s.farm.belt.length, 2),
@@ -153,6 +153,7 @@ export const SAGAS: Saga[] = [
                 cnt("plots10", "Grow to 10 plots", "farm", (s) => allPlots(s).length, 10),
                 cnt("streak25", "Chain a 25 hand-pick streak", "farm", (s) => s.farm.bestStreak, 25),
                 cnt("gold1", "Harvest a golden crop", "farm", (s) => s.farm.goldens, 1),
+                cnt("field6", "Grow a field of 6 plots of one crop", "farm", (s) => biggestField(s)?.n ?? 0, 6),
             ], [["minion", 0.08], ["offline", 0.02]], [["tokens", 1], ["dust", 60]], XP[2]),
             ch("farming", 4, "Beyond the Overworld", "A garden in every dimension, and the best hoe there is.", [
                 lvl("farming", 30, "farm", "Farming"),
@@ -160,6 +161,7 @@ export const SAGAS: Saga[] = [
                 flag("end", "Open the End garden", "farm", (s) => gardenOpen(s, "end")),
                 flag("set1", "Finish a dimension's crop set, tier 1", "farm", (s) => DIMS.some((d) => dimSet(s, d).tier >= 1)),
                 flag("kinds", "Own a tool of every kind", "farm", (s) => KINDS.every((k) => s.farm.tools.some((id) => TOOL_BY_ID[id]?.kind === k))),
+                cnt("crew20", "Reach 20 crew levels", "farm", crewTotal, 20),
                 cnt("cosmic", "Make the Cosmic Hoe", "farm", (s) => s.farm.hoe, HOES.length - 1),
             ], [["minion", 0.12], ["cost", 0.02]], [["ap", 1]], XP[3]),
         ],

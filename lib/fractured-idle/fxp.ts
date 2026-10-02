@@ -1,6 +1,6 @@
 import type { McSymbolName } from "@/components/mc-symbol";
-import { COL_AT as ORE_COL_AT, FEATS, MINE_UPS, RELICS } from "./mine";
-import { COL_AT as CROP_COL_AT, FARM_UPS, FEATS as FARM_FEATS, RELICS as CROW_RELICS, TOOLS as FARM_TOOLS } from "./farm";
+import { COL_AT as ORE_COL_AT, FEATS, MINE_UPS, ORES, RELICS, bestTier, enchLevels } from "./mine";
+import { COL_AT as CROP_COL_AT, CROPS, FARM_UPS, FEATS as FARM_FEATS, RELICS as CROW_RELICS, TOOLS as FARM_TOOLS, crewTotal } from "./farm";
 import { CATS, isUnlocked as lookUnlocked } from "./button";
 import {
     ASC_UPS,
@@ -183,24 +183,25 @@ export function fxpSources(s: State): FxpSource[] {
     // Mining: veins, pickaxes, upgrades, drills, geodes and ore collections.
     const mn = s.mine;
     add("mine:nodes", "mining", "Pickaxe swings", ladder(mn.nodes, [[100, 8], [1000, 15], [5000, 30], [25000, 60], [100000, 120]]), 233);
-    add("mine:pick", "mining", "Pickaxe tiers", mn.pick * 12, 84);
-    add("mine:ups", "mining", "Mine upgrade levels", Object.values(mn.ups).reduce((a, b) => a + b, 0), MINE_UPS.reduce((a, u) => a + u.max, 0));
+    add("mine:pick", "mining", "Best tool tier", (bestTier(s) - 1) * 10, 90);
+    add("mine:ups", "mining", "Enchant levels and forge upgrades", Math.min(300, enchLevels(s)) + Object.values(mn.ups).reduce((a, b) => a + b, 0), 300 + MINE_UPS.reduce((a, u) => a + u.max, 0));
     const fm = s.farm;
     add("farm:harvest", "farming", "Harvests", ladder(fm.harvests, [[50, 8], [500, 15], [5000, 30], [25000, 60], [100000, 120]]), 233);
     add("farm:hoe", "farming", "Hoe tiers", fm.hoe * 12, 108);
     add("farm:ups", "farming", "Farm upgrade levels", Object.values(fm.ups).reduce((a, b) => a + b, 0), FARM_UPS.reduce((a, u) => a + u.max, 0));
     add("farm:hands", "farming", "Farmhands hired", ladder(Object.values(fm.hands).reduce((a, b) => a + b, 0), [[1, 10], [10, 20], [50, 40], [200, 80]]), 150);
     add("farm:pods", "farming", "Seed pods opened", ladder(fm.opened, [[1, 10], [10, 20], [50, 40], [200, 80]]), 150);
-    add("farm:col", "farming", "Crop collection tiers", Object.values(fm.grown).reduce((a, m) => a + CROP_COL_AT.filter((n) => m >= n).length, 0) * 5, 450);
+    add("farm:col", "farming", "Crop collection tiers", Object.values(fm.grown).reduce((a, m) => a + CROP_COL_AT.filter((n) => m >= n).length, 0) * 5, CROPS.length * CROP_COL_AT.length * 5);
     add("farm:feats", "farming", "Farming feats", fm.claimed.length * 6, FARM_FEATS.length * 6);
     add("farm:tools", "farming", "Farm tools made", fm.tools.length * 12, FARM_TOOLS.length * 12);
+    add("farm:crew", "farming", "Crew levels", ladder(crewTotal(s), [[5, 10], [20, 20], [60, 40], [150, 80]]), 150);
     add("farm:ench", "farming", "Enchanted crops made", ladder(fm.enchanted, [[1, 10], [25, 20], [250, 40], [2000, 80]]), 150);
     add("farm:kitchen", "farming", "Kitchen crafts and scarecrows", ladder(fm.crafted, [[1, 10], [10, 20], [40, 40], [150, 80]]) + fm.relics.length * 20, 150 + CROW_RELICS.length * 20);
     add("mine:feats", "mining", "Mining feats", mn.claimed.length * 6, FEATS.length * 6);
     add("mine:forge", "mining", "Forge crafts and relics", ladder(mn.crafted, [[1, 10], [10, 20], [40, 40], [150, 80]]) + mn.relics.length * 20, 150 + RELICS.length * 20);
-    add("mine:drills", "mining", "Drills built", ladder(Object.values(mn.drills).reduce((a, b) => a + b, 0), [[1, 10], [10, 20], [50, 40], [200, 80]]), 150);
+    add("mine:drills", "mining", "Drill parts forged", ladder(mn.parts.length, [[1, 10], [3, 20], [8, 40], [16, 80]]), 150);
     add("mine:geodes", "mining", "Geodes cracked", ladder(mn.cracked, [[1, 10], [10, 20], [50, 40], [200, 80]]), 150);
-    add("mine:col", "mining", "Ore collection tiers", Object.values(mn.mined).reduce((a, m) => a + ORE_COL_AT.filter((n) => m >= n).length, 0) * 5, 250);
+    add("mine:col", "mining", "Ore collection tiers", Object.values(mn.mined).reduce((a, m) => a + ORE_COL_AT.filter((n) => m >= n).length, 0) * 5, ORES.length * ORE_COL_AT.length * 5);
 
     // Sagas: each claimed chapter and finale pays once.
     for (const c of CHAPTERS) add(`chap:${c.id}`, "sagas", `${SAGA_BY_ID[c.id.split(":")[0] as SagaId].name}, chapter ${c.n}: ${c.name}`, chapterClaimed(s, c) ? c.xp : 0, c.xp);

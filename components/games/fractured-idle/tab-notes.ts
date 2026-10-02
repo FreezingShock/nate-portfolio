@@ -4,7 +4,7 @@ import { MILESTONES_BY_SKILL } from "@/lib/fractured-idle/skills";
 import { SLOT_IDS, canRoll, slotOpen } from "@/lib/fractured-idle/enchant";
 import { ascPlan, bulk, eggCan, minionBase, rebirthPlan, skillLevel, trophyCounts, upAvailable, upCost } from "@/lib/fractured-idle/engine";
 import { openIslands } from "@/lib/fractured-idle/island-logic";
-import { MINE_UPS, canBuyPick, canBuyUp, featsReady, geodeCount, jobsReady, mineLevel, slotsFree } from "@/lib/fractured-idle/mine";
+import { ENCHANTS, RECIPE_BY_ID, canBuyEnch, canCraft as canMineCraft, featsReady, geodeCount, goalOf as mineGoal, heldTool, isOre, jobsReady, mineLevel, slotsFree } from "@/lib/fractured-idle/mine";
 import { FARM_UPS, canBuyUp as canBuyFarmUp, canBuyHoe, featsReady as farmFeatsReady, jobsReady as farmJobsReady, readyCount, podCount } from "@/lib/fractured-idle/farm";
 import { SAGAS, SAGA_BY_ID, finaleReady, readyChapters, type SagaId } from "@/lib/fractured-idle/sagas";
 import type { TabNote } from "./tab-bar";
@@ -59,9 +59,11 @@ function scan(s: State, since: (tab: string, cur: number) => number): Record<str
 
     const geodes = geodeCount(s);
     if (geodes > 0) add("mine", { text: `${plural(geodes, "geode")} to crack`, color: "var(--mc-light-purple)", act: true });
-    if (canBuyPick(s).ok) add("mine", { text: "A new pickaxe is ready to forge", color: "#e0b070", act: true });
-    const mineUps = MINE_UPS.filter((u) => canBuyUp(s, u).ok).length;
-    if (mineUps) add("mine", { text: `${plural(mineUps, "mine upgrade")} you can afford`, color: G, act: true });
+    const mg = mineGoal(s);
+    if (mg && RECIPE_BY_ID[mg.id] && canMineCraft(s, RECIPE_BY_ID[mg.id], 1).ok) add("mine", { text: `${mg.title} is ready to forge`, color: "#e0b070", act: true });
+    const tool = heldTool(s).id;
+    const mineUps = ENCHANTS.filter((u) => canBuyEnch(s, tool, u).ok && Object.keys(u.cost).every((k) => isOre(k))).length;
+    if (mineUps) add("mine", { text: `${plural(mineUps, "enchant")} you can afford`, color: G, act: true });
 
     const isl = openIslands(s).filter((i) => !s.visited.includes(i.id)).length;
     if (isl) add("islands", { text: `${plural(isl, "new island")} to visit`, color: "#6fb4ff", act: true });
@@ -101,7 +103,7 @@ export function buildTabNotes(s: State, current: string, cache: NoteCache, now =
     const ready = jobsReady(s, now);
     if (ready) add("mine", { text: `${plural(ready, "forge craft")} ready to collect`, color: "#ff9a4d", act: true });
     const feats = featsReady(s).length;
-    if (feats) add("mine", { text: `${plural(feats, "mining feat")} to claim`, color: "#ffd23a", act: true });
+    if (feats) add("mine", { text: `${plural(feats, "mining milestone")} to claim`, color: "#ffd23a", act: true });
     const ripe = readyCount(s);
     if (ripe) add("farm", { text: `${plural(ripe, "plot")} ripe to harvest`, color: "#9be04a", act: true });
     const oven = farmJobsReady(s, now);
@@ -109,7 +111,7 @@ export function buildTabNotes(s: State, current: string, cache: NoteCache, now =
     const pods = podCount(s);
     if (pods) add("farm", { text: `${plural(pods, "seed pod")} to open`, color: "var(--mc-light-purple)", act: true });
     const ff = farmFeatsReady(s).length;
-    if (ff) add("farm", { text: `${plural(ff, "farming feat")} to claim`, color: "#ffd23a", act: true });
+    if (ff) add("farm", { text: `${plural(ff, "farming milestone")} to claim`, color: "#ffd23a", act: true });
     if (canBuyHoe(s).ok) add("farm", { text: "A new hoe is ready to make", color: "#9be04a", act: true });
     const fups = FARM_UPS.filter((u) => canBuyFarmUp(s, u).ok).length;
     if (fups) add("farm", { text: `${plural(fups, "farm upgrade")} you can afford`, color: G, act: true });

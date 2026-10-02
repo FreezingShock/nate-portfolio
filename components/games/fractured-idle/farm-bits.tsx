@@ -12,9 +12,11 @@ import {
     buyFarmUp,
     canBuyUp,
     colTierOf,
+    cropIcon,
     cropIslands,
     cropUnits,
     cropShards,
+    plotScale,
     cropXp,
     enchNeed,
     farmCtx,
@@ -31,6 +33,9 @@ import {
 } from "@/lib/fractured-idle/farm";
 import { TipCard } from "./tooltip";
 import type { Ctx } from "./ui";
+import { NeedTile, iconOf, type Need } from "./skill-kit";
+import { colSteps } from "@/lib/fractured-idle/milestones";
+import { KIND_ICON_MAP } from "./farm-icons";
 
 // Small pieces the farm's tabs share.
 
@@ -49,11 +54,18 @@ export function ResChip({ s, id, n }: { s: Ctx["s"]; id: ResId; n: number }) {
         </span>
     );
 }
+/** One cost line as an icon tile with what you have and what it needs. */
+export const farmNeed = (s: Ctx["s"], id: ResId, n: number): Need => {
+    const r = resInfo(id);
+    const icon = id === "any" ? "intelligence" : id.startsWith("k_") ? KIND_ICON_MAP[id.slice(2) as keyof typeof KIND_ICON_MAP] : id.startsWith("e_") ? cropIcon[id.slice(2) as keyof typeof cropIcon] : id in cropIcon ? cropIcon[id as keyof typeof cropIcon] : iconOf(id, "forge");
+    return { id, name: r.name, color: r.color, icon, have: have(s, id), need: n };
+};
+export const farmNeeds = (s: Ctx["s"], cost: Cost): Need[] => (Object.entries(cost) as [ResId, number][]).map(([id, n]) => farmNeed(s, id, n));
 export function CostRow({ s, cost }: { s: Ctx["s"]; cost: Cost }) {
     return (
-        <span className="fi-mn-cost">
-            {(Object.entries(cost) as [ResId, number][]).map(([id, n]) => (
-                <ResChip key={id} s={s} id={id} n={n} />
+        <span className="fi-cb-needs">
+            {farmNeeds(s, cost).map((n) => (
+                <NeedTile key={n.id} n={n} />
             ))}
         </span>
     );
@@ -77,6 +89,7 @@ export function upEffect(u: FarmUpDef, l: number): string {
         case "sifter": return `+${l * 12}% auto pods`;
         case "cracker": return l ? `opens one every ${Math.round(36 / l)}s` : "off";
         case "plots": return `+${l} plot${l === 1 ? "" : "s"} in every garden`;
+        case "field": return `field bonus cap +${30 + l * 4}%`;
         case "oven": return `${1 + l} ovens`;
         case "stoker": return `+${l * 8}% craft speed`;
         case "ladle": return l ? "on" : "off";
@@ -145,11 +158,11 @@ export function CropTip({ s, c, p, F, d }: { s: Ctx["s"]; c: CropDef; p: number;
                 ["Mixed planting", p > 0 ? fmtPct(p) : "choose it by hand / locked"],
                 ["Grows in", fmtTime(secs)],
                 ["Crops per harvest", F(cropUnits(s, c))],
-                ...(ctx ? ([["Farming XP per harvest", F(cropXp(c) * ctx.xp)], ["Shards per harvest", F(cropShards(ctx, c))]] as [string, string][]) : []),
+                ...(ctx ? ([["Farming XP per harvest", F(cropXp(c) * ctx.xp)], ["Shards per harvest", F(cropShards(ctx, c) * plotScale(s))]] as [string, string][]) : []),
                 ["Enchanted needs", `${enchNeed(s)} raw`],
                 ["Collection", `tier ${tier}/${COL_AT.length}`, c.color],
             ]}
-            notes={[{ text: `Collection pays +${fmtPct(c.col[1])} ${c.colText} per tier`, color: c.color }, { text: `Mixed plantings on: ${cropIslands(c.id).map((id) => ISLAND_BY_ID[id]?.name ?? id).slice(0, 4).join(", ")}`, color: "var(--mc-aqua)" }]}
+            notes={[{ text: `Collection pays +${fmtPct(0.4 * c.col[1])} ${c.colText} per tier (half rate after tier 5): ${fmtPct(0.4 * c.col[1] * colSteps(tier))} now`, color: c.color }, { text: `Mixed plantings on: ${cropIslands(c.id).map((id) => ISLAND_BY_ID[id]?.name ?? id).slice(0, 4).join(", ")}`, color: "var(--mc-aqua)" }]}
         />
     );
 }
