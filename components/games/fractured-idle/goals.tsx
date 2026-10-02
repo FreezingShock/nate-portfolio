@@ -4,6 +4,7 @@ import { heldEggs } from "@/lib/fractured-idle/inv-core";
 import { fmtPct } from "@/lib/fractured-idle/format";
 import { fmtInt } from "@/lib/fractured-idle/format";
 import { useMemo, useState } from "react";
+import { CHAPTER_COUNT, CHAPTER_INFO, chapterReady, currentChapter, nextPicks } from "@/lib/fractured-idle/chapters";
 import { Tip, TipCard } from "./tooltip";
 import { McSymbol } from "@/components/mc-symbol";
 import { ASC_BASE, EGGS, EGG_CUR, ISLANDS, PETS, REWARD_LABEL, SKILLS, TROPHIES, rebirthCost } from "@/lib/fractured-idle/data";
@@ -111,6 +112,20 @@ export function Goals({ s, d, F, open, render, say }: Pick<Ctx, "s" | "d" | "F" 
         return n;
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [sec]);
+
+    // ---- The Level chapter: what to do next for Fracture EXP ----
+    const chN = currentChapter(s);
+    if (chN <= CHAPTER_COUNT) {
+        const info = CHAPTER_INFO[chN - 1];
+        if (chapterReady(s, chN)) {
+            goals.push({ key: "chapter", tab: "level", symbol: "flag", color: info.color, title: `Chapter ${chN} complete!`, chip: "Claim", chipHot: true, pct: 1, ready: true, prio: 0, left: info.name, right: "Click to claim the reward" });
+        } else {
+            const pick = nextPicks(s, 1)[0];
+            if (pick) {
+                goals.push({ key: "chapter", tab: pick.row.tab && pick.row.tab !== "level" ? pick.row.tab : "level", symbol: "flag", color: info.color, title: pick.step.text, chip: `+${pick.step.xp} FXP`, pct: pick.frac, left: `Chapter ${chN}: ${info.name}`, right: "Level up: click to go there", prio: 1 });
+            }
+        }
+    }
 
     // ---- Rebirth ----
     const plan = rebirthPlan(s);

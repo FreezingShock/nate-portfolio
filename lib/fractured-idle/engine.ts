@@ -121,6 +121,7 @@ export function newState(): State {
         lvClaim: 0,
         pfx: "none",
         bsym: "none",
+        lch: 0,
         chap: [],
         frag: 0,
         evs: newEventStats(),
@@ -1116,6 +1117,7 @@ export function parseSave(raw: string): State | null {
         s.lvClaim = Math.max(0, Math.floor(Number(o.lvClaim) || 0));
         s.pfx = typeof o.pfx === "string" ? o.pfx : "none";
         s.bsym = typeof o.bsym === "string" ? o.bsym : "none";
+        s.lch = Math.max(0, Math.min(10, Math.floor(Number(o.lch) || 0)));
         s.chap = (Array.isArray(o.chap) ? (o.chap as unknown[]) : []).filter((x, i, a): x is string => typeof x === "string" && a.indexOf(x) === i).slice(0, 80);
         s.foraging = Math.max(0, Number(o.foraging) || 0);
         s.enchanting = Math.max(0, Number(o.enchanting) || 0);

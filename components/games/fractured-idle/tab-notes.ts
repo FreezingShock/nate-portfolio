@@ -9,6 +9,7 @@ import { ascPlan, bulk, eggCan, minionBase, rebirthPlan, skillLevel, trophyCount
 import { openIslands } from "@/lib/fractured-idle/island-logic";
 import { ENCHANTS, RECIPE_BY_ID, canBuyEnch, canCraft as canMineCraft, featsReady, geodeCount, goalOf as mineGoal, heldTool, isOre, jobsReady, mineLevel, slotsFree } from "@/lib/fractured-idle/mine";
 import { FARM_UPS, canBuyUp as canBuyFarmUp, canBuyHoe, featsReady as farmFeatsReady, jobsReady as farmJobsReady, readyCount, podCount } from "@/lib/fractured-idle/farm";
+import { CHAPTER_INFO, chapterReady } from "@/lib/fractured-idle/chapters";
 import { SAGAS, SAGA_BY_ID, finaleReady, readyChapters, type SagaId } from "@/lib/fractured-idle/sagas";
 import type { TabNote } from "./tab-bar";
 
@@ -131,6 +132,7 @@ export function buildTabNotes(s: State, current: string, cache: NoteCache, now =
 
     for (const c of readyChapters(s)) add("level", { text: `${SAGA_BY_ID[c.id.split(":")[0] as SagaId].name}: ${c.name} is ready to claim`, color: "#ffd23a", act: true });
     for (const x of SAGAS) if (finaleReady(s, x)) add("level", { text: `${x.name} finale is ready to claim`, color: x.color, act: true });
+    if (chapterReady(s, s.lch + 1)) add("level", { text: `Chapter ${s.lch + 1}: ${CHAPTER_INFO[s.lch].name} is ready to claim`, color: "#7dffb8", act: true });
     add("level", { text: `Fractured Level ${s.lvl}`, color: "var(--mc-aqua)" });
     return out;
 }

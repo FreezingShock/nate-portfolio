@@ -66,29 +66,29 @@ export interface FxpSource {
 }
 
 // Milestone ladders: [threshold, xp].
-const ladder = (value: number, steps: [number, number][]) => steps.reduce((a, [n, xp]) => (value >= n ? a + xp : a), 0);
-const ladderMax = (steps: [number, number][]) => steps.reduce((a, [, xp]) => a + xp, 0);
+export const ladder = (value: number, steps: [number, number][]) => steps.reduce((a, [n, xp]) => (value >= n ? a + xp : a), 0);
+export const ladderMax = (steps: [number, number][]) => steps.reduce((a, [, xp]) => a + xp, 0);
 
-const POP_CAUGHT: [number, number][] = [[1, 10], [10, 15], [50, 25], [200, 45], [1000, 80], [5000, 140]];
-const GOLDEN: [number, number][] = [[1, 12], [25, 25], [100, 50], [500, 100]];
-const PERFECT: [number, number][] = [[1, 15], [10, 25], [50, 50], [250, 100]];
-const CURSES: [number, number][] = [[1, 8], [5, 16], [20, 32]];
-const COMBO: [number, number][] = [[2, 15], [3, 15], [4, 20], [5, 20], [7, 25], [10, 30], [15, 35], [20, 40], [30, 50], [50, 70]];
-const HOURS: [number, number][] = [[1, 10], [5, 20], [12, 35], [24, 55], [72, 90], [168, 150], [500, 300]];
-const ROLLS: [number, number][] = [[1, 6], [10, 10], [50, 16], [200, 28], [1000, 50], [5000, 90]];
-const CODEX_XP = [1, 2, 3, 6, 10, 18, 32, 56]; // per entry, by rarity
-const EGGS: [number, number][] = [[1, 10], [10, 20], [50, 40], [200, 80], [1000, 160]];
+export const POP_CAUGHT: [number, number][] = [[1, 10], [10, 15], [50, 25], [200, 45], [1000, 80], [5000, 140]];
+export const GOLDEN: [number, number][] = [[1, 12], [25, 25], [100, 50], [500, 100]];
+export const PERFECT: [number, number][] = [[1, 15], [10, 25], [50, 50], [250, 100]];
+export const CURSES: [number, number][] = [[1, 8], [5, 16], [20, 32]];
+export const COMBO: [number, number][] = [[2, 15], [3, 15], [4, 20], [5, 20], [7, 25], [10, 30], [15, 35], [20, 40], [30, 50], [50, 70]];
+export const HOURS: [number, number][] = [[1, 10], [5, 20], [12, 35], [24, 55], [72, 90], [168, 150], [500, 300]];
+export const ROLLS: [number, number][] = [[1, 6], [10, 10], [50, 16], [200, 28], [1000, 50], [5000, 90]];
+export const CODEX_XP = [1, 2, 3, 6, 10, 18, 32, 56]; // per entry, by rarity
+export const EGGS: [number, number][] = [[1, 10], [10, 20], [50, 40], [200, 80], [1000, 160]];
 
-const RARITY_XP: Record<string, number> = { common: 10, uncommon: 18, rare: 32, epic: 55, legendary: 90, mythic: 150, divine: 240 };
-const trophyTierXp = (k: number) => 4 + 9 * k * (1 + k / 4); // early tiers are cheap, late tiers pay a lot
-const COL_XP = [6, 10, 18, 30, 50, 80];
-const MILESTONE_XP = [4, 8, 14, 24, 40];
+export const RARITY_XP: Record<string, number> = { common: 10, uncommon: 18, rare: 32, epic: 55, legendary: 90, mythic: 150, divine: 240 };
+export const trophyTierXp = (k: number) => 4 + 9 * k * (1 + k / 4); // early tiers are cheap, late tiers pay a lot
+export const COL_XP = [6, 10, 18, 30, 50, 80];
+export const MILESTONE_XP = [4, 8, 14, 24, 40];
 /** Each power of ten of lifetime shards past 1e3 pays 2 x its number, so deep decades pay the most. */
-const decadePay = (total: number) => {
+export const decadePay = (total: number) => {
     const d = Math.max(0, Math.floor(Math.log10(Math.max(1, total))) - 2);
     return d * (d + 1);
 };
-const skillLevelXp = (l: number) => 3 + 2 * Math.floor(l / 10) ** 2; // levels 1-9 pay 3, 50-59 pay 53
+export const skillLevelXp = (l: number) => 3 + 2 * Math.floor(l / 10) ** 2; // levels 1-9 pay 3, 50-59 pay 53
 
 /** Every Fracture EXP source and what it is paying right now. */
 export function fxpSources(s: State): FxpSource[] {

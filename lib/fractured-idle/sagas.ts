@@ -1,5 +1,6 @@
 import type { McSymbolName } from "@/components/mc-symbol";
 import { skillLevel, type SkillId, type State } from "./data";
+import { chapterFx } from "./chapter-fx";
 import type { EStat } from "./enchant";
 import { DIMS, HOES, KINDS, TOOL_BY_ID, allPlots, biggestField, crewTotal, dimSet, gardenOpen, totalHands, upLevel } from "./farm";
 import { FEATS as MINE_FEATS, drillHeld, drillMk, enchLevels, hasDrill } from "./mine";
@@ -459,5 +460,6 @@ export function levelFx(s: State): Fx {
 export function journeyFx(s: State): Fx {
     const out = sagaFx(s);
     addTo(out, Object.entries(levelFx(s)) as Buff[]);
+    addTo(out, Object.entries(chapterFx(s)) as Buff[]);
     return out;
 }
